@@ -24,9 +24,9 @@ struct ContentView: View {
                 Image(systemName: "car")
                 Text("traffic")
             }
-            dietView.tabItem{
-                Image(systemName: "fork.knife")
-                Text("food")
+            lifeView.tabItem{
+                Image(systemName: "cup.and.saucer.fill")
+                Text("life")
             }
             timetableView.tabItem{
                 Image(systemName: "list.clipboard")
@@ -48,13 +48,25 @@ struct ContentView: View {
 //MARK: - sub page
 
 private extension ContentView{
+    
+    //MARK: - home view
+    
     var linkView: some View{
         NavigationView{
-            List(webManager.webDatas, rowContent: { web in
-                NavigationLink(destination: WebDetailView(url: web.url)) {
-                    HStack {
-                        //Text(String(wel.))
-                        Text(web.title)
+            List(webManager.websArray, rowContent: { webs in
+                Section{
+                    ForEach(webs.webs){ web in
+                        NavigationLink(destination: WebDetailView(url: web.url)) {
+                            HStack {
+                                Text(web.title)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(webs.title)
+                } footer: {
+                    if webs.id == 2{
+                        Text("選課請以電腦選課，因為我找不到網址")
                     }
                 }
             })
@@ -65,6 +77,8 @@ private extension ContentView{
         })
     }
     
+    //MARK: - traffic
+
     var trafficView: some View{
         NavigationView{
             VStack {
@@ -110,7 +124,6 @@ private extension ContentView{
             self.bikeManager.fetchData()
         })
     }
-    
     func isNTPU(sno: String) -> Bool{
         for i in K.Bike.NTPUBikeNum{
             if i == sno{
@@ -120,19 +133,27 @@ private extension ContentView{
         return false
     }
     
-    var dietView: some View{
+    //MARK: - life view
+
+    var lifeView: some View{
         NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("Navigate") }
+            NavigationLink(destination: Text("Destination")) { Text("food and weather") }
         })
     }
+    
+    //MARK: - timetable
+
     var timetableView: some View{
         NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("Navigate") }
+            NavigationLink(destination: Text("Destination")) { Text("timetable") }
         })
     }
+    
+    //MARK: - about
+
     var aboutView: some View{
         NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("Navigate") }
+            NavigationLink(destination: Text("Destination")) { Text("feedback and intro") }
         })
     }
     
