@@ -35,7 +35,7 @@ class WebManager: ObservableObject{
         WebsArray(id: 2, title: "課程", webs: [
             WebData(id: 0, title: "課程查詢", url: "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.chi_main"),
             WebData(id: 2, title: "課程評價", url: "https://no21.ntpu.org/"),
-            WebData(id: 3, title: "考古系系網", url: "https://past-exam.ntpu.cc/"),
+            WebData(id: 3, title: "考古系系網", url: "https://www.dcard.tw/f/ntpu/p/254199226?cid=65C9373E-8DD6-4132-BD3F-B67CB61DEA9E"),
         ]),
         WebsArray(id: 3, title: "系網", webs: [
             

@@ -67,6 +67,7 @@ private extension ContentView{
                 } footer: {
                     if webs.id == 2{
                         Text("選課請以電腦選課，因為我找不到網址")
+                        Text("考古網站要用 google 登入，無法直接在 app 中登入，所以導到其他網頁～")
                     }
                 }
             })

@@ -35,20 +35,26 @@ struct WebView: UIViewRepresentable {
     
     class Coordinator: NSObject, WKNavigationDelegate {
         var parent: WebView
-
+        
         init(_ parent: WebView) {
             self.parent = parent
         }
-
+        
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated {
                 if let url = navigationAction.request.url {
-                    // 使用内嵌浏览器 (SFSafariViewController) 打开链接
-                    if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                        let safariVC = SFSafariViewController(url: url)
-                        topViewController.present(safariVC, animated: true, completion: nil)
+                    // 判断特定 URL 使用 Safari 浏览器打开
+                    if url.absoluteString == "https://past-exam.ntpu.cc/" {
+                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                        decisionHandler(.cancel)
+                    } else {
+                        // 使用内嵌浏览器 (SFSafariViewController) 打开其他链接
+                        if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                            let safariVC = SFSafariViewController(url: url)
+                            topViewController.present(safariVC, animated: true, completion: nil)
+                        }
+                        decisionHandler(.cancel)
                     }
-                    decisionHandler(.cancel)
                     return
                 }
             }
