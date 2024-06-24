@@ -16,10 +16,11 @@ struct WebData: Identifiable{
 
 class WebManager: ObservableObject{
     
-    @Published var webDatas = [WebData]()
+    @Published var webDatas:[WebData] = [
+        WebData(id: 1, title: "NTPU", url: K.Web.NTPUurl)
+    ]
     
     func createData(){
-        webDatas.append(WebData(id: 1, title: "NTPU", url: K.Web.NTPUurl))
     }
     
 }
