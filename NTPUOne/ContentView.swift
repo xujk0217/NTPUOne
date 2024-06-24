@@ -12,6 +12,7 @@ struct ContentView: View {
     
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
+    var trafficTitle = "UBike in ntpu"
     
     var body: some View {
         TabView{
@@ -66,23 +67,39 @@ private extension ContentView{
     
     var trafficView: some View{
         NavigationView{
-            List(bikeManager.bikeDatas) { stop in
-                NavigationLink(destination: bikeView()){
-                    HStack{
-                        Text(stop.tot)
-                            .font(.title.bold())
-                        VStack{
-                            HStack {
-                                Text(stop.sna)
-                                Spacer()
+            VStack {
+                List {
+                    Section {
+                        ForEach(bikeManager.bikeDatas) { stop in
+                            if isNTPU(sno: stop.sno) {
+                                NavigationLink(destination: bikeView()){
+                                    HStack{
+                                        Text(stop.tot)
+                                            .font(.title.bold())
+                                        VStack{
+                                            HStack {
+                                                Text(stop.sna)
+                                                Spacer()
+                                            }
+                                            HStack{
+                                                Image(systemName: "bicycle")
+                                                Text(stop.sbi)
+                                                Spacer()
+                                                Image(systemName: "baseball.diamond.bases")
+                                                Text(stop.bemp)
+                                                Spacer()
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            HStack{
-                                Image(systemName: "bicycle")
-                                Text(stop.sbi)
-                                Spacer()
-                                Image(systemName: "baseball.diamond.bases")
-                                Text(stop.bemp)
-                                Spacer()
+                        }
+                    } header: {
+                        HStack {
+                            Text("Ubike in NTPU")
+                            Spacer()
+                            NavigationLink(destination: MoreBikeView()) {
+                                Text("more")
                             }
                         }
                     }
@@ -93,7 +110,16 @@ private extension ContentView{
             self.bikeManager.fetchData()
         })
     }
-                
+    
+    func isNTPU(sno: String) -> Bool{
+        for i in K.Bike.NTPUBikeNum{
+            if i == sno{
+                return true
+            }
+        }
+        return false
+    }
+    
     var dietView: some View{
         NavigationView(content: {
             NavigationLink(destination: Text("Destination")) { Text("Navigate") }
