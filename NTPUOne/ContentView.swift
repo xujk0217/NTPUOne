@@ -55,10 +55,24 @@ private extension ContentView{
         NavigationView{
             List(webManager.websArray, rowContent: { webs in
                 Section{
-                    ForEach(webs.webs){ web in
-                        NavigationLink(destination: WebDetailView(url: web.url)) {
-                            HStack {
-                                Text(web.title)
+                    if webs.id != 3{
+                        ForEach(webs.webs){ web in
+                            NavigationLink(destination: WebDetailView(url: web.url)) {
+                                HStack {
+                                    Image(systemName: web.image)
+                                    Text(web.title)
+                                }
+                            }
+                        }
+                    }else{
+                        DisclosureGroup("系網們") {
+                            ForEach(webs.webs){ web in
+                                NavigationLink(destination: WebDetailView(url: web.url)) {
+                                    HStack {
+                                        Image(systemName: web.image)
+                                        Text(web.title)
+                                    }
+                                }
                             }
                         }
                     }
