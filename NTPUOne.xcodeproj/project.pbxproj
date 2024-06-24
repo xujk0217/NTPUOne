@@ -9,18 +9,24 @@
 /* Begin PBXBuildFile section */
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
-		3F8F950A2C290C25001A1697 /* Item.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* Item.swift */; };
+		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
 		3F8F950C2C290C27001A1697 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3F8F950B2C290C27001A1697 /* Assets.xcassets */; };
 		3F8F950F2C290C27001A1697 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3F8F950E2C290C27001A1697 /* Preview Assets.xcassets */; };
+		3F8F95162C290D5A001A1697 /* Constant.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95152C290D5A001A1697 /* Constant.swift */; };
+		3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95172C291146001A1697 /* WebDetailView.swift */; };
+		3F8F951A2C291401001A1697 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95192C291401001A1697 /* WebView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		3F8F95092C290C25001A1697 /* Item.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Item.swift; sourceTree = "<group>"; };
+		3F8F95092C290C25001A1697 /* WebData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebData.swift; sourceTree = "<group>"; };
 		3F8F950B2C290C27001A1697 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		3F8F950E2C290C27001A1697 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		3F8F95152C290D5A001A1697 /* Constant.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Constant.swift; sourceTree = "<group>"; };
+		3F8F95172C291146001A1697 /* WebDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebDetailView.swift; sourceTree = "<group>"; };
+		3F8F95192C291401001A1697 /* WebView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,7 +61,10 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
-				3F8F95092C290C25001A1697 /* Item.swift */,
+				3F8F95172C291146001A1697 /* WebDetailView.swift */,
+				3F8F95192C291401001A1697 /* WebView.swift */,
+				3F8F95092C290C25001A1697 /* WebData.swift */,
+				3F8F95152C290D5A001A1697 /* Constant.swift */,
 				3F8F950B2C290C27001A1697 /* Assets.xcassets */,
 				3F8F950D2C290C27001A1697 /* Preview Content */,
 			);
@@ -141,8 +150,11 @@
 			buildActionMask = 2147483647;
 			files = (
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
-				3F8F950A2C290C25001A1697 /* Item.swift in Sources */,
+				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
+				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
+				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
+				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
