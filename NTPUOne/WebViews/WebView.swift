@@ -43,8 +43,8 @@ struct WebView: UIViewRepresentable {
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
             if navigationAction.navigationType == .linkActivated {
                 if let url = navigationAction.request.url {
-                    // 判断特定 URL 使用 Safari 浏览器打开
-                    if url.absoluteString == "https://past-exam.ntpu.cc/" {
+//                    // 判断特定 URL 使用 Safari 浏览器打开
+                    if url.absoluteString == "https://past-exam.ntpu.cc" {
                         UIApplication.shared.open(url, options: [:], completionHandler: nil)
                         decisionHandler(.cancel)
                     } else {
