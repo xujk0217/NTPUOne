@@ -36,7 +36,7 @@ class WebManager: ObservableObject{
         WebsArray(id: 2, title: "課程", webs: [
             WebData(id: 0, title: "課程查詢", image: "magnifyingglass", url: "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.chi_main"),
             WebData(id: 2, title: "課程評價", image: "ellipsis.message.fill", url: "https://no21.ntpu.org/"),
-            WebData(id: 3, title: "考古系系網", image: "folder.badge.questionmark", url: "https://kevin16021777.wixsite.com/my-site-4"),  //待更改
+            WebData(id: 3, title: "考古系系網", image: "folder.badge.questionmark", url: "https://past-exam.ntpu.cc"),
         ]),
         WebsArray(id: 3, title: "系網", webs: [
             WebData(id: -6, title: "法律學院", image: "macwindow.on.rectangle", url: "https://new.ntpu.edu.tw/law"),

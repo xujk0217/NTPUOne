@@ -21,11 +21,9 @@ struct WebView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: WKWebView, context: Context) {
-        if let safeString = urlString {
-            if let url = URL(string: safeString) {
-                let request = URLRequest(url: url)
-                uiView.load(request)
-            }
+        if let safeString = urlString, let url = URL(string: safeString) {
+            let request = URLRequest(url: url)
+            uiView.load(request)
         }
     }
     
@@ -41,33 +39,41 @@ struct WebView: UIViewRepresentable {
         }
         
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            if navigationAction.navigationType == .linkActivated {
-                if let url = navigationAction.request.url {
-//                     判断特定 URL 使用 Safari 浏览器打开
-                    if url.absoluteString == "https://past-exam.ntpu.cc" {
-                        UIApplication.shared.open(url, options: [:], completionHandler: nil)
-                        decisionHandler(.cancel)
-                    } else {
-                        // 使用内嵌浏览器 (SFSafariViewController) 打开其他链接
-                        if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                            let safariVC = SFSafariViewController(url: url)
-                            topViewController.present(safariVC, animated: true, completion: nil)
-                        }
-                        decisionHandler(.cancel)
-                    }
-                    return
-//                    // Check if the navigation action's URL matches a specific condition
-//                    if navigationAction.request.url?.absoluteString == "https://past-exam.ntpu.cc/" {
-//                        // Open in external browser
-//                        if UIApplication.shared.canOpenURL(navigationAction.request.url!) {
-//                            UIApplication.shared.open(navigationAction.request.url!, options: [:], completionHandler: nil)
-//                            decisionHandler(.cancel)
-//                            return
-//                        }
-//                    }
-                }
+            guard let url = navigationAction.request.url else {
+                decisionHandler(.allow)
+                return
             }
+            
+            if navigationAction.navigationType == .linkActivated {
+                let urlString = url.absoluteString
+                
+                // 如果是特定的 URL 使用外部浏览器打开
+                if urlString == "https://past-exam.ntpu.cc" {
+                    UIApplication.shared.open(url, options: [:], completionHandler: nil)
+                    decisionHandler(.cancel)
+                    return
+                }
+                
+                // 对其他 URL 使用内嵌浏览器 (SFSafariViewController) 打开
+                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                    let safariVC = SFSafariViewController(url: url)
+                    topViewController.present(safariVC, animated: true, completion: nil)
+                }
+                decisionHandler(.cancel)
+                return
+            }
+            
             decisionHandler(.allow)
         }
     }
+}
+
+struct SafariView: UIViewControllerRepresentable {
+    let url: URL
+
+    func makeUIViewController(context: Context) -> SFSafariViewController {
+        return SFSafariViewController(url: url)
+    }
+
+    func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
