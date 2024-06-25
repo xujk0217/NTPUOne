@@ -81,6 +81,8 @@ private extension ContentView{
                 } footer: {
                     if webs.id == 2{
                         Text("選課請以電腦選課，因為我找不到網址")
+                    }else if webs.id == 3{
+                        Text("不動和應外的系網不符合 HTTPS 協定，無法進入，請從院網進入")
                     }
                 }
             })
