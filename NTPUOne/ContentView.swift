@@ -75,7 +75,11 @@ private extension ContentView{
         NavigationView {
             VStack {
                 List {
-                    DemoView
+                    Section {
+                        DemoView
+                    } footer: {
+                        Text("如需新增活動廣播，請至 about 頁面新增")
+                    }
                     ForEach(webManager.websArray) { webs in
                         Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
                             if webs.id != 3 {
@@ -197,7 +201,7 @@ private extension ContentView{
                         startIndex = (startIndex + 1) % order.count
                     }
                 }
-                .frame(height: 100)
+                .frame(height: 130)
         }
     
     
@@ -280,7 +284,7 @@ private extension ContentView{
                     }
                 }
             }
-            
+            .navigationTitle("Life")
         }.onAppear(perform: {
             self.weatherManager.fetchData()
         })
@@ -289,17 +293,19 @@ private extension ContentView{
     //MARK: - timetable
     
     var timetableView: some View{
-        NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("timetable") }
-        })
+        NavigationView {
+            Text("un")
+            .navigationTitle("Time table")
+        }
     }
     
     //MARK: - about
     
     var aboutView: some View{
-        NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("feedback and intro") }
-        })
+        NavigationView {
+            Text("1. update demo with ad  2. contact me  3. feedback-feature suggestion-bug report  4. ad richer 5. about me" )
+                .navigationTitle("About")
+        }
     }
     
 }
