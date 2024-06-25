@@ -13,10 +13,19 @@ struct ContentView: View {
     
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
+    @ObservedObject var weatherManager = WeatherManager()
     
     @State private var urlString: String? = nil
     @State private var showWebView = false
     @State private var showSafariView = false
+    
+    @State private var isExpanded = false
+    
+    //DemoView
+    private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    @State var startIndex = 0
+    var order = ["First", "Second", "Third", "想新增活動廣播，請至 about 頁面聯絡我"]
+    //
     
     var trafficTitle = "UBike in ntpu"
     
@@ -58,36 +67,39 @@ private extension ContentView{
     //MARK: - home view
     var linkView: some View {
         NavigationView {
-            List {
-                ForEach(webManager.websArray) { webs in
-                    Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
-                        if webs.id != 3 {
-                            ForEach(webs.webs) { web in
-                                if web.url == "https://past-exam.ntpu.cc" || web.url == "https://cof.ntpu.edu.tw/student_new.htm" {
-                                    Button(action: {
-                                        handleURL(web.url)
-                                    }) {
-                                        HStack {
-                                            Image(systemName: web.image)
-                                            Text(web.title)
+            VStack {
+                List {
+                    DemoView
+                    ForEach(webManager.websArray) { webs in
+                        Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
+                            if webs.id != 3 {
+                                ForEach(webs.webs) { web in
+                                    if web.url == "https://past-exam.ntpu.cc" || web.url == "https://cof.ntpu.edu.tw/student_new.htm" {
+                                        Button(action: {
+                                            handleURL(web.url)
+                                        }) {
+                                            HStack {
+                                                Image(systemName: web.image)
+                                                Text(web.title)
+                                            }
                                         }
-                                    }
-                                } else {
-                                    NavigationLink(destination: WebDetailView(url: web.url)) {
-                                        HStack {
-                                            Image(systemName: web.image)
-                                            Text(web.title)
+                                    } else {
+                                        NavigationLink(destination: WebDetailView(url: web.url)) {
+                                            HStack {
+                                                Image(systemName: web.image)
+                                                Text(web.title)
+                                            }
                                         }
                                     }
                                 }
-                            }
-                        } else {
-                            DisclosureGroup("系網們") {
-                                ForEach(webs.webs) { web in
-                                    NavigationLink(destination: WebDetailView(url: web.url)) {
-                                        HStack {
-                                            Image(systemName: web.image)
-                                            Text(web.title)
+                            } else {
+                                DisclosureGroup("系網們") {
+                                    ForEach(webs.webs) { web in
+                                        NavigationLink(destination: WebDetailView(url: web.url)) {
+                                            HStack {
+                                                Image(systemName: web.image)
+                                                Text(web.title)
+                                            }
                                         }
                                     }
                                 }
@@ -95,18 +107,18 @@ private extension ContentView{
                         }
                     }
                 }
-            }
-            .navigationTitle("NTPU Links")
-            .onAppear(perform: {
-                webManager.createData()
-            })
-            .sheet(isPresented: $showWebView) {
-                if let urlString = urlString {
-                    WebDetailView(url: urlString)
+                .navigationTitle("NTPU Links")
+                .onAppear(perform: {
+                    webManager.createData()
+                })
+                .sheet(isPresented: $showWebView) {
+                    if let urlString = urlString {
+                        WebDetailView(url: urlString)
+                    }
                 }
-            }
-            .sheet(isPresented: $showSafariView) {
-                
+                .sheet(isPresented: $showSafariView) {
+                    
+                }
             }
         }
     }
@@ -139,6 +151,35 @@ private extension ContentView{
         }
     }
     
+    var DemoView: some View {
+                TabView(selection: $startIndex) {
+                    ForEach(order.indices, id: \.self) { index in
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text(order[index])
+                                    .font(.headline)
+                                    .multilineTextAlignment(.center)
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                    }
+                    .background(Color.gray.opacity(0.2))
+                    .cornerRadius(15)
+                    .padding(.horizontal, 2)
+                }
+                .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                .onReceive(timer) { _ in
+                    withAnimation {
+                        startIndex = (startIndex + 1) % order.count
+                    }
+                }
+                .frame(height: 100)
+        }
+    
+    
     //MARK: - traffic
     
     var trafficView: some View{
@@ -146,24 +187,26 @@ private extension ContentView{
             VStack {
                 List {
                     Section {
-                        ForEach(bikeManager.bikeDatas) { stop in
-                            if isNTPU(sno: stop.sno) {
-                                NavigationLink(destination: bikeView()){
-                                    HStack{
-                                        Text(stop.tot)
-                                            .font(.title.bold())
-                                        VStack{
-                                            HStack {
-                                                Text(stop.sna)
-                                                Spacer()
-                                            }
-                                            HStack{
-                                                Image(systemName: "bicycle")
-                                                Text(stop.sbi)
-                                                Spacer()
-                                                Image(systemName: "baseball.diamond.bases")
-                                                Text(stop.bemp)
-                                                Spacer()
+                        DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
+                            ForEach(bikeManager.bikeDatas) { stop in
+                                if isNTPU(sno: stop.sno) {
+                                    NavigationLink(destination: bikeView()){
+                                        HStack{
+                                            Text(stop.tot)
+                                                .font(.title.bold())
+                                            VStack{
+                                                HStack {
+                                                    Text(stop.sna)
+                                                    Spacer()
+                                                }
+                                                HStack{
+                                                    Image(systemName: "bicycle")
+                                                    Text(stop.sbi)
+                                                    Spacer()
+                                                    Image(systemName: "baseball.diamond.bases")
+                                                    Text(stop.bemp)
+                                                    Spacer()
+                                                }
                                             }
                                         }
                                     }
@@ -174,10 +217,15 @@ private extension ContentView{
                         HStack {
                             Text("Ubike in NTPU")
                             Spacer()
-                            NavigationLink(destination: MoreBikeView()) {
-                                Text("more")
+                            if isExpanded == true {
+                                NavigationLink(destination: MoreBikeView()) {
+                                    Text("more")
+                                        .font(.caption)
+                                }
                             }
                         }
+                    } footer: {
+                        Text("更新頻率：每5分鐘")
                     }
                 }
             }
@@ -198,8 +246,22 @@ private extension ContentView{
     //MARK: - life view
     
     var lifeView: some View{
-        NavigationView(content: {
-            NavigationLink(destination: Text("Destination")) { Text("food and weather") }
+        NavigationView{
+            NavigationLink {
+                WeatherDetailView()
+            } label: {
+                VStack {
+                    if weatherManager.weatherDatas?.records.Station[0].WeatherElement.Weather == "陰"{
+                        Image(systemName: "cloud.fill")
+                            .renderingMode(.original)
+                            .aspectRatio(contentMode: .fill)
+                            .foregroundColor(Color.black)
+                    }
+                }
+            }
+            
+        }.onAppear(perform: {
+            self.weatherManager.fetchData()
         })
     }
     
