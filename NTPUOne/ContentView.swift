@@ -95,10 +95,21 @@ private extension ContentView{
                             } else {
                                 DisclosureGroup("系網們") {
                                     ForEach(webs.webs) { web in
-                                        NavigationLink(destination: WebDetailView(url: web.url)) {
-                                            HStack {
-                                                Image(systemName: web.image)
-                                                Text(web.title)
+                                        if web.url == "http://dafl.ntpu.edu.tw/main.php" || web.url == "http://www.rebe.ntpu.edu.tw"{
+                                            Button(action: {
+                                                handleURL(web.url)
+                                            }) {
+                                                HStack {
+                                                    Image(systemName: web.image)
+                                                    Text(web.title)
+                                                }
+                                            }
+                                        } else {
+                                            NavigationLink(destination: WebDetailView(url: web.url)) {
+                                                HStack {
+                                                    Image(systemName: web.image)
+                                                    Text(web.title)
+                                                }
                                             }
                                         }
                                     }
@@ -146,7 +157,7 @@ private extension ContentView{
             if id == 2 {
                 Text("選課請以電腦選課，因為我找不到網址")
             } else if id == 3 {
-                Text("不動和應外的系網不符合 HTTPS 協定，無法進入，請從院網進入")
+                Text("有些研究所我不會簡寫，如需要請聯絡我")
             }
         }
     }

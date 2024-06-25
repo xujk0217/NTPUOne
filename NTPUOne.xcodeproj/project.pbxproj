@@ -77,11 +77,11 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
-				3F90626D2C29D13400B9F24A /* Launch Screen.storyboard */,
 				3F9062712C2AA56800B9F24A /* WeatherView */,
 				3F9062642C2929D100B9F24A /* TrafficView */,
 				3F8F951B2C291690001A1697 /* WebViews */,
 				3F8F95152C290D5A001A1697 /* Constant.swift */,
+				3F90626D2C29D13400B9F24A /* Launch Screen.storyboard */,
 				3F8F950B2C290C27001A1697 /* Assets.xcassets */,
 				3F8F950D2C290C27001A1697 /* Preview Content */,
 			);
