@@ -24,7 +24,13 @@ struct ContentView: View {
     //DemoView
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
-    var order = ["First", "Second", "Third", "想新增活動廣播，請至 about 頁面聯絡我"]
+    //var order = ["First", "Second", "Third", "想新增活動廣播，請至 about 頁面聯絡我"]
+    let order: [(title: String, url: String?)] = [
+            (title: "First", url: "https://new.ntpu.edu.tw/"),
+            (title: "Second", url: nil),
+            (title: "Third", url: "https://new.ntpu.edu.tw/"),
+            (title: "想新增活動廣播，請至 about 頁面聯絡我", url: "https://new.ntpu.edu.tw/")
+        ]
     //
     
     var trafficTitle = "UBike in ntpu"
@@ -118,7 +124,7 @@ private extension ContentView{
                         }
                     }
                 }
-                .navigationTitle("NTPU Links")
+                .navigationTitle("NTPU one")
                 .onAppear(perform: {
                     webManager.createData()
                 })
@@ -169,12 +175,16 @@ private extension ContentView{
                             Spacer()
                             HStack {
                                 Spacer()
-                                Text(order[index])
+                                Text(order[index].title)
                                     .font(.headline)
                                     .multilineTextAlignment(.center)
                                 Spacer()
                             }
                             Spacer()
+                        }.onTapGesture {
+                            if let url = order[index].url, !url.isEmpty {
+                                handleURL(url)
+                            }
                         }
                     }
                     .background(Color.gray.opacity(0.2))
