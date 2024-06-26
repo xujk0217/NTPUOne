@@ -24,7 +24,6 @@ struct ContentView: View {
     //DemoView
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
-    //var order = ["First", "Second", "Third", "想新增活動廣播，請至 about 頁面聯絡我"]
     let order: [(title: String, url: String?)] = [
         (title: "First", url: "https://new.ntpu.edu.tw/"),
         (title: "Second", url: nil),
@@ -279,28 +278,32 @@ private extension ContentView{
     //MARK: - life view
     @ViewBuilder
     var lifeView: some View{
-        NavigationView{
-            if let weatherData = weatherManager.weatherDatas {
-                let station = weatherData.records.Station.first!
-                ScrollView {
-                    VStack {
-                        weatherView(
-                            weathers: station.WeatherElement.Weather,
-                            currentTemperature: station.WeatherElement.AirTemperature,
-                            maxTemperature: station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature,
-                            minTemperature: station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature,
-                            windSpeed: station.WeatherElement.WindSpeed,
-                            getTime: station.ObsTime.DateTime,
-                            humidity: station.WeatherElement.RelativeHumidity
-                        )
+        NavigationView {
+            VStack{
+                if let weatherData = weatherManager.weatherDatas {
+                    let station = weatherData.records.Station.first!
+                    ScrollView {
+                        VStack {
+                            weatherView(
+                                weathers: station.WeatherElement.Weather,
+                                currentTemperature: station.WeatherElement.AirTemperature,
+                                maxTemperature: station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature,
+                                minTemperature: station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature,
+                                windSpeed: station.WeatherElement.WindSpeed,
+                                getTime: station.ObsTime.DateTime,
+                                humidity: station.WeatherElement.RelativeHumidity
+                            )
+                        }
                     }
+                    .navigationTitle("PU Life")
+                }else{
+                    Text("Loading...")
+                        .onAppear {
+                            weatherManager.fetchData()
+                        }
+                    ProgressView()
                 }
-                .navigationTitle("PU Life")
-            }else{
-                Text("Loading...")
-                    .onAppear {
-                        weatherManager.fetchData()
-                    }
+                
             }
         }.onAppear {
             weatherManager.fetchData()
@@ -316,91 +319,91 @@ private extension ContentView{
         let getTime: String
         let humidity: Double
         var body: some View{
-                VStack {
-                    HStack {
-                        Spacer()
-                        VStack {
-                            Image(systemName: weatherIcon(weather: weathers))
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 50, height: 50)
-                                .padding()
-                            Text(weathers)
-                        }
-                        Spacer()
-                        HStack {
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Image(systemName: "thermometer.medium")
-                                    Text(" \(currentTemperature, specifier: "%.1f")°C")
-                                        .font(.title3.bold())
-                                }
-                                HStack {
-                                    Image(systemName: "thermometer.sun")
-                                    Text(" \(maxTemperature, specifier: "%.1f")°C")
-                                        .font(.title3)
-                                }
-                                HStack {
-                                    Image(systemName: "thermometer.snowflake")
-                                    Text(" \(minTemperature, specifier: "%.1f")°C")
-                                        .font(.title3)
-                                }
-                                HStack {
-                                    Image(systemName: "wind")
-                                    Text(" \(windSpeed, specifier: "%.1f") m/s")
-                                        .font(.title3)
-                                }
-                            }
-                            VStack(alignment: .leading) {
-                                HStack {
-                                    Image(systemName: "clock.badge")
-                                    Text(getTime.substring(from: 11, length: 5))
-                                        .font(.title3)
-                                }
-                                HStack {
-                                    if currentTemperature > 27{
-                                        Image(systemName: "face.dashed")
-                                    }else if currentTemperature > 16{
-                                        Image(systemName: "face.smiling")
-                                    }else{
-                                        Image(systemName: "face.dashed.fill")
-                                    }
-                                    if currentTemperature > 30{
-                                        Text("快蒸發了")
-                                            .font(.title3)
-                                    }else if currentTemperature >= 28 {
-                                        Text("好叻啊")
-                                            .font(.title3)
-                                    }else if currentTemperature >= 23{
-                                        Text("小熱")
-                                            .font(.title3)
-                                    }else if currentTemperature > 15{
-                                        Text("舒服")
-                                            .font(.title3)
-                                    }else if currentTemperature > 11{
-                                        Text("小冷")
-                                            .font(.title3)
-                                    }else{
-                                        Text("凍凍腦")
-                                            .font(.title3)
-                                    }
-                                }
-                                HStack {
-                                    Text(" ")
-                                        .font(.title3)
-                                }
-                                HStack {
-                                    Text(" ")
-                                        .font(.title3)
-                                }
-                            }
-                        }
-                        Spacer()
+            VStack {
+                HStack {
+                    Spacer()
+                    VStack {
+                        Image(systemName: weatherIcon(weather: weathers))
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 50, height: 50)
+                            .padding()
+                        Text(weathers)
                     }
-                    .frame(height: 150)
-                    .background(Color.gray.opacity(0.2))
-                    .cornerRadius(10)
-                    .padding()
+                    Spacer()
+                    HStack {
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Image(systemName: "thermometer.medium")
+                                Text(" \(currentTemperature, specifier: "%.1f")°C")
+                                    .font(.title3.bold())
+                            }
+                            HStack {
+                                Image(systemName: "thermometer.sun")
+                                Text(" \(maxTemperature, specifier: "%.1f")°C")
+                                    .font(.title3)
+                            }
+                            HStack {
+                                Image(systemName: "thermometer.snowflake")
+                                Text(" \(minTemperature, specifier: "%.1f")°C")
+                                    .font(.title3)
+                            }
+                            HStack {
+                                Image(systemName: "wind")
+                                Text(" \(windSpeed, specifier: "%.1f") m/s")
+                                    .font(.title3)
+                            }
+                        }
+                        VStack(alignment: .leading) {
+                            HStack {
+                                Image(systemName: "clock.badge")
+                                Text(getTime.substring(from: 11, length: 5))
+                                    .font(.title3)
+                            }
+                            HStack {
+                                if currentTemperature > 27{
+                                    Image(systemName: "face.dashed")
+                                }else if currentTemperature > 16{
+                                    Image(systemName: "face.smiling")
+                                }else{
+                                    Image(systemName: "face.dashed.fill")
+                                }
+                                if currentTemperature > 30{
+                                    Text("快蒸發了")
+                                        .font(.title3)
+                                }else if currentTemperature >= 28 {
+                                    Text("好叻啊")
+                                        .font(.title3)
+                                }else if currentTemperature >= 23{
+                                    Text("小熱")
+                                        .font(.title3)
+                                }else if currentTemperature > 15{
+                                    Text("舒服")
+                                        .font(.title3)
+                                }else if currentTemperature > 11{
+                                    Text("小冷")
+                                        .font(.title3)
+                                }else{
+                                    Text("凍凍腦")
+                                        .font(.title3)
+                                }
+                            }
+                            HStack {
+                                Text(" ")
+                                    .font(.title3)
+                            }
+                            HStack {
+                                Text(" ")
+                                    .font(.title3)
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                .frame(height: 150)
+                .background(Color.gray.opacity(0.2))
+                .cornerRadius(10)
+                .padding()
             }
         }
         func weatherIcon(weather: String) -> String {
@@ -467,6 +470,27 @@ private extension ContentView{
             case "陰大雷雨": return "cloud.bolt.rain"
             case "陰大雷雹": return "cloud.bolt.hail"
             case "陰有雷": return "cloud.bolt"
+                
+            case "有霾": return "cloud.haze"
+            case "有靄": return "cloud.haze"
+            case "有閃電": return "cloud.bolt"
+            case "有雷聲": return "cloud.bolt"
+            case "有霧": return "cloud.haze"
+            case "有雨": return "cloud.rain"
+            case "有雨雪": return "cloud.sleet"
+            case "有大雪": return "cloud.snow"
+            case "有雪珠": return "cloud.snow"
+            case "有冰珠": return "cloud.snow"
+            case "有陣雨": return "cloud.rain"
+            case "陣雨雪": return "cloud.sleet"
+            case "有雹": return "cloud.hail"
+            case "有雷雨": return "cloud.bolt.rain"
+            case "有雷雪": return "cloud.snow"
+            case "有雷雹": return "cloud.bolt.hail"
+            case "大雷雨": return "cloud.bolt.rain"
+            case "大雷雹": return "cloud.bolt.hail"
+            case "有雷": return "cloud.bolt"
+                
             default: return "questionmark.circle"
             }
         }
