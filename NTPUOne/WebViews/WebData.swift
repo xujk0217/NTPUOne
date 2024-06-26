@@ -79,8 +79,9 @@ class WebManager: ObservableObject{
         ]),
         WebsArray(id: 6, title: "其他", webs: [
             WebData(id: 39, title: "社團", image: "suit.club.fill", url: "https://www.extracurricular-activities-section.com.tw/"),
-            WebData(id: 40, title: "校務建言", image: "captions.bubble.fill", url: "https://sea.cc.ntpu.edu.tw/pls/ntpu_cof/suggestion_login.html#2"),
-            WebData(id: 41, title: "請假系統", image: "figure.mind.and.body", url: "https://cof.ntpu.edu.tw/pls/acad2/leave_sys.html")
+            WebData(id: 40, title: "校園聯絡簿", image: "phone.bubble", url: "https://sea.cc.ntpu.edu.tw/pls/ld/campus_dir_m.main"),
+            WebData(id: 41, title: "校務建言", image: "captions.bubble.fill", url: "https://sea.cc.ntpu.edu.tw/pls/ntpu_cof/suggestion_login.html#2"),
+            WebData(id: 42, title: "請假系統", image: "figure.mind.and.body", url: "https://cof.ntpu.edu.tw/pls/acad2/leave_sys.html"),
         ]),
     ]
     

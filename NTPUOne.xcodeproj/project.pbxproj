@@ -22,7 +22,6 @@
 		3F90626E2C29D13400B9F24A /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3F90626D2C29D13400B9F24A /* Launch Screen.storyboard */; };
 		3F9062702C2AA56200B9F24A /* WeatherData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F90626F2C2AA56200B9F24A /* WeatherData.swift */; };
 		3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062722C2AB86700B9F24A /* WeatherManager.swift */; };
-		3F9062752C2ABB8F00B9F24A /* WeatherDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062742C2ABB8F00B9F24A /* WeatherDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,7 +41,6 @@
 		3F90626D2C29D13400B9F24A /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
 		3F90626F2C2AA56200B9F24A /* WeatherData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherData.swift; sourceTree = "<group>"; };
 		3F9062722C2AB86700B9F24A /* WeatherManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherManager.swift; sourceTree = "<group>"; };
-		3F9062742C2ABB8F00B9F24A /* WeatherDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -122,7 +120,6 @@
 			children = (
 				3F90626F2C2AA56200B9F24A /* WeatherData.swift */,
 				3F9062722C2AB86700B9F24A /* WeatherManager.swift */,
-				3F9062742C2ABB8F00B9F24A /* WeatherDetailView.swift */,
 			);
 			path = WeatherView;
 			sourceTree = "<group>";
@@ -208,7 +205,6 @@
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
-				3F9062752C2ABB8F00B9F24A /* WeatherDetailView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F90626A2C29584D00B9F24A /* bikeView.swift in Sources */,
 			);
@@ -354,8 +350,8 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -364,6 +360,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -388,8 +387,8 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -398,6 +397,9 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";

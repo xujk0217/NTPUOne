@@ -30,6 +30,7 @@ struct WeatherElement: Decodable {
     let Weather: String
     let WindSpeed: Double
     let AirTemperature: Double
+    let RelativeHumidity: Double
     let DailyExtreme: DailyExtreme
 }
 
@@ -54,3 +55,6 @@ struct TemperatureInfo: Decodable {
 struct OccurredAt: Decodable {
     let DateTime: String
 }
+
+//晴 多雲 陰
+//有霾 有靄 有閃電 有雷聲 有霧 有雨 有雨雪 有大雪 有雪珠 有冰珠 有陣雨 陣雨雪 有雹 有雷雨 有雷雪 有雷雨 有雷雹 大雷雨 有雷雨 大雷雹  有雷
