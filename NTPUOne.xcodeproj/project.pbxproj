@@ -51,6 +51,9 @@
 		3F9062B22C2C290E00B9F24A /* FirebaseRemoteConfigSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062B12C2C290E00B9F24A /* FirebaseRemoteConfigSwift */; };
 		3F9062B42C2C290E00B9F24A /* FirebaseStorageCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062B32C2C290E00B9F24A /* FirebaseStorageCombine-Community */; };
 		3F9062B62C2C290E00B9F24A /* FirebaseVertexAI-Preview in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062B52C2C290E00B9F24A /* FirebaseVertexAI-Preview */; };
+		3F9062B92C2C507400B9F24A /* AboutMeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062B82C2C507400B9F24A /* AboutMeView.swift */; };
+		3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062BA2C2C515000B9F24A /* ContactMeView.swift */; };
+		3F9062BD2C2C524B00B9F24A /* AddOrderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -71,6 +74,9 @@
 		3F9062722C2AB86700B9F24A /* WeatherManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherManager.swift; sourceTree = "<group>"; };
 		3F9062832C2C15A200B9F24A /* Order.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Order.swift; sourceTree = "<group>"; };
 		3F9062A32C2C263800B9F24A /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		3F9062B82C2C507400B9F24A /* AboutMeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutMeView.swift; sourceTree = "<group>"; };
+		3F9062BA2C2C515000B9F24A /* ContactMeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactMeView.swift; sourceTree = "<group>"; };
+		3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddOrderView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -136,8 +142,9 @@
 				3F9062712C2AA56800B9F24A /* WeatherView */,
 				3F9062642C2929D100B9F24A /* TrafficView */,
 				3F8F951B2C291690001A1697 /* WebViews */,
-				3F8F95152C290D5A001A1697 /* Constant.swift */,
+				3F9062B72C2C500400B9F24A /* AboutView */,
 				3F8F950B2C290C27001A1697 /* Assets.xcassets */,
+				3F8F95152C290D5A001A1697 /* Constant.swift */,
 				3F9062A32C2C263800B9F24A /* GoogleService-Info.plist */,
 				3F8F950D2C290C27001A1697 /* Preview Content */,
 			);
@@ -181,6 +188,16 @@
 				3F9062722C2AB86700B9F24A /* WeatherManager.swift */,
 			);
 			path = WeatherView;
+			sourceTree = "<group>";
+		};
+		3F9062B72C2C500400B9F24A /* AboutView */ = {
+			isa = PBXGroup;
+			children = (
+				3F9062B82C2C507400B9F24A /* AboutMeView.swift */,
+				3F9062BA2C2C515000B9F24A /* ContactMeView.swift */,
+				3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */,
+			);
+			path = AboutView;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -295,10 +312,13 @@
 				3F9062702C2AA56200B9F24A /* WeatherData.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
+				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
+				3F9062BD2C2C524B00B9F24A /* AddOrderView.swift in Sources */,
+				3F9062B92C2C507400B9F24A /* AboutMeView.swift in Sources */,
 				3F90626A2C29584D00B9F24A /* bikeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

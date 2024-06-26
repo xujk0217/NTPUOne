@@ -25,7 +25,7 @@ struct ContentView: View {
     @State private var isExpanded = false
     
     //DemoView
-    private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
     
     var trafficTitle = "UBike in ntpu"
@@ -185,7 +185,7 @@ private extension ContentView{
                     Spacer()
                     HStack {
                         Spacer()
-                        Text("\(orderManager.order[index].message)")
+                        Text("\(orderManager.order[index].message) \n -by \(orderManager.order[index].name)")
                             .font(.headline)
                             .lineLimit(5)
                             .multilineTextAlignment(.center)
@@ -512,7 +512,37 @@ private extension ContentView{
     
     var aboutView: some View{
         NavigationView {
-            Text("1. update demo with ad  2. contact me  3. feedback-feature suggestion-bug report  4. ad richer 5. about me" )
+            //("1. update demo with ad  3. feedback-feature suggestion-bug report  4. ad richer " )
+            List{
+                Section{
+                    NavigationLink {
+                        AddOrderView()
+                            .navigationTitle("新增頁面")
+                    } label: {
+                        Text("新增活動廣播")
+                    }
+
+                } header: {
+                    Text("活動廣播")
+                } footer: {
+                    Text("無意義的會刪掉喔～")
+                }
+                Section{
+                    NavigationLink {
+                        ContactMeView()
+                    } label: {
+                        Text("Contact me")
+                    }
+
+                    NavigationLink {
+                        AboutMeView()
+                    } label: {
+                        Text("about me")
+                    }
+                } header: {
+                    Text("Me")
+                }
+            }
                 .navigationTitle("About")
         }
     }
