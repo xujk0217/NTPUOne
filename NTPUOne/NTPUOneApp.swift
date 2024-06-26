@@ -7,13 +7,15 @@
 
 import SwiftUI
 import SwiftData
+import FirebaseAnalytics
 import FirebaseCore
+import FirebaseInAppMessagingInternal
 
-class AppDelegate: NSObject, UIApplicationDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegate {
   func application(_ application: UIApplication,
                    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
     FirebaseApp.configure()
-
+      Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
     return true
   }
 }

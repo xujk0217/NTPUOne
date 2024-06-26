@@ -12,6 +12,16 @@ struct K{
     struct Web{
         static let NTPUurl = "https://new.ntpu.edu.tw/"
     }
+    struct FStoreOr {
+        static let collectionName = "order"
+        static let emailField = "email"
+        static let messageField = "message"
+        static let nameField = "name"
+        static let timeField = "time"
+        static let urlField = "url"
+        static let dateField = "date"
+    }
+
     struct Bike{
         static let NTPUBikeNum = [
             "500205050",

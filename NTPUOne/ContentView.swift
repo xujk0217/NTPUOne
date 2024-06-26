@@ -8,12 +8,15 @@
 import SwiftUI
 import SwiftData
 import SafariServices
+import FirebaseCore
+import FirebaseFirestore
 
 struct ContentView: View {
     
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
     @ObservedObject var weatherManager = WeatherManager()
+    @StateObject private var orderManager = OrderManager()
     
     @State private var urlString: String? = nil
     @State private var showWebView = false
@@ -24,13 +27,6 @@ struct ContentView: View {
     //DemoView
     private let timer = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
-    let order: [(title: String, url: String?)] = [
-        (title: "First", url: "https://new.ntpu.edu.tw/"),
-        (title: "Second", url: nil),
-        (title: "Third", url: "https://new.ntpu.edu.tw/"),
-        (title: "想新增活動廣播，請至 about 頁面聯絡我", url: "https://new.ntpu.edu.tw/")
-    ]
-    //
     
     var trafficTitle = "UBike in ntpu"
     
@@ -84,6 +80,9 @@ private extension ContentView{
                 List {
                     Section {
                         DemoView
+                            .onAppear(perform: {
+                                orderManager.loadOrder()
+                            })
                     } footer: {
                         Text("如需新增活動廣播，請至 about 頁面新增")
                     }
@@ -181,20 +180,22 @@ private extension ContentView{
     
     var DemoView: some View {
         TabView(selection: $startIndex) {
-            ForEach(order.indices, id: \.self) { index in
+            ForEach(orderManager.order.indices, id: \.self) { index in
                 VStack {
                     Spacer()
                     HStack {
                         Spacer()
-                        Text(order[index].title)
+                        Text("\(orderManager.order[index].message)")
                             .font(.headline)
+                            .lineLimit(5)
                             .multilineTextAlignment(.center)
+                            .padding()
                         Spacer()
                     }
                     Spacer()
                 }.onTapGesture {
-                    if let url = order[index].url, !url.isEmpty {
-                        handleURL(url)
+                    if orderManager.order[index].url != ""{
+                        handleURL(orderManager.order[index].url)
                     }
                 }
             }
@@ -205,7 +206,9 @@ private extension ContentView{
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .onReceive(timer) { _ in
             withAnimation {
-                startIndex = (startIndex + 1) % order.count
+                if orderManager.order.count > 1{
+                    startIndex = (startIndex + 1) % orderManager.order.count
+                }
             }
         }
         .frame(height: 130)
