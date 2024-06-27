@@ -11,6 +11,7 @@ import SafariServices
 import FirebaseCore
 import FirebaseFirestore
 import GoogleMobileAds
+import AppTrackingTransparency
 
 struct ContentView: View {
     
@@ -37,13 +38,13 @@ struct ContentView: View {
                 Image(systemName: "house")
                 Text("main")
             }
-            trafficView.tabItem {
-                Image(systemName: "bicycle")
-                Text("traffic")
-            }
             lifeView.tabItem{
                 Image(systemName: "cup.and.saucer.fill")
                 Text("life")
+            }
+            trafficView.tabItem {
+                Image(systemName: "bicycle")
+                Text("traffic")
             }
             timetableView.tabItem{
                 Image(systemName: "list.clipboard")
@@ -54,7 +55,6 @@ struct ContentView: View {
                 Text("about")
             }
         }
-        .edgesIgnoringSafeArea(.bottom)
     }
 }
 
@@ -85,7 +85,13 @@ private extension ContentView{
                                 orderManager.loadOrder()
                             })
                     } footer: {
-                        Text("如需新增活動廣播，請至 about 頁面新增")
+                        VStack {
+                            Text("如需新增活動廣播，請至 about 頁面新增")
+                                .padding(.bottom)
+                            Divider()
+                            Text("常用網址")
+                                .font(.callout)
+                        }
                     }
                     ForEach(webManager.websArray) { webs in
                         Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
@@ -97,18 +103,26 @@ private extension ContentView{
                                         }) {
                                             HStack {
                                                 Image(systemName: web.image)
+                                                    .resizable()
+                                                    .frame(width: 30, height: 30)
+                                                    .padding()
                                                 Text(web.title)
+                                                    .font(.callout.bold())
                                             }
                                         }
                                     } else {
                                         NavigationLink(destination: WebDetailView(url: web.url)) {
                                             HStack {
                                                 Image(systemName: web.image)
+                                                    .resizable()
+                                                    .frame(width: 30, height: 30)
+                                                    .padding()
                                                 Text(web.title)
+                                                    .font(.callout.bold())
                                             }
                                         }
                                     }
-                                }
+                                }.frame(height: 50)
                             } else {
                                 DisclosureGroup("系網們") {
                                     ForEach(webs.webs) { web in
@@ -118,19 +132,28 @@ private extension ContentView{
                                             }) {
                                                 HStack {
                                                     Image(systemName: web.image)
+                                                        .resizable()
+                                                        .frame(width: 30, height: 30)
+                                                        .padding()
                                                     Text(web.title)
+                                                        .font(.callout.bold())
                                                 }
                                             }
                                         } else {
                                             NavigationLink(destination: WebDetailView(url: web.url)) {
                                                 HStack {
                                                     Image(systemName: web.image)
+                                                        .resizable()
+                                                        .frame(width: 30, height: 30)
+                                                        .padding()
                                                     Text(web.title)
+                                                        .font(.callout.bold())
                                                 }
                                             }
                                         }
                                     }
-                                }
+                                }.frame(height: 50)
+                                    .font(.callout.bold())
                             }
                         }
                     }
@@ -202,7 +225,7 @@ private extension ContentView{
             }
             .background(Color.gray.opacity(0.2))
             .cornerRadius(15)
-            .padding(.horizontal, 2)
+            .padding(.horizontal, 1)
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
         .onReceive(timer) { _ in
@@ -212,7 +235,7 @@ private extension ContentView{
                 }
             }
         }
-        .frame(height: 130)
+        .frame(height: 160)
     }
     
     
@@ -622,13 +645,17 @@ private extension ContentView{
                         AddOrderView()
                             .navigationTitle("新增")
                     } label: {
-                        Text("新增活動廣播")
+                        VStack {
+                            Text("新增活動廣播")
+                        }
                     }
                     
                 } header: {
                     Text("活動廣播")
                 } footer: {
-                    Text("無意義的會刪掉喔～")
+                    VStack {
+                        Text("無意義的會刪掉喔～")
+                    }
                 }
                 Section{
                     NavigationLink {
