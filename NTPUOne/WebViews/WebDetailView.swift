@@ -7,12 +7,19 @@
 
 import SwiftUI
 import WebKit
+import GoogleMobileAds
 
 struct WebDetailView: View {
     let url: String?
     var body: some View {
-        WebView(urlString: url)
-            .edgesIgnoringSafeArea(.all)
+        VStack(spacing: 0) {
+            WebView(urlString: url)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            BannerView()
+                .frame(height: 50) // 设置广告条的高度
+                .background(Color.clear)
+        }
+        .edgesIgnoringSafeArea(.bottom)
     }
 }
 

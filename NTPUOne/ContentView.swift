@@ -10,6 +10,7 @@ import SwiftData
 import SafariServices
 import FirebaseCore
 import FirebaseFirestore
+import GoogleMobileAds
 
 struct ContentView: View {
     
@@ -24,7 +25,6 @@ struct ContentView: View {
     
     @State private var isExpanded = false
     
-    let items = Array(1...20).map { "Item \($0)" }
     //DemoView
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
@@ -53,8 +53,8 @@ struct ContentView: View {
                 Image(systemName: "info.circle")
                 Text("about")
             }
-            
         }
+        .edgesIgnoringSafeArea(.bottom)
     }
 }
 

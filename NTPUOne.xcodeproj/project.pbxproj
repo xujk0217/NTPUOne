@@ -60,6 +60,8 @@
 		3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062C52C2CE8C000B9F24A /* LunchView.swift */; };
 		3F9062C82C2CE8CC00B9F24A /* dinnerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062C72C2CE8CC00B9F24A /* dinnerView.swift */; };
 		3F9062CA2C2CE8EB00B9F24A /* MSVIew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */; };
+		3F9062CD2C2D0C9200B9F24A /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */; };
+		3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D02C2D71A000B9F24A /* BannerView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -89,6 +91,7 @@
 		3F9062C52C2CE8C000B9F24A /* LunchView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LunchView.swift; sourceTree = "<group>"; };
 		3F9062C72C2CE8CC00B9F24A /* dinnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dinnerView.swift; sourceTree = "<group>"; };
 		3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MSVIew.swift; sourceTree = "<group>"; };
+		3F9062D02C2D71A000B9F24A /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -96,6 +99,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F9062CD2C2D0C9200B9F24A /* GoogleMobileAds in Frameworks */,
 				3F90628E2C2C18D300B9F24A /* FirebaseDatabase in Frameworks */,
 				3F90629C2C2C18D300B9F24A /* FirebaseFunctionsCombine-Community in Frameworks */,
 				3F9062A62C2C290E00B9F24A /* FirebaseInAppMessagingSwift-Beta in Frameworks */,
@@ -151,6 +155,7 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				3F9062CF2C2D718700B9F24A /* Ads */,
 				3F9062BE2C2C7D5100B9F24A /* FoodView */,
 				3F9062712C2AA56800B9F24A /* WeatherView */,
 				3F9062642C2929D100B9F24A /* TrafficView */,
@@ -226,6 +231,14 @@
 			path = FoodView;
 			sourceTree = "<group>";
 		};
+		3F9062CF2C2D718700B9F24A /* Ads */ = {
+			isa = PBXGroup;
+			children = (
+				3F9062D02C2D71A000B9F24A /* BannerView.swift */,
+			);
+			path = Ads;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -271,6 +284,7 @@
 				3F9062B12C2C290E00B9F24A /* FirebaseRemoteConfigSwift */,
 				3F9062B32C2C290E00B9F24A /* FirebaseStorageCombine-Community */,
 				3F9062B52C2C290E00B9F24A /* FirebaseVertexAI-Preview */,
+				3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */,
 			);
 			productName = NTPUOne;
 			productReference = 3F8F95022C290C25001A1697 /* NTPUOne.app */;
@@ -302,6 +316,7 @@
 			mainGroup = 3F8F94F92C290C25001A1697;
 			packageReferences = (
 				3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 			);
 			productRefGroup = 3F8F95032C290C25001A1697 /* Products */;
 			projectDirPath = "";
@@ -343,6 +358,7 @@
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
 				3F9062C22C2CE70400B9F24A /* ReportBugView.swift in Sources */,
+				3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */,
 				3F9062C42C2CE71600B9F24A /* FeaturesView.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
@@ -485,10 +501,12 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
 				DEVELOPMENT_TEAM = T593T3727N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NTPUOne/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "NTPU one";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -503,6 +521,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
+				"OTHER_LDFLAGS[arch=*]" = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -526,6 +545,7 @@
 				DEVELOPMENT_TEAM = T593T3727N;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NTPUOne/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "NTPU one";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -581,6 +601,14 @@
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 10.28.1;
+			};
+		};
+		3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/googleads/swift-package-manager-google-mobile-ads.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.6.0;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -725,6 +753,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = "FirebaseVertexAI-Preview";
+		};
+		3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
+			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

@@ -23,6 +23,7 @@ class OrderManager: ObservableObject {
                     print("There is an issue: \(e)")
                 } else {
                     if let snapshotDocuments = querySnapshot?.documents {
+                        print("success get order")
                         for doc in snapshotDocuments {
                             let data = doc.data()
                             if let message = data[K.FStoreOr.messageField] as? String,
@@ -32,7 +33,6 @@ class OrderManager: ObservableObject {
                                 DispatchQueue.main.async {
                                     self.order.append(newOrder)
                                 }
-                                print("success get order")
                             }else{
                                 print("order firebase fail")
                             }
