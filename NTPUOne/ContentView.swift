@@ -24,6 +24,7 @@ struct ContentView: View {
     
     @State private var isExpanded = false
     
+    let items = Array(1...20).map { "Item \($0)" }
     //DemoView
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
@@ -34,10 +35,10 @@ struct ContentView: View {
         TabView{
             linkView.tabItem {
                 Image(systemName: "house")
-                Text("Home")
+                Text("main")
             }
             trafficView.tabItem {
-                Image(systemName: "car")
+                Image(systemName: "bicycle")
                 Text("traffic")
             }
             lifeView.tabItem{
@@ -286,16 +287,118 @@ private extension ContentView{
                 if let weatherData = weatherManager.weatherDatas {
                     let station = weatherData.records.Station.first!
                     ScrollView {
-                        VStack {
-                            weatherView(
-                                weathers: station.WeatherElement.Weather,
-                                currentTemperature: station.WeatherElement.AirTemperature,
-                                maxTemperature: station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature,
-                                minTemperature: station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature,
-                                windSpeed: station.WeatherElement.WindSpeed,
-                                getTime: station.ObsTime.DateTime,
-                                humidity: station.WeatherElement.RelativeHumidity
-                            )
+                        VStack(alignment: .leading) {
+                            Section {
+                                weatherView(
+                                    weathers: station.WeatherElement.Weather,
+                                    currentTemperature: station.WeatherElement.AirTemperature,
+                                    maxTemperature: station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature,
+                                    minTemperature: station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature,
+                                    windSpeed: station.WeatherElement.WindSpeed,
+                                    getTime: station.ObsTime.DateTime,
+                                    humidity: station.WeatherElement.RelativeHumidity
+                                )
+                            } header: {
+                                Text("現在天氣")
+                                    .foregroundStyle(Color.gray)
+                                    .padding(.horizontal)
+                            }
+                            Divider()
+                            VStack(alignment: .leading) {
+                                Section {
+                                    VStack(alignment: .leading, spacing: 10) {
+                                            NavigationLink(destination: BreakfastView()) {
+                                                HStack {
+                                                    Image(systemName: "cup.and.saucer")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 50, height: 50)
+                                                        .foregroundStyle(Color.black)
+                                                        .padding()
+                                                        .padding(.leading)
+                                                    Text("早餐")
+                                                        .padding()
+                                                        .frame(alignment: .leading)
+                                                        .foregroundStyle(Color.black)
+                                                    
+                                                    Spacer()
+                                                }
+                                                .frame(height: 100)
+                                                .background(Color.gray.opacity(0.2))
+                                                .cornerRadius(10)
+                                                .padding(.horizontal)
+                                            }
+                                            NavigationLink(destination: LunchView()) {
+                                                HStack {
+                                                    Image(systemName: "carrot")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 50, height: 50)
+                                                        .foregroundStyle(Color.black)
+                                                        .padding()
+                                                        .padding(.leading)
+                                                    Text("午餐")
+                                                        .padding()
+                                                        .frame(alignment: .leading)
+                                                        .foregroundStyle(Color.black)
+                                                    
+                                                    Spacer()
+                                                }
+                                                .frame(height: 100)
+                                                .background(Color.gray.opacity(0.2))
+                                                .cornerRadius(10)
+                                                .padding(.horizontal)
+                                            }
+                                            NavigationLink(destination: dinnerView()) {
+                                                HStack {
+                                                    Image(systemName: "wineglass")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 50, height: 50)
+                                                        .foregroundStyle(Color.black)
+                                                        .padding()
+                                                        .padding(.leading)
+                                                    Text("晚餐")
+                                                        .padding()
+                                                        .frame(alignment: .leading)
+                                                        .foregroundStyle(Color.black)
+                                                    
+                                                    Spacer()
+                                                }
+                                                .frame(height: 100)
+                                                .background(Color.gray.opacity(0.2))
+                                                .cornerRadius(10)
+                                                .padding(.horizontal)
+                                            }
+                                            NavigationLink(destination: MSVIew()) {
+                                                HStack {
+                                                    Image(systemName: "cross")
+                                                        .resizable()
+                                                        .aspectRatio(contentMode: .fit)
+                                                        .frame(width: 50, height: 50)
+                                                        .foregroundStyle(Color.black)
+                                                        .padding()
+                                                        .padding(.leading)
+                                                    Text("宵夜")
+                                                        .padding()
+                                                        .frame(alignment: .leading)
+                                                        .foregroundStyle(Color.black)
+                                                
+                                                    Spacer()
+                                                }
+                                                .frame(height: 100)
+                                                .background(Color.gray.opacity(0.2))
+                                                .cornerRadius(10)
+                                                .padding(.horizontal)
+                                            }
+                                            Spacer()
+                                    }
+                                } header: {
+                                    Text("NTPU-今天吃什麼？")
+                                        .foregroundStyle(Color.gray)
+                                        .padding(.horizontal)
+                            }
+                            }
                         }
                     }
                     .navigationTitle("PU Life")
@@ -306,7 +409,6 @@ private extension ContentView{
                         }
                     ProgressView()
                 }
-                
             }
         }.onAppear {
             weatherManager.fetchData()
@@ -406,7 +508,8 @@ private extension ContentView{
                 .frame(height: 150)
                 .background(Color.gray.opacity(0.2))
                 .cornerRadius(10)
-                .padding()
+                .padding(.horizontal)
+                .padding(.bottom)
             }
         }
         func weatherIcon(weather: String) -> String {
@@ -512,16 +615,16 @@ private extension ContentView{
     
     var aboutView: some View{
         NavigationView {
-            //("1. update demo with ad  3. feedback-feature suggestion-bug report  4. ad richer " )
+            //ad richer
             List{
                 Section{
                     NavigationLink {
                         AddOrderView()
-                            .navigationTitle("新增頁面")
+                            .navigationTitle("新增")
                     } label: {
                         Text("新增活動廣播")
                     }
-
+                    
                 } header: {
                     Text("活動廣播")
                 } footer: {
@@ -529,11 +632,29 @@ private extension ContentView{
                 }
                 Section{
                     NavigationLink {
+                        FeaturesView()
+                            .navigationTitle("功能建議")
+                    } label: {
+                        Text("Features suggestion")
+                    }
+                    NavigationLink {
+                        ReportBugView()
+                            .navigationTitle("回報錯誤")
+                    } label: {
+                        Text("Report Bugs")
+                    }
+                } header: {
+                    Text("suggesstion & Report")
+                } footer: {
+                    Text("歡迎回報～")
+                }
+                Section{
+                    NavigationLink {
                         ContactMeView()
                     } label: {
                         Text("Contact me")
                     }
-
+                    
                     NavigationLink {
                         AboutMeView()
                     } label: {
@@ -543,7 +664,7 @@ private extension ContentView{
                     Text("Me")
                 }
             }
-                .navigationTitle("About")
+            .navigationTitle("About")
         }
     }
     

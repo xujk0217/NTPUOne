@@ -29,7 +29,7 @@ struct AddOrderView: View {
                 VStack {
                     HStack {
                         Text("活動內容：")
-                        TextField("輸入活動或公告事項", text: $message)
+                        TextField("輸入公告事項（注意長度）", text: $message)
                             .textFieldStyle(.roundedBorder)
                     }.padding()
                     HStack {
@@ -54,18 +54,15 @@ struct AddOrderView: View {
                             .textFieldStyle(.roundedBorder)
                     }.padding()
                     Divider()
-                    Section{
-                        NavigationLink {
-                            ContactMeView()
-                        } label: {
-                            Text("聯絡我～")
-                                .bold()
-                                .padding()
-                        }
-                    } header: {
-                        Text("若是有想討論或是有問題，都可以聯絡我～")
-                            .font(.caption)
-                            .foregroundColor(.gray)
+                    Text("若是有想討論或是有問題，都可以聯絡我～")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                    NavigationLink {
+                        ContactMeView()
+                    } label: {
+                        Text("聯絡我～")
+                            .bold()
+                            .padding()
                     }
                     Button {
                         sendPressed()
