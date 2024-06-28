@@ -77,6 +77,10 @@ extension String {
         let end = index(start, offsetBy: length)
         return String(self[start..<end])
     }
+    func substring(from: Int) -> String {
+        let start = index(startIndex, offsetBy: from)
+        return String(self[start...])
+    }
 }
 
 //MARK: - sub page
@@ -268,6 +272,17 @@ private extension ContentView{
         NavigationView{
             VStack {
                 List {
+                    Section{
+                        if #available(iOS 17.0, *) {
+                            mapView
+                        } else {
+                            // Fallback on earlier versions
+                        }
+                    } header: {
+                        Text("腳踏車地圖")
+                    } footer: {
+                        Text("名稱：站名-(腳踏車數/總數)")
+                    }
                     Section {
                         DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
                             ForEach(bikeManager.bikeDatas) { stop in
@@ -278,7 +293,7 @@ private extension ContentView{
                                                 .font(.title.bold())
                                             VStack{
                                                 HStack {
-                                                    Text(stop.sna)
+                                                    Text(stop.sna.substring(from: 11))
                                                     Spacer()
                                                 }
                                                 HStack{
@@ -325,6 +340,21 @@ private extension ContentView{
             }
         }
         return false
+    }
+    
+    @available(iOS 17.0, *)
+    var mapView: some View {
+        @State var position: MapCameraPosition = .camera(
+            MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 780)
+        )
+        @State var selectionResult: MKMapItem?
+        return VStack{
+            Map(position: $position, selection: $selectionResult){
+            ForEach(bikeManager.bikeDatas) { stop in
+                Marker("\(stop.sna.substring(from: 11))-(\(stop.sbi)/\(stop.tot))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!))
+            }
+        }.mapStyle(.standard(elevation: .realistic))
+        }.frame(height: 200)
     }
     
     //MARK: - life view

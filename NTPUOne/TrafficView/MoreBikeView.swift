@@ -25,7 +25,7 @@ struct MoreBikeView: View {
                                                 .font(.title.bold())
                                             VStack{
                                                 HStack {
-                                                    Text(stop.sna)
+                                                    Text(stop.sna.substring(from: 11))
                                                     Spacer()
                                                 }
                                                 HStack{
