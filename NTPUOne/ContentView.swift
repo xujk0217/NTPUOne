@@ -12,8 +12,11 @@ import FirebaseCore
 import FirebaseFirestore
 import GoogleMobileAds
 import AppTrackingTransparency
+import MapKit
 
 struct ContentView: View {
+    
+    @State private var isLoading = true
     
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
@@ -33,26 +36,32 @@ struct ContentView: View {
     var trafficTitle = "UBike in ntpu"
     
     var body: some View {
-        TabView{
-            linkView.tabItem {
-                Image(systemName: "house")
-                Text("main")
-            }
-            lifeView.tabItem{
-                Image(systemName: "cup.and.saucer.fill")
-                Text("life")
-            }
-            trafficView.tabItem {
-                Image(systemName: "bicycle")
-                Text("traffic")
-            }
-            timetableView.tabItem{
-                Image(systemName: "list.clipboard")
-                Text("timetable")
-            }
-            aboutView.tabItem{
-                Image(systemName: "info.circle")
-                Text("about")
+        if isLoading{
+            ProgressView("Loading...")
+                .progressViewStyle(CircularProgressViewStyle())
+                .onAppear(perform: loadData)
+        }else{
+            TabView{
+                linkView.tabItem {
+                    Image(systemName: "house")
+                    Text("main")
+                }
+                lifeView.tabItem{
+                    Image(systemName: "cup.and.saucer.fill")
+                    Text("life")
+                }
+                trafficView.tabItem {
+                    Image(systemName: "bicycle")
+                    Text("traffic")
+                }
+                timetableView.tabItem{
+                    Image(systemName: "list.clipboard")
+                    Text("timetable")
+                }
+                aboutView.tabItem{
+                    Image(systemName: "info.circle")
+                    Text("about")
+                }
             }
         }
     }
@@ -73,6 +82,13 @@ extension String {
 //MARK: - sub page
 
 private extension ContentView{
+    func loadData() {
+        orderManager.loadOrder { success in
+                DispatchQueue.main.async {
+                    isLoading = !success
+                }
+            }
+        }
     
     //MARK: - home view
     var linkView: some View {
@@ -82,7 +98,11 @@ private extension ContentView{
                     Section {
                         DemoView
                             .onAppear(perform: {
-                                orderManager.loadOrder()
+                                orderManager.loadOrder { success in
+                                    DispatchQueue.main.async {
+                                        isLoading = !success
+                                    }
+                                }
                             })
                     } footer: {
                         VStack {
@@ -93,6 +113,7 @@ private extension ContentView{
                                 .font(.callout)
                         }
                     }
+                    .listRowBackground(Color.white.opacity(0.7))
                     ForEach(webManager.websArray) { webs in
                         Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
                             if webs.id != 3 {
@@ -152,12 +173,15 @@ private extension ContentView{
                                             }
                                         }
                                     }
-                                }.frame(height: 50)
+                                }
+                                .frame(height: 50)
                                     .font(.callout.bold())
                             }
                         }
-                    }
+                    }.listRowBackground(Color.white.opacity(0.7))
                 }
+                .scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .blue], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .navigationTitle("NTPU one")
                 .onAppear(perform: {
                     webManager.createData()
@@ -166,9 +190,6 @@ private extension ContentView{
                     if let urlString = urlString {
                         WebDetailView(url: urlString)
                     }
-                }
-                .sheet(isPresented: $showSafariView) {
-                    
                 }
             }
         }
@@ -223,11 +244,13 @@ private extension ContentView{
                     }
                 }
             }
-            .background(Color.gray.opacity(0.2))
+            .background(Color.white)
             .cornerRadius(15)
+            .overlay(RoundedRectangle(cornerRadius: 15)
+                            .stroke(Color.black))
             .padding(.horizontal, 1)
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         .onReceive(timer) { _ in
             withAnimation {
                 if orderManager.order.count > 1{
@@ -271,7 +294,7 @@ private extension ContentView{
                                     }
                                 }
                             }
-                        }
+                        }.listRowBackground(Color.white.opacity(0.7))
                     } header: {
                         HStack {
                             Text("Ubike in NTPU")
@@ -288,6 +311,8 @@ private extension ContentView{
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
             .navigationTitle("Traffic")
         }.onAppear(perform: {
             self.bikeManager.fetchData()
@@ -347,7 +372,7 @@ private extension ContentView{
                                                     Spacer()
                                                 }
                                                 .frame(height: 100)
-                                                .background(Color.gray.opacity(0.2))
+                                                .background(Color.white.opacity(0.3))
                                                 .cornerRadius(10)
                                                 .padding(.horizontal)
                                             }
@@ -368,7 +393,7 @@ private extension ContentView{
                                                     Spacer()
                                                 }
                                                 .frame(height: 100)
-                                                .background(Color.gray.opacity(0.2))
+                                                .background(Color.white.opacity(0.3))
                                                 .cornerRadius(10)
                                                 .padding(.horizontal)
                                             }
@@ -389,7 +414,7 @@ private extension ContentView{
                                                     Spacer()
                                                 }
                                                 .frame(height: 100)
-                                                .background(Color.gray.opacity(0.2))
+                                                .background(Color.white.opacity(0.3))
                                                 .cornerRadius(10)
                                                 .padding(.horizontal)
                                             }
@@ -410,7 +435,7 @@ private extension ContentView{
                                                     Spacer()
                                                 }
                                                 .frame(height: 100)
-                                                .background(Color.gray.opacity(0.2))
+                                                .background(Color.white.opacity(0.3))
                                                 .cornerRadius(10)
                                                 .padding(.horizontal)
                                             }
@@ -425,6 +450,8 @@ private extension ContentView{
                         }
                     }
                     .navigationTitle("PU Life")
+                    .scrollContentBackground(.hidden)
+                    .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
                 }else{
                     Text("Loading...")
                         .onAppear {
@@ -529,7 +556,7 @@ private extension ContentView{
                     Spacer()
                 }
                 .frame(height: 150)
-                .background(Color.gray.opacity(0.2))
+                .background(Color.white.opacity(0.3))
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.bottom)

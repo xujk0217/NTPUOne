@@ -41,7 +41,6 @@
 		3F90629C2C2C18D300B9F24A /* FirebaseFunctionsCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90629B2C2C18D300B9F24A /* FirebaseFunctionsCombine-Community */; };
 		3F90629E2C2C18D300B9F24A /* FirebaseInAppMessaging-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90629D2C2C18D300B9F24A /* FirebaseInAppMessaging-Beta */; };
 		3F9062A02C2C18D300B9F24A /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90629F2C2C18D300B9F24A /* FirebaseStorage */; };
-		3F9062A42C2C263800B9F24A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3F9062A32C2C263800B9F24A /* GoogleService-Info.plist */; };
 		3F9062A62C2C290E00B9F24A /* FirebaseInAppMessagingSwift-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062A52C2C290E00B9F24A /* FirebaseInAppMessagingSwift-Beta */; };
 		3F9062A82C2C290E00B9F24A /* FirebaseInstallations in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062A72C2C290E00B9F24A /* FirebaseInstallations */; };
 		3F9062AA2C2C290E00B9F24A /* FirebaseMLModelDownloader in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062A92C2C290E00B9F24A /* FirebaseMLModelDownloader */; };
@@ -62,6 +61,8 @@
 		3F9062CA2C2CE8EB00B9F24A /* MSVIew.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */; };
 		3F9062CD2C2D0C9200B9F24A /* GoogleMobileAds in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */; };
 		3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D02C2D71A000B9F24A /* BannerView.swift */; };
+		3F9062D32C2EB6C400B9F24A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */; };
+		3F9062D52C2EF79700B9F24A /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -81,7 +82,6 @@
 		3F90626F2C2AA56200B9F24A /* WeatherData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherData.swift; sourceTree = "<group>"; };
 		3F9062722C2AB86700B9F24A /* WeatherManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeatherManager.swift; sourceTree = "<group>"; };
 		3F9062832C2C15A200B9F24A /* Order.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Order.swift; sourceTree = "<group>"; };
-		3F9062A32C2C263800B9F24A /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		3F9062B82C2C507400B9F24A /* AboutMeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutMeView.swift; sourceTree = "<group>"; };
 		3F9062BA2C2C515000B9F24A /* ContactMeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContactMeView.swift; sourceTree = "<group>"; };
 		3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddOrderView.swift; sourceTree = "<group>"; };
@@ -92,6 +92,8 @@
 		3F9062C72C2CE8CC00B9F24A /* dinnerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dinnerView.swift; sourceTree = "<group>"; };
 		3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MSVIew.swift; sourceTree = "<group>"; };
 		3F9062D02C2D71A000B9F24A /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
+		3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
+		3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -155,6 +157,7 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */,
 				3F9062CF2C2D718700B9F24A /* Ads */,
 				3F9062BE2C2C7D5100B9F24A /* FoodView */,
 				3F9062712C2AA56800B9F24A /* WeatherView */,
@@ -163,7 +166,7 @@
 				3F9062B72C2C500400B9F24A /* AboutView */,
 				3F8F950B2C290C27001A1697 /* Assets.xcassets */,
 				3F8F95152C290D5A001A1697 /* Constant.swift */,
-				3F9062A32C2C263800B9F24A /* GoogleService-Info.plist */,
+				3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */,
 				3F8F950D2C290C27001A1697 /* Preview Content */,
 			);
 			path = NTPUOne;
@@ -334,7 +337,8 @@
 			files = (
 				3F8F950F2C290C27001A1697 /* Preview Assets.xcassets in Resources */,
 				3F8F950C2C290C27001A1697 /* Assets.xcassets in Resources */,
-				3F9062A42C2C263800B9F24A /* GoogleService-Info.plist in Resources */,
+				3F9062D52C2EF79700B9F24A /* Launch Screen.storyboard in Resources */,
+				3F9062D32C2EB6C400B9F24A /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -513,7 +517,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
@@ -553,7 +557,7 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
-				INFOPLIST_KEY_UILaunchStoryboardName = "";
+				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;

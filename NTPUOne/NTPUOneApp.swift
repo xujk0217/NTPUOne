@@ -10,13 +10,16 @@ import SwiftData
 import FirebaseAnalytics
 import FirebaseCore
 import FirebaseInAppMessagingInternal
+import GoogleMobileAds
 
 class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegate {
-  func application(_ application: UIApplication,
-                   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-    FirebaseApp.configure()
-      Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
-    return true
+    var window: UIWindow?
+    
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        FirebaseApp.configure()
+        Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
+        GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
+        return true
   }
 }
 

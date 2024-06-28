@@ -13,7 +13,7 @@ class OrderManager: ObservableObject {
     @Published var order: [Order] = []
     private var db = Firestore.firestore()
 
-    func loadOrder() {
+    func loadOrder(completion: @escaping (Bool) -> Void) {
         db.collection(K.FStoreOr.collectionName)
             .order(by: K.FStoreOr.dateField)
             .addSnapshotListener { [weak self] querySnapshot, error in
@@ -30,8 +30,10 @@ class OrderManager: ObservableObject {
                                let messageSName = data[K.FStoreOr.nameField] as? String,
                                let messageUrl = data[K.FStoreOr.urlField] as? String {
                                 let newOrder = Order(message: message, name: messageSName, url: messageUrl)
+                                let success = true
                                 DispatchQueue.main.async {
                                     self.order.append(newOrder)
+                                    completion(success)
                                 }
                             }else{
                                 print("order firebase fail")
