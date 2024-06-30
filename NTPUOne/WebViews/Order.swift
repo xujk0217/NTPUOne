@@ -21,6 +21,9 @@ class OrderManager: ObservableObject {
                 self.order = []
                 if let e = error {
                     print("There is an issue: \(e)")
+                    DispatchQueue.main.async {
+                        completion(false)
+                    }
                 } else {
                     if let snapshotDocuments = querySnapshot?.documents {
                         print("success get order")
@@ -30,20 +33,22 @@ class OrderManager: ObservableObject {
                                let messageSName = data[K.FStoreOr.nameField] as? String,
                                let messageUrl = data[K.FStoreOr.urlField] as? String {
                                 let newOrder = Order(message: message, name: messageSName, url: messageUrl)
-                                let success = true
                                 DispatchQueue.main.async {
                                     self.order.append(newOrder)
-                                    completion(success)
                                 }
-                            }else{
+                            } else {
                                 print("order firebase fail")
                             }
+                        }
+                        DispatchQueue.main.async {
+                            completion(true)
                         }
                     }
                 }
             }
     }
 }
+
 
 struct OrderDetail{
     let email: String

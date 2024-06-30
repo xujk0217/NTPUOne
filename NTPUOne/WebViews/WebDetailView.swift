@@ -16,7 +16,7 @@ struct WebDetailView: View {
             WebView(urlString: url)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             BannerView()
-                .frame(height: 50) // 设置广告条的高度
+                .frame(height: 50)
                 .background(Color.clear)
         }
         .edgesIgnoringSafeArea(.bottom)

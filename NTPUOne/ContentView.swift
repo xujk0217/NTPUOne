@@ -36,32 +36,26 @@ struct ContentView: View {
     var trafficTitle = "UBike in ntpu"
     
     var body: some View {
-        if isLoading{
-            ProgressView("Loading...")
-                .progressViewStyle(CircularProgressViewStyle())
-                .onAppear(perform: loadData)
-        }else{
-            TabView{
-                linkView.tabItem {
-                    Image(systemName: "house")
-                    Text("main")
-                }
-                lifeView.tabItem{
-                    Image(systemName: "cup.and.saucer.fill")
-                    Text("life")
-                }
-                trafficView.tabItem {
-                    Image(systemName: "bicycle")
-                    Text("traffic")
-                }
-                timetableView.tabItem{
-                    Image(systemName: "list.clipboard")
-                    Text("timetable")
-                }
-                aboutView.tabItem{
-                    Image(systemName: "info.circle")
-                    Text("about")
-                }
+        TabView{
+            linkView.tabItem {
+                Image(systemName: "house")
+                Text("main")
+            }
+            lifeView.tabItem{
+                Image(systemName: "cup.and.saucer.fill")
+                Text("life")
+            }
+            trafficView.tabItem {
+                Image(systemName: "bicycle")
+                Text("traffic")
+            }
+            timetableView.tabItem{
+                Image(systemName: "list.clipboard")
+                Text("timetable")
+            }
+            aboutView.tabItem{
+                Image(systemName: "info.circle")
+                Text("about")
             }
         }
     }
@@ -72,6 +66,7 @@ struct ContentView: View {
 }
 
 extension String {
+    
     func substring(from: Int, length: Int) -> String {
         let start = index(startIndex, offsetBy: from)
         let end = index(start, offsetBy: length)
@@ -86,38 +81,51 @@ extension String {
 //MARK: - sub page
 
 private extension ContentView{
+    
     func loadData() {
         orderManager.loadOrder { success in
-                DispatchQueue.main.async {
-                    isLoading = !success
-                }
+            DispatchQueue.main.async {
+                isLoading = !success
             }
         }
+    }
     
     //MARK: - home view
     var linkView: some View {
         NavigationView {
             VStack {
                 List {
-                    Section {
-                        DemoView
-                            .onAppear(perform: {
-                                orderManager.loadOrder { success in
-                                    DispatchQueue.main.async {
-                                        isLoading = !success
-                                    }
-                                }
-                            })
-                    } footer: {
-                        VStack {
-                            Text("如需新增活動廣播，請至 about 頁面新增")
-                                .padding(.bottom)
-                            Divider()
-                            Text("常用網址")
-                                .font(.callout)
+                    if isLoading {
+                        Section{
+                            VStack {
+                                ProgressView("Loading...")
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .onAppear(perform: loadData)
+                            }
+                        } footer: {
+                            Text("連線中，請確認網路連線")
                         }
+                    }else{
+                        Section {
+                            DemoView
+                                .onAppear(perform: {
+                                    orderManager.loadOrder { success in
+                                        DispatchQueue.main.async {
+                                            isLoading = !success
+                                        }
+                                    }
+                                })
+                        } footer: {
+                            VStack {
+                                Text("如需新增活動廣播，請至 about 頁面新增")
+                                    .padding(.bottom)
+                                Divider()
+                                Text("常用網址")
+                                    .font(.callout)
+                            }
+                        }
+                        .listRowBackground(Color.white.opacity(0.7))
                     }
-                    .listRowBackground(Color.white.opacity(0.7))
                     ForEach(webManager.websArray) { webs in
                         Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
                             if webs.id != 3 {
@@ -179,7 +187,7 @@ private extension ContentView{
                                     }
                                 }
                                 .frame(height: 50)
-                                    .font(.callout.bold())
+                                .font(.callout.bold())
                             }
                         }
                     }.listRowBackground(Color.white.opacity(0.7))
@@ -200,22 +208,30 @@ private extension ContentView{
     }
     
     func handleURL(_ urlString: String) {
-        self.urlString = urlString
-        if urlString == "https://past-exam.ntpu.cc" {
-            // Open in external browser
-            if let url = URL(string: urlString) {
-                UIApplication.shared.open(url)
-            }
-        } else {
-            // Open in SafariViewController
-            if let url = URL(string: urlString) {
-                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                    let safariVC = SFSafariViewController(url: url)
-                    topViewController.present(safariVC, animated: true, completion: nil)
+            self.urlString = urlString
+            if urlString == "https://past-exam.ntpu.cc" {
+                // Open in external browser
+                if let url = URL(string: urlString) {
+                    if UIApplication.shared.canOpenURL(url) {
+                        UIApplication.shared.open(url)
+                    } else {
+                        print("Cannot open URL: \(urlString)")
+                    }
+                }
+            } else {
+                // Open in SafariViewController
+                if let url = URL(string: urlString) {
+                    if UIApplication.shared.canOpenURL(url) {
+                        if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                            let safariVC = SFSafariViewController(url: url)
+                            topViewController.present(safariVC, animated: true, completion: nil)
+                        }
+                    } else {
+                        print("Cannot open URL: \(urlString)")
+                    }
                 }
             }
         }
-    }
     
     func footerText(for id: Int) -> some View {
         Group {
@@ -243,15 +259,19 @@ private extension ContentView{
                     }
                     Spacer()
                 }.onTapGesture {
-                    if orderManager.order[index].url != ""{
-                        handleURL(orderManager.order[index].url)
+                    if let url = URL(string: orderManager.order[index].url) {
+                        if UIApplication.shared.canOpenURL(url) {
+                            handleURL(orderManager.order[index].url)
+                        } else {
+                            print("Cannot open URL: \(orderManager.order[index].url)")
+                        }
                     }
                 }
             }
             .background(Color.white)
             .cornerRadius(15)
             .overlay(RoundedRectangle(cornerRadius: 15)
-                            .stroke(Color.black))
+                .stroke(Color.black))
             .padding(.horizontal, 1)
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
@@ -277,6 +297,7 @@ private extension ContentView{
                             mapView
                         } else {
                             // Fallback on earlier versions
+                            Text("升級至 IOS 17.0 以開啟地圖功能")
                         }
                     } header: {
                         Text("腳踏車地圖")
@@ -350,11 +371,11 @@ private extension ContentView{
         @State var selectionResult: MKMapItem?
         return VStack{
             Map(position: $position, selection: $selectionResult){
-            ForEach(bikeManager.bikeDatas) { stop in
-                Marker("\(stop.sna.substring(from: 11))-(\(stop.sbi)/\(stop.tot))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!))
-            }
-        }.mapStyle(.standard(elevation: .realistic))
-        }.frame(height: 200)
+                ForEach(bikeManager.bikeDatas) { stop in
+                    Marker("\(stop.sna.substring(from: 11))-(\(stop.sbi)/\(stop.tot))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!))
+                }
+            }.mapStyle(.standard(elevation: .realistic))
+        }.frame(height: 300)
     }
     
     //MARK: - life view
@@ -385,97 +406,97 @@ private extension ContentView{
                             VStack(alignment: .leading) {
                                 Section {
                                     VStack(alignment: .leading, spacing: 10) {
-                                            NavigationLink(destination: BreakfastView()) {
-                                                HStack {
-                                                    Image(systemName: "cup.and.saucer")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 50, height: 50)
-                                                        .foregroundStyle(Color.black)
-                                                        .padding()
-                                                        .padding(.leading)
-                                                    Text("早餐")
-                                                        .padding()
-                                                        .frame(alignment: .leading)
-                                                        .foregroundStyle(Color.black)
-                                                    
-                                                    Spacer()
-                                                }
-                                                .frame(height: 100)
-                                                .background(Color.white.opacity(0.3))
-                                                .cornerRadius(10)
-                                                .padding(.horizontal)
-                                            }
-                                            NavigationLink(destination: LunchView()) {
-                                                HStack {
-                                                    Image(systemName: "carrot")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 50, height: 50)
-                                                        .foregroundStyle(Color.black)
-                                                        .padding()
-                                                        .padding(.leading)
-                                                    Text("午餐")
-                                                        .padding()
-                                                        .frame(alignment: .leading)
-                                                        .foregroundStyle(Color.black)
-                                                    
-                                                    Spacer()
-                                                }
-                                                .frame(height: 100)
-                                                .background(Color.white.opacity(0.3))
-                                                .cornerRadius(10)
-                                                .padding(.horizontal)
-                                            }
-                                            NavigationLink(destination: dinnerView()) {
-                                                HStack {
-                                                    Image(systemName: "wineglass")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 50, height: 50)
-                                                        .foregroundStyle(Color.black)
-                                                        .padding()
-                                                        .padding(.leading)
-                                                    Text("晚餐")
-                                                        .padding()
-                                                        .frame(alignment: .leading)
-                                                        .foregroundStyle(Color.black)
-                                                    
-                                                    Spacer()
-                                                }
-                                                .frame(height: 100)
-                                                .background(Color.white.opacity(0.3))
-                                                .cornerRadius(10)
-                                                .padding(.horizontal)
-                                            }
-                                            NavigationLink(destination: MSVIew()) {
-                                                HStack {
-                                                    Image(systemName: "cross")
-                                                        .resizable()
-                                                        .aspectRatio(contentMode: .fit)
-                                                        .frame(width: 50, height: 50)
-                                                        .foregroundStyle(Color.black)
-                                                        .padding()
-                                                        .padding(.leading)
-                                                    Text("宵夜")
-                                                        .padding()
-                                                        .frame(alignment: .leading)
-                                                        .foregroundStyle(Color.black)
+                                        NavigationLink(destination: BreakfastView()) {
+                                            HStack {
+                                                Image(systemName: "cup.and.saucer")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 50, height: 50)
+                                                    .foregroundStyle(Color.black)
+                                                    .padding()
+                                                    .padding(.leading)
+                                                Text("早餐")
+                                                    .padding()
+                                                    .frame(alignment: .leading)
+                                                    .foregroundStyle(Color.black)
                                                 
-                                                    Spacer()
-                                                }
-                                                .frame(height: 100)
-                                                .background(Color.white.opacity(0.3))
-                                                .cornerRadius(10)
-                                                .padding(.horizontal)
+                                                Spacer()
                                             }
-                                            Spacer()
+                                            .frame(height: 100)
+                                            .background(Color.white.opacity(0.3))
+                                            .cornerRadius(10)
+                                            .padding(.horizontal)
+                                        }
+                                        NavigationLink(destination: LunchView()) {
+                                            HStack {
+                                                Image(systemName: "carrot")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 50, height: 50)
+                                                    .foregroundStyle(Color.black)
+                                                    .padding()
+                                                    .padding(.leading)
+                                                Text("午餐")
+                                                    .padding()
+                                                    .frame(alignment: .leading)
+                                                    .foregroundStyle(Color.black)
+                                                
+                                                Spacer()
+                                            }
+                                            .frame(height: 100)
+                                            .background(Color.white.opacity(0.3))
+                                            .cornerRadius(10)
+                                            .padding(.horizontal)
+                                        }
+                                        NavigationLink(destination: dinnerView()) {
+                                            HStack {
+                                                Image(systemName: "wineglass")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 50, height: 50)
+                                                    .foregroundStyle(Color.black)
+                                                    .padding()
+                                                    .padding(.leading)
+                                                Text("晚餐")
+                                                    .padding()
+                                                    .frame(alignment: .leading)
+                                                    .foregroundStyle(Color.black)
+                                                
+                                                Spacer()
+                                            }
+                                            .frame(height: 100)
+                                            .background(Color.white.opacity(0.3))
+                                            .cornerRadius(10)
+                                            .padding(.horizontal)
+                                        }
+                                        NavigationLink(destination: MSVIew()) {
+                                            HStack {
+                                                Image(systemName: "cross")
+                                                    .resizable()
+                                                    .aspectRatio(contentMode: .fit)
+                                                    .frame(width: 50, height: 50)
+                                                    .foregroundStyle(Color.black)
+                                                    .padding()
+                                                    .padding(.leading)
+                                                Text("宵夜")
+                                                    .padding()
+                                                    .frame(alignment: .leading)
+                                                    .foregroundStyle(Color.black)
+                                                
+                                                Spacer()
+                                            }
+                                            .frame(height: 100)
+                                            .background(Color.white.opacity(0.3))
+                                            .cornerRadius(10)
+                                            .padding(.horizontal)
+                                        }
+                                        Spacer()
                                     }
                                 } header: {
                                     Text("NTPU-今天吃什麼？")
                                         .foregroundStyle(Color.gray)
                                         .padding(.horizontal)
-                            }
+                                }
                             }
                         }
                     }
