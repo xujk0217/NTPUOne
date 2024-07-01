@@ -308,7 +308,7 @@ private extension ContentView{
                         DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
                             ForEach(bikeManager.bikeDatas) { stop in
                                 if isNTPU(sno: stop.sno) {
-                                    NavigationLink(destination: bikeView()){
+                                    NavigationLink(destination: bikeView(Bike: stop)){
                                         HStack{
                                             Text(stop.tot)
                                                 .font(.title.bold())
