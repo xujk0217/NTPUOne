@@ -21,6 +21,20 @@ struct K{
         static let urlField = "url"
         static let dateField = "date"
     }
+    
+    struct FStoreF {
+        static let collectionNameB = "breakfast"
+        static let collectionNamel = "lunch"
+        static let collectionNamed = "dinner"
+        static let collectionNamem = "MS"
+        static let storeField = "store"
+        static let openTimeField = "time"
+        static let urlField = "url"
+        static let starField = "starNum"
+        static let latField = "lat"
+        static let lngField = "lng"
+        static let addressField = "address"
+    }
 
     struct Bike{
         static let NTPUBikeNum = [

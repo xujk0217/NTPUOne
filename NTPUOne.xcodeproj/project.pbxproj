@@ -63,6 +63,8 @@
 		3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D02C2D71A000B9F24A /* BannerView.swift */; };
 		3F9062D32C2EB6C400B9F24A /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */; };
 		3F9062D52C2EF79700B9F24A /* Launch Screen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */; };
+		3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D62C32B3D100B9F24A /* dietView.swift */; };
+		3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D82C32BDC600B9F24A /* FManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -94,6 +96,8 @@
 		3F9062D02C2D71A000B9F24A /* BannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BannerView.swift; sourceTree = "<group>"; };
 		3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = "Launch Screen.storyboard"; sourceTree = "<group>"; };
+		3F9062D62C32B3D100B9F24A /* dietView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dietView.swift; sourceTree = "<group>"; };
+		3F9062D82C32BDC600B9F24A /* FManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -230,6 +234,8 @@
 				3F9062C52C2CE8C000B9F24A /* LunchView.swift */,
 				3F9062C72C2CE8CC00B9F24A /* dinnerView.swift */,
 				3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */,
+				3F9062D62C32B3D100B9F24A /* dietView.swift */,
+				3F9062D82C32BDC600B9F24A /* FManager.swift */,
 			);
 			path = FoodView;
 			sourceTree = "<group>";
@@ -351,12 +357,14 @@
 			files = (
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
+				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
 				3F9062662C294F8C00B9F24A /* UbikeData.swift in Sources */,
 				3F9062702C2AA56200B9F24A /* WeatherData.swift in Sources */,
 				3F9062C82C2CE8CC00B9F24A /* dinnerView.swift in Sources */,
+				3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,

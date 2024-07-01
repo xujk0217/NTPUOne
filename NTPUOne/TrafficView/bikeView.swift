@@ -6,47 +6,49 @@
 //
 
 import SwiftUI
-import _MapKit_SwiftUI
+import MapKit
 
 struct bikeView: View {
     
     let Bike: UBResults?
     
     var body: some View {
-        List{
-            Section{
-                if #available(iOS 17.0, *) {
-                    mapView
-                } else {
-                    // Fallback on earlier versions
-                    Text("升級至 IOS 17.0 以開啟地圖功能")
+        NavigationStack {
+            List{
+                Section{
+                    if #available(iOS 17.0, *) {
+                        mapView
+                    } else {
+                        // Fallback on earlier versions
+                        Text("升級至 IOS 17.0 以開啟地圖功能")
+                    }
+                } header: {
+                    Text("腳踏車地圖")
+                } footer: {
+                    Text("名稱：站名-(腳踏車數/總數)")
                 }
-            } header: {
-                Text("腳踏車地圖")
-            } footer: {
-                Text("名稱：站名-(腳踏車數/總數)")
-            }
-            Section{
-                HStack{
-                    Text(Bike!.tot)
-                        .font(.title.bold())
-                    VStack{
-                        HStack {
-                            Text(Bike!.sna.substring(from: 11))
-                            Spacer()
-                        }
-                        HStack{
-                            Image(systemName: "bicycle")
-                            Text(Bike!.sbi)
-                            Spacer()
-                            Image(systemName: "baseball.diamond.bases")
-                            Text(Bike!.bemp)
-                            Spacer()
+                Section{
+                    HStack{
+                        Text(Bike!.tot)
+                            .font(.title.bold())
+                        VStack{
+                            HStack {
+                                Text(Bike!.sna.substring(from: 11))
+                                Spacer()
+                            }
+                            HStack{
+                                Image(systemName: "bicycle")
+                                Text(Bike!.sbi)
+                                Spacer()
+                                Image(systemName: "baseball.diamond.bases")
+                                Text(Bike!.bemp)
+                                Spacer()
+                            }
                         }
                     }
                 }
-            }
-        }.navigationTitle(Bike!.sna.substring(from: 11))
+            }.navigationTitle(Bike!.sna.substring(from: 11))
+        }
     }
 }
 

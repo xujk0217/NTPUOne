@@ -29,7 +29,7 @@ struct AddOrderView: View {
     var body: some View {
         VStack {
             VStack {
-                NavigationView{
+                NavigationStack{
                     ScrollView {
                         VStack {
                             HStack {

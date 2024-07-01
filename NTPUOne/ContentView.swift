@@ -23,6 +23,8 @@ struct ContentView: View {
     @ObservedObject var weatherManager = WeatherManager()
     @StateObject private var orderManager = OrderManager()
     
+    @ObservedObject var fManager = FManager()
+    
     @State private var urlString: String? = nil
     @State private var showWebView = false
     @State private var showSafariView = false
@@ -366,7 +368,7 @@ private extension ContentView{
     @available(iOS 17.0, *)
     var mapView: some View {
         @State var position: MapCameraPosition = .camera(
-            MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 780)
+            MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 1500)
         )
         @State var selectionResult: MKMapItem?
         return VStack{
@@ -406,7 +408,9 @@ private extension ContentView{
                             VStack(alignment: .leading) {
                                 Section {
                                     VStack(alignment: .leading, spacing: 10) {
-                                        NavigationLink(destination: BreakfastView()) {
+                                        NavigationLink{
+                                            BreakfastView()
+                                        } label: {
                                             HStack {
                                                 Image(systemName: "cup.and.saucer")
                                                     .resizable()
