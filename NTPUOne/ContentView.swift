@@ -289,7 +289,7 @@ private extension ContentView{
     //MARK: - traffic
     
     var trafficView: some View{
-        NavigationView{
+        NavigationStack{
             VStack {
                 List {
                     Section{
@@ -381,7 +381,7 @@ private extension ContentView{
     //MARK: - life view
     @ViewBuilder
     var lifeView: some View{
-        NavigationView {
+        NavigationStack {
             VStack{
                 if let weatherData = weatherManager.weatherDatas {
                     let station = weatherData.records.Station.first!
@@ -706,7 +706,7 @@ private extension ContentView{
     //MARK: - timetable
     
     var timetableView: some View{
-        NavigationView {
+        NavigationStack {
             Text("un")
                 .navigationTitle("Time table")
         }
@@ -715,7 +715,7 @@ private extension ContentView{
     //MARK: - about
     
     var aboutView: some View{
-        NavigationView {
+        NavigationStack {
             //ad richer
             List{
                 Section{

@@ -13,7 +13,7 @@ struct MoreBikeView: View {
     
     var body: some View {
         VStack {
-            NavigationView{
+            NavigationStack{
                 VStack {
                     List {
                         Section {
@@ -49,6 +49,7 @@ struct MoreBikeView: View {
                         }
                     }
                 }
+                .navigationTitle("More ubike")
             }.onAppear(perform: {
                 self.bikeManager.fetchData()
             })
