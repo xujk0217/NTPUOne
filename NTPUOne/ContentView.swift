@@ -51,10 +51,10 @@ struct ContentView: View {
                 Image(systemName: "bicycle")
                 Text("traffic")
             }
-            timetableView.tabItem{
-                Image(systemName: "list.clipboard")
-                Text("timetable")
-            }
+//            timetableView.tabItem{
+//                Image(systemName: "list.clipboard")
+//                Text("timetable")
+//            }
             aboutView.tabItem{
                 Image(systemName: "info.circle")
                 Text("about")
@@ -120,16 +120,18 @@ private extension ContentView{
                         } footer: {
                             VStack {
                                 Text("如需新增活動廣播，請至 about 頁面新增")
+                                    .foregroundStyle(Color.black)
                                     .padding(.bottom)
                                 Divider()
                                 Text("常用網址")
+                                    .foregroundStyle(Color.black)
                                     .font(.callout)
                             }
                         }
                         .listRowBackground(Color.white.opacity(0.7))
                     }
                     ForEach(webManager.websArray) { webs in
-                        Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
+                        Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
                             if webs.id != 3 {
                                 ForEach(webs.webs) { web in
                                     if web.url == "https://past-exam.ntpu.cc" || web.url == "https://cof.ntpu.edu.tw/student_new.htm" {
@@ -303,8 +305,10 @@ private extension ContentView{
                         }
                     } header: {
                         Text("腳踏車地圖")
+                            .foregroundStyle(Color.black)
                     } footer: {
                         Text("名稱：站名-(腳踏車數/總數)")
+                            .foregroundStyle(Color.black)
                     }
                     Section {
                         DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
@@ -336,6 +340,7 @@ private extension ContentView{
                     } header: {
                         HStack {
                             Text("Ubike in NTPU")
+                                .foregroundStyle(Color.black)
                             Spacer()
                             if isExpanded == true {
                                 NavigationLink(destination: MoreBikeView()) {
@@ -346,6 +351,7 @@ private extension ContentView{
                         }
                     } footer: {
                         Text("更新頻率：每5分鐘")
+                            .foregroundStyle(Color.black)
                     }
                 }
             }
@@ -401,7 +407,7 @@ private extension ContentView{
                                 )
                             } header: {
                                 Text("現在天氣")
-                                    .foregroundStyle(Color.gray)
+                                    .foregroundStyle(Color.black)
                                     .padding(.horizontal)
                             }
                             Divider()
@@ -498,7 +504,7 @@ private extension ContentView{
                                     }
                                 } header: {
                                     Text("NTPU-今天吃什麼？")
-                                        .foregroundStyle(Color.gray)
+                                        .foregroundStyle(Color.black)
                                         .padding(.horizontal)
                                 }
                             }
