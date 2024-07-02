@@ -7,14 +7,15 @@
 
 import SwiftUI
 import MapKit
+import SafariServices
 
 struct dietView: View {
     let store: FDetail?
     
     var body: some View {
         NavigationStack {
-            List{
-                Section{
+            List {
+                Section {
                     if #available(iOS 17.0, *) {
                         mapView
                     } else {
@@ -24,45 +25,40 @@ struct dietView: View {
                 } header: {
                     Text("餐廳位置")
                 }
-                Section{
-                    NavigationLink {
-                        if let url = URL(string: store!.url) {
-                            if UIApplication.shared.canOpenURL(url) {
-                                WebView(urlString: store?.url)
-                                    .frame(width: .infinity, height: .infinity)
-                            }
-                        }
-                    } label: {
-                        HStack{
+                Section {
+                    HStack {
+                        HStack {
                             HStack {
+                                Text("\(Int(store!.starNum))")
+                                    .font(.title.bold())
+                                Image(systemName: "star.fill")
+                            }
+                            Divider()
+                            VStack(alignment: .leading) {
                                 HStack {
-                                    Text("\(Int(store!.starNum))")
-                                        .font(.title.bold())
-                                    Image(systemName: "star.fill")
+                                    Text(store!.store)
+                                        .font(.title2.bold())
+                                    Spacer()
                                 }
-                                Divider()
-                                VStack(alignment: .leading) {
-                                    HStack {
-                                        Text(store!.store)
-                                            .font(.title2.bold())
-                                        Spacer()
-                                    }
-                                    HStack(alignment: .top) {
-                                        Image(systemName: "house")
-                                        Text(": \(store!.address)")
-                                        Spacer()
-                                    }
-                                    HStack(alignment: .top) {
-                                        Image(systemName: "clock")
-                                        Text(": \(store!.time)")
-                                        Spacer()
-                                    }
+                                HStack(alignment: .top) {
+                                    Image(systemName: "house")
+                                    Text(": \(store!.address)")
+                                    Spacer()
+                                }
+                                HStack(alignment: .top) {
+                                    Image(systemName: "clock")
+                                    Text(": \(store!.time)")
+                                    Spacer()
                                 }
                             }
                         }
                     }
+                    .onTapGesture {
+                        openURL(store!.url)
+                    }
                 }
             }
+            .navigationTitle("餐廳詳情")
         }
     }
 }
@@ -72,6 +68,19 @@ struct dietView: View {
 }
 
 extension dietView{
+    func openURL(_ urlString: String) {
+        if let url = URL(string: urlString) {
+            if UIApplication.shared.canOpenURL(url) {
+                // 打开 SafariViewController
+                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                    let safariVC = SFSafariViewController(url: url)
+                    topViewController.present(safariVC, animated: true, completion: nil)
+                }
+            } else {
+                print("Cannot open URL: \(urlString)")
+            }
+        }
+    }
     @available(iOS 17.0, *)
     var mapView: some View {
         @State var position: MapCameraPosition = .camera(
