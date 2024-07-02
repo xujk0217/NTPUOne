@@ -6,10 +6,94 @@
 //
 
 import SwiftUI
+import FirebaseCore
+import FirebaseFirestore
+import FirebaseAuth
+import AppTrackingTransparency
 
 struct FeaturesView: View {
+    @State private var email:String = ""
+    @State private var issue:String = ""
+    @State private var detail:String = ""
+    
+    @State var isSuccessSend = false
+    
+    @State private var firebaseFail = false
+    
+    @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
+    
+    let db = Firestore.firestore()
+    
     var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            VStack {
+                NavigationStack{
+                    ScrollView {
+                        VStack {
+                            HStack {
+                                Text("功能名稱：")
+                                TextField("", text: $issue)
+                                    .textFieldStyle(.roundedBorder)
+                            }.padding()
+                            HStack {
+                                Text("功能詳情：")
+                                TextField("具體如何表現", text: $detail)
+                                    .textFieldStyle(.roundedBorder)
+                            }.padding()
+                            HStack {
+                                Text("你的信箱：")
+                                TextField("讓我找得到你（沒有也可以）", text: $email)
+                                    .textFieldStyle(.roundedBorder)
+                            }.padding()
+                            Button {
+                                sendPressed()
+                            } label: {
+                                Text("送出")
+                                    .font(.title3.bold())
+                                    .padding()
+                            }.foregroundColor(.white)
+                                .background(Color.blue)
+                                .cornerRadius(10)
+                                .alert("上傳成功", isPresented: $isSuccessSend) {
+                                            Button("OK") {
+                                                isSuccessSend = false
+                                            }
+                                        }
+                            if firebaseFail{
+                                Text("送出失敗，請填好功能以及詳情，或者網路有問題，稍後再試～")
+                                    .foregroundStyle(Color.red)
+                                    .padding()
+                            }
+                        }.padding()
+                    }
+                }
+            }.frame(maxWidth: .infinity, maxHeight: .infinity)
+        }.edgesIgnoringSafeArea(.bottom)
+    }
+    func sendPressed() {
+        if issue != "", detail != ""{
+            db.collection(K.FStoreR.collectionNameFt).addDocument(data: [
+                K.FStoreR.issueField: issue,
+                K.FStoreR.detailField: detail,
+                K.FStoreR.emailField: email,
+            ]) { error in
+                if let e = error{
+                    print("There was an issue saving data to firestore, \(e)")
+                    firebaseFail = true
+                }else{
+                    print("success save data!")
+                    DispatchQueue.main.async{
+                        self.detail = ""
+                        self.issue = ""
+                        self.email = ""
+                    }
+                    self.isSuccessSend = true
+                    self.presentationMode.wrappedValue.dismiss()
+                }
+            }
+        }else{
+            firebaseFail = true
+        }
     }
 }
 

@@ -73,10 +73,10 @@ struct AddOrderView: View {
                                 sendPressed()
                             } label: {
                                 Text("送出")
-                                    .font(.title2.bold())
+                                    .font(.title3.bold())
                                     .padding()
                             }.foregroundColor(.white)
-                                .background(Color.red)
+                                .background(Color.blue)
                                 .cornerRadius(10)
                                 .alert("上傳成功", isPresented: $isSuccessSend) {
                                             Button("OK") {

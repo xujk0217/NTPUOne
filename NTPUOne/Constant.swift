@@ -35,6 +35,14 @@ struct K{
         static let lngField = "lng"
         static let addressField = "address"
     }
+    
+    struct FStoreR {
+        static let collectionNameBug = "bug"
+        static let collectionNameFt = "feature"
+        static let emailField = "email"
+        static let detailField = "detail"
+        static let issueField = "issue"
+    }
 
     struct Bike{
         static let NTPUBikeNum = [
