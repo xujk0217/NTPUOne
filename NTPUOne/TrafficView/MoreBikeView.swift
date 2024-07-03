@@ -13,48 +13,54 @@ struct MoreBikeView: View {
     
     var body: some View {
         VStack {
-            NavigationStack{
-                VStack {
-                    List {
-                        Section {
-                            ForEach(bikeManager.bikeDatas) { stop in
-                                if !(isNTPU(sno: stop.sno)){
-                                    NavigationLink(destination: bikeView(Bike: stop)){
-                                        HStack{
-                                            Text(stop.tot)
-                                                .font(.title.bold())
-                                            VStack{
-                                                HStack {
-                                                    Text(stop.sna.substring(from: 11))
-                                                    Spacer()
-                                                }
+            if let bikeDatas = bikeManager.bikeDatas {
+                NavigationStack{
+                        VStack {
+                            List {
+                                Section {
+                                    ForEach(bikeManager.bikeDatas!) { stop in
+                                        if !(isNTPU(sno: stop.sno)){
+                                            NavigationLink(destination: bikeView(Bike: stop)){
                                                 HStack{
-                                                    Image(systemName: "bicycle")
-                                                    Text(stop.sbi)
-                                                    Spacer()
-                                                    Image(systemName: "baseball.diamond.bases")
-                                                    Text(stop.bemp)
-                                                    Spacer()
+                                                    Text(stop.tot)
+                                                        .font(.title.bold())
+                                                    VStack{
+                                                        HStack {
+                                                            Text(stop.sna.substring(from: 11))
+                                                            Spacer()
+                                                        }
+                                                        HStack{
+                                                            Image(systemName: "bicycle")
+                                                            Text(stop.sbi)
+                                                            Spacer()
+                                                            Image(systemName: "baseball.diamond.bases")
+                                                            Text(stop.bemp)
+                                                            Spacer()
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
                                     }
+                                } header: {
+                                    HStack {
+                                        Text("Ubike")
+                                        Spacer()
+                                    }
                                 }
                             }
-                        } header: {
-                            HStack {
-                                Text("Ubike")
-                                Spacer()
-                            }
                         }
+                        .navigationTitle("More ubike")
                     }
-                }
-                .navigationTitle("More ubike")
-            }.onAppear(perform: {
-                self.bikeManager.fetchData()
-            })
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.edgesIgnoringSafeArea(.bottom)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }else{
+                Text("Loading...")
+                    .onAppear {
+                        bikeManager.fetchData()
+                    }
+                ProgressView()
+            }
+        }
     }
     func isNTPU(sno: String) -> Bool{
         for i in K.Bike.NTPUBikeNum{

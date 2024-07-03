@@ -9,7 +9,7 @@ import Foundation
 
 class UbikeManager: ObservableObject{
     
-    @Published var bikeDatas = [UBResults]()
+    @Published var bikeDatas: [UBResults]?
     
     func fetchData(){
         if let url = URL(string: "https://data.ntpc.gov.tw/api/datasets/010E5B15-3823-4B20-B401-B1CF000550C5/json?page=0&size=210"){
