@@ -8,9 +8,14 @@
 import SwiftUI
 import MapKit
 import SafariServices
+import FirebaseFirestore
+import FirebaseFirestoreSwift
 
 struct dietView: View {
     let store: FDetail?
+    let currCollectName: String?
+    
+    @State var isStar = false
     
     var body: some View {
         NavigationStack {
@@ -25,15 +30,30 @@ struct dietView: View {
                 } header: {
                     Text("餐廳位置")
                 }
-                Section {
-                    HStack {
-                        HStack {
+                Section{
+                    Button {
+                        if isStar == false{
+                            addStar()
+                        }
+                    } label: {
+                        HStack{
                             HStack {
                                 Text("\(Int(store!.starNum))")
                                     .font(.title.bold())
-                                Image(systemName: "star.fill")
+                                if isStar == true{
+                                    Image(systemName: "star.fill")
+                                }else{
+                                    Image(systemName: "star")
+                                }
+                                Divider()
+                                Text("覺得不錯的話，可點擊星星推薦給其他人")
                             }
-                            Divider()
+                        }
+                    }
+                }
+                Section {
+                    HStack {
+                        HStack {
                             VStack(alignment: .leading) {
                                 HStack {
                                     Text(store!.store)
@@ -64,7 +84,7 @@ struct dietView: View {
 }
 
 #Preview {
-    dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1))
+    dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1), currCollectName: K.FStoreF.collectionNamed)
 }
 
 extension dietView{
@@ -81,6 +101,29 @@ extension dietView{
             }
         }
     }
+    
+    func addStar(){
+        isStar = true
+        let db = Firestore.firestore()
+            let documentReference =
+        db.collection(currCollectName!).document(store!.id!)
+            documentReference.getDocument { document, error in
+                guard let document,
+                      document.exists,
+                      var store = try? document.data(as: FDetail.self)
+                else {
+                    return
+                }
+                store.starNum += 1
+                do {
+                    try documentReference.setData(from: store)
+                } catch {
+                    print(error)
+                }
+                
+            }
+    }
+    
     @available(iOS 17.0, *)
     var mapView: some View {
         @State var position: MapCameraPosition = .camera(
@@ -93,4 +136,5 @@ extension dietView{
             }.mapStyle(.standard(elevation: .realistic))
         }.frame(height: 300)
     }
+    
 }

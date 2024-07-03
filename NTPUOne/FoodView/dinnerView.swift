@@ -14,7 +14,7 @@ struct dinnerView: View {
             NavigationStack {
                 List {
                     ForEach(fManager.Food!) { store in
-                        NavigationLink(destination: dietView(store: store)){
+                        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamed)){
                             HStack {
                                 HStack {
                                     Text("\(Int(store.starNum))")
