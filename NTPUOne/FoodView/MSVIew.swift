@@ -14,28 +14,58 @@ struct MSVIew: View {
             NavigationStack {
                 List {
                     ForEach(fManager.Food!) { store in
-                        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamem)){
-                            HStack {
+                        if #available(iOS 17.0, *) {
+                            NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamem)){
                                 HStack {
-                                    Text("\(Int(store.starNum))")
-                                        .font(.title.bold())
-                                    Image(systemName: "star.fill")
-                                }
-                                Divider()
-                                VStack(alignment: .leading) {
                                     HStack {
-                                        Text(store.store)
-                                            .font(.headline)
-                                        Spacer()
+                                        Text("\(Int(store.starNum))")
+                                            .font(.title.bold())
+                                        Image(systemName: "star.fill")
                                     }
-                                    HStack(alignment: .top) {
-                                        Image(systemName: "house")
-                                        Text(": \(store.address)")
-                                        Spacer()
+                                    Divider()
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text(store.store)
+                                                .font(.headline)
+                                            Spacer()
+                                        }
+                                        HStack(alignment: .top) {
+                                            Image(systemName: "house")
+                                            Text(": \(store.address)")
+                                            Spacer()
+                                        }
+                                        if !store.check{
+                                            Text("未確認資料完整性")
+                                                .foregroundStyle(Color.red)
+                                        }
                                     }
-                                    if !store.check{
-                                        Text("未確認資料完整性")
-                                            .foregroundStyle(Color.red)
+                                }
+                            }
+                        } else {
+                            // Fallback on earlier versions
+                            NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNamem)){
+                                HStack {
+                                    HStack {
+                                        Text("\(Int(store.starNum))")
+                                            .font(.title.bold())
+                                        Image(systemName: "star.fill")
+                                    }
+                                    Divider()
+                                    VStack(alignment: .leading) {
+                                        HStack {
+                                            Text(store.store)
+                                                .font(.headline)
+                                            Spacer()
+                                        }
+                                        HStack(alignment: .top) {
+                                            Image(systemName: "house")
+                                            Text(": \(store.address)")
+                                            Spacer()
+                                        }
+                                        if !store.check{
+                                            Text("未確認資料完整性")
+                                                .foregroundStyle(Color.red)
+                                        }
                                     }
                                 }
                             }

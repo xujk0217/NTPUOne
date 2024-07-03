@@ -16,8 +16,6 @@ import MapKit
 
 struct ContentView: View {
     
-    @State private var isLoading = true
-    
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
     @ObservedObject var weatherManager = WeatherManager()
@@ -49,14 +47,18 @@ struct ContentView: View {
                 Image(systemName: "cup.and.saucer.fill")
                 Text("life")
             }.tag(1)
-            trafficView().tabItem {
-                Image(systemName: "bicycle")
-                Text("traffic")
-            }.tag(2)
-//            timetableView.tabItem{
-//                Image(systemName: "list.clipboard")
-//                Text("timetable")
-//            }
+            if #available(iOS 17.0, *) {
+                trafficView().tabItem {
+                    Image(systemName: "bicycle")
+                    Text("traffic")
+                }.tag(2)
+            } else {
+                // Fallback on earlier versions
+                noMapTrafficView().tabItem {
+                    Image(systemName: "bicycle")
+                    Text("traffic")
+                }.tag(2)
+            }
             aboutView.tabItem{
                 Image(systemName: "info.circle")
                 Text("about")
@@ -86,40 +88,15 @@ extension String {
 
 private extension ContentView{
     
-    //MARK: - demo view
-    func loadData() {
-        orderManager.loadOrder { success in
-            DispatchQueue.main.async {
-                isLoading = !success
-            }
-        }
-    }
-    
     //MARK: - home view
     var linkView: some View {
         NavigationStack {
             VStack {
                 List {
-                    if isLoading {
-                        Section{
-                            VStack {
-                                ProgressView("Loading...")
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .onAppear(perform: loadData)
-                            }
-                        } footer: {
-                            Text("連線中，請確認網路連線")
-                        }
-                    }else{
+                    if let order = orderManager.order {
                         Section {
                             DemoView
-                                .onAppear(perform: {
-                                    orderManager.loadOrder { success in
-                                        DispatchQueue.main.async {
-                                            isLoading = !success
-                                        }
-                                    }
-                                })
+                                .onAppear(perform: orderManager.loadOrder)
                         } footer: {
                             VStack {
                                 Text("如需新增活動廣播，請至 about 頁面新增")
@@ -132,6 +109,16 @@ private extension ContentView{
                             }
                         }
                         .listRowBackground(Color.white.opacity(0.7))
+                    } else {
+                        Section{
+                            VStack {
+                                ProgressView("Loading...")
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .onAppear(perform: orderManager.loadOrder)
+                            }
+                        } footer: {
+                            Text("連線中，請確認網路連線")
+                        }
                     }
                     ForEach(webManager.websArray) { webs in
                         Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
@@ -252,52 +239,61 @@ private extension ContentView{
     
     var DemoView: some View {
         TabView(selection: $startIndex) {
-            ForEach(orderManager.order.indices, id: \.self) { index in
-                VStack {
-                    Spacer()
-                    HStack {
+            if let orders = orderManager.order {
+                ForEach(orders.indices, id: \.self) { index in
+                    VStack {
                         Spacer()
-                        Text("\(orderManager.order[index].message) \n -by \(orderManager.order[index].name)")
-                            .font(.headline)
-                            .lineLimit(5)
-                            .multilineTextAlignment(.center)
-                            .padding()
+                        HStack {
+                            Spacer()
+                            Text("\(orders[index].message) \n -by \(orders[index].name)")
+                                .font(.headline)
+                                .lineLimit(5)
+                                .multilineTextAlignment(.center)
+                                .padding()
+                            Spacer()
+                        }
                         Spacer()
                     }
-                    Spacer()
-                }.onTapGesture {
-                    if let url = URL(string: orderManager.order[index].url) {
-                        if UIApplication.shared.canOpenURL(url) {
-                            handleURL(orderManager.order[index].url)
-                        } else {
-                            print("Cannot open URL: \(orderManager.order[index].url)")
+                    .onTapGesture {
+                        if let url = URL(string: orders[index].url) {
+                            if UIApplication.shared.canOpenURL(url) {
+                                handleURL(orders[index].url)
+                            } else {
+                                print("Cannot open URL: \(orders[index].url)")
+                            }
                         }
                     }
                 }
+                .background(Color.white)
+                .cornerRadius(15)
+                .overlay(RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.black))
+                .padding(.horizontal, 1)
             }
-            .background(Color.white)
-            .cornerRadius(15)
-            .overlay(RoundedRectangle(cornerRadius: 15)
-                .stroke(Color.black))
-            .padding(.horizontal, 1)
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         .onReceive(timer) { _ in
             withAnimation {
-                if orderManager.order.count > 1{
-                    startIndex = (startIndex + 1) % orderManager.order.count
+                if let orders = orderManager.order, orders.count > 1 {
+                    startIndex = (startIndex + 1) % orders.count
                 }
             }
         }
         .frame(height: 160)
     }
+
     
     
     //MARK: - traffic
     
+    @available(iOS 17.0, *)
     struct trafficView: View{
         @ObservedObject var bikeManager = UbikeManager()
         @State private var isExpanded = false
+        @State var position: MapCameraPosition = .camera(
+            MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 1500)
+        )
+        @State var selectionResult: MKMapItem?
         var body: some View{
             VStack {
                 if let bikeDatas = bikeManager.bikeDatas {
@@ -380,11 +376,7 @@ private extension ContentView{
         }
         @available(iOS 17.0, *)
         var mapView: some View {
-            @State var position: MapCameraPosition = .camera(
-                MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 1500)
-            )
-            @State var selectionResult: MKMapItem?
-            return VStack{
+            VStack{
                 if let bikeDatas = bikeManager.bikeDatas {
                     Map(position: $position, selection: $selectionResult){
                         ForEach(bikeManager.bikeDatas!) { stop in
@@ -409,6 +401,96 @@ private extension ContentView{
             return false
         }
     }
+    
+    //MARK: - no map traffic
+    struct noMapTrafficView: View{
+        @ObservedObject var bikeManager = UbikeManager()
+        @State private var isExpanded = false
+        var body: some View{
+            VStack {
+                if let bikeDatas = bikeManager.bikeDatas {
+                    NavigationStack(){
+                        VStack {
+                            List {
+                                Section{
+                                    Text("升級至 IOS 17.0 以開啟地圖功能")
+                                } header: {
+                                    Text("腳踏車地圖")
+                                        .foregroundStyle(Color.black)
+                                } footer: {
+                                    Text("名稱：站名-(腳踏車數/總數)")
+                                        .foregroundStyle(Color.black)
+                                }
+                                Section {
+                                    DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
+                                        ForEach(bikeManager.bikeDatas!) { stop in
+                                            if isNTPU(sno: stop.sno) {
+                                                NavigationLink(destination: noMapBikeView(Bike: stop)){
+                                                    HStack{
+                                                        Text(stop.tot)
+                                                            .font(.title.bold())
+                                                        VStack{
+                                                            HStack {
+                                                                Text(stop.sna.substring(from: 11))
+                                                                Spacer()
+                                                            }
+                                                            HStack{
+                                                                Image(systemName: "bicycle")
+                                                                Text(stop.sbi)
+                                                                Spacer()
+                                                                Image(systemName: "baseball.diamond.bases")
+                                                                Text(stop.bemp)
+                                                                Spacer()
+                                                            }
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }.listRowBackground(Color.white.opacity(0.7))
+                                } header: {
+                                    HStack {
+                                        Text("Ubike in NTPU")
+                                            .foregroundStyle(Color.black)
+                                        Spacer()
+                                        if isExpanded == true {
+                                            NavigationLink(destination: MoreBikeView()) {
+                                                Text("more")
+                                                    .font(.caption)
+                                            }
+                                        }
+                                    }
+                                } footer: {
+                                    Text("更新頻率：每5分鐘")
+                                        .foregroundStyle(Color.black)
+                                }
+                            }
+                        }
+                        .scrollContentBackground(.hidden)
+                        .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                        .navigationTitle("Traffic")
+                    }.onAppear(perform: {
+                        self.bikeManager.fetchData()
+                })
+                }else{
+                    Text("Loading...")
+                        .onAppear {
+                            bikeManager.fetchData()
+                        }
+                    ProgressView()
+                }
+            }
+        }
+        func isNTPU(sno: String) -> Bool{
+            for i in K.Bike.NTPUBikeNum{
+                if i == sno{
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
     
     //MARK: - life view
     @ViewBuilder

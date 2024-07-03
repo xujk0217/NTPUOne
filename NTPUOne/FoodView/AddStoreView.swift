@@ -42,7 +42,7 @@ struct AddStoreView: View {
                             }.padding()
                             HStack {
                                 Text("相關網址＊：")
-                                TextField("沒有也可以", text: $url)
+                                TextField("googleMap 網址", text: $url)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {
@@ -90,6 +90,7 @@ struct AddStoreView: View {
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.edgesIgnoringSafeArea(.bottom)
+            .navigationTitle("新增店家")
     }
     
     

@@ -14,33 +14,67 @@ struct BreakfastView: View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
-                    ForEach(fManager.Food!) { store in
-                        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNameB)){
-                            HStack {
-                                HStack {
-                                    Text("\(Int(store.starNum))")
-                                        .font(.title.bold())
-                                    Image(systemName: "star.fill")
-                                }
-                                Divider()
-                                VStack(alignment: .leading) {
+                    Section{
+                        ForEach(fManager.Food!) { store in
+                            if #available(iOS 17.0, *) {
+                                NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNameB)){
                                     HStack {
-                                        Text(store.store)
-                                            .font(.headline)
-                                        Spacer()
+                                        HStack {
+                                            Text("\(Int(store.starNum))")
+                                                .font(.title.bold())
+                                            Image(systemName: "star.fill")
+                                        }
+                                        Divider()
+                                        VStack(alignment: .leading) {
+                                            HStack {
+                                                Text(store.store)
+                                                    .font(.headline)
+                                                Spacer()
+                                            }
+                                            HStack(alignment: .top) {
+                                                Image(systemName: "house")
+                                                Text(": \(store.address)")
+                                                Spacer()
+                                            }
+                                            if !store.check{
+                                                Text("未確認資料完整性")
+                                                    .foregroundStyle(Color.red)
+                                            }
+                                        }
                                     }
-                                    HStack(alignment: .top) {
-                                        Image(systemName: "house")
-                                        Text(": \(store.address)")
-                                        Spacer()
-                                    }
-                                    if !store.check{
-                                        Text("未確認資料完整性")
-                                            .foregroundStyle(Color.red)
+                                }
+                            } else {
+                                // Fallback on earlier versions
+                                NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNameB)){
+                                    HStack {
+                                        HStack {
+                                            Text("\(Int(store.starNum))")
+                                                .font(.title.bold())
+                                            Image(systemName: "star.fill")
+                                        }
+                                        Divider()
+                                        VStack(alignment: .leading) {
+                                            HStack {
+                                                Text(store.store)
+                                                    .font(.headline)
+                                                Spacer()
+                                            }
+                                            HStack(alignment: .top) {
+                                                Image(systemName: "house")
+                                                Text(": \(store.address)")
+                                                Spacer()
+                                            }
+                                            if !store.check{
+                                                Text("未確認資料完整性")
+                                                    .foregroundStyle(Color.red)
+                                            }
+                                        }
                                     }
                                 }
                             }
                         }
+                    } header: {
+                        Text("\(Image(systemName: "star.fill")) 是人氣數")
                     }
                 }
                 .navigationTitle("Breakfast")

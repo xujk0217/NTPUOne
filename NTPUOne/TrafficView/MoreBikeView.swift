@@ -20,22 +20,46 @@ struct MoreBikeView: View {
                                 Section {
                                     ForEach(bikeManager.bikeDatas!) { stop in
                                         if !(isNTPU(sno: stop.sno)){
-                                            NavigationLink(destination: bikeView(Bike: stop)){
-                                                HStack{
-                                                    Text(stop.tot)
-                                                        .font(.title.bold())
-                                                    VStack{
-                                                        HStack {
-                                                            Text(stop.sna.substring(from: 11))
-                                                            Spacer()
+                                            if #available(iOS 17.0, *) {
+                                                NavigationLink(destination: bikeView(Bike: stop)){
+                                                    HStack{
+                                                        Text(stop.tot)
+                                                            .font(.title.bold())
+                                                        VStack{
+                                                            HStack {
+                                                                Text(stop.sna.substring(from: 11))
+                                                                Spacer()
+                                                            }
+                                                            HStack{
+                                                                Image(systemName: "bicycle")
+                                                                Text(stop.sbi)
+                                                                Spacer()
+                                                                Image(systemName: "baseball.diamond.bases")
+                                                                Text(stop.bemp)
+                                                                Spacer()
+                                                            }
                                                         }
-                                                        HStack{
-                                                            Image(systemName: "bicycle")
-                                                            Text(stop.sbi)
-                                                            Spacer()
-                                                            Image(systemName: "baseball.diamond.bases")
-                                                            Text(stop.bemp)
-                                                            Spacer()
+                                                    }
+                                                }
+                                            } else {
+                                                // Fallback on earlier versions
+                                                NavigationLink(destination: noMapBikeView(Bike: stop)){
+                                                    HStack{
+                                                        Text(stop.tot)
+                                                            .font(.title.bold())
+                                                        VStack{
+                                                            HStack {
+                                                                Text(stop.sna.substring(from: 11))
+                                                                Spacer()
+                                                            }
+                                                            HStack{
+                                                                Image(systemName: "bicycle")
+                                                                Text(stop.sbi)
+                                                                Spacer()
+                                                                Image(systemName: "baseball.diamond.bases")
+                                                                Text(stop.bemp)
+                                                                Spacer()
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -51,6 +75,9 @@ struct MoreBikeView: View {
                             }
                         }
                         .navigationTitle("More ubike")
+                        .onAppear {
+                            bikeManager.fetchData()
+                        }
                     }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }else{
@@ -60,6 +87,8 @@ struct MoreBikeView: View {
                     }
                 ProgressView()
             }
+        }.onAppear {
+            bikeManager.fetchData()
         }
     }
     func isNTPU(sno: String) -> Bool{
