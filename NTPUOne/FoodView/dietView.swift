@@ -30,6 +30,13 @@ struct dietView: View {
                 } header: {
                     Text("餐廳位置")
                 }
+                if !store!.check {
+                    Section{
+                        Text("未確認資料完整性")
+                            .font(.title3)
+                            .foregroundStyle(Color.red)
+                    }
+                }
                 Section{
                     Button {
                         if isStar == false{
@@ -84,7 +91,7 @@ struct dietView: View {
 }
 
 #Preview {
-    dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1), currCollectName: K.FStoreF.collectionNamed)
+    dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1, check: false), currCollectName: K.FStoreF.collectionNamed)
 }
 
 extension dietView{

@@ -33,6 +33,10 @@ struct MSVIew: View {
                                         Text(": \(store.address)")
                                         Spacer()
                                     }
+                                    if !store.check{
+                                        Text("未確認資料完整性")
+                                            .foregroundStyle(Color.red)
+                                    }
                                 }
                             }
                         }

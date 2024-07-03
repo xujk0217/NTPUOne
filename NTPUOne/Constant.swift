@@ -34,6 +34,7 @@ struct K{
         static let latField = "lat"
         static let lngField = "lng"
         static let addressField = "address"
+        static let checkField = "check"
     }
     
     struct FStoreR {

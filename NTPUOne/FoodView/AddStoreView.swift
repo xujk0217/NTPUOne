@@ -111,8 +111,8 @@ struct AddStoreView: View {
                 K.FStoreF.addressField: address,
                 K.FStoreF.starField: starNum,
                 K.FStoreF.latField: latDou,
-                K.FStoreF.lngField: lngDou
-                
+                K.FStoreF.lngField: lngDou,
+                K.FStoreF.checkField: false
             ]) { error in
                 if let e = error{
                     print("There was an issue saving data to firestore, \(e)")

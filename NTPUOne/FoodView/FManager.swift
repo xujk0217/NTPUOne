@@ -62,4 +62,5 @@ struct FDetail: Identifiable, Codable {
     var starNum: Double
     let lat: Double
     let lng: Double
+    let check: Bool
 }
