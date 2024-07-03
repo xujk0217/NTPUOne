@@ -39,6 +39,16 @@ struct MSVIew: View {
                     }
                 }
                 .navigationTitle("Midnight snack")
+                .toolbar{
+                    ToolbarItem(placement: .primaryAction, content: {
+                        NavigationLink {
+                            AddStoreView(currCollectName: K.FStoreF.collectionNamem)
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundStyle(Color.blue)
+                        }
+                    })
+                }
                 .onAppear {
                     fManager.loadF(whichDiet: "M")
                 }

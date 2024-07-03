@@ -32,7 +32,7 @@ struct FeaturesView: View {
                         VStack {
                             HStack {
                                 Text("功能名稱：")
-                                TextField("", text: $issue)
+                                TextField("功能", text: $issue)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {

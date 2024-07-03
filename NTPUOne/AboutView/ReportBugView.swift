@@ -32,7 +32,7 @@ struct ReportBugView: View {
                         VStack {
                             HStack {
                                 Text("發現問題：")
-                                TextField("", text: $issue)
+                                TextField("問題", text: $issue)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {

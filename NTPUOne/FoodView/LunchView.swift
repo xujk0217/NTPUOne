@@ -39,6 +39,16 @@ struct LunchView: View {
                     }
                 }
                 .navigationTitle("Lunch")
+                .toolbar{
+                    ToolbarItem(placement: .primaryAction, content: {
+                        NavigationLink {
+                            AddStoreView(currCollectName: K.FStoreF.collectionNamel)
+                        } label: {
+                            Image(systemName: "plus")
+                                .foregroundStyle(Color.blue)
+                        }
+                    })
+                }
                 .onAppear {
                     fManager.loadF(whichDiet: "L")
                 }
