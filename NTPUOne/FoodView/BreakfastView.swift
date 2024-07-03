@@ -11,36 +11,44 @@ import FirebaseFirestore
 struct BreakfastView: View {
     @ObservedObject var fManager = FManager()
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(fManager.Food) { store in
-                    NavigationLink(destination: dietView(store: store)){
-                        HStack {
+        if let Food = fManager.Food {
+            NavigationStack {
+                List {
+                    ForEach(fManager.Food!) { store in
+                        NavigationLink(destination: dietView(store: store)){
                             HStack {
-                                Text("\(Int(store.starNum))")
-                                    .font(.title.bold())
-                                Image(systemName: "star.fill")
-                            }
-                            Divider()
-                            VStack(alignment: .leading) {
                                 HStack {
-                                    Text(store.store)
-                                        .font(.headline)
-                                    Spacer()
+                                    Text("\(Int(store.starNum))")
+                                        .font(.title.bold())
+                                    Image(systemName: "star.fill")
                                 }
-                                HStack(alignment: .top) {
-                                    Image(systemName: "house")
-                                    Text(": \(store.address)")
-                                    Spacer()
+                                Divider()
+                                VStack(alignment: .leading) {
+                                    HStack {
+                                        Text(store.store)
+                                            .font(.headline)
+                                        Spacer()
+                                    }
+                                    HStack(alignment: .top) {
+                                        Image(systemName: "house")
+                                        Text(": \(store.address)")
+                                        Spacer()
+                                    }
                                 }
                             }
                         }
                     }
                 }
+                .navigationTitle("Breakfast")
+                }.onAppear {
+                fManager.loadF(whichDiet: "B")
             }
-            .navigationTitle("Breakfast")
-            }.onAppear {
-            fManager.loadF(whichDiet: "B")
+        }else{
+            Text("Loading...")
+                .onAppear {
+                    fManager.loadF(whichDiet: "B")
+                }
+            ProgressView()
         }
     }
 }

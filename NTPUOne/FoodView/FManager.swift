@@ -10,10 +10,10 @@ import FirebaseFirestore
 
 
 class FManager: ObservableObject {
-    @Published var Food: [FDetail] = []
+    @Published var Food: [FDetail]?
     
     private var db = Firestore.firestore()
-
+    
     func loadF(whichDiet:String) {
         var collectName = ""
         if whichDiet == "B"{
@@ -34,6 +34,7 @@ class FManager: ObservableObject {
                 } else {
                     if let snapshotDocuments = querySnapshot?.documents {
                         print("success get order")
+                        var newFoods = [FDetail]()
                         for doc in snapshotDocuments {
                             let data = doc.data()
                             if let store = data[K.FStoreF.storeField] as? String,
@@ -44,12 +45,13 @@ class FManager: ObservableObject {
                                let lng = data[K.FStoreF.lngField] as? Double,
                                let address = data[K.FStoreF.addressField] as? String {
                                 let newF = FDetail(store: store, time: time, url: url, address: address, starNum: starNum, lat: lat, lng: lng)
-                                DispatchQueue.main.async {
-                                    self.Food.append(newF)
-                                }
+                                newFoods.append(newF)
                             } else {
                                 print("order firebase fail")
                             }
+                        }
+                        DispatchQueue.main.async {
+                            self.Food = newFoods
                         }
                     }
                 }
