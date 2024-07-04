@@ -72,10 +72,7 @@ class WebManager: ObservableObject{
             WebData(id: "33", title: "都計研", image: "macwindow.on.rectangle", url: "https://urbanplanning.ntpu.edu.tw/"),
             WebData(id: "34", title: "犯罪研", image: "macwindow.on.rectangle", url: "https://crm.ntpu.edu.tw/"),
         ]),
-        WebsArray(id: 4, title: "行事曆", webs: [
-            WebData(id: "35", title: "113-1 行事曆", image: "calendar", url: "https://cms-carrier.ntpu.edu.tw/uploads/113_1_ee1891e78c.pdf"),
-            WebData(id: "36", title: "113-2 行事曆", image: "calendar.badge.clock", url: "https://cms-carrier.ntpu.edu.tw/uploads/113_2_c2e0d6717f.pdf")
-        ]),
+        WebsArray(id: 4, title: "行事曆", webs: []),
         WebsArray(id: 5, title: "學生會", webs: [
             WebData(id: "37", title: "學生會 linktree", image: "macwindow", url: "https://linktr.ee/ntpusu"),
             WebData(id: "38", title: "投票網站", image: "person.crop.square.filled.and.at.rectangle", url: "https://ntpusu-vote.vercel.app/"),

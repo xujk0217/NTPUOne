@@ -40,7 +40,7 @@ struct MoreBikeView: View {
                                                             }
                                                         }
                                                     }
-                                                }
+                                                }.listRowBackground(Color.white.opacity(0.7))
                                             } else {
                                                 // Fallback on earlier versions
                                                 NavigationLink(destination: noMapBikeView(Bike: stop)){
@@ -62,17 +62,19 @@ struct MoreBikeView: View {
                                                             }
                                                         }
                                                     }
-                                                }
+                                                }.listRowBackground(Color.white.opacity(0.7))
                                             }
                                         }
                                     }
                                 } header: {
                                     HStack {
                                         Text("Ubike")
+                                            .foregroundStyle(Color.black)
                                         Spacer()
                                     }
                                 }
-                            }
+                            }.scrollContentBackground(.hidden)
+                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
                         }
                         .navigationTitle("More ubike")
                         .onAppear {

@@ -7,87 +7,44 @@
 
 import SwiftUI
 
-struct MSVIew: View {
+struct MSView: View {
     @ObservedObject var fManager = FManager()
+    
     var body: some View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
-                    ForEach(fManager.Food!) { store in
-                        if #available(iOS 17.0, *) {
-                            NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamem)){
-                                HStack {
-                                    HStack {
-                                        Text("\(Int(store.starNum))")
-                                            .font(.title.bold())
-                                        Image(systemName: "star.fill")
-                                    }
-                                    Divider()
-                                    VStack(alignment: .leading) {
-                                        HStack {
-                                            Text(store.store)
-                                                .font(.headline)
-                                            Spacer()
-                                        }
-                                        HStack(alignment: .top) {
-                                            Image(systemName: "house")
-                                            Text(": \(store.address)")
-                                            Spacer()
-                                        }
-                                        if !store.check{
-                                            Text("未確認資料完整性")
-                                                .foregroundStyle(Color.red)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            // Fallback on earlier versions
-                            NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNamem)){
-                                HStack {
-                                    HStack {
-                                        Text("\(Int(store.starNum))")
-                                            .font(.title.bold())
-                                        Image(systemName: "star.fill")
-                                    }
-                                    Divider()
-                                    VStack(alignment: .leading) {
-                                        HStack {
-                                            Text(store.store)
-                                                .font(.headline)
-                                            Spacer()
-                                        }
-                                        HStack(alignment: .top) {
-                                            Image(systemName: "house")
-                                            Text(": \(store.address)")
-                                            Spacer()
-                                        }
-                                        if !store.check{
-                                            Text("未確認資料完整性")
-                                                .foregroundStyle(Color.red)
-                                        }
-                                    }
-                                }
+                    Section {
+                        ForEach(fManager.Food!) { store in
+                            if #available(iOS 17.0, *) {
+                                StoreNavigationLink(store: store, collectionName: K.FStoreF.collectionNamem)
+                            } else {
+                                StoreNavigationLinkLegacy(store: store, collectionName: K.FStoreF.collectionNamem)
                             }
                         }
+                    } header: {
+                        Text("\(Image(systemName: "star.fill")) 是人氣數")
+                            .foregroundStyle(Color.black)
                     }
                 }
-                .navigationTitle("Midnight snack")
-                .toolbar{
-                    ToolbarItem(placement: .primaryAction, content: {
+                .scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .navigationTitle("Midnight Snack")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamem)
                         } label: {
-                            Image(systemName: "plus")
-                                .foregroundStyle(Color.blue)
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(Color.white)
                         }
-                    })
+                    }
                 }
                 .onAppear {
                     fManager.loadF(whichDiet: "M")
                 }
             }
-        }else{
+        } else {
             Text("Loading...")
                 .onAppear {
                     fManager.loadF(whichDiet: "M")
@@ -97,6 +54,7 @@ struct MSVIew: View {
     }
 }
 
+
 #Preview {
-    MSVIew()
+    MSView()
 }

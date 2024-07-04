@@ -35,7 +35,7 @@ struct bikeView: View {
                     Text("腳踏車地圖")
                 } footer: {
                     Text("名稱：站名-(腳踏車數/總數)")
-                }
+                }.listRowBackground(Color.white.opacity(0.7))
                 Section {
                     HStack {
                         Text(Bike.tot)
@@ -55,8 +55,10 @@ struct bikeView: View {
                             }
                         }
                     }
-                }
+                }.listRowBackground(Color.white.opacity(0.7))
             }
+            .scrollContentBackground(.hidden)
+            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
             .navigationTitle(Bike.sna.substring(from: 11))
         }
     }
@@ -97,9 +99,11 @@ struct noMapBikeView: View {
                     Text("升級至 IOS 17.0 以開啟地圖功能")
                 } header: {
                     Text("腳踏車地圖")
+                        .foregroundStyle(Color.black)
                 } footer: {
                     Text("名稱：站名-(腳踏車數/總數)")
-                }
+                        .foregroundStyle(Color.black)
+                }.listRowBackground(Color.white.opacity(0.7))
                 Section{
                     HStack{
                         Text(Bike!.tot)
@@ -119,7 +123,9 @@ struct noMapBikeView: View {
                             }
                         }
                     }
-                }
+                }.listRowBackground(Color.white.opacity(0.7))
+                .scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
             }.navigationTitle(Bike!.sna.substring(from: 11))
         }
     }

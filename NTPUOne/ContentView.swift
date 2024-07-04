@@ -559,7 +559,7 @@ private extension ContentView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.3))
+                                            .background(Color.white.opacity(0.7))
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -580,7 +580,7 @@ private extension ContentView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.3))
+                                            .background(Color.white.opacity(0.7))
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -601,11 +601,11 @@ private extension ContentView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.3))
+                                            .background(Color.white.opacity(0.7))
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
-                                        NavigationLink(destination: MSVIew()) {
+                                        NavigationLink(destination: MSView()) {
                                             HStack {
                                                 Image(systemName: "cross")
                                                     .resizable()
@@ -622,7 +622,7 @@ private extension ContentView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.3))
+                                            .background(Color.white.opacity(0.7))
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -743,7 +743,7 @@ private extension ContentView{
                     Spacer()
                 }
                 .frame(height: 150)
-                .background(Color.white.opacity(0.3))
+                .background(Color.white.opacity(0.4))
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.bottom)

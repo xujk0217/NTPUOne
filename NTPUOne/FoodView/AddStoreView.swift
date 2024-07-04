@@ -52,7 +52,7 @@ struct AddStoreView: View {
                             }.padding()
                             HStack {
                                 Text("地址＊：")
-                                TextField("商家地址）", text: $address)
+                                TextField("商家地址", text: $address)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {

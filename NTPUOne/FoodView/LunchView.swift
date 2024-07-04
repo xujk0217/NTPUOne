@@ -9,91 +9,101 @@ import SwiftUI
 
 struct LunchView: View {
     @ObservedObject var fManager = FManager()
+    
     var body: some View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
-                    ForEach(fManager.Food!) { store in
-                        if #available(iOS 17.0, *) {
-                            NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamel)){
-                                HStack {
-                                    HStack {
-                                        Text("\(Int(store.starNum))")
-                                            .font(.title.bold())
-                                        Image(systemName: "star.fill")
-                                    }
-                                    Divider()
-                                    VStack(alignment: .leading) {
-                                        HStack {
-                                            Text(store.store)
-                                                .font(.headline)
-                                            Spacer()
-                                        }
-                                        HStack(alignment: .top) {
-                                            Image(systemName: "house")
-                                            Text(": \(store.address)")
-                                            Spacer()
-                                        }
-                                        if !store.check{
-                                            Text("未確認資料完整性")
-                                                .foregroundStyle(Color.red)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            // Fallback on earlier versions
-                            NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNamel)){
-                                HStack {
-                                    HStack {
-                                        Text("\(Int(store.starNum))")
-                                            .font(.title.bold())
-                                        Image(systemName: "star.fill")
-                                    }
-                                    Divider()
-                                    VStack(alignment: .leading) {
-                                        HStack {
-                                            Text(store.store)
-                                                .font(.headline)
-                                            Spacer()
-                                        }
-                                        HStack(alignment: .top) {
-                                            Image(systemName: "house")
-                                            Text(": \(store.address)")
-                                            Spacer()
-                                        }
-                                        if !store.check{
-                                            Text("未確認資料完整性")
-                                                .foregroundStyle(Color.red)
-                                        }
-                                    }
-                                }
+                    Section {
+                        ForEach(fManager.Food!) { store in
+                            if #available(iOS 17.0, *) {
+                                StoreNavigationLink(store: store, collectionName: K.FStoreF.collectionNamel)
+                            } else {
+                                StoreNavigationLinkLegacy(store: store, collectionName: K.FStoreF.collectionNamel)
                             }
                         }
+                    } header: {
+                        Text("\(Image(systemName: "star.fill")) 是人氣數")
+                            .foregroundStyle(Color.black)
                     }
                 }
+                .scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .navigationTitle("Lunch")
-                .toolbar{
-                    ToolbarItem(placement: .primaryAction, content: {
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamel)
                         } label: {
-                            Image(systemName: "plus")
-                                .foregroundStyle(Color.blue)
+                            Image(systemName: "plus.circle.fill")
+                                .foregroundStyle(Color.white)
                         }
-                    })
+                    }
                 }
                 .onAppear {
                     fManager.loadF(whichDiet: "L")
                 }
             }
-        }
-        else{
+        } else {
             Text("Loading...")
                 .onAppear {
                     fManager.loadF(whichDiet: "L")
                 }
             ProgressView()
+        }
+    }
+}
+
+@available(iOS 17.0, *)
+struct StoreNavigationLink: View {
+    var store: FDetail
+    var collectionName: String
+
+    var body: some View {
+        NavigationLink(destination: dietView(store: store, currCollectName: collectionName)) {
+            StoreRowView(store: store)
+        }
+    }
+}
+
+struct StoreNavigationLinkLegacy: View {
+    var store: FDetail
+    var collectionName: String
+
+    var body: some View {
+        NavigationLink(destination: noMapDietView(store: store, currCollectName: collectionName)) {
+            StoreRowView(store: store)
+        }
+    }
+}
+
+struct StoreRowView: View {
+    var store: FDetail
+
+    var body: some View {
+        HStack {
+            HStack {
+                Text("\(Int(store.starNum))")
+                    .font(.title.bold())
+                Image(systemName: "star.fill")
+            }
+            Divider()
+            VStack(alignment: .leading) {
+                HStack {
+                    Text(store.store)
+                        .font(.headline)
+                    Spacer()
+                }
+                HStack(alignment: .top) {
+                    Image(systemName: "house")
+                    Text(": \(store.address)")
+                    Spacer()
+                }
+                if !store.check {
+                    Text("未確認資料完整性")
+                        .foregroundStyle(Color.red)
+                }
+            }
         }
     }
 }

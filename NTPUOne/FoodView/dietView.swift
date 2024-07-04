@@ -39,6 +39,7 @@ struct dietView: View {
                     }
                 } header: {
                     Text("餐廳位置")
+                        .foregroundStyle(Color.black)
                 }
                 if !store!.check {
                     Section {
@@ -91,8 +92,10 @@ struct dietView: View {
                     }
                 } footer: {
                     Text("點擊進入地圖")
+                        .foregroundStyle(Color.black)
                 }
-            }
+            }.scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
             .navigationTitle(store!.store)
             .onDisappear {
                 isStar = false
@@ -226,7 +229,8 @@ struct noMapDietView: View {
                 } footer: {
                     Text("點擊進入地圖")
                 }
-            }
+            }.scrollContentBackground(.hidden)
+                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
             .navigationTitle(store!.store)
             .onDisappear {
                 isStar = false
