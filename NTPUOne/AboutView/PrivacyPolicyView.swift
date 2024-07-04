@@ -30,7 +30,7 @@ struct PrivacyPolicyView: View {
                         Text("The Service Provider may use the information you provided to contact you from time to time to provide you with important information, required notices, and marketing promotions.")
                         Text("For a better experience, while using the Application, the Service Provider may require you to provide us with certain personally identifiable information [add whatever else you collect here, e.g. users name, address, location, pictures]. The information that the Service Provider requests will be retained by them and used as described in this privacy policy.")
                     }
-                    
+                     
                     Group {
                         Text("Third Party Access")
                             .font(.headline)
