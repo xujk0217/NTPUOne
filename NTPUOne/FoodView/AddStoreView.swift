@@ -17,6 +17,7 @@ struct AddStoreView: View {
     @State private var time:String = ""
     @State private var url:String = ""
     @State private var address:String = ""
+    @State private var phone:String = ""
     @State private var starNum:Double = 1
     @State private var lat:String = ""
     @State private var lng:String = ""
@@ -48,6 +49,11 @@ struct AddStoreView: View {
                             HStack {
                                 Text("營業時間＊：")
                                 TextField("ex: 11:00~12:30", text: $time)
+                                    .textFieldStyle(.roundedBorder)
+                            }.padding()
+                            HStack {
+                                Text("電話＊：")
+                                TextField("店家電話", text: $phone)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {
@@ -110,6 +116,7 @@ struct AddStoreView: View {
                 K.FStoreF.urlField: url,
                 K.FStoreF.openTimeField: time,
                 K.FStoreF.addressField: address,
+                K.FStoreF.phoneField: phone,
                 K.FStoreF.starField: starNum,
                 K.FStoreF.latField: latDou,
                 K.FStoreF.lngField: lngDou,
@@ -123,6 +130,7 @@ struct AddStoreView: View {
                     DispatchQueue.main.async{
                         self.store = ""
                         self.url = ""
+                        self.phone = ""
                         self.time = ""
                         self.address = ""
                         self.lat = ""

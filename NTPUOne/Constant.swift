@@ -30,6 +30,7 @@ struct K{
         static let storeField = "store"
         static let openTimeField = "time"
         static let urlField = "url"
+        static let phoneField = "phone"
         static let starField = "starNum"
         static let latField = "lat"
         static let lngField = "lng"

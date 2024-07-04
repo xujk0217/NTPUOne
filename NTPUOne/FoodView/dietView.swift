@@ -85,6 +85,11 @@ struct dietView: View {
                                 Text(": \(store!.time)")
                                 Spacer()
                             }
+                            HStack(alignment: .top) {
+                                Image(systemName: "phone")
+                                Text(": \(store!.phone)")
+                                Spacer()
+                            }
                         }
                     }
                     .onTapGesture {
@@ -106,10 +111,10 @@ struct dietView: View {
 
 #Preview {
     if #available(iOS 17.0, *) {
-        dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1, check: false), currCollectName: K.FStoreF.collectionNamed)
+        dietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", phone: "0987654321", starNum: 1, lat: 24.947582922315316, lng: 1.1, check: false), currCollectName: K.FStoreF.collectionNamed)
     } else {
         // Fallback on earlier versions
-        noMapDietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", starNum: 1, lat: 24.947582922315316, lng: 1.1, check: false), currCollectName: K.FStoreF.collectionNamed)
+        noMapDietView(store: FDetail(store: "abc", time: "abc", url: "abc", address: "abc", phone: "0987654321", starNum: 1, lat: 24.947582922315316, lng: 1.1, check: false), currCollectName: K.FStoreF.collectionNamed)
     }
 }
 
@@ -218,6 +223,11 @@ struct noMapDietView: View {
                                 HStack(alignment: .top) {
                                     Image(systemName: "clock")
                                     Text(": \(store!.time)")
+                                    Spacer()
+                                }
+                                HStack(alignment: .top) {
+                                    Image(systemName: "phone")
+                                    Text(": \(store!.phone)")
                                     Spacer()
                                 }
                             }

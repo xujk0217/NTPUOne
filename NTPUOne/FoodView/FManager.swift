@@ -59,6 +59,7 @@ struct FDetail: Identifiable, Codable {
     let time: String
     let url: String
     let address: String
+    let phone: String
     var starNum: Double
     let lat: Double
     let lng: Double

@@ -839,15 +839,6 @@ private extension ContentView{
         }
     }
     
-    //MARK: - timetable
-    
-    var timetableView: some View{
-        NavigationStack {
-            Text("un")
-                .navigationTitle("Time table")
-        }
-    }
-    
     //MARK: - about
     
     var aboutView: some View{
