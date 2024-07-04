@@ -888,9 +888,9 @@ private extension ContentView{
                     }
                     
                     NavigationLink {
-                        AboutMeView()
+                        PrivacyPolicyView()
                     } label: {
-                        Text("about me")
+                        Text("Privacy Policy")
                     }
                 } header: {
                     Text("Me")
