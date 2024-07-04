@@ -93,105 +93,17 @@ private extension ContentView{
         NavigationStack {
             VStack {
                 List {
-                    if let order = orderManager.order {
-                        Section {
-                            DemoView
-                                .onAppear(perform: orderManager.loadOrder)
-                        } footer: {
-                            VStack {
-                                Text("如需新增活動廣播，請至 about 頁面新增")
-                                    .foregroundStyle(Color.black)
-                                    .padding(.bottom)
-                                Divider()
-                                Text("常用網址")
-                                    .foregroundStyle(Color.black)
-                                    .font(.callout)
-                            }
-                        }
-                        .listRowBackground(Color.white.opacity(0.7))
-                    } else {
-                        Section{
-                            VStack {
-                                ProgressView("Loading...")
-                                    .progressViewStyle(CircularProgressViewStyle())
-                                    .onAppear(perform: orderManager.loadOrder)
-                            }
-                        } footer: {
-                            Text("連線中，請確認網路連線")
-                        }
-                    }
-                    ForEach(webManager.websArray) { webs in
-                        Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
-                            if webs.id != 3 {
-                                ForEach(webs.webs) { web in
-                                    if web.url == "https://past-exam.ntpu.cc" || web.url == "https://cof.ntpu.edu.tw/student_new.htm" {
-                                        Button(action: {
-                                            handleURL(web.url)
-                                        }) {
-                                            HStack {
-                                                Image(systemName: web.image)
-                                                    .resizable()
-                                                    .frame(width: 30, height: 30)
-                                                    .padding()
-                                                Text(web.title)
-                                                    .font(.callout.bold())
-                                            }
-                                        }
-                                    } else {
-                                        NavigationLink(destination: WebDetailView(url: web.url)) {
-                                            HStack {
-                                                Image(systemName: web.image)
-                                                    .resizable()
-                                                    .frame(width: 30, height: 30)
-                                                    .padding()
-                                                Text(web.title)
-                                                    .font(.callout.bold())
-                                            }
-                                        }
-                                    }
-                                }.frame(height: 50)
-                            } else {
-                                DisclosureGroup("系網們") {
-                                    ForEach(webs.webs) { web in
-                                        if web.url == "http://dafl.ntpu.edu.tw/main.php" || web.url == "http://www.rebe.ntpu.edu.tw"{
-                                            Button(action: {
-                                                handleURL(web.url)
-                                            }) {
-                                                HStack {
-                                                    Image(systemName: web.image)
-                                                        .resizable()
-                                                        .frame(width: 30, height: 30)
-                                                        .padding()
-                                                    Text(web.title)
-                                                        .font(.callout.bold())
-                                                }
-                                            }
-                                        } else {
-                                            NavigationLink(destination: WebDetailView(url: web.url)) {
-                                                HStack {
-                                                    Image(systemName: web.image)
-                                                        .resizable()
-                                                        .frame(width: 30, height: 30)
-                                                        .padding()
-                                                    Text(web.title)
-                                                        .font(.callout.bold())
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                                .frame(height: 50)
-                                .font(.callout.bold())
-                            }
-                        }
-                    }.listRowBackground(Color.white.opacity(0.7))
+                    orderSection
+                    webSections
                 }
                 .scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .blue], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(
+                    LinearGradient(colors: [.white, .blue], startPoint: .bottomLeading, endPoint: .topTrailing)
+                )
                 .navigationTitle("NTPU one")
-                .onAppear(perform: {
+                .onAppear {
                     webManager.createData()
-                })
+                }
                 .sheet(isPresented: $showWebView) {
                     if let urlString = urlString {
                         WebDetailView(url: urlString)
@@ -201,31 +113,138 @@ private extension ContentView{
         }
     }
     
-    func handleURL(_ urlString: String) {
-            self.urlString = urlString
-            if urlString == "https://past-exam.ntpu.cc" {
-                // Open in external browser
-                if let url = URL(string: urlString) {
-                    if UIApplication.shared.canOpenURL(url) {
-                        UIApplication.shared.open(url)
-                    } else {
-                        print("Cannot open URL: \(urlString)")
+    private var orderSection: some View {
+        Group {
+            if let order = orderManager.order {
+                Section {
+                    DemoView
+                        .onAppear(perform: orderManager.loadOrder)
+                } footer: {
+                    VStack {
+                        Text("如需新增活動廣播，請至 about 頁面新增")
+                            .foregroundStyle(Color.black)
+                            .padding(.bottom)
+                        Divider()
+                        Text("常用網址")
+                            .foregroundStyle(Color.black)
+                            .font(.callout)
                     }
                 }
+                .listRowBackground(Color.white.opacity(0.7))
             } else {
-                // Open in SafariViewController
-                if let url = URL(string: urlString) {
-                    if UIApplication.shared.canOpenURL(url) {
-                        if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                            let safariVC = SFSafariViewController(url: url)
-                            topViewController.present(safariVC, animated: true, completion: nil)
-                        }
-                    } else {
-                        print("Cannot open URL: \(urlString)")
+                Section {
+                    VStack {
+                        ProgressView("Loading...")
+                            .progressViewStyle(CircularProgressViewStyle())
+                            .onAppear(perform: orderManager.loadOrder)
                     }
+                } footer: {
+                    Text("連線中，請確認網路連線")
                 }
             }
         }
+    }
+    
+    private var webSections: some View {
+        ForEach(webManager.websArray) { webs in
+                    Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
+                        if webs.id == 3 {
+                            disclosureGroup(for: webs)
+                        } else if webs.id == 4 {
+                            if let calendar = webManager.Calendar {
+                                webLinks(for: webManager.Calendar!)
+                            } else {
+                                Section {
+                                    VStack {
+                                        ProgressView("Loading...")
+                                            .progressViewStyle(CircularProgressViewStyle())
+                                            .onAppear(perform: webManager.createData)
+                                    }
+                                } footer: {
+                                    Text("連線中，請確認網路連線")
+                                }
+                            }
+                        } else {
+                            webLinks(for: webs.webs)
+                        }
+                    }
+                }
+    }
+    
+    private func disclosureGroup(for webs: WebsArray) -> some View {
+        DisclosureGroup("系網們") {
+            ForEach(webs.webs) { web in
+                webLinkButton(for: web)
+            }
+        }
+        .frame(height: 50)
+        .font(.callout.bold())
+    }
+    
+    private func webLinks(for webs: [WebData]) -> some View {
+        ForEach(webs) { web in
+            webLinkButton(for: web)
+        }
+        .frame(height: 50)
+    }
+    
+    private func webLinkButton(for web: WebData) -> some View {
+        Group {
+            if ["http://dafl.ntpu.edu.tw/main.php", "http://www.rebe.ntpu.edu.tw", "https://past-exam.ntpu.cc", "https://cof.ntpu.edu.tw/student_new.htm"].contains(web.url) {
+                AnyView(
+                    Button(action: {
+                        handleURL(web.url)
+                    }) {
+                        webLinkLabel(for: web)
+                    }
+                        .foregroundStyle(Color.black)
+                )
+            } else {
+                AnyView(
+                    NavigationLink(destination: WebDetailView(url: web.url)) {
+                        webLinkLabel(for: web)
+                    }
+                )
+            }
+        }
+    }
+    
+    private func webLinkLabel(for web: WebData) -> some View {
+        HStack {
+            Image(systemName: web.image)
+                .resizable()
+                .frame(width: 30, height: 30)
+                .padding()
+            Text(web.title)
+                .font(.callout.bold())
+        }.foregroundStyle(Color.black)
+    }
+    
+    func handleURL(_ urlString: String) {
+        self.urlString = urlString
+        if urlString == "https://past-exam.ntpu.cc" {
+            // Open in external browser
+            if let url = URL(string: urlString) {
+                if UIApplication.shared.canOpenURL(url) {
+                    UIApplication.shared.open(url)
+                } else {
+                    print("Cannot open URL: \(urlString)")
+                }
+            }
+        } else {
+            // Open in SafariViewController
+            if let url = URL(string: urlString) {
+                if UIApplication.shared.canOpenURL(url) {
+                    if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                        let safariVC = SFSafariViewController(url: url)
+                        topViewController.present(safariVC, animated: true, completion: nil)
+                    }
+                } else {
+                    print("Cannot open URL: \(urlString)")
+                }
+            }
+        }
+    }
     
     func footerText(for id: Int) -> some View {
         Group {
@@ -281,7 +300,7 @@ private extension ContentView{
         }
         .frame(height: 160)
     }
-
+    
     
     
     //MARK: - traffic
@@ -296,8 +315,8 @@ private extension ContentView{
         @State var selectionResult: MKMapItem?
         var body: some View{
             VStack {
-                if let bikeDatas = bikeManager.bikeDatas {
-                    NavigationStack(){
+                NavigationStack {
+                    if let bikeDatas = bikeManager.bikeDatas {
                         VStack {
                             List {
                                 Section{
@@ -358,20 +377,21 @@ private extension ContentView{
                                         .foregroundStyle(Color.black)
                                 }
                             }
+                            .scrollContentBackground(.hidden)
+                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                            .toolbarBackground(Color.green.opacity(0.9), for: .navigationBar)
                         }
-                        .scrollContentBackground(.hidden)
-                        .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
                         .navigationTitle("Traffic")
-                    }.onAppear(perform: {
-                        self.bikeManager.fetchData()
+                    }else{
+                        Text("Loading...")
+                            .onAppear {
+                                bikeManager.fetchData()
+                            }
+                        ProgressView()
+                    }
+                }.onAppear(perform: {
+                    self.bikeManager.fetchData()
                 })
-                }else{
-                    Text("Loading...")
-                        .onAppear {
-                            bikeManager.fetchData()
-                        }
-                    ProgressView()
-                }
             }
         }
         @available(iOS 17.0, *)
@@ -465,13 +485,13 @@ private extension ContentView{
                                         .foregroundStyle(Color.black)
                                 }
                             }
+                            .scrollContentBackground(.hidden)
+                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                            .navigationTitle("Traffic")
                         }
-                        .scrollContentBackground(.hidden)
-                        .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
-                        .navigationTitle("Traffic")
                     }.onAppear(perform: {
                         self.bikeManager.fetchData()
-                })
+                    })
                 }else{
                     Text("Loading...")
                         .onAppear {
@@ -490,7 +510,7 @@ private extension ContentView{
             return false
         }
     }
-
+    
     
     //MARK: - life view
     @ViewBuilder
