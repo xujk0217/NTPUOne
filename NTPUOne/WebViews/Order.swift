@@ -30,8 +30,8 @@ class OrderManager: ObservableObject {
                         let data = doc.data()
                         if let message = data[K.FStoreOr.messageField] as? String,
                            let messageSName = data[K.FStoreOr.nameField] as? String,
-                           let messageUrl = data[K.FStoreOr.urlField] as? String {
-                            let newOrder = Order(message: message, name: messageSName, url: messageUrl)
+                           let messageUrl = data[K.FStoreOr.urlField] as? String, let messageTag = data[K.FStoreOr.tagField] as? String{
+                            let newOrder = Order(message: message, name: messageSName, url: messageUrl, tag: messageTag)
                             newOrders.append(newOrder)
                         } else {
                             print("order firebase fail")
@@ -45,16 +45,11 @@ class OrderManager: ObservableObject {
     }
 }
 
-struct OrderDetail {
-    let email: String
-    let message: String
-    let name: String
-    let url: String
-    let time: String
-}
-
 struct Order {
     let message: String
     let name: String
     let url: String
+    let tag: String
 }
+
+//tag: 1.活動 2.公告 3.其他

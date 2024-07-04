@@ -20,6 +20,7 @@ struct K{
         static let timeField = "time"
         static let urlField = "url"
         static let dateField = "date"
+        static let tagField = "tag"
     }
     
     struct FStoreF {

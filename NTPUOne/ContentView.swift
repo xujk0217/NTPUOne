@@ -29,6 +29,8 @@ struct ContentView: View {
     
     @State private var isExpanded = false
     
+    @State private var selectDemo = 0
+    
     //DemoView
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
@@ -117,8 +119,65 @@ private extension ContentView{
         Group {
             if let order = orderManager.order {
                 Section {
-                    DemoView
-                        .onAppear(perform: orderManager.loadOrder)
+                    if selectDemo == 0{
+                        DemoView
+                            .onAppear(perform: orderManager.loadOrder)
+                    }else if selectDemo == 1{
+                        DemoViewEvent
+                            .onAppear(perform: orderManager.loadOrder)
+                    }else if selectDemo == 2{
+                        DemoViewPost
+                            .onAppear(perform: orderManager.loadOrder)
+                    }else if selectDemo == 3{
+                        DemoViewOther
+                            .onAppear(perform: orderManager.loadOrder)
+                    }
+                } header: {
+                    HStack{
+                        Button {
+                            selectDemo = 0
+                        } label: {
+                            Text("All")
+                                .font(.caption.bold())
+                                .padding(6)
+                                .padding(.horizontal, 3)
+                                .background(selectDemo == 0 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .cornerRadius(5.0)
+                                .padding(.leading, -12)
+                        }
+                        Button {
+                            selectDemo = 1
+                        } label: {
+                            Text("活動")
+                                .font(.caption.bold())
+                                .padding(6)
+                                .padding(.horizontal, 3)
+                                .background(selectDemo == 1 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .cornerRadius(5.0)
+                        }
+                        
+                        Button {
+                            selectDemo = 2
+                        } label: {
+                            Text("公告")
+                                .font(.caption.bold())
+                                .padding(6)
+                                .padding(.horizontal, 3)
+                                .background(selectDemo == 2 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .cornerRadius(5.0)
+                        }
+                        
+                        Button {
+                            selectDemo = 3
+                        } label: {
+                            Text("其他")
+                                .font(.caption.bold())
+                                .padding(6)
+                                .padding(.horizontal, 3)
+                                .background(selectDemo == 3 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .cornerRadius(5.0)
+                        }
+                    }
                 } footer: {
                     VStack {
                         Text("如需新增活動廣播，請至 about 頁面新增")
@@ -301,6 +360,146 @@ private extension ContentView{
         .frame(height: 160)
     }
     
+    var DemoViewEvent: some View {
+        TabView(selection: $startIndex) {
+            if let orders = orderManager.order {
+                ForEach(orders.indices, id: \.self) { index in
+                    if orders[index].tag == "1"{
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("\(orders[index].message) \n -by \(orders[index].name)")
+                                    .font(.headline)
+                                    .lineLimit(5)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .onTapGesture {
+                            if let url = URL(string: orders[index].url) {
+                                if UIApplication.shared.canOpenURL(url) {
+                                    handleURL(orders[index].url)
+                                } else {
+                                    print("Cannot open URL: \(orders[index].url)")
+                                }
+                            }
+                        }
+                    }
+                }
+                .background(Color.white)
+                .cornerRadius(15)
+                .overlay(RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.black))
+                .padding(.horizontal, 1)
+            }
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+        .onReceive(timer) { _ in
+            withAnimation {
+                if let orders = orderManager.order, orders.count > 1 {
+                    startIndex = (startIndex + 1) % orders.count
+                }
+            }
+        }
+        .frame(height: 160)
+    }
+    
+    var DemoViewPost: some View {
+        TabView(selection: $startIndex) {
+            if let orders = orderManager.order {
+                ForEach(orders.indices, id: \.self) { index in
+                    if orders[index].tag == "2"{
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("\(orders[index].message) \n -by \(orders[index].name)")
+                                    .font(.headline)
+                                    .lineLimit(5)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .onTapGesture {
+                            if let url = URL(string: orders[index].url) {
+                                if UIApplication.shared.canOpenURL(url) {
+                                    handleURL(orders[index].url)
+                                } else {
+                                    print("Cannot open URL: \(orders[index].url)")
+                                }
+                            }
+                        }
+                    }
+                }
+                .background(Color.white)
+                .cornerRadius(15)
+                .overlay(RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.black))
+                .padding(.horizontal, 1)
+            }
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+        .onReceive(timer) { _ in
+            withAnimation {
+                if let orders = orderManager.order, orders.count > 1 {
+                    startIndex = (startIndex + 1) % orders.count
+                }
+            }
+        }
+        .frame(height: 160)
+    }
+    
+    var DemoViewOther: some View {
+        TabView(selection: $startIndex) {
+            if let orders = orderManager.order {
+                ForEach(orders.indices, id: \.self) { index in
+                    if orders[index].tag == "3"{
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Text("\(orders[index].message) \n -by \(orders[index].name)")
+                                    .font(.headline)
+                                    .lineLimit(5)
+                                    .multilineTextAlignment(.center)
+                                    .padding()
+                                Spacer()
+                            }
+                            Spacer()
+                        }
+                        .onTapGesture {
+                            if let url = URL(string: orders[index].url) {
+                                if UIApplication.shared.canOpenURL(url) {
+                                    handleURL(orders[index].url)
+                                } else {
+                                    print("Cannot open URL: \(orders[index].url)")
+                                }
+                            }
+                        }
+                    }
+                }
+                .background(Color.white)
+                .cornerRadius(15)
+                .overlay(RoundedRectangle(cornerRadius: 15)
+                    .stroke(Color.black))
+                .padding(.horizontal, 1)
+            }
+        }
+        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+        .onReceive(timer) { _ in
+            withAnimation {
+                if let orders = orderManager.order, orders.count > 1 {
+                    startIndex = (startIndex + 1) % orders.count
+                }
+            }
+        }
+        .frame(height: 160)
+    }
     
     
     //MARK: - traffic
