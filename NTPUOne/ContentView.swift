@@ -34,6 +34,9 @@ struct ContentView: View {
     //DemoView
     private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
+    @State var startIndexE = 0
+    @State var startIndexP = 0
+    @State var startIndexO = 0
     
     var trafficTitle = "UBike in ntpu"
     
@@ -124,13 +127,13 @@ private extension ContentView{
                             .onAppear(perform: orderManager.loadOrder)
                     }else if selectDemo == 1{
                         DemoViewEvent
-                            .onAppear(perform: orderManager.loadOrder)
+                            .onAppear(perform: orderManager.loadOrderEvent)
                     }else if selectDemo == 2{
                         DemoViewPost
-                            .onAppear(perform: orderManager.loadOrder)
+                            .onAppear(perform: orderManager.loadOrderPost)
                     }else if selectDemo == 3{
                         DemoViewOther
-                            .onAppear(perform: orderManager.loadOrder)
+                            .onAppear(perform: orderManager.loadOrderOther)
                     }
                 } header: {
                     HStack{
@@ -361,7 +364,7 @@ private extension ContentView{
     }
     
     var DemoViewEvent: some View {
-        TabView(selection: $startIndex) {
+        TabView(selection: $startIndexE) {
             if let orders = orderManager.order {
                 ForEach(orders.indices, id: \.self) { index in
                     if orders[index].tag == "1"{
@@ -398,17 +401,19 @@ private extension ContentView{
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         .onReceive(timer) { _ in
-            withAnimation {
-                if let orders = orderManager.order, orders.count > 1 {
-                    startIndex = (startIndex + 1) % orders.count
+                withAnimation {
+                    if let orders = orderManager.order {
+                        if orderManager.eventN > 1 {
+                            startIndexE = (startIndexE + 1) % orderManager.eventN
+                        }
+                    }
                 }
             }
-        }
         .frame(height: 160)
     }
     
     var DemoViewPost: some View {
-        TabView(selection: $startIndex) {
+        TabView(selection: $startIndexP) {
             if let orders = orderManager.order {
                 ForEach(orders.indices, id: \.self) { index in
                     if orders[index].tag == "2"{
@@ -445,17 +450,19 @@ private extension ContentView{
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         .onReceive(timer) { _ in
-            withAnimation {
-                if let orders = orderManager.order, orders.count > 1 {
-                    startIndex = (startIndex + 1) % orders.count
+                withAnimation {
+                    if let orders = orderManager.order {
+                        if orderManager.postN > 1 {
+                            startIndexP = (startIndexP + 1) % orderManager.postN
+                        }
+                    }
                 }
             }
-        }
         .frame(height: 160)
     }
     
     var DemoViewOther: some View {
-        TabView(selection: $startIndex) {
+        TabView(selection: $startIndexO) {
             if let orders = orderManager.order {
                 ForEach(orders.indices, id: \.self) { index in
                     if orders[index].tag == "3"{
@@ -492,12 +499,14 @@ private extension ContentView{
         }
         .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
         .onReceive(timer) { _ in
-            withAnimation {
-                if let orders = orderManager.order, orders.count > 1 {
-                    startIndex = (startIndex + 1) % orders.count
+                withAnimation {
+                    if let orders = orderManager.order {
+                        if orderManager.otherN > 1 {
+                            startIndexO = (startIndexO + 1) % orderManager.otherN
+                        }
+                    }
                 }
             }
-        }
         .frame(height: 160)
     }
     
