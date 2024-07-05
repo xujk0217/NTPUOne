@@ -17,7 +17,7 @@ struct AddOrderView: View {
     @State private var email: String = ""
     @State private var time: String = ""
     @State private var url: String = ""
-    
+    @ObservedObject var rewardAd: RewardedAd
     enum Tags: String, CaseIterable, Identifiable {
         case 活動, 公告, 其他
         var id: Self { self }
@@ -119,6 +119,9 @@ struct AddOrderView: View {
                     }.padding()
             }
             .navigationTitle("新增公告")
+            .onDisappear {
+                rewardAd.startTimer()
+            }
         }
     }
     
@@ -161,6 +164,3 @@ struct AddOrderView: View {
     }
 }
 
-#Preview {
-    AddOrderView()
-}

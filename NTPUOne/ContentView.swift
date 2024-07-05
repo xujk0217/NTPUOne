@@ -42,6 +42,12 @@ struct ContentView: View {
     
     @State var selectedTab = 0
     
+    //about rewardAds
+    //準備RewardedAd使用
+    @StateObject private var rewardAd = RewardedAd()
+    @State private var isReward = false
+    
+    
     var body: some View {
         TabView(selection: $selectedTab){
             linkView.tabItem {
@@ -1051,23 +1057,42 @@ private extension ContentView{
     
     var aboutView: some View{
         NavigationStack {
-            //ad richer
             List{
                 Section{
-                    NavigationLink {
-                        AddOrderView()
-                            .navigationTitle("新增")
-                    } label: {
-                        VStack {
-                            Text("新增活動廣播")
+                    VStack {
+                        Button {
+                            let adShown = rewardAd.showAd {
+                                isReward = true
+                            }
+                            if !adShown {
+                                print("Ad was not ready to be shown.")
+                            }
+                        } label: {
+                            VStack {
+                                Text("新增活動廣播")
+                            }
+                        }.disabled(!rewardAd.canShowAd || !rewardAd.isEligibleForReward)
+                        .onAppear {
+                            self.rewardAd.load()
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+                                rewardAd.isEligibleForReward = true // 五秒后设置为符合条件
+                            }
+                        }.onDisappear{
+                            rewardAd.isEligibleForReward = false
                         }
                     }
-                    
                 } header: {
-                    Text("活動廣播")
+                    Text("活動廣播（觀看廣告可進到新增頁面）")
                 } footer: {
-                    VStack {
-                        Text("無意義的會刪掉喔～")
+                    VStack(alignment: .leading) {
+                        if !rewardAd.canShowAd {
+                            Text("請等待 \(rewardAd.waitTime) 秒後再試")
+                            .foregroundColor(.red)
+                        }else if !rewardAd.isEligibleForReward{
+                            Text("廣告載入中...（5秒）")
+                            .foregroundColor(.red)
+                        }
+                        Text("廣告是為了擋掉無意義的訊息，而且上架很貴..")
                     }
                 }
                 Section{
@@ -1105,6 +1130,14 @@ private extension ContentView{
                 }
             }
             .navigationTitle("About")
+            .navigationDestination(isPresented: $isReward) {
+                AddOrderView(rewardAd: rewardAd)
+            }
+            .onChange(of: isReward) { newValue in
+                if !newValue {
+                    rewardAd.startTimer()
+                }
+            }
         }
     }
     
