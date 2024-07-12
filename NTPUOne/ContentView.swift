@@ -13,6 +13,7 @@ import FirebaseFirestore
 import GoogleMobileAds
 import AppTrackingTransparency
 import MapKit
+import Firebase
 
 struct ContentView: View {
     

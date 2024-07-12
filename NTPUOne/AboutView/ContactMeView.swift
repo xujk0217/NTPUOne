@@ -9,8 +9,6 @@ import SwiftUI
 import SafariServices
 
 struct ContactMeView: View {
-    @State private var email: String = "kevin16021777@gmail.com"
-    @State private var semail: String = "s411285047@gm.ntpu.edu.tw"
     var body: some View {
         VStack {
             List {
@@ -29,26 +27,10 @@ struct ContactMeView: View {
                     Text("名字")
                 }
                 Section {
-                    Button {
-                        UIPasteboard.general.string = self.email
-                    } label: {
-                        HStack {
-                            Text("email: \(email)")
-                                .foregroundStyle(Color.black)
-                            Spacer()
-                            Image(systemName: "doc.on.doc")
-                        }
+                    HStack {
+                        Text("kevin16021777@gmail.com")
                     }
-                    Button {
-                        UIPasteboard.general.string = self.semail
-                    } label: {
-                        HStack {
-                            Text("email: \(semail)")
-                                .foregroundStyle(Color.black)
-                            Spacer()
-                            Image(systemName: "doc.on.doc")
-                        }
-                    }
+                    Text("s411285047@gm.ntpu.edu.tw")
                     Text("My Instagram")
                         .onTapGesture {
                             openURL("https://www.instagram.com/xujk_06217?igsh=bms2b3djOGdqNGtv&utm_source=qr")

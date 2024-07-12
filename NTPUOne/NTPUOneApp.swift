@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import FirebaseAnalytics
 import FirebaseCore
+import Firebase
 import FirebaseInAppMessagingInternal
 import GoogleMobileAds
 
@@ -17,10 +18,27 @@ class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegat
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         FirebaseApp.configure()
+        MonitorNetworkConnection()
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
+        GADMobileAds.sharedInstance().start(completionHandler: nil)
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
         return true
   }
+    
+    func MonitorNetworkConnection() {
+            let monitor = NWPathMonitor()
+            let queue = DispatchQueue(label: "Monitor")
+            monitor.pathUpdateHandler = { path in
+                if path.status == .satisfied {
+                    print("We're connected!")
+                } else {
+                    print("No connection.")
+                }
+                
+                print(path.isExpensive)
+            }
+            monitor.start(queue: queue)
+        }
 }
 
 @main

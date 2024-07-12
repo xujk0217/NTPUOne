@@ -67,6 +67,7 @@
 		3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D62C32B3D100B9F24A /* dietView.swift */; };
 		3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D82C32BDC600B9F24A /* FManager.swift */; };
 		3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062DB2C352D0500B9F24A /* AddStoreView.swift */; };
+		3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F945E402C39909100A37CB3 /* NativeAdView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -102,6 +103,7 @@
 		3F9062D62C32B3D100B9F24A /* dietView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = dietView.swift; sourceTree = "<group>"; };
 		3F9062D82C32BDC600B9F24A /* FManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FManager.swift; sourceTree = "<group>"; };
 		3F9062DB2C352D0500B9F24A /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
+		3F945E402C39909100A37CB3 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -250,6 +252,7 @@
 			children = (
 				3F9062D02C2D71A000B9F24A /* BannerView.swift */,
 				3F24B5B42C37E83A00FEADFA /* RewardView.swift */,
+				3F945E402C39909100A37CB3 /* NativeAdView.swift */,
 			);
 			path = Ads;
 			sourceTree = "<group>";
@@ -400,6 +403,7 @@
 				3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
+				3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */,
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
 				3F9062C22C2CE70400B9F24A /* ReportBugView.swift in Sources */,
