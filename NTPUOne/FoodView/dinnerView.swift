@@ -58,7 +58,7 @@ struct StoreNavigationLinkL: View {
     var store: FDetail?
 
     var body: some View {
-        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamel)) {
+        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamed)) {
             StoreRowViewL(store: store)
         }
     }
@@ -68,7 +68,7 @@ struct StoreNavigationLinkLegacyL: View {
     var store: FDetail?
 
     var body: some View {
-        NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNamel)) {
+        NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNamed)) {
             StoreRowViewL(store: store)
         }
     }
