@@ -119,9 +119,6 @@ struct AddOrderView: View {
                     }.padding()
             }
             .navigationTitle("新增公告")
-            .onDisappear {
-                rewardAd.startTimer()
-            }
         }
     }
     

@@ -13,6 +13,7 @@ final class RewardedAd: NSObject, GADFullScreenContentDelegate, ObservableObject
     
     private let rewardId = "ca-app-pub-4105005748617921/1893622165"
     var rewardedAd: GADRewardedAd?
+    var timerWorkItem: DispatchWorkItem?
     var rewardFunction: (() -> Void)?
     
     @Published var canShowAd = true
@@ -25,7 +26,6 @@ final class RewardedAd: NSObject, GADFullScreenContentDelegate, ObservableObject
         load()
     }
     
-    /// 加载广告
     func load() {
         let request = GADRequest()
         
@@ -39,15 +39,28 @@ final class RewardedAd: NSObject, GADFullScreenContentDelegate, ObservableObject
             print("Rewarded ad loaded successfully.")
         }
     }
+    func startTimer() {
+        let workItem = DispatchWorkItem {
+            self.isEligibleForReward = true
+        }
+        self.timerWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5, execute: workItem)
+        print("startTimer")
+    }
     
-    /// 显示广告
+    func cancelTimer() {
+        self.timerWorkItem?.cancel()
+        self.isEligibleForReward = false
+        print("stopTimer")
+    }
+    
     func showAd(rewardFunction: @escaping () -> Void) -> Bool {
         guard canShowAd else {
             print("Cannot show ad right now. Please wait.")
             return false
         }
         
-        guard isEligibleForReward else { // 检查用户是否符合条件
+        guard isEligibleForReward else {
             print("User is not eligible for reward.")
             return false
         }
@@ -72,21 +85,6 @@ final class RewardedAd: NSObject, GADFullScreenContentDelegate, ObservableObject
         }
         
         return true
-    }
-    
-    func startTimer() {
-        canShowAd = false
-        waitTime = 30
-        timer?.invalidate()
-        timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { [weak self] timer in
-            guard let self = self else { return }
-            self.waitTime -= 1
-            if self.waitTime <= 0 {
-                self.canShowAd = true
-                timer.invalidate()
-                print("Ad can now be shown again.")
-            }
-        }
     }
     
     func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {

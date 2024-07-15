@@ -1,8 +1,8 @@
 //
-//  ContentView.swift
+//  FallbackView.swift
 //  NTPUOne
 //
-//  Created by 許君愷 on 2024/6/24.
+//  Created by 許君愷 on 2024/7/15.
 //
 
 import SwiftUI
@@ -15,8 +15,7 @@ import AppTrackingTransparency
 import MapKit
 import Firebase
 
-@available(iOS 17.0, *)
-struct ContentView: View {
+struct FallbackView: View {
     
     @ObservedObject var webManager = WebManager()
     @ObservedObject var bikeManager = UbikeManager()
@@ -41,10 +40,6 @@ struct ContentView: View {
     @State var startIndexO = 0
     
     var trafficTitle = "UBike in ntpu"
-    @State var position: MapCameraPosition = .camera(
-        MapCamera(centerCoordinate: CLLocationCoordinate2D(latitude: 24.942406, longitude: 121.368198), distance: 1500)
-    )
-    @State var selectionResult: MKMapItem?
     
     @State var selectedTab = 0
     
@@ -67,7 +62,8 @@ struct ContentView: View {
                 Image(systemName: "cup.and.saucer.fill")
                 Text("life")
             }.tag(1)
-            trafficView.tabItem {
+            // Fallback on earlier versions
+            noMapTrafficView.tabItem {
                 Image(systemName: "bicycle")
                 Text("traffic")
             }.tag(2)
@@ -80,30 +76,12 @@ struct ContentView: View {
 }
 
 #Preview {
-    if #available(iOS 17.0, *) {
-        ContentView()
-    } else {
-        // Fallback on earlier versions
-        FallbackView()
-    }
-}
-
-extension String {
-    func substring(from: Int, length: Int) -> String {
-        let start = index(startIndex, offsetBy: from)
-        let end = index(start, offsetBy: length)
-        return String(self[start..<end])
-    }
-    func substring(from: Int) -> String {
-        let start = index(startIndex, offsetBy: from)
-        return String(self[start...])
-    }
+    FallbackView()
 }
 
 //MARK: - sub page
 
-@available(iOS 17.0, *)
-private extension ContentView{
+private extension FallbackView{
     
     //MARK: - home view
     var linkView: some View {
@@ -524,93 +502,80 @@ private extension ContentView{
     
     
     //MARK: - traffic
-    var trafficView: some View {
-        NavigationStack {
+    
+    //MARK: - no map traffic
+    var noMapTrafficView:  some View{
             VStack {
                 if let bikeDatas = bikeManager.bikeDatas {
-                        List {
-                            Section {
-                                VStack {
-                                    if let bikeDatas = bikeManager.bikeDatas {
-                                        Map(position: $position, selection: $selectionResult) {
-                                            ForEach(bikeDatas) { stop in
-                                                let title = stop.sna.substring(from: 11)
-                                                let coordinate = CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!)
-                                                Marker("\(title)-(\(stop.sbi)/\(stop.tot))", systemImage: "bicycle", coordinate: coordinate)
-                                            }
-                                        }
-                                        .mapStyle(.standard(elevation: .realistic))
-                                    }
+                    NavigationStack(){
+                        VStack {
+                            List {
+                                Section{
+                                    Text("升級至 IOS 17.0 以開啟地圖功能")
+                                } header: {
+                                    Text("腳踏車地圖")
+                                        .foregroundStyle(Color.black)
+                                } footer: {
+                                    Text("名稱：站名-(腳踏車數/總數)")
+                                        .foregroundStyle(Color.black)
                                 }
-                                .frame(height: 300)
-                            } header: {
-                                Text("腳踏車地圖")
-                                    .foregroundStyle(Color.black)
-                            } footer: {
-                                Text("名稱：站名-(腳踏車數/總數)")
-                                    .foregroundStyle(Color.black)
-                            }
-                            
-                            Section {
-                                DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded) {
-                                    ForEach(bikeDatas.filter { isNTPU(sno: $0.sno) }) { stop in
-                                        NavigationLink(destination: bikeView(Bike: stop)) {
-                                            HStack {
-                                                Text(stop.tot)
-                                                    .font(.title.bold())
-                                                VStack {
-                                                    HStack {
-                                                        Text(stop.sna.substring(from: 11))
-                                                        Spacer()
-                                                    }
-                                                    HStack {
-                                                        Image(systemName: "bicycle")
-                                                        Text(stop.sbi)
-                                                        Spacer()
-                                                        Image(systemName: "baseball.diamond.bases")
-                                                        Text(stop.bemp)
-                                                        Spacer()
+                                Section {
+                                    DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded){
+                                        ForEach(bikeManager.bikeDatas!) { stop in
+                                            if isNTPU(sno: stop.sno) {
+                                                NavigationLink(destination: noMapBikeView(Bike: stop)){
+                                                    HStack{
+                                                        Text(stop.tot)
+                                                            .font(.title.bold())
+                                                        VStack{
+                                                            HStack {
+                                                                Text(stop.sna.substring(from: 11))
+                                                                Spacer()
+                                                            }
+                                                            HStack{
+                                                                Image(systemName: "bicycle")
+                                                                Text(stop.sbi)
+                                                                Spacer()
+                                                                Image(systemName: "baseball.diamond.bases")
+                                                                Text(stop.bemp)
+                                                                Spacer()
+                                                            }
+                                                        }
                                                     }
                                                 }
                                             }
                                         }
-                                    }
-                                }
-                                .listRowBackground(Color.white.opacity(0.7))
-                            } header: {
-                                HStack {
-                                    Text("Ubike in NTPU")
-                                        .foregroundStyle(Color.black)
-                                    Spacer()
-                                    if isExpanded {
-                                        NavigationLink(destination: MoreBikeView()) {
-                                            Text("more")
-                                                .font(.caption)
+                                    }.listRowBackground(Color.white.opacity(0.7))
+                                } header: {
+                                    HStack {
+                                        Text("Ubike in NTPU")
+                                            .foregroundStyle(Color.black)
+                                        Spacer()
+                                        if isExpanded == true {
+                                            NavigationLink(destination: MoreBikeView()) {
+                                                Text("more")
+                                                    .font(.caption)
+                                            }
                                         }
                                     }
+                                } footer: {
+                                    Text("更新頻率：每5分鐘")
+                                        .foregroundStyle(Color.black)
                                 }
-                            } footer: {
-                                Text("更新頻率：每5分鐘")
-                                    .foregroundStyle(Color.black)
                             }
+                            .scrollContentBackground(.hidden)
+                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                            .navigationTitle("Traffic")
+                                .toolbarBackground(.hidden, for: .navigationBar)
                         }
-                        .scrollContentBackground(.hidden)
-                        .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
-                        .navigationTitle("Traffic")
-                                        .toolbarBackground(.hidden, for: .navigationBar)
-                } else {
-                    VStack {
-                        Text("Loading...")
-                        ProgressView()
-                            .onAppear {
-                                bikeManager.fetchData()
-                            }
                     }
+                }else{
+                    Text("Loading...")
+                        .onAppear {
+                            bikeManager.fetchData()
+                        }
+                    ProgressView()
                 }
-            }
-        }
-        .onAppear {
-            bikeManager.fetchData()
         }
     }
     func isNTPU(sno: String) -> Bool{

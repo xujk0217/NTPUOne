@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F24B5B42C37E83A00FEADFA /* RewardView.swift */; };
+		3F59B8082C45235300AFB700 /* FallbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8072C45235300AFB700 /* FallbackView.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -72,6 +73,7 @@
 
 /* Begin PBXFileReference section */
 		3F24B5B42C37E83A00FEADFA /* RewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardView.swift; sourceTree = "<group>"; };
+		3F59B8072C45235300AFB700 /* FallbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackView.swift; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -167,6 +169,7 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				3F59B8072C45235300AFB700 /* FallbackView.swift */,
 				3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */,
 				3F9062CF2C2D718700B9F24A /* Ads */,
 				3F9062BE2C2C7D5100B9F24A /* FoodView */,
@@ -393,6 +396,7 @@
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
+				3F59B8082C45235300AFB700 /* FallbackView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
