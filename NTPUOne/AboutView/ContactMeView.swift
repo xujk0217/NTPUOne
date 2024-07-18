@@ -28,18 +28,8 @@ struct ContactMeView: View {
                 }
                 Section {
                     Text("kevin16021777@gmail.com")
-                    Text("s411285047@gm.ntpu.edu.tw")
                 } header: {
                     Text("email")
-                }
-                Section {
-                    Text("My Instagram")
-                        .onTapGesture {
-                            openURL("https://www.instagram.com/xujk_06217?igsh=bms2b3djOGdqNGtv&utm_source=qr")
-                        }
-                        .foregroundStyle(Color.blue)
-                } header: {
-                    Text("其他聯絡")
                 }
             }
         }.navigationTitle("Contact")
