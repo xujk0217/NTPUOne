@@ -28,7 +28,8 @@ struct MSView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(Color.gray.opacity(0.1))
                 .navigationTitle("Midnight Snack")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
@@ -36,7 +37,7 @@ struct MSView: View {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamem)
                         } label: {
                             Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Color.blue)
                         }
                     }
                 }

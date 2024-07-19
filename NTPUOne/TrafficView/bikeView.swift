@@ -58,7 +58,8 @@ struct bikeView: View {
                 }.listRowBackground(Color.white.opacity(0.7))
             }
             .scrollContentBackground(.hidden)
-            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+//            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+            .background(Color.gray.opacity(0.1))
             .navigationTitle(Bike.sna.substring(from: 11))
         }
     }
@@ -125,7 +126,8 @@ struct noMapBikeView: View {
                     }
                 }.listRowBackground(Color.white.opacity(0.7))
                 .scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(Color.gray.opacity(0.1))
             }.navigationTitle(Bike!.sna.substring(from: 11))
         }
     }

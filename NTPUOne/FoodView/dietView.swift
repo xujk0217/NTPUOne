@@ -100,7 +100,8 @@ struct dietView: View {
                         .foregroundStyle(Color.black)
                 }
             }.scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(Color.gray.opacity(0.1))
             .navigationTitle(store!.store)
             .onDisappear {
                 isStar = false
@@ -240,7 +241,8 @@ struct noMapDietView: View {
                     Text("點擊進入地圖")
                 }
             }.scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(Color.gray.opacity(0.1))
             .navigationTitle(store!.store)
             .onDisappear {
                 isStar = false

@@ -74,7 +74,8 @@ struct MoreBikeView: View {
                                     }
                                 }
                             }.scrollContentBackground(.hidden)
-                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+                                .background(Color.gray.opacity(0.1))
                         }
                         .navigationTitle("More ubike")
                         .onAppear {

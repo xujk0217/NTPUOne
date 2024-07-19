@@ -27,7 +27,8 @@ struct dinnerView: View {
                     }
                 }
                 .scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                .background(Color.gray.opacity(0.1))
                 .navigationTitle("Dinner")
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
@@ -35,7 +36,7 @@ struct dinnerView: View {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamed)
                         } label: {
                             Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Color.blue)
                         }
                     }
                 }

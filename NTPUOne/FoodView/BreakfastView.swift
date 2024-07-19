@@ -78,7 +78,7 @@ struct BreakfastView: View {
                             .foregroundStyle(Color.black)
                     }
                 }.scrollContentBackground(.hidden)
-                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                    .background(Color.gray.opacity(0.1))
                 .navigationTitle("Breakfast")
                 .toolbar{
                     ToolbarItem(placement: .primaryAction, content: {
@@ -86,7 +86,7 @@ struct BreakfastView: View {
                             AddStoreView(currCollectName: K.FStoreF.collectionNameB)
                         } label: {
                             Image(systemName: "plus.circle.fill")
-                                .foregroundStyle(Color.white)
+                                .foregroundStyle(Color.blue)
                         }
                     })
                 }

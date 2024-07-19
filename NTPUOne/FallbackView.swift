@@ -91,10 +91,8 @@ private extension FallbackView{
                     orderSection
                     webSections
                 }
-                .scrollContentBackground(.hidden)
-                .background(
-                    LinearGradient(colors: [.white, .blue], startPoint: .bottomLeading, endPoint: .topTrailing)
-                )
+//                .scrollContentBackground(.hidden)
+//                .background(Color.blue.opacity(0.3))
                 .navigationTitle("NTPU one")
                 .onAppear {
                     webManager.createData()
@@ -131,10 +129,11 @@ private extension FallbackView{
                             selectDemo = 0
                         } label: {
                             Text("All")
+                                .foregroundStyle(selectDemo == 0 ? Color.blue : Color.blue.opacity(0.3))
                                 .font(.caption.bold())
                                 .padding(6)
                                 .padding(.horizontal, 3)
-                                .background(selectDemo == 0 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .background(selectDemo == 0 ? Color.white : Color.white.opacity(0.3))
                                 .cornerRadius(5.0)
                                 .padding(.leading, -12)
                         }
@@ -142,10 +141,11 @@ private extension FallbackView{
                             selectDemo = 1
                         } label: {
                             Text("活動")
+                                .foregroundStyle(selectDemo == 1 ? Color.blue : Color.blue.opacity(0.3))
                                 .font(.caption.bold())
                                 .padding(6)
                                 .padding(.horizontal, 3)
-                                .background(selectDemo == 1 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .background(selectDemo == 1 ? Color.white : Color.white.opacity(0.3))
                                 .cornerRadius(5.0)
                         }
                         
@@ -153,10 +153,11 @@ private extension FallbackView{
                             selectDemo = 2
                         } label: {
                             Text("公告")
+                                .foregroundStyle(selectDemo == 2 ? Color.blue : Color.blue.opacity(0.3))
                                 .font(.caption.bold())
                                 .padding(6)
                                 .padding(.horizontal, 3)
-                                .background(selectDemo == 2 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .background(selectDemo == 2 ? Color.white : Color.white.opacity(0.3))
                                 .cornerRadius(5.0)
                         }
                         
@@ -164,10 +165,11 @@ private extension FallbackView{
                             selectDemo = 3
                         } label: {
                             Text("其他")
+                                .foregroundStyle(selectDemo == 3 ? Color.blue : Color.blue.opacity(0.3))
                                 .font(.caption.bold())
                                 .padding(6)
                                 .padding(.horizontal, 3)
-                                .background(selectDemo == 3 ? Color.white.opacity(0.9) : Color.white.opacity(0.2))
+                                .background(selectDemo == 3 ? Color.white : Color.white.opacity(0.3))
                                 .cornerRadius(5.0)
                         }
                     }
@@ -182,7 +184,7 @@ private extension FallbackView{
                             .font(.callout)
                     }
                 }
-                .listRowBackground(Color.white.opacity(0.7))
+                //.listRowBackground(Color.white.opacity(0.7))
             } else {
                 Section {
                     VStack {
@@ -501,6 +503,7 @@ private extension FallbackView{
     }
     
     
+    
     //MARK: - traffic
     
     //MARK: - no map traffic
@@ -564,7 +567,7 @@ private extension FallbackView{
                                 }
                             }
                             .scrollContentBackground(.hidden)
-                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
+//                            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
                             .navigationTitle("Traffic")
                                 .toolbarBackground(.hidden, for: .navigationBar)
                         }
@@ -635,7 +638,7 @@ private extension FallbackView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.7))
+                                            .background(Color.white)
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -656,7 +659,7 @@ private extension FallbackView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.7))
+                                            .background(Color.white)
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -677,7 +680,7 @@ private extension FallbackView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.7))
+                                            .background(Color.white)
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -698,7 +701,7 @@ private extension FallbackView{
                                                 Spacer()
                                             }
                                             .frame(height: 100)
-                                            .background(Color.white.opacity(0.7))
+                                            .background(Color.white)
                                             .cornerRadius(10)
                                             .padding(.horizontal)
                                         }
@@ -713,8 +716,8 @@ private extension FallbackView{
                         }
                     }
                     .navigationTitle("PU Life")
-                    .scrollContentBackground(.hidden)
-                    .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
+                    .background(Color.gray.opacity(0.1))
+//                    .scrollContentBackground(.hidden)
                 }else{
                     Text("Loading...")
                         .onAppear {
@@ -819,7 +822,7 @@ private extension FallbackView{
                     Spacer()
                 }
                 .frame(height: 150)
-                .background(Color.white.opacity(0.4))
+                .background(Color.white)
                 .cornerRadius(10)
                 .padding(.horizontal)
                 .padding(.bottom)
@@ -923,37 +926,38 @@ private extension FallbackView{
                 Section {
                     VStack {
                         Button {
-                            let adShown = rewardAd.showAd {
+//                            let adShown = rewardAd.showAd {
                                 isReward = true
-                            }
-                            if !adShown {
-                                print("Ad was not ready to be shown.")
-                            }
+//                            }
+//                            if !adShown {
+//                                print("Ad was not ready to be shown.")
+//                            }
                         } label: {
                             VStack {
                                 Text("新增活動廣播")
                             }
-                        }.disabled(!rewardAd.canShowAd || !rewardAd.isEligibleForReward)
-                            .onAppear {
-                                self.rewardAd.load()
-                                rewardAd.startTimer()
-                            }
-                            .onDisappear {
-                                rewardAd.cancelTimer()
-                            }
+                        }
+//                        .disabled(!rewardAd.canShowAd || !rewardAd.isEligibleForReward)
+//                            .onAppear {
+//                                self.rewardAd.load()
+//                                rewardAd.startTimer()
+//                            }
+//                            .onDisappear {
+//                                rewardAd.cancelTimer()
+//                            }
                     }
                 }  header: {
-                    Text("活動廣播（觀看廣告可進到新增頁面）")
+                    Text("活動廣播")
                 } footer: {
                     VStack(alignment: .leading) {
-                        if !rewardAd.canShowAd {
-                            Text("廣告載入中...")
-                                .foregroundColor(.red)
-                        } else if !rewardAd.isEligibleForReward {
-                            Text("廣告載入中...（約5秒)")
-                                .foregroundColor(.red)
-                        }
-                        Text("廣告是為了擋掉無意義的訊息，而且上架很貴..")
+//                        if !rewardAd.canShowAd {
+//                            Text("廣告載入中...")
+//                                .foregroundColor(.red)
+//                        } else if !rewardAd.isEligibleForReward {
+//                            Text("廣告載入中...（約5秒)")
+//                                .foregroundColor(.red)
+//                        }
+                        Text("測試版沒廣告")
                     }
                 }
                 Section {
