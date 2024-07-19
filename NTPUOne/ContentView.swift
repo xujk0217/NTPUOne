@@ -34,7 +34,7 @@ struct ContentView: View {
     @State private var selectDemo = 0
     
     //DemoView
-    private let timer = Timer.publish(every: 3, on: .main, in: .common).autoconnect()
+    private let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
     @State var startIndexE = 0
     @State var startIndexP = 0
@@ -286,6 +286,7 @@ private extension ContentView{
         HStack {
             Image(systemName: web.image)
                 .resizable()
+                .scaledToFit()
                 .frame(width: 30, height: 30)
                 .padding()
             Text(web.title)
