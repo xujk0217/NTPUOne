@@ -104,7 +104,7 @@ struct noMapBikeView: View {
                 } footer: {
                     Text("名稱：站名-(腳踏車數/總數)")
                         .foregroundStyle(Color.black)
-                }.listRowBackground(Color.white.opacity(0.7))
+                }
                 Section{
                     HStack{
                         Text(Bike!.tot)

@@ -8,7 +8,12 @@
 
 /* Begin PBXBuildFile section */
 		3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F24B5B42C37E83A00FEADFA /* RewardView.swift */; };
-		3F59B8082C45235300AFB700 /* FallbackView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8072C45235300AFB700 /* FallbackView.swift */; };
+		3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B81B2C670E8D00AFB700 /* LinkView.swift */; };
+		3F59B81E2C6710E500AFB700 /* LifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B81D2C6710E500AFB700 /* LifeView.swift */; };
+		3F59B8202C67187300AFB700 /* AboutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B81F2C67187300AFB700 /* AboutView.swift */; };
+		3F59B8222C67198100AFB700 /* TrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8212C67198100AFB700 /* TrafficView.swift */; };
+		3F59B8252C671AB300AFB700 /* extention.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8242C671AB300AFB700 /* extention.swift */; };
+		3F59B8272C671B6B00AFB700 /* BackTrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8262C671B6B00AFB700 /* BackTrafficView.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -73,7 +78,12 @@
 
 /* Begin PBXFileReference section */
 		3F24B5B42C37E83A00FEADFA /* RewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardView.swift; sourceTree = "<group>"; };
-		3F59B8072C45235300AFB700 /* FallbackView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FallbackView.swift; sourceTree = "<group>"; };
+		3F59B81B2C670E8D00AFB700 /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
+		3F59B81D2C6710E500AFB700 /* LifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeView.swift; sourceTree = "<group>"; };
+		3F59B81F2C67187300AFB700 /* AboutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AboutView.swift; sourceTree = "<group>"; };
+		3F59B8212C67198100AFB700 /* TrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrafficView.swift; sourceTree = "<group>"; };
+		3F59B8242C671AB300AFB700 /* extention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = extention.swift; sourceTree = "<group>"; };
+		3F59B8262C671B6B00AFB700 /* BackTrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackTrafficView.swift; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -148,6 +158,15 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		3F59B8232C671A9B00AFB700 /* Other */ = {
+			isa = PBXGroup;
+			children = (
+				3F8F95152C290D5A001A1697 /* Constant.swift */,
+				3F59B8242C671AB300AFB700 /* extention.swift */,
+			);
+			path = Other;
+			sourceTree = "<group>";
+		};
 		3F8F94F92C290C25001A1697 = {
 			isa = PBXGroup;
 			children = (
@@ -169,7 +188,6 @@
 			children = (
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
-				3F59B8072C45235300AFB700 /* FallbackView.swift */,
 				3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */,
 				3F9062CF2C2D718700B9F24A /* Ads */,
 				3F9062BE2C2C7D5100B9F24A /* FoodView */,
@@ -178,7 +196,7 @@
 				3F8F951B2C291690001A1697 /* WebViews */,
 				3F9062B72C2C500400B9F24A /* AboutView */,
 				3F8F950B2C290C27001A1697 /* Assets.xcassets */,
-				3F8F95152C290D5A001A1697 /* Constant.swift */,
+				3F59B8232C671A9B00AFB700 /* Other */,
 				3F9062D22C2EB6C400B9F24A /* GoogleService-Info.plist */,
 				3F8F950D2C290C27001A1697 /* Preview Content */,
 			);
@@ -196,6 +214,7 @@
 		3F8F951B2C291690001A1697 /* WebViews */ = {
 			isa = PBXGroup;
 			children = (
+				3F59B81B2C670E8D00AFB700 /* LinkView.swift */,
 				3F8F95092C290C25001A1697 /* WebData.swift */,
 				3F8F95192C291401001A1697 /* WebView.swift */,
 				3F8F95172C291146001A1697 /* WebDetailView.swift */,
@@ -207,6 +226,8 @@
 		3F9062642C2929D100B9F24A /* TrafficView */ = {
 			isa = PBXGroup;
 			children = (
+				3F59B8212C67198100AFB700 /* TrafficView.swift */,
+				3F59B8262C671B6B00AFB700 /* BackTrafficView.swift */,
 				3F9062652C294F8C00B9F24A /* UbikeData.swift */,
 				3F9062622C2929C900B9F24A /* UbikeManager.swift */,
 				3F90626B2C296E3300B9F24A /* MoreBikeView.swift */,
@@ -218,6 +239,7 @@
 		3F9062712C2AA56800B9F24A /* WeatherView */ = {
 			isa = PBXGroup;
 			children = (
+				3F59B81D2C6710E500AFB700 /* LifeView.swift */,
 				3F90626F2C2AA56200B9F24A /* WeatherData.swift */,
 				3F9062722C2AB86700B9F24A /* WeatherManager.swift */,
 			);
@@ -227,6 +249,7 @@
 		3F9062B72C2C500400B9F24A /* AboutView */ = {
 			isa = PBXGroup;
 			children = (
+				3F59B81F2C67187300AFB700 /* AboutView.swift */,
 				3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */,
 				3F9062C12C2CE70400B9F24A /* ReportBugView.swift */,
 				3F9062C32C2CE71600B9F24A /* FeaturesView.swift */,
@@ -394,10 +417,12 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3F59B8202C67187300AFB700 /* AboutView.swift in Sources */,
+				3F59B8222C67198100AFB700 /* TrafficView.swift in Sources */,
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
-				3F59B8082C45235300AFB700 /* FallbackView.swift in Sources */,
+				3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
@@ -410,12 +435,15 @@
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
 				3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */,
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
+				3F59B81E2C6710E500AFB700 /* LifeView.swift in Sources */,
 				3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */,
 				3F9062C22C2CE70400B9F24A /* ReportBugView.swift in Sources */,
+				3F59B8272C671B6B00AFB700 /* BackTrafficView.swift in Sources */,
 				3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */,
 				3F9062C42C2CE71600B9F24A /* FeaturesView.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
+				3F59B8252C671AB300AFB700 /* extention.swift in Sources */,
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
