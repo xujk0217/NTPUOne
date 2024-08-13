@@ -32,25 +32,29 @@ struct ContentView: View {
                 Image(systemName: "house")
                 Text("main")
             }.tag(0)
+            TimeTableView().tabItem{
+                Image(systemName: "list.bullet.clipboard")
+                Text("timetable")
+            }.tag(1)
             LifeView().tabItem{
                 Image(systemName: "cup.and.saucer.fill")
                 Text("life")
-            }.tag(1)
+            }.tag(2)
             if #available(iOS 17.0, *) {
                 TrafficView().tabItem {
                     Image(systemName: "bicycle")
                     Text("traffic")
-                }.tag(2)
+                }.tag(3)
             } else {
                 BackTrafficView().tabItem {
                     Image(systemName: "bicycle")
                     Text("traffic")
-                }.tag(2)
+                }.tag(3)
             }
             AboutView().tabItem{
                 Image(systemName: "info.circle")
                 Text("about")
-            }.tag(3)
+            }.tag(4)
         }
     }
 }

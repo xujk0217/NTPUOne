@@ -14,6 +14,12 @@
 		3F59B8222C67198100AFB700 /* TrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8212C67198100AFB700 /* TrafficView.swift */; };
 		3F59B8252C671AB300AFB700 /* extention.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8242C671AB300AFB700 /* extention.swift */; };
 		3F59B8272C671B6B00AFB700 /* BackTrafficView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8262C671B6B00AFB700 /* BackTrafficView.swift */; };
+		3F59B82A2C67987B00AFB700 /* TimeTableView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8292C67987B00AFB700 /* TimeTableView.swift */; };
+		3F59B82C2C6798F000AFB700 /* CourseData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B82B2C6798F000AFB700 /* CourseData.swift */; };
+		3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B82D2C6799D600AFB700 /* CourseFormView.swift */; };
+		3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8302C679AC400AFB700 /* CourseGridView.swift */; };
+		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
+		3F59B83A2C69F6A600AFB700 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8392C69F6A600AFB700 /* ScheduleView.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -84,6 +90,12 @@
 		3F59B8212C67198100AFB700 /* TrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrafficView.swift; sourceTree = "<group>"; };
 		3F59B8242C671AB300AFB700 /* extention.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = extention.swift; sourceTree = "<group>"; };
 		3F59B8262C671B6B00AFB700 /* BackTrafficView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackTrafficView.swift; sourceTree = "<group>"; };
+		3F59B8292C67987B00AFB700 /* TimeTableView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTableView.swift; sourceTree = "<group>"; };
+		3F59B82B2C6798F000AFB700 /* CourseData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseData.swift; sourceTree = "<group>"; };
+		3F59B82D2C6799D600AFB700 /* CourseFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseFormView.swift; sourceTree = "<group>"; };
+		3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NTPUOne.entitlements; sourceTree = "<group>"; };
+		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
+		3F59B8392C69F6A600AFB700 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -148,6 +160,7 @@
 				3F90629A2C2C18D300B9F24A /* FirebaseFunctions in Frameworks */,
 				3F9062862C2C18D300B9F24A /* FirebaseAppDistribution-Beta in Frameworks */,
 				3F90628A2C2C18D300B9F24A /* FirebaseAuthCombine-Community in Frameworks */,
+				3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */,
 				3F9062B62C2C290E00B9F24A /* FirebaseVertexAI-Preview in Frameworks */,
 				3F9062922C2C18D300B9F24A /* FirebaseDynamicLinks in Frameworks */,
 				3F9062962C2C18D300B9F24A /* FirebaseFirestoreCombine-Community in Frameworks */,
@@ -165,6 +178,18 @@
 				3F59B8242C671AB300AFB700 /* extention.swift */,
 			);
 			path = Other;
+			sourceTree = "<group>";
+		};
+		3F59B8282C675A6200AFB700 /* CourseList */ = {
+			isa = PBXGroup;
+			children = (
+				3F59B8292C67987B00AFB700 /* TimeTableView.swift */,
+				3F59B8392C69F6A600AFB700 /* ScheduleView.swift */,
+				3F59B8302C679AC400AFB700 /* CourseGridView.swift */,
+				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
+				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
+			);
+			path = CourseList;
 			sourceTree = "<group>";
 		};
 		3F8F94F92C290C25001A1697 = {
@@ -186,10 +211,12 @@
 		3F8F95042C290C25001A1697 /* NTPUOne */ = {
 			isa = PBXGroup;
 			children = (
+				3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */,
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
 				3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */,
 				3F9062CF2C2D718700B9F24A /* Ads */,
+				3F59B8282C675A6200AFB700 /* CourseList */,
 				3F9062BE2C2C7D5100B9F24A /* FoodView */,
 				3F9062712C2AA56800B9F24A /* WeatherView */,
 				3F9062642C2929D100B9F24A /* TrafficView */,
@@ -330,6 +357,7 @@
 				3F9062B32C2C290E00B9F24A /* FirebaseStorageCombine-Community */,
 				3F9062B52C2C290E00B9F24A /* FirebaseVertexAI-Preview */,
 				3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */,
+				3F59B8352C69F2E200AFB700 /* CalendarKit */,
 			);
 			productName = NTPUOne;
 			productReference = 3F8F95022C290C25001A1697 /* NTPUOne.app */;
@@ -362,6 +390,7 @@
 			packageReferences = (
 				3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
+				3F59B8342C69F2E100AFB700 /* XCRemoteSwiftPackageReference "CalendarKit" */,
 			);
 			productRefGroup = 3F8F95032C290C25001A1697 /* Products */;
 			projectDirPath = "";
@@ -424,12 +453,15 @@
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
 				3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
+				3F59B83A2C69F6A600AFB700 /* ScheduleView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
 				3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */,
 				3F9062662C294F8C00B9F24A /* UbikeData.swift in Sources */,
 				3F9062702C2AA56200B9F24A /* WeatherData.swift in Sources */,
 				3F9062C82C2CE8CC00B9F24A /* dinnerView.swift in Sources */,
+				3F59B82A2C67987B00AFB700 /* TimeTableView.swift in Sources */,
+				3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */,
 				3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
@@ -442,6 +474,7 @@
 				3F9062D12C2D71A000B9F24A /* BannerView.swift in Sources */,
 				3F9062C42C2CE71600B9F24A /* FeaturesView.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
+				3F59B82C2C6798F000AFB700 /* CourseData.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
 				3F59B8252C671AB300AFB700 /* extention.swift in Sources */,
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
@@ -449,6 +482,7 @@
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
 				3F9062CA2C2CE8EB00B9F24A /* MSVIew.swift in Sources */,
 				3F9062BD2C2C524B00B9F24A /* AddOrderView.swift in Sources */,
+				3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */,
 				3F9062B92C2C507400B9F24A /* PrivacyPolicyView.swift in Sources */,
 				3F90626A2C29584D00B9F24A /* bikeView.swift in Sources */,
 			);
@@ -582,6 +616,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
@@ -625,6 +660,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
+				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
@@ -684,6 +720,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3F59B8342C69F2E100AFB700 /* XCRemoteSwiftPackageReference "CalendarKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/richardtop/CalendarKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.1.10;
+			};
+		};
 		3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
@@ -703,6 +747,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		3F59B8352C69F2E200AFB700 /* CalendarKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3F59B8342C69F2E100AFB700 /* XCRemoteSwiftPackageReference "CalendarKit" */;
+			productName = CalendarKit;
+		};
 		3F9062792C2C09AE00B9F24A /* FirebaseAnalytics */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
