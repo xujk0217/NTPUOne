@@ -187,7 +187,7 @@ struct LinkView: View {
     
     private func webLinkButton(for web: WebData) -> some View {
         Group {
-            if ["http://dafl.ntpu.edu.tw/main.php", "http://www.rebe.ntpu.edu.tw", "https://past-exam.ntpu.cc", "https://cof.ntpu.edu.tw/student_new.htm"].contains(web.url) {
+//            if ["http://dafl.ntpu.edu.tw/main.php", "http://www.rebe.ntpu.edu.tw", "https://past-exam.ntpu.cc", "https://cof.ntpu.edu.tw/student_new.htm"].contains(web.url) {
                 AnyView(
                     Button(action: {
                         handleURL(web.url)
@@ -196,13 +196,13 @@ struct LinkView: View {
                     }
                         .foregroundStyle(Color.black)
                 )
-            } else {
-                AnyView(
-                    NavigationLink(destination: WebDetailView(url: web.url)) {
-                        webLinkLabel(for: web)
-                    }
-                )
-            }
+//            } else {
+//                AnyView(
+//                    NavigationLink(destination: WebDetailView(url: web.url)) {
+//                        webLinkLabel(for: web)
+//                    }
+//                )
+//            }
         }
     }
     
