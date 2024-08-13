@@ -15,6 +15,7 @@ struct FeaturesView: View {
     @State private var email:String = ""
     @State private var issue:String = ""
     @State private var detail:String = ""
+    @State var containHeight: CGFloat = 0
     
     @State var isSuccessSend = false
     
@@ -37,8 +38,29 @@ struct FeaturesView: View {
                             }.padding()
                             HStack {
                                 Text("功能詳情：")
-                                TextField("具體如何表現", text: $detail)
-                                    .textFieldStyle(.roundedBorder)
+//                                TextField("具體如何表現", text: $detail)
+//                                    .textFieldStyle(.roundedBorder)
+                                VStack{
+                                    AutoSizingTF(
+                                        hint: "具體如何表現",
+                                        text: $detail,
+                                        containerHeight: $containHeight,
+                                        onEnd: {
+                                        //当键盘被关闭时调用该方法
+                                            UIApplication
+                                                .shared
+                                                .sendAction(
+                                                    #selector(
+                                                        UIResponder.resignFirstResponder
+                                                    ),
+                                                    to: nil,
+                                                    from: nil,
+                                                    for: nil
+                                                )
+                                        }
+                                    )
+                                    .frame(height: containHeight < 120 ? containHeight : 120)
+                                }
                             }.padding()
                             HStack {
                                 Text("你的信箱：")
@@ -55,9 +77,7 @@ struct FeaturesView: View {
                                 .background(Color.blue)
                                 .cornerRadius(10)
                                 .alert("上傳成功", isPresented: $isSuccessSend) {
-                                            Button("OK") {
-                                                isSuccessSend = false
-                                            }
+                                            
                                         }
                             if firebaseFail{
                                 Text("送出失敗，請填好功能以及詳情，或者網路有問題，稍後再試～")
