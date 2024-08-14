@@ -18,16 +18,17 @@ struct Course: Identifiable {
     var teacher: String
     
     enum TimeStart: String, CaseIterable, Identifiable {
-        case none = "Select start time"
-        case eight = "8:00"
-        case nine = "9:00"
-        case ten = "10:00"
-        case thirteen = "13:00"
-        case fourteen = "14:00"
-        case fifteen = "15:00"
-        case sixteen = "16:00"
-        case seventeen = "17:00"
-        case eightteen = "18:00"
+        case none = "none"
+        case eight = "8:10"
+        case nine = "9:10"
+        case ten = "10:10"
+        case eleven = "11:10"
+        case thirteen = "13:10"
+        case fourteen = "14:10"
+        case fifteen = "15:10"
+        case sixteen = "16:10"
+        case seventeen = "17:10"
+        case eightteen = "18:30"
         
         var id: String { self.rawValue }
     }
@@ -35,9 +36,13 @@ struct Course: Identifiable {
     enum TimeSlot: String, CaseIterable, Identifiable {
         case morning1 = "Morning 1"
         case morning2 = "Morning 2"
+        case morning3 = "Morning 3"
+        case morning4 = "Morning 4"
         case afternoon1 = "Afternoon 1"
         case afternoon2 = "Afternoon 2"
         case afternoon3 = "Afternoon 3"
+        case afternoon4 = "Afternoon 4"
+        case afternoon5 = "Afternoon 5"
         case evening = "Evening"
         
         var id: String { self.rawValue }
@@ -88,7 +93,30 @@ class CourseData: ObservableObject {
         let courseRecord = CKRecord(recordType: "Course")
         courseRecord["name"] = course.name as CKRecordValue
         courseRecord["day"] = course.day as CKRecordValue
-        courseRecord["startTime"] = course.startTime.rawValue as CKRecordValue
+        var startTime: Course.TimeStart = .eight
+        switch course.timeSlot{
+        case .morning1:
+            startTime = .eight
+        case .morning2:
+            startTime = .nine
+        case .morning3:
+            startTime = .ten
+        case .morning4:
+            startTime = .eleven
+        case .afternoon1:
+            startTime = .thirteen
+        case .afternoon2:
+            startTime = .fourteen
+        case .afternoon3:
+            startTime = .fifteen
+        case .afternoon4:
+            startTime = .sixteen
+        case .afternoon5:
+            startTime = .seventeen
+        case .evening:
+            startTime = .eightteen
+        }
+        courseRecord["startTime"] = startTime.rawValue as CKRecordValue
         courseRecord["timeSlot"] = course.timeSlot.rawValue as CKRecordValue
         courseRecord["location"] = course.location as CKRecordValue
         courseRecord["teacher"] = course.teacher as CKRecordValue
@@ -106,7 +134,7 @@ class CourseData: ObservableObject {
                     // Here we can update the course object with the recordID
                     var updatedCourse = course
                     updatedCourse.id = recordID // Assuming `Course` has an `id` property
-                    
+                    updatedCourse.startTime = startTime
                     self.courses.append(updatedCourse)
                 }
             }
@@ -164,7 +192,30 @@ class CourseData: ObservableObject {
             
             record["name"] = course.name as CKRecordValue
             record["day"] = course.day as CKRecordValue
-            record["startTime"] = course.startTime.rawValue as CKRecordValue
+            var startTime: Course.TimeStart = .eight
+            switch course.timeSlot{
+            case .morning1:
+                startTime = .eight
+            case .morning2:
+                startTime = .nine
+            case .morning3:
+                startTime = .ten
+            case .morning4:
+                startTime = .eleven
+            case .afternoon1:
+                startTime = .thirteen
+            case .afternoon2:
+                startTime = .fourteen
+            case .afternoon3:
+                startTime = .fifteen
+            case .afternoon4:
+                startTime = .sixteen
+            case .afternoon5:
+                startTime = .seventeen
+            case .evening:
+                startTime = .eightteen
+            }
+            record["startTime"] = startTime.rawValue as CKRecordValue
             record["timeSlot"] = course.timeSlot.rawValue as CKRecordValue
             record["location"] = course.location as CKRecordValue
             record["teacher"] = course.teacher as CKRecordValue
@@ -175,7 +226,9 @@ class CourseData: ObservableObject {
                 } else {
                     DispatchQueue.main.async {
                         if let index = self?.courses.firstIndex(where: { $0.id == course.id }) {
-                            self?.courses[index] = course
+                            var newCourse = course
+                            newCourse.startTime = startTime
+                            self?.courses[index] = newCourse
                         }
                     }
                 }

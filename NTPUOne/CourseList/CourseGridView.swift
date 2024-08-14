@@ -64,9 +64,9 @@ struct CourseColumnView: View {
                     $0.day == day && $0.timeSlot == slot
                 }
                 CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
-                if slot == .morning2 {
+                if slot == .morning4 {
                     LunchButtonView()
-                } else if slot == .afternoon3 {
+                } else if slot == .afternoon5 {
                     DinnerButtonView()
                 }
             }
