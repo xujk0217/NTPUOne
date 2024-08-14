@@ -115,7 +115,8 @@ struct CourseSlotView: View {
                 }
             }
         }
-        .frame(width: 60, height: 60)
+        .frame(height: 80)
+        .frame(minWidth: 50, maxWidth: 70)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(8)
     }
