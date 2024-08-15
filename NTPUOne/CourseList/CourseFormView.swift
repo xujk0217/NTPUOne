@@ -77,33 +77,6 @@ struct CourseFormView: View {
                         Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
                     }
                 }
-                
-//                Picker("Start Time", selection: $course.startTime) {
-//                    Text(Course.TimeStart.none.rawValue).tag(Course.TimeStart.none)
-//                            .foregroundColor(.gray)
-//                    switch course.timeSlot {
-//                    case .morning1:
-//                        Text(Course.TimeStart.eight.rawValue).tag(Course.TimeStart.eight)
-//                    case .morning2:
-//                        Text(Course.TimeStart.nine.rawValue).tag(Course.TimeStart.nine)
-//                    case .morning3:
-//                        Text(Course.TimeStart.ten.rawValue).tag(Course.TimeStart.ten)
-//                    case .morning4:
-//                        Text(Course.TimeStart.eleven.rawValue).tag(Course.TimeStart.ten)
-//                    case .afternoon1:
-//                        Text(Course.TimeStart.thirteen.rawValue).tag(Course.TimeStart.thirteen)
-//                    case .afternoon2:
-//                        Text(Course.TimeStart.fourteen.rawValue).tag(Course.TimeStart.fourteen)
-//                    case .afternoon3:
-//                        Text(Course.TimeStart.fifteen.rawValue).tag(Course.TimeStart.fifteen)
-//                    case .afternoon4:
-//                        Text(Course.TimeStart.sixteen.rawValue).tag(Course.TimeStart.sixteen)
-//                    case .afternoon5:
-//                        Text(Course.TimeStart.seventeen.rawValue).tag(Course.TimeStart.seventeen)
-//                    case .evening:
-//                        Text(Course.TimeStart.eightteen.rawValue).tag(Course.TimeStart.eightteen)
-//                    }
-//                }
             }
             .navigationTitle(isNewCourse ? "New Course" : "Edit Course")
             .toolbar {
@@ -113,7 +86,7 @@ struct CourseFormView: View {
                             if isNewCourse{
                                 saveCoursesInTimeRange()
                             }else{
-                                onSave()
+                                checkForDuplicateCourse()
                             }
                         }
                     }
@@ -132,36 +105,44 @@ struct CourseFormView: View {
                 }
             }
         }
-        .alert(isPresented: $showingAlert) {
-            Alert(
-                title: Text("Duplicate Course"),
-                message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue). Do you want to overwrite it?"),
-                primaryButton: .destructive(Text("Overwrite")) {
-                    if let overwriteCourse = overwriteCourse {
-                        // 删除现有课程
-                        print("start ondeletefromid")
-                        courseData.deleteCourseById(overwriteCourse.id)
-                        // 保存新课程
-                        print("save")
-                        onSave()
-                    }
-                },
-                secondaryButton: .cancel()
-            )
-        }
-        .alert(isPresented: $showingAllowAlert) {
-            Alert(
-                title: Text("Duplicate Course"),
-                message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue) to \(endTimeSlot.rawValue). Do you want to overwrite it?"),
-                primaryButton: .destructive(Text("Overwrite")) {
-                    allowOverwrite = true
-                    performSaveCoursesInTimeRange()
-                },
-                secondaryButton: .cancel()
-            )
-        }
         .onAppear {
             endTimeSlot = course.timeSlot
+        }
+        .alert(isPresented: $showingAlert) {
+            switch showingAllowAlert{
+            case true:{
+                Alert(
+                    title: Text("Duplicate Course"),
+                    message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue) to \(endTimeSlot.rawValue). Do you want to overwrite it?"),
+                    primaryButton: .destructive(Text("Overwrite")) {
+                        allowOverwrite = true
+                        showingAllowAlert = false
+                        performSaveCoursesInTimeRange()
+                    },
+                    secondaryButton: .cancel(){
+                        showingAllowAlert = false
+                    }
+                )
+            }()
+            case false:{
+                Alert(
+                    title: Text("Duplicate Course"),
+                    message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue). Do you want to overwrite it?"),
+                    primaryButton: .destructive(Text("Overwrite")) {
+                        if let overwriteCourse = overwriteCourse {
+                            // 删除现有课程
+                            print("start ondeletefromid")
+                            courseData.deleteCourseById(overwriteCourse.id)
+                            // 保存新课程
+                            print("save")
+                            showingAlert = false
+                            onSave()
+                        }
+                    },
+                    secondaryButton: .cancel()
+                )
+            }()
+            }
         }
     }
     
@@ -180,6 +161,7 @@ struct CourseFormView: View {
                 // 有重复课程，设置覆盖课程提示
                 if allowOverwrite == false{
                     showingAllowAlert = true
+                    showingAlert = true
                     return
                 }
             } else {
@@ -222,8 +204,10 @@ struct CourseFormView: View {
     private func checkForDuplicateCourse() {
             if let existingCourse = findDuplicateCourse() {
                 // 如果找到重复课程，显示提示框
+                print("showingAlert set to \(showingAlert)")
                 overwriteCourse = existingCourse
                 showingAlert = true
+                print("showingAlert set to \(showingAlert)")
             } else {
                 // 没有重复课程，直接保存
                 onSave()
