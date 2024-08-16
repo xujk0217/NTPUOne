@@ -204,10 +204,14 @@ struct CourseFormView: View {
     private func checkForDuplicateCourse() {
             if let existingCourse = findDuplicateCourse() {
                 // 如果找到重复课程，显示提示框
-                print("showingAlert set to \(showingAlert)")
-                overwriteCourse = existingCourse
-                showingAlert = true
-                print("showingAlert set to \(showingAlert)")
+                if existingCourse.id != course.id{
+                    print("showingAlert set to \(showingAlert)")
+                    overwriteCourse = existingCourse
+                    showingAlert = true
+                    print("showingAlert set to \(showingAlert)")
+                }else{
+                    onSave()
+                }
             } else {
                 // 没有重复课程，直接保存
                 onSave()

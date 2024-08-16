@@ -19,7 +19,6 @@
 		3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B82D2C6799D600AFB700 /* CourseFormView.swift */; };
 		3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8302C679AC400AFB700 /* CourseGridView.swift */; };
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
-		3F59B83A2C69F6A600AFB700 /* ScheduleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8392C69F6A600AFB700 /* ScheduleView.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -95,7 +94,6 @@
 		3F59B82D2C6799D600AFB700 /* CourseFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseFormView.swift; sourceTree = "<group>"; };
 		3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NTPUOne.entitlements; sourceTree = "<group>"; };
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
-		3F59B8392C69F6A600AFB700 /* ScheduleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScheduleView.swift; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -184,7 +182,6 @@
 			isa = PBXGroup;
 			children = (
 				3F59B8292C67987B00AFB700 /* TimeTableView.swift */,
-				3F59B8392C69F6A600AFB700 /* ScheduleView.swift */,
 				3F59B8302C679AC400AFB700 /* CourseGridView.swift */,
 				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
 				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
@@ -453,7 +450,6 @@
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
 				3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
-				3F59B83A2C69F6A600AFB700 /* ScheduleView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
 				3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */,

@@ -16,7 +16,6 @@ struct TimeTableView: View {
             ScrollView{
                 VStack {
                     CourseGridView(courseData: courseData, isEdit: $isEdit)
-                    //WeekScheduleView(courseData: courseData)
                 }
             }
             .navigationTitle("Course Schedule")
@@ -34,7 +33,7 @@ struct TimeTableView: View {
                         Button {
                             isEdit = false
                         } label: {
-                            Text("Cancel")
+                            Text("Done")
                         }
                     }
                 }
