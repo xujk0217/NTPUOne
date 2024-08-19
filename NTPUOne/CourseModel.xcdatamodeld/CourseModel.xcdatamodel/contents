@@ -3,6 +3,7 @@
     <entity name="CourseEntity" representedClassName="CourseEntity" syncable="YES">
         <attribute name="day" optional="YES" attributeType="String"/>
         <attribute name="id" optional="YES" attributeType="String"/>
+        <attribute name="isNotification" optional="YES" attributeType="Boolean" usesScalarValueType="YES"/>
         <attribute name="location" optional="YES" attributeType="String"/>
         <attribute name="name" optional="YES" attributeType="String"/>
         <attribute name="startTime" optional="YES" attributeType="String"/>

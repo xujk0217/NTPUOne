@@ -12,13 +12,14 @@ import FirebaseCore
 import Firebase
 import FirebaseInAppMessagingInternal
 import GoogleMobileAds
+import UserNotifications
 import Network
 
 class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegate {
     var window: UIWindow?
     
     lazy var persistentContainer: NSPersistentCloudKitContainer = {
-        let container = NSPersistentCloudKitContainer(name: "CourseModel") // 替换 "CourseModel" 为你的 .xcdatamodeld 文件的名字
+        let container = NSPersistentCloudKitContainer(name: "CourseModel")
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
                 fatalError("Unresolved error \(error), \(error.userInfo)")
@@ -33,6 +34,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegat
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
         GADMobileAds.sharedInstance().start(completionHandler: nil)
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
+        requestNotificationAuthorization()
         return true
     }
 
@@ -61,6 +63,19 @@ class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegat
         }
         monitor.start(queue: queue)
     }
+    private func requestNotificationAuthorization() {
+            let center = UNUserNotificationCenter.current()
+            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
+                if granted {
+                    print("Notification permission granted.")
+                } else {
+                    print("Notification permission denied.")
+                }
+                if let error = error {
+                    print("Error requesting notification authorization: \(error.localizedDescription)")
+                }
+            }
+        }
 }
 
 struct PersistenceController {

@@ -23,6 +23,7 @@ extension CourseEntity {
     @NSManaged public var startTime: String?
     @NSManaged public var teacher: String?
     @NSManaged public var timeSlot: String?
+    @NSManaged public var isNotification: Bool
 
 }
 

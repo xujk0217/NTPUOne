@@ -46,6 +46,11 @@ struct CourseFormView: View {
                     } header: {
                         Text("Teacher")
                     }
+                    Section{
+                        Toggle("開啟上課通知", isOn: $course.isNotification)
+                    } header: {
+                        Text("上課通知")
+                    }
                     Section {
                         Picker("Day", selection: $course.day) {
                             ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
@@ -183,7 +188,8 @@ struct CourseFormView: View {
                                             startTime: .none,
                                             timeSlot: slot,
                                             location: course.location ?? "",
-                                            teacher: course.teacher ?? "")
+                                           teacher: course.teacher ?? "",
+                                           isNotification: course.isNotification)
                     
                     courseData.addCourse(newCourse)
                 }
@@ -207,7 +213,8 @@ struct CourseFormView: View {
                                         startTime: .none,
                                         timeSlot: slot,
                                         location: course.location ?? "",
-                                        teacher: course.teacher ?? "")
+                                       teacher: course.teacher ?? "", 
+                                       isNotification: course.isNotification)
                 
                 courseData.addCourse(newCourse)
             }
@@ -224,27 +231,6 @@ struct CourseFormView: View {
         isRepeat = false
         onCancel()
     }
-
-//    private func performSaveCoursesInTimeRange() {
-//        guard let startIndex = Course.TimeSlot.allCases.firstIndex(of: course.timeSlot),
-//              let endIndex = Course.TimeSlot.allCases.firstIndex(of: endTimeSlot) else {
-//            return
-//        }
-//
-//        let timeSlotsToCheck = Array(Course.TimeSlot.allCases[startIndex...endIndex])
-//        
-//        for (index, slot) in timeSlotsToCheck.enumerated() {
-//            var newCourse = course
-//            newCourse.timeSlot = slot
-//            if let overwriteCourse = findDuplicateCourse(course.day, slot) {
-//                courseData.deleteCourse(overwriteCourse)
-//            }
-//            courseData.addCourse(newCourse)
-//        }
-//        showingAllowAlert = false
-//        allowOverwrite = false
-//        onCancel()
-//    }
 
     private func isTimeSlotOccupied(day: String, timeSlot: Course.TimeSlot) -> Bool {
         return courseData.courses.contains { $0.day == day && $0.timeSlot == timeSlot }

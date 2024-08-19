@@ -12,8 +12,8 @@ struct CourseGridView: View {
     @Binding var isEdit: Bool
     @State private var showingAlert = false
     @State private var showingSheet = false
-    @State private var selectedCourse = Course(id: "", name: "", day: "Friday", startTime: .none, timeSlot: .morning1, location: "", teacher: "")
-    @State private var newCourse = Course(id: "", name: "", day: "Monday", startTime: .none, timeSlot: .morning1, location: "", teacher: "")
+    @State private var selectedCourse = Course(id: "", name: "", day: "Friday", startTime: .none, timeSlot: .morning1, location: "", teacher: "", isNotification: true)
+    @State private var newCourse = Course(id: "", name: "", day: "Monday", startTime: .none, timeSlot: .morning1, location: "", teacher: "", isNotification: true)
     @State private var isNewCourse = false
 
     var body: some View {
@@ -34,7 +34,7 @@ struct CourseGridView: View {
         .alert(isPresented: $showingAlert) {
             Alert(
                 title: Text(selectedCourse.name),
-                message: Text("教授：\(selectedCourse.teacher.isEmpty ? "..." : selectedCourse.teacher) 教授\n时间：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地点：\(selectedCourse.location.isEmpty ? "..." : selectedCourse.location)"),
+                message: Text("教授：\(selectedCourse.teacher.isEmpty ? "..." : selectedCourse.teacher) 教授\n時間：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地點：\(selectedCourse.location.isEmpty ? "..." : selectedCourse.location)\n通知：\(selectedCourse.isNotification ? "開啟" : "關閉")"),
                 dismissButton: .default(Text("OK"))
             )
         }
@@ -107,7 +107,7 @@ struct CourseSlotView: View {
                         Button(action: { viewCourseDetails(course) }) {
                             Text(course.name)
                                 .font(.caption)
-                                .foregroundColor(.blue)
+                                .foregroundColor(.black)
                         }
                     }
                 }
@@ -120,7 +120,7 @@ struct CourseSlotView: View {
     }
 
     func addNewCourse() {
-        newCourse = Course(id: UUID().uuidString, name: "", day: day, startTime: .none, timeSlot: slot, location: "", teacher: "")
+        newCourse = Course(id: UUID().uuidString, name: "", day: day, startTime: .none, timeSlot: slot, location: "", teacher: "", isNotification: true)
         isNewCourse = true
         showingSheet = true
     }

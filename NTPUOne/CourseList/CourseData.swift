@@ -1,244 +1,13 @@
-////
-////  CourseData.swift
-////  NTPUOne
-////
-////  Created by 許君愷 on 2024/8/10.
-////
 //
-//import SwiftUI
-//import CloudKit
+//  CourseData.swift
+//  NTPUOne
 //
-//struct Course: Identifiable {
-//    var id: String
-//    var name: String
-//    var day: String
-//    var startTime: TimeStart
-//    var timeSlot: TimeSlot
-//    var location: String
-//    var teacher: String
-//    
-//    enum TimeStart: String, CaseIterable, Identifiable {
-//        case none = "none"
-//        case eight = "8:10"
-//        case nine = "9:10"
-//        case ten = "10:10"
-//        case eleven = "11:10"
-//        case thirteen = "13:10"
-//        case fourteen = "14:10"
-//        case fifteen = "15:10"
-//        case sixteen = "16:10"
-//        case seventeen = "17:10"
-//        case eightteen = "18:30"
-//        
-//        var id: String { self.rawValue }
-//    }
-//    
-//    enum TimeSlot: String, CaseIterable, Identifiable {
-//        case morning1 = "Morning 1"
-//        case morning2 = "Morning 2"
-//        case morning3 = "Morning 3"
-//        case morning4 = "Morning 4"
-//        case afternoon1 = "Afternoon 1"
-//        case afternoon2 = "Afternoon 2"
-//        case afternoon3 = "Afternoon 3"
-//        case afternoon4 = "Afternoon 4"
-//        case afternoon5 = "Afternoon 5"
-//        case evening = "Evening"
-//        
-//        var id: String { self.rawValue }
-//    }
-//    
-//}
+//  Created by 許君愷 on 2024/8/10.
 //
-//class CourseData: ObservableObject {
-//    @Published var courses: [Course] = []
-//    private var container: CKContainer
-//    private var privateDatabase: CKDatabase
-//    
-//    init() {
-//        container = CKContainer.default()
-//        privateDatabase = container.privateCloudDatabase
-//        loadCoursesFromCloudKit()
-//    }
-//    
-//    // 加载课程数据从 CloudKit
-//    func loadCoursesFromCloudKit() {
-//        let query = CKQuery(recordType: "Course", predicate: NSPredicate(value: true))
-//        
-//        privateDatabase.perform(query, inZoneWith: nil) { results, error in
-//            if let error = error {
-//                print("Error loading from CloudKit: \(error.localizedDescription)")
-//                return
-//            }
-//            
-//            if let results = results {
-//                DispatchQueue.main.async {
-//                    self.courses = results.map { record in
-//                        Course(
-//                            id: record.recordID.recordName,
-//                            name: record["name"] as? String ?? "",
-//                            day: record["day"] as? String ?? "", 
-//                            startTime: Course.TimeStart(rawValue: record["startTime"] as? String ?? "")  ?? .eight,
-//                            timeSlot: Course.TimeSlot(rawValue: record["timeSlot"] as? String ?? "") ?? .morning1,
-//                            location: record["location"] as? String ?? "",
-//                            teacher: record["teacher"] as? String ?? ""
-//                        )
-//                    }
-//                }
-//            }
-//        }
-//    }
-//    
-//    func addCourse(_ course: Course) {
-//        let courseRecord = CKRecord(recordType: "Course")
-//        courseRecord["name"] = course.name as CKRecordValue
-//        courseRecord["day"] = course.day as CKRecordValue
-//        var startTime: Course.TimeStart = .eight
-//        switch course.timeSlot{
-//        case .morning1:
-//            startTime = .eight
-//        case .morning2:
-//            startTime = .nine
-//        case .morning3:
-//            startTime = .ten
-//        case .morning4:
-//            startTime = .eleven
-//        case .afternoon1:
-//            startTime = .thirteen
-//        case .afternoon2:
-//            startTime = .fourteen
-//        case .afternoon3:
-//            startTime = .fifteen
-//        case .afternoon4:
-//            startTime = .sixteen
-//        case .afternoon5:
-//            startTime = .seventeen
-//        case .evening:
-//            startTime = .eightteen
-//        }
-//        courseRecord["startTime"] = startTime.rawValue as CKRecordValue
-//        courseRecord["timeSlot"] = course.timeSlot.rawValue as CKRecordValue
-//        courseRecord["location"] = course.location as CKRecordValue
-//        courseRecord["teacher"] = course.teacher as CKRecordValue
-//
-//        privateDatabase.save(courseRecord) { record, error in
-//            if let error = error {
-//                print("Error saving to CloudKit: \(error.localizedDescription)")
-//            } else if let record = record {
-//                DispatchQueue.main.async {
-//                    // Accessing the recordID here
-//                    let recordID = record.recordID.recordName
-//                    print("Successfully saved record with ID: \(recordID)")
-//                    
-//                    // Optionally, you can update your local courses list or perform other actions
-//                    // Here we can update the course object with the recordID
-//                    var updatedCourse = course
-//                    updatedCourse.id = recordID // Assuming `Course` has an `id` property
-//                    updatedCourse.startTime = startTime
-//                    self.courses.append(updatedCourse)
-//                }
-//            }
-//        }
-//    }
-//
-//    
-//    func deleteCourse(_ course: Course) {
-//        // 从本地数据源中删除课程
-//        if let index = courses.firstIndex(where: { $0.id == course.id }) {
-//            courses.remove(at: index)
-//            print("Course deleted: \(course.name)")
-//        } else {
-//            print("Course not found: \(course.name)")
-//        }
-//            
-//        // 从 CloudKit 删除课程
-//        let recordID = CKRecord.ID(recordName: course.id)
-//        privateDatabase.delete(withRecordID: recordID) { _, error in
-//            if let error = error {
-//                print("Error deleting from CloudKit: \(error.localizedDescription)")
-//            }
-//        }
-//    }
-//    
-//    func deleteCourseById(_ courseid: String) {
-//        // 从本地数据源中删除课程
-//        if let index = courses.firstIndex(where: { $0.id == courseid }) {
-//            courses.remove(at: index)
-//        }
-//            
-//        // 从 CloudKit 删除课程
-//        let recordID = CKRecord.ID(recordName: courseid)
-//        privateDatabase.delete(withRecordID: recordID) { _, error in
-//            if let error = error {
-//                print("Error deleting from CloudKit: \(error.localizedDescription)")
-//            }
-//        }
-//    }
-//    
-//    // 更新课程
-//    func updateCourse(_ course: Course) {
-//        let recordID = CKRecord.ID(recordName: course.id)
-//        
-//        privateDatabase.fetch(withRecordID: recordID) { [weak self] record, error in
-//            if let error = error {
-//                print("Error fetching record from CloudKit: \(error.localizedDescription)")
-//                return
-//            }
-//            
-//            guard let record = record else {
-//                print("Record not found")
-//                return
-//            }
-//            
-//            record["name"] = course.name as CKRecordValue
-//            record["day"] = course.day as CKRecordValue
-//            var startTime: Course.TimeStart = .eight
-//            switch course.timeSlot{
-//            case .morning1:
-//                startTime = .eight
-//            case .morning2:
-//                startTime = .nine
-//            case .morning3:
-//                startTime = .ten
-//            case .morning4:
-//                startTime = .eleven
-//            case .afternoon1:
-//                startTime = .thirteen
-//            case .afternoon2:
-//                startTime = .fourteen
-//            case .afternoon3:
-//                startTime = .fifteen
-//            case .afternoon4:
-//                startTime = .sixteen
-//            case .afternoon5:
-//                startTime = .seventeen
-//            case .evening:
-//                startTime = .eightteen
-//            }
-//            record["startTime"] = startTime.rawValue as CKRecordValue
-//            record["timeSlot"] = course.timeSlot.rawValue as CKRecordValue
-//            record["location"] = course.location as CKRecordValue
-//            record["teacher"] = course.teacher as CKRecordValue
-//            
-//            self?.privateDatabase.save(record) { savedRecord, saveError in
-//                if let saveError = saveError {
-//                    print("Error updating record in CloudKit: \(saveError.localizedDescription)")
-//                } else {
-//                    DispatchQueue.main.async {
-//                        if let index = self?.courses.firstIndex(where: { $0.id == course.id }) {
-//                            var newCourse = course
-//                            newCourse.startTime = startTime
-//                            self?.courses[index] = newCourse
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//}
 
 import Foundation
 import CoreData
+import UserNotifications
 import SwiftUI
 
 struct Course: Identifiable {
@@ -249,6 +18,7 @@ struct Course: Identifiable {
     var timeSlot: TimeSlot
     var location: String
     var teacher: String
+    var isNotification: Bool
 
     enum TimeStart: String, CaseIterable, Identifiable {
         case none = "none"
@@ -315,11 +85,26 @@ class CourseData: ObservableObject {
                     startTime: Course.TimeStart(rawValue: courseEntity.startTime ?? Course.TimeStart.none.rawValue) ?? .none,
                     timeSlot: Course.TimeSlot(rawValue: courseEntity.timeSlot ?? Course.TimeSlot.morning1.rawValue) ?? .morning1,
                     location: courseEntity.location ?? "",
-                    teacher: courseEntity.teacher ?? ""
+                    teacher: courseEntity.teacher ?? "", 
+                    isNotification: courseEntity.isNotification
                 )
             }
+            scheduleNotificationsForAllCourses()
         } catch {
             print("Error: Failed to fetch courses from Core Data - \(error.localizedDescription)")
+        }
+        checkNotificationAuthorizationStatus()
+        scheduleDailyReminderNotification() //測試
+    }
+    
+    func scheduleNotificationsForAllCourses() {
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        for course in courses {
+            if course.isNotification {
+                scheduleNotification(for: course)
+            } else {
+                cancelNotification(for: course)
+            }
         }
     }
 
@@ -360,7 +145,12 @@ class CourseData: ObservableObject {
         newCourse.timeSlot = course.timeSlot.rawValue
         newCourse.location = course.location
         newCourse.teacher = course.teacher
-
+        newCourse.isNotification = course.isNotification
+        
+        if course.isNotification {
+            scheduleNotification(for: course)
+        }
+        
         saveContext()
         courses.append(course)
         print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime ?? "ooo").")
@@ -371,6 +161,7 @@ class CourseData: ObservableObject {
             print("Error: View context is nil. Cannot delete course with id \(course.id).")
             return
         }
+        cancelNotification(for: course)
         
         let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "id == %@", course.id)
@@ -422,6 +213,12 @@ class CourseData: ObservableObject {
             return
         }
         
+        if course.isNotification {
+            scheduleNotification(for: course)
+        } else {
+            cancelNotification(for: course)
+        }
+        
         let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "id == %@", course.id)
 
@@ -434,6 +231,7 @@ class CourseData: ObservableObject {
                 courseEntity.timeSlot = course.timeSlot.rawValue
                 courseEntity.location = course.location
                 courseEntity.teacher = course.teacher
+                courseEntity.isNotification = course.isNotification
 
                 saveContext()
 
@@ -460,6 +258,149 @@ class CourseData: ObservableObject {
             print("Success: Context saved successfully.")
         } catch {
             print("Error: Failed to save context - \(error.localizedDescription)")
+        }
+    }
+}
+
+
+
+extension CourseData {
+    // 调度通知的方法
+    func scheduleNotification(for course: Course) {
+        let content = UNMutableNotificationContent()
+        content.title = course.name
+        content.body = "Your class is about to start!"
+        content.sound = .default
+
+        // 创建触发器
+        let triggerDate = calculateTriggerDate(for: course) // 根据课程时间计算触发时间
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: true)
+
+        // 创建通知请求
+        let request = UNNotificationRequest(identifier: course.id, content: content, trigger: trigger)
+        
+        // 添加通知请求
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error.localizedDescription)")
+            } else {
+                print("Notification scheduled for course \(course.name).")
+            }
+        }
+    }
+    
+
+    // 取消通知的方法
+    func cancelNotification(for course: Course) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [course.id])
+        print("Notification cancelled for course \(course.name).")
+    }
+
+    // 计算触发时间的方法
+    private func calculateTriggerDate(for course: Course) -> DateComponents {
+        var dateComponents = DateComponents()
+        dateComponents.weekday = weekday(from: course.day) // 曜日
+        dateComponents.hour = hour(from: course.startTime) // 小时
+        dateComponents.minute = 0 // 分钟
+        return dateComponents
+    }
+
+    // 将课程的 day 转换为 DateComponents 中的 weekday
+    private func weekday(from day: String) -> Int {
+        // 示例实现，需要根据你的需求来实现具体逻辑
+        switch day.lowercased() {
+        case "monday": return 2
+        case "tuesday": return 3
+        case "wednesday": return 4
+        case "thursday": return 5
+        case "friday": return 6
+        default: return 1
+        }
+    }
+
+    // 将课程的 startTime 转换为小时
+    private func hour(from startTime: Course.TimeStart) -> Int {
+        // 示例实现，需要根据你的时间格式来实现具体逻辑
+        switch startTime {
+        case .eight: return 8
+        case .nine: return 9
+        case .ten: return 10
+        case .eleven: return 11
+        case .thirteen: return 13
+        case .fourteen: return 14
+        case .fifteen: return 15
+        case .sixteen: return 16
+        case .seventeen: return 17
+        case .eighteen: return 18
+        case .none: return 0
+        }
+    }
+    
+    func checkNotificationAuthorizationStatus() {
+        UNUserNotificationCenter.current().getNotificationSettings { settings in
+            switch settings.authorizationStatus {
+            case .authorized:
+                print("Notification permission is granted.")
+            case .denied:
+                print("Notification permission is denied.")
+            case .notDetermined:
+                print("Notification permission has not been requested yet.")
+            case .provisional:
+                print("Notification permission is provisional.")
+            @unknown default:
+                print("Unknown notification authorization status.")
+            }
+        }
+    }
+}
+extension CourseData {
+    
+    func scheduleNotificationTest() {
+        let content = UNMutableNotificationContent()
+        content.title = "課程"
+        content.body = "Your class is about to start!"
+        content.sound = .default
+
+        // 创建触发器
+        let triggerDate = calculateTriggerDate(for: course) // 根据课程时间计算触发时间
+        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: true)
+
+        // 创建通知请求
+        let request = UNNotificationRequest(identifier: course.id, content: content, trigger: trigger)
+        
+        // 添加通知请求
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error.localizedDescription)")
+            } else {
+                print("Notification scheduled for course \(course.name).")
+            }
+        }
+    }
+    
+    func scheduleDailyReminderNotification() {
+        let content = UNMutableNotificationContent()
+        content.title = "Reminder"
+        content.body = "It's 10 PM! Don't forget to check your courses."
+        content.sound = .default
+
+        // 创建触发器
+        var dateComponents = DateComponents()
+        dateComponents.hour = 22  // 10 PM
+        dateComponents.minute = 0
+        
+        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+        
+        // 创建通知请求
+        let request = UNNotificationRequest(identifier: "dailyReminder", content: content, trigger: trigger)
+        
+        // 添加通知请求
+        UNUserNotificationCenter.current().add(request) { error in
+            if let error = error {
+                print("Error scheduling daily reminder notification: \(error.localizedDescription)")
+            } else {
+                print("Daily reminder notification scheduled for 10 PM.")
+            }
         }
     }
 }
