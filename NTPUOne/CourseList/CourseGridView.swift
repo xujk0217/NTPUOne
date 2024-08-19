@@ -18,11 +18,9 @@ struct CourseGridView: View {
 
     var body: some View {
         LazyVGrid(columns: columns) {
-            // Headers
-            ForEach(["Mon", "Tue", "Wed", "Thur", "Fri"], id: \.self) { day in
+            ForEach(["Mon", "Tue", "Wed", "Thu", "Fri"], id: \.self) { day in
                 Text(day)
             }
-            // Courses
             ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
                 CourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
             }
@@ -36,14 +34,14 @@ struct CourseGridView: View {
         .alert(isPresented: $showingAlert) {
             Alert(
                 title: Text(selectedCourse.name),
-                message: Text("教授：\(selectedCourse.teacher == "" ? "..." : selectedCourse.teacher) 教授\n時間：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地點：\(selectedCourse.location == "" ? "..." : selectedCourse.location)"),
+                message: Text("教授：\(selectedCourse.teacher.isEmpty ? "..." : selectedCourse.teacher) 教授\n时间：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地点：\(selectedCourse.location.isEmpty ? "..." : selectedCourse.location)"),
                 dismissButton: .default(Text("OK"))
             )
         }
     }
     
     var columns: [GridItem] {
-        return Array(repeating: .init(.flexible()), count: 5)
+        Array(repeating: .init(.flexible()), count: 5)
     }
 }
 

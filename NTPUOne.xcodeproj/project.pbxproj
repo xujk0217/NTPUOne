@@ -19,6 +19,10 @@
 		3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B82D2C6799D600AFB700 /* CourseFormView.swift */; };
 		3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8302C679AC400AFB700 /* CourseGridView.swift */; };
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
+		3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */; };
+		3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
+		3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
+		3F8B9F7F2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -94,6 +98,10 @@
 		3F59B82D2C6799D600AFB700 /* CourseFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseFormView.swift; sourceTree = "<group>"; };
 		3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NTPUOne.entitlements; sourceTree = "<group>"; };
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
+		3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
+		3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = CourseModel.xcdatamodel; sourceTree = "<group>"; };
+		3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataClass.swift"; sourceTree = "<group>"; };
+		3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -185,6 +193,7 @@
 				3F59B8302C679AC400AFB700 /* CourseGridView.swift */,
 				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
 				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
+				3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */,
 			);
 			path = CourseList;
 			sourceTree = "<group>";
@@ -192,6 +201,8 @@
 		3F8F94F92C290C25001A1697 = {
 			isa = PBXGroup;
 			children = (
+				3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */,
+				3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */,
 				3F8F95042C290C25001A1697 /* NTPUOne */,
 				3F8F95032C290C25001A1697 /* Products */,
 			);
@@ -208,6 +219,7 @@
 		3F8F95042C290C25001A1697 /* NTPUOne */ = {
 			isa = PBXGroup;
 			children = (
+				3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */,
 				3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */,
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
@@ -445,6 +457,7 @@
 			files = (
 				3F59B8202C67187300AFB700 /* AboutView.swift in Sources */,
 				3F59B8222C67198100AFB700 /* TrafficView.swift in Sources */,
+				3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */,
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
@@ -476,10 +489,13 @@
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
+				3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */,
 				3F9062CA2C2CE8EB00B9F24A /* MSVIew.swift in Sources */,
 				3F9062BD2C2C524B00B9F24A /* AddOrderView.swift in Sources */,
 				3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */,
 				3F9062B92C2C507400B9F24A /* PrivacyPolicyView.swift in Sources */,
+				3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */,
+				3F8B9F7F2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */,
 				3F90626A2C29584D00B9F24A /* bikeView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -894,6 +910,19 @@
 			productName = GoogleMobileAds;
 		};
 /* End XCSwiftPackageProductDependency section */
+
+/* Begin XCVersionGroup section */
+		3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */ = {
+			isa = XCVersionGroup;
+			children = (
+				3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */,
+			);
+			currentVersion = 3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */;
+			path = CourseModel.xcdatamodeld;
+			sourceTree = "<group>";
+			versionGroupType = wrapper.xcdatamodel;
+		};
+/* End XCVersionGroup section */
 	};
 	rootObject = 3F8F94FA2C290C25001A1697 /* Project object */;
 }

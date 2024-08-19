@@ -9,8 +9,9 @@ import SwiftUI
 import CloudKit
 
 struct TimeTableView: View {
-    @StateObject var courseData = CourseData()
+    @EnvironmentObject var courseData: CourseData
     @State var isEdit = false
+    @State private var refreshTrigger: Bool = false
     var body: some View {
         NavigationStack {
             ScrollView{
@@ -25,7 +26,7 @@ struct TimeTableView: View {
                         Button {
                             isEdit = true
                         } label: {
-                            Text("edit")
+                            Text("Edit")
                         }
                     }
                 } else {
