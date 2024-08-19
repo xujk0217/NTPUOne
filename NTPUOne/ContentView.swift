@@ -22,7 +22,7 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            LinkView().tabItem {
+            LinkView(courseData: courseData).tabItem {
                 Image(systemName: "house")
                 Text("Main")
             }.tag(0)

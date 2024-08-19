@@ -306,7 +306,7 @@ extension CourseData {
     }
 
     // 将课程的 day 转换为 DateComponents 中的 weekday
-    private func weekday(from day: String) -> Int {
+    func weekday(from day: String) -> Int {
         // 示例实现，需要根据你的需求来实现具体逻辑
         switch day.lowercased() {
         case "monday": return 2
@@ -319,7 +319,7 @@ extension CourseData {
     }
 
     // 将课程的 startTime 转换为小时
-    private func hour(from startTime: Course.TimeStart) -> Int {
+    func hour(from startTime: Course.TimeStart) -> Int {
         // 示例实现，需要根据你的时间格式来实现具体逻辑
         switch startTime {
         case .eight: return 8
@@ -353,30 +353,9 @@ extension CourseData {
         }
     }
 }
+
+//測試Notification
 extension CourseData {
-    
-    func scheduleNotificationTest() {
-        let content = UNMutableNotificationContent()
-        content.title = "課程"
-        content.body = "Your class is about to start!"
-        content.sound = .default
-
-        // 创建触发器
-        let triggerDate = calculateTriggerDate(for: course) // 根据课程时间计算触发时间
-        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: true)
-
-        // 创建通知请求
-        let request = UNNotificationRequest(identifier: course.id, content: content, trigger: trigger)
-        
-        // 添加通知请求
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling notification: \(error.localizedDescription)")
-            } else {
-                print("Notification scheduled for course \(course.name).")
-            }
-        }
-    }
     
     func scheduleDailyReminderNotification() {
         let content = UNMutableNotificationContent()

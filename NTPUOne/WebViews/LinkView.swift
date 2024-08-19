@@ -24,6 +24,17 @@ struct LinkView: View {
     @State private var showSafariView = false
     @State private var selectDemo = 0
     
+    //Course
+    @ObservedObject var courseData: CourseData
+    @State private var showingAlert = false
+    let currentDate = Date()
+    let calendar = Calendar.current
+    @State var courseName = ""
+    @State var courseTeacher = ""
+    @State var courseDay = ""
+    @State var courseTime = ""
+    @State var courseLocation = ""
+    
     //DemoView
     private let timer = Timer.publish(every: 5, on: .main, in: .common).autoconnect()
     @State var startIndex = 0
@@ -36,7 +47,55 @@ struct LinkView: View {
             VStack {
                 List {
                     orderSection
-                    webSections
+                    Section{
+                        VStack(alignment: .leading) {
+                            if let nextCourse = nextUpcomingCourse(){
+                                Button{
+                                    courseName = nextCourse.name
+                                    courseTeacher = nextCourse.teacher
+                                    courseTime = nextCourse.startTime.rawValue
+                                    courseLocation = nextCourse.location
+                                    courseDay = nextCourse.day
+                                    showingAlert = true
+                                } label: {
+                                    VStack(alignment: .leading){
+                                        Text("\(nextCourse.name)")
+                                            .font(.title3.bold())
+                                        Text("開始時間：\(nextCourse.day), \(nextCourse.startTime.rawValue)")
+                                            .font(.callout)
+                                    }.foregroundStyle(Color.black)
+                                }
+                            }else{
+                                Text("暫時找不到課程")
+                                    .font(.title3.bold())
+                                Text("開始時間：可能明天吧？")
+                                    .font(.callout)
+                            }
+                        }.frame(height: 50)
+                    } header: {
+                        Text("下一堂課")
+                    }
+                    Section{
+                        NavigationLink {
+                            VStack{
+                                List{
+                                    webSections
+                                }
+                            }.navigationTitle("常用連結")
+                        } label: {
+                            HStack {
+                                Image(systemName: "macwindow")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 30, height: 30)
+                                    .padding()
+                                Text("常用連結")
+                                    .font(.callout.bold())
+                            }.frame(height: 50)
+                        }
+                    } header: {
+                        Text("常用連結")
+                    }
                 }
                 .navigationTitle("NTPU one")
                 .onAppear {
@@ -46,6 +105,13 @@ struct LinkView: View {
                     if let urlString = urlString {
                         WebDetailView(url: urlString)
                     }
+                }
+                .alert(isPresented: $showingAlert) {
+                    Alert(
+                        title: Text(courseName),
+                        message: Text("教授：\(courseTeacher == "" ? "..." : courseTeacher) 教授\n時間：\(courseDay), \(courseTime)\n地點：\(courseLocation == "" ? "..." : courseLocation)"),
+                        dismissButton: .default(Text("OK"))
+                    )
                 }
             }
         }
@@ -123,9 +189,9 @@ struct LinkView: View {
                             .foregroundStyle(Color.black)
                             .padding(.bottom)
                         Divider()
-                        Text("常用網址")
-                            .foregroundStyle(Color.black)
-                            .font(.callout)
+//                        Text("常用網址")
+//                            .foregroundStyle(Color.black)
+//                            .font(.callout)
                     }
                 }
             } else {
@@ -144,28 +210,28 @@ struct LinkView: View {
     
     private var webSections: some View {
         ForEach(webManager.websArray) { webs in
-                    Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
-                        if webs.id == 3 {
-                            disclosureGroup(for: webs)
-                        } else if webs.id == 4 {
-                            if let calendar = webManager.Calendar {
-                                webLinks(for: webManager.Calendar!)
-                            } else {
-                                Section {
-                                    VStack {
-                                        ProgressView("Loading...")
-                                            .progressViewStyle(CircularProgressViewStyle())
-                                            .onAppear(perform: webManager.createData)
-                                    }
-                                } footer: {
-                                    Text("連線中，請確認網路連線")
-                                }
+            Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
+                if webs.id == 3 {
+                    disclosureGroup(for: webs)
+                } else if webs.id == 4 {
+                    if let calendar = webManager.Calendar {
+                        webLinks(for: webManager.Calendar!)
+                    } else {
+                        Section {
+                            VStack {
+                                ProgressView("Loading...")
+                                    .progressViewStyle(CircularProgressViewStyle())
+                                    .onAppear(perform: webManager.createData)
                             }
-                        } else {
-                            webLinks(for: webs.webs)
+                        } footer: {
+                            Text("連線中，請確認網路連線")
                         }
                     }
+                } else {
+                    webLinks(for: webs.webs)
                 }
+            }
+        }
     }
     
     private func disclosureGroup(for webs: WebsArray) -> some View {
@@ -445,8 +511,64 @@ struct LinkView: View {
             }
         .frame(height: 160)
     }
+    
+    func nextUpcomingCourse() -> Course? {
+        let currentDate = Date()
+        let calendar = Calendar.current
+        
+        var nextCourse: Course?
+        var smallestTimeDifference: TimeInterval = .greatestFiniteMagnitude
+        
+        for course in courseData.courses {
+            // 将课程的 day 字符串转换为今天的日期
+            if let courseDate = getCourseDate(for: course) {
+                // 计算当前时间与课程开始时间的差距
+                let timeDifference = courseDate.timeIntervalSince(currentDate)
+                
+                // 只选择当天未来的课程
+                if timeDifference > 0 && timeDifference < smallestTimeDifference {
+                    smallestTimeDifference = timeDifference
+                    nextCourse = course
+                }
+            }
+        }
+        
+        return nextCourse
+    }
+
+    private func getCourseDate(for course: Course) -> Date? {
+        let currentDate = Date()
+        let calendar = Calendar.current
+        
+        // 将 day 转换为星期几的整数
+        let weekday = courseData.weekday(from: course.day) // Assuming course.day is like "Monday", "Tuesday", etc.
+        
+        // 获取当前日期的 DateComponents
+        var dateComponents = calendar.dateComponents([.year, .month, .day, .weekday], from: currentDate)
+        
+        // 检查课程是否是今天的
+        if dateComponents.weekday == weekday {
+            // 获取课程的时间
+            dateComponents.hour = courseData.hour(from: course.startTime)
+            dateComponents.minute = 0 // Assuming course.startTime has hour precision, otherwise modify accordingly
+            
+            return calendar.date(from: dateComponents)
+        }
+        
+        return nil
+    }
+
+    private func calculateTriggerDate(for course: Course) -> DateComponents {
+        var dateComponents = Calendar.current.dateComponents([.year, .month, .day], from: Date())
+        
+        dateComponents.hour = courseData.hour(from: course.startTime) // 小时
+        dateComponents.minute = 0 // 分钟
+        
+        // 输出计算过程中的信息
+        print("Calculating Trigger Date for Course: \(course.name)")
+        print("Date Components: \(dateComponents)")
+        
+        return dateComponents
+    }
 }
 
-#Preview {
-    LinkView()
-}
