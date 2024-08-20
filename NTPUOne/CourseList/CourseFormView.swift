@@ -50,6 +50,8 @@ struct CourseFormView: View {
                         Toggle("開啟上課通知", isOn: $course.isNotification)
                     } header: {
                         Text("上課通知")
+                    } footer: {
+                        Text("記得到設定開啟通知")
                     }
                     Section {
                         Picker("Day", selection: $course.day) {

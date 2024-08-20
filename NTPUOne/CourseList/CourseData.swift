@@ -95,6 +95,7 @@ class CourseData: ObservableObject {
         }
         checkNotificationAuthorizationStatus()
         scheduleDailyReminderNotification() //測試
+//        scheduleNotificationTest() //測試
     }
     
     func scheduleNotificationsForAllCourses() {
@@ -358,6 +359,31 @@ extension CourseData {
 
 //測試Notification
 extension CourseData {
+//    func scheduleNotificationTest() {
+//        let content = UNMutableNotificationContent()
+//        content.title = "測試課程"
+//        content.body = "Your class is about to start!"
+//        content.sound = .default
+//        var dateComponents = DateComponents()
+//        dateComponents.weekday = 3
+//        dateComponents.hour = 15
+//        dateComponents.minute = 37
+//        // 创建触发器
+//        let triggerDate = dateComponents // 根据课程时间计算触发时间
+//        let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: true)
+//        
+//        // 创建通知请求
+//        let request = UNNotificationRequest(identifier: "1", content: content, trigger: trigger)
+//        
+//        // 添加通知请求
+//        UNUserNotificationCenter.current().add(request) { error in
+//            if let error = error {
+//                print("Error scheduling notification: \(error.localizedDescription)")
+//            } else {
+//                print("Notification scheduled for course 測試課程.")
+//            }
+//        }
+//    }
     
     func scheduleDailyReminderNotification() {
         let content = UNMutableNotificationContent()

@@ -553,7 +553,7 @@ struct LinkView: View {
         if dateComponents.weekday == weekday {
             // 获取课程的时间
             dateComponents.hour = courseData.hour(from: course.startTime)
-            dateComponents.minute = 0 // Assuming course.startTime has hour precision, otherwise modify accordingly
+            dateComponents.minute = 15 // Assuming course.startTime has hour precision, otherwise modify accordingly
             
             return calendar.date(from: dateComponents)
         }

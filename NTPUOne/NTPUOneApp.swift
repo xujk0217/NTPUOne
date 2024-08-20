@@ -15,7 +15,7 @@ import GoogleMobileAds
 import UserNotifications
 import Network
 
-class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate {
     var window: UIWindow?
     
     lazy var persistentContainer: NSPersistentCloudKitContainer = {
@@ -34,9 +34,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, InAppMessagingDisplayDelegat
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
         GADMobileAds.sharedInstance().start(completionHandler: nil)
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
+        // Request notification authorization and set the delegate
         requestNotificationAuthorization()
+        UNUserNotificationCenter.current().delegate = self
+                
         return true
     }
+            
+    // 当应用程序处于前台时收到通知
+    func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        completionHandler([.banner, .sound, .list])
+    }
+
 
     func saveContext () {
         let context = persistentContainer.viewContext
