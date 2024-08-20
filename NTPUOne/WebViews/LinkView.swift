@@ -26,6 +26,7 @@ struct LinkView: View {
     
     //Course
     @ObservedObject var courseData: CourseData
+    @State private var nextCourseOnAppear: Course?
     @State private var showingAlert = false
     let currentDate = Date()
     let calendar = Calendar.current
@@ -49,7 +50,7 @@ struct LinkView: View {
                     orderSection
                     Section{
                         VStack(alignment: .leading) {
-                            if let nextCourse = nextUpcomingCourse(){
+                            if let nextCourse = nextCourseOnAppear{
                                 Button{
                                     courseName = nextCourse.name
                                     courseTeacher = nextCourse.teacher
@@ -99,6 +100,7 @@ struct LinkView: View {
                 }
                 .navigationTitle("NTPU one")
                 .onAppear {
+                    nextCourseOnAppear = nextUpcomingCourse()
                     webManager.createData()
                 }
                 .sheet(isPresented: $showWebView) {
@@ -515,6 +517,7 @@ struct LinkView: View {
     func nextUpcomingCourse() -> Course? {
         let currentDate = Date()
         let calendar = Calendar.current
+        print("find next course")
         
         var nextCourse: Course?
         var smallestTimeDifference: TimeInterval = .greatestFiniteMagnitude

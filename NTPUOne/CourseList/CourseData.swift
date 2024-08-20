@@ -118,30 +118,30 @@ class CourseData: ObservableObject {
         newCourse.id = course.id
         newCourse.name = course.name
         newCourse.day = course.day
-        var startTime = newCourse.startTime
+        var startTime = Course.TimeStart.none
         switch course.timeSlot {
         case .morning1:
-            startTime = Course.TimeStart.eight.rawValue
+            startTime = Course.TimeStart.eight
         case .morning2:
-            startTime = Course.TimeStart.nine.rawValue
+            startTime = Course.TimeStart.nine
         case .morning3:
-            startTime = Course.TimeStart.ten.rawValue
+            startTime = Course.TimeStart.ten
         case .morning4:
-            startTime = Course.TimeStart.eleven.rawValue
+            startTime = Course.TimeStart.eleven
         case .afternoon1:
-            startTime = Course.TimeStart.thirteen.rawValue
+            startTime = Course.TimeStart.thirteen
         case .afternoon2:
-            startTime = Course.TimeStart.fourteen.rawValue
+            startTime = Course.TimeStart.fourteen
         case .afternoon3:
-            startTime = Course.TimeStart.fifteen.rawValue
+            startTime = Course.TimeStart.fifteen
         case .afternoon4:
-            startTime = Course.TimeStart.sixteen.rawValue
+            startTime = Course.TimeStart.sixteen
         case .afternoon5:
-            startTime = Course.TimeStart.seventeen.rawValue
+            startTime = Course.TimeStart.seventeen
         case .evening:
-            startTime = Course.TimeStart.eighteen.rawValue
+            startTime = Course.TimeStart.eighteen
         }
-        newCourse.startTime = startTime
+        newCourse.startTime = startTime.rawValue
         newCourse.timeSlot = course.timeSlot.rawValue
         newCourse.location = course.location
         newCourse.teacher = course.teacher
@@ -150,10 +150,12 @@ class CourseData: ObservableObject {
         if course.isNotification {
             scheduleNotification(for: course)
         }
+        var NCourse = course
+        NCourse.startTime = startTime
         
         saveContext()
-        courses.append(course)
-        print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime ?? "ooo").")
+        courses.append(NCourse)
+        print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime.rawValue ?? "ooo").")
     }
 
     func deleteCourse(_ course: Course) {
