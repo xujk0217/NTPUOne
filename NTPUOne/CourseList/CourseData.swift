@@ -95,6 +95,7 @@ class CourseData: ObservableObject {
         }
         checkNotificationAuthorizationStatus()
         scheduleDailyReminderNotification() //測試
+        listAllPendingNotifications() //列通知
 //        scheduleNotificationTest() //測試
     }
     
@@ -148,11 +149,12 @@ class CourseData: ObservableObject {
         newCourse.teacher = course.teacher
         newCourse.isNotification = course.isNotification
         
-        if course.isNotification {
-            scheduleNotification(for: course)
-        }
         var NCourse = course
         NCourse.startTime = startTime
+        
+        if NCourse.isNotification {
+            scheduleNotification(for: NCourse)
+        }
         
         saveContext()
         courses.append(NCourse)
@@ -190,6 +192,7 @@ class CourseData: ObservableObject {
             print("Error: View context is nil. Cannot delete course with id \(courseId).")
             return
         }
+        cancelNotification(withId: courseId)
         
         let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
         fetchRequest.predicate = NSPredicate(format: "id == %@", courseId)
@@ -298,6 +301,11 @@ extension CourseData {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [course.id])
         print("Notification cancelled for course \(course.name).")
     }
+    
+    func cancelNotification(withId courseId: String) {
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [courseId])
+        print("Notification cancelled for course with id \(courseId).")
+    }
 
     // 计算触发时间的方法
     private func calculateTriggerDate(for course: Course) -> DateComponents {
@@ -335,7 +343,7 @@ extension CourseData {
         case .sixteen: return 16
         case .seventeen: return 17
         case .eighteen: return 18
-        case .none: return 0
+        case .none: return 8
         }
     }
     
@@ -352,6 +360,33 @@ extension CourseData {
                 print("Notification permission is provisional.")
             @unknown default:
                 print("Unknown notification authorization status.")
+            }
+        }
+    }
+    func listAllPendingNotifications() {
+        let center = UNUserNotificationCenter.current()
+        
+        center.getPendingNotificationRequests { requests in
+            if requests.isEmpty {
+                print("No pending notifications.")
+            } else {
+                print("Pending notifications:")
+                for request in requests {
+                    print("Identifier: \(request.identifier)")
+                    print("Title: \(request.content.title)")
+                    print("Body: \(request.content.body)")
+                    print("Sound: \(String(describing: request.content.sound))")
+                    print("Badge: \(String(describing: request.content.badge))")
+                    
+                    if let trigger = request.trigger as? UNCalendarNotificationTrigger {
+                        let dateComponents = trigger.dateComponents
+                        print("Trigger Date Components: \(dateComponents)")
+                    } else if let trigger = request.trigger as? UNTimeIntervalNotificationTrigger {
+                        print("Trigger Time Interval: \(trigger.timeInterval)")
+                    }
+                    
+                    print("--------")
+                }
             }
         }
     }

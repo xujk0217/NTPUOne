@@ -67,9 +67,9 @@ struct LinkView: View {
                                     }.foregroundStyle(Color.black)
                                 }
                             }else{
-                                Text("暫時找不到課程")
+                                Text("今日已沒有課程")
                                     .font(.title3.bold())
-                                Text("開始時間：可能明天吧？")
+                                Text("開始時間：無")
                                     .font(.callout)
                             }
                         }.frame(height: 50)

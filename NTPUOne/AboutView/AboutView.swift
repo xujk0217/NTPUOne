@@ -60,7 +60,6 @@ struct AboutView: View {
                         //                            Text("廣告載入中...（約5秒)")
                         //                                .foregroundColor(.red)
                         //                        }
-                        Text("測試版沒廣告")
                     }
                 }
                 Section {
