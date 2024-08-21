@@ -26,7 +26,7 @@ struct CourseGridView: View {
             }
         }
         .padding()
-        .background(Color.gray.opacity(0.1))
+//        .background(Color.gray.opacity(0.1))
         .cornerRadius(8)
         .sheet(isPresented: $showingSheet) {
             CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)

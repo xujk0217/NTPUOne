@@ -61,19 +61,19 @@ struct CourseFormView: View {
                         }
                         
                         if isNewCourse {
-                            Picker("Start Time Slot", selection: $course.timeSlot) {
+                            Picker("開始節數", selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
                             }
                             
-                            Picker("End Time Slot", selection: $endTimeSlot) {
+                            Picker("結束節數", selection: $endTimeSlot) {
                                 ForEach(filteredTimeSlots, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
                             }
                         } else {
-                            Picker("Time Slot", selection: $course.timeSlot) {
+                            Picker("節數", selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }

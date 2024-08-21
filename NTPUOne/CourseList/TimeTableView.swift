@@ -39,6 +39,8 @@ struct TimeTableView: View {
                     }
                 }
             }
+        }.onDisappear {
+            isEdit = false
         }
     }
 }
