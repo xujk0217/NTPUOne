@@ -218,6 +218,7 @@ struct NextCourseWidget: Widget {
         }
         .configurationDisplayName("Next Course Widget")
         .description("Shows the next upcoming course.")
+        .supportedFamilies([.systemSmall])
     }
 }
 //
