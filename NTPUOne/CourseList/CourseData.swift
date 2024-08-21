@@ -159,6 +159,7 @@ class CourseData: ObservableObject {
         saveContext()
         courses.append(NCourse)
         print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime.rawValue ?? "ooo").")
+        listAllPendingNotifications()
     }
 
     func deleteCourse(_ course: Course) {
@@ -277,11 +278,11 @@ extension CourseData {
         content.title = course.name
         content.body = "Your class is about to start!"
         content.sound = .default
-
+        
         // 创建触发器
         let triggerDate = calculateTriggerDate(for: course) // 根据课程时间计算触发时间
         let trigger = UNCalendarNotificationTrigger(dateMatching: triggerDate, repeats: true)
-
+        
         // 创建通知请求
         let request = UNNotificationRequest(identifier: course.id, content: content, trigger: trigger)
         
@@ -295,7 +296,7 @@ extension CourseData {
         }
     }
     
-
+    
     // 取消通知的方法
     func cancelNotification(for course: Course) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [course.id])
@@ -306,7 +307,7 @@ extension CourseData {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [courseId])
         print("Notification cancelled for course with id \(courseId).")
     }
-
+    
     // 计算触发时间的方法
     private func calculateTriggerDate(for course: Course) -> DateComponents {
         var dateComponents = DateComponents()
@@ -315,7 +316,7 @@ extension CourseData {
         dateComponents.minute = 0 // 分钟
         return dateComponents
     }
-
+    
     // 将课程的 day 转换为 DateComponents 中的 weekday
     func weekday(from day: String) -> Int {
         // 示例实现，需要根据你的需求来实现具体逻辑
@@ -328,7 +329,7 @@ extension CourseData {
         default: return 1
         }
     }
-
+    
     // 将课程的 startTime 转换为小时
     func hour(from startTime: Course.TimeStart) -> Int {
         // 示例实现，需要根据你的时间格式来实现具体逻辑

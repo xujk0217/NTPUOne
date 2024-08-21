@@ -23,6 +23,15 @@
 		3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
 		3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
 		3F8B9F7F2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */; };
+		3F8B9F872C759762007BF30B /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F8B9F862C759762007BF30B /* WidgetKit.framework */; };
+		3F8B9F892C759762007BF30B /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 3F8B9F882C759762007BF30B /* SwiftUI.framework */; };
+		3F8B9F8C2C759762007BF30B /* NextCourseWidgetBundle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */; };
+		3F8B9F8E2C759762007BF30B /* NextCourseWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */; };
+		3F8B9F902C759765007BF30B /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 3F8B9F8F2C759765007BF30B /* Assets.xcassets */; };
+		3F8B9F942C759765007BF30B /* NextCourseWidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 3F8B9F842C759762007BF30B /* NextCourseWidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		3F8B9F9A2C75B0DD007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
+		3F8B9F9B2C75B113007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */; };
+		3F8B9F9C2C75B116007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
 		3F8F95062C290C25001A1697 /* NTPUOneApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95052C290C25001A1697 /* NTPUOneApp.swift */; };
 		3F8F95082C290C25001A1697 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95072C290C25001A1697 /* ContentView.swift */; };
 		3F8F950A2C290C25001A1697 /* WebData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8F95092C290C25001A1697 /* WebData.swift */; };
@@ -85,6 +94,30 @@
 		3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F945E402C39909100A37CB3 /* NativeAdView.swift */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		3F8B9F922C759765007BF30B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3F8F94FA2C290C25001A1697 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3F8B9F832C759762007BF30B;
+			remoteInfo = NextCourseWidgetExtension;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		3F8B9F982C759765007BF30B /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				3F8B9F942C759765007BF30B /* NextCourseWidgetExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		3F24B5B42C37E83A00FEADFA /* RewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardView.swift; sourceTree = "<group>"; };
 		3F59B81B2C670E8D00AFB700 /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
@@ -102,6 +135,14 @@
 		3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = CourseModel.xcdatamodel; sourceTree = "<group>"; };
 		3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataClass.swift"; sourceTree = "<group>"; };
 		3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataProperties.swift"; sourceTree = "<group>"; };
+		3F8B9F842C759762007BF30B /* NextCourseWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NextCourseWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3F8B9F862C759762007BF30B /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		3F8B9F882C759762007BF30B /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
+		3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextCourseWidgetBundle.swift; sourceTree = "<group>"; };
+		3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextCourseWidget.swift; sourceTree = "<group>"; };
+		3F8B9F8F2C759765007BF30B /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		3F8B9F912C759765007BF30B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		3F8B9F992C75A51A007BF30B /* NextCourseWidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NextCourseWidgetExtension.entitlements; sourceTree = "<group>"; };
 		3F8F95022C290C25001A1697 /* NTPUOne.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NTPUOne.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3F8F95052C290C25001A1697 /* NTPUOneApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NTPUOneApp.swift; sourceTree = "<group>"; };
 		3F8F95072C290C25001A1697 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -137,6 +178,15 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		3F8B9F812C759762007BF30B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F8B9F892C759762007BF30B /* SwiftUI.framework in Frameworks */,
+				3F8B9F872C759762007BF30B /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3F8F94FF2C290C25001A1697 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -198,12 +248,36 @@
 			path = CourseList;
 			sourceTree = "<group>";
 		};
+		3F8B9F852C759762007BF30B /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				3F8B9F862C759762007BF30B /* WidgetKit.framework */,
+				3F8B9F882C759762007BF30B /* SwiftUI.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		3F8B9F8A2C759762007BF30B /* NextCourseWidget */ = {
+			isa = PBXGroup;
+			children = (
+				3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */,
+				3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */,
+				3F8B9F8F2C759765007BF30B /* Assets.xcassets */,
+				3F8B9F912C759765007BF30B /* Info.plist */,
+			);
+			path = NextCourseWidget;
+			sourceTree = "<group>";
+		};
 		3F8F94F92C290C25001A1697 = {
 			isa = PBXGroup;
 			children = (
+				3F8B9F992C75A51A007BF30B /* NextCourseWidgetExtension.entitlements */,
 				3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */,
 				3F8B9F7D2C70D8D5007BF30B /* CourseEntity+CoreDataProperties.swift */,
+				3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */,
 				3F8F95042C290C25001A1697 /* NTPUOne */,
+				3F8B9F8A2C759762007BF30B /* NextCourseWidget */,
+				3F8B9F852C759762007BF30B /* Frameworks */,
 				3F8F95032C290C25001A1697 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -212,6 +286,7 @@
 			isa = PBXGroup;
 			children = (
 				3F8F95022C290C25001A1697 /* NTPUOne.app */,
+				3F8B9F842C759762007BF30B /* NextCourseWidgetExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -219,7 +294,6 @@
 		3F8F95042C290C25001A1697 /* NTPUOne */ = {
 			isa = PBXGroup;
 			children = (
-				3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */,
 				3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */,
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
@@ -322,6 +396,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		3F8B9F832C759762007BF30B /* NextCourseWidgetExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3F8B9F952C759765007BF30B /* Build configuration list for PBXNativeTarget "NextCourseWidgetExtension" */;
+			buildPhases = (
+				3F8B9F802C759762007BF30B /* Sources */,
+				3F8B9F812C759762007BF30B /* Frameworks */,
+				3F8B9F822C759762007BF30B /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NextCourseWidgetExtension;
+			productName = NextCourseWidgetExtension;
+			productReference = 3F8B9F842C759762007BF30B /* NextCourseWidgetExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		3F8F95012C290C25001A1697 /* NTPUOne */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3F8F95122C290C27001A1697 /* Build configuration list for PBXNativeTarget "NTPUOne" */;
@@ -329,11 +420,13 @@
 				3F8F94FE2C290C25001A1697 /* Sources */,
 				3F8F94FF2C290C25001A1697 /* Frameworks */,
 				3F8F95002C290C25001A1697 /* Resources */,
+				3F8B9F982C759765007BF30B /* Embed Foundation Extensions */,
 				3F9062DA2C344CD100B9F24A /* ShellScript */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				3F8B9F932C759765007BF30B /* PBXTargetDependency */,
 			);
 			name = NTPUOne;
 			packageProductDependencies = (
@@ -382,6 +475,9 @@
 				LastSwiftUpdateCheck = 1540;
 				LastUpgradeCheck = 1540;
 				TargetAttributes = {
+					3F8B9F832C759762007BF30B = {
+						CreatedOnToolsVersion = 15.4;
+					};
 					3F8F95012C290C25001A1697 = {
 						CreatedOnToolsVersion = 15.4;
 					};
@@ -406,11 +502,20 @@
 			projectRoot = "";
 			targets = (
 				3F8F95012C290C25001A1697 /* NTPUOne */,
+				3F8B9F832C759762007BF30B /* NextCourseWidgetExtension */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		3F8B9F822C759762007BF30B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F8B9F902C759765007BF30B /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3F8F95002C290C25001A1697 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -451,6 +556,18 @@
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		3F8B9F802C759762007BF30B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3F8B9F8C2C759762007BF30B /* NextCourseWidgetBundle.swift in Sources */,
+				3F8B9F9B2C75B113007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */,
+				3F8B9F9C2C75B116007BF30B /* CourseEntity+CoreDataClass.swift in Sources */,
+				3F8B9F9A2C75B0DD007BF30B /* CourseModel.xcdatamodeld in Sources */,
+				3F8B9F8E2C759762007BF30B /* NextCourseWidget.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		3F8F94FE2C290C25001A1697 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -502,7 +619,73 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		3F8B9F932C759765007BF30B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3F8B9F832C759762007BF30B /* NextCourseWidgetExtension */;
+			targetProxy = 3F8B9F922C759765007BF30B /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		3F8B9F962C759765007BF30B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NextCourseWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T593T3727N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NextCourseWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NextCourseWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne.NextCourseWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		3F8B9F972C759765007BF30B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = NextCourseWidgetExtension.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = T593T3727N;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = NextCourseWidget/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = NextCourseWidget;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne.NextCourseWidget;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		3F8F95102C290C27001A1697 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -625,6 +808,7 @@
 		3F8F95132C290C27001A1697 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
@@ -669,6 +853,7 @@
 		3F8F95142C290C27001A1697 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES = YES;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
@@ -711,6 +896,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		3F8B9F952C759765007BF30B /* Build configuration list for PBXNativeTarget "NextCourseWidgetExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3F8B9F962C759765007BF30B /* Debug */,
+				3F8B9F972C759765007BF30B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		3F8F94FD2C290C25001A1697 /* Build configuration list for PBXProject "NTPUOne" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -14,6 +14,7 @@ import FirebaseInAppMessagingInternal
 import GoogleMobileAds
 import UserNotifications
 import Network
+import WidgetKit
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate {
     var window: UIWindow?
@@ -36,6 +37,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
         // Request notification authorization and set the delegate
         requestNotificationAuthorization()
+        WidgetCenter.shared.reloadAllTimelines()
         UNUserNotificationCenter.current().delegate = self
                 
         return true
@@ -94,6 +96,13 @@ struct PersistenceController {
 
     init() {
         container = NSPersistentCloudKitContainer(name: "CourseModel")
+        // 使用 App Group 的 URL 配置 Core Data 存储
+        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
+        
+        // 配置 Persistent Store Description
+        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
+        container.persistentStoreDescriptions = [storeDescription]
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {
                 fatalError("Unresolved error \(error), \(error.userInfo)")
