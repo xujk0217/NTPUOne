@@ -50,7 +50,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
 
     func saveContext () {
-        let context = persistentContainer.viewContext
+        let context = PersistenceController.shared.container.viewContext
         if context.hasChanges {
             do {
                 try context.save()
@@ -89,20 +89,46 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
 }
 
-struct PersistenceController {
+//struct PersistenceController {
+//    static let shared = PersistenceController()
+//
+//    let container: NSPersistentCloudKitContainer
+//
+//    init() {
+//        container = NSPersistentCloudKitContainer(name: "CourseModel")
+//        // 使用 App Group 的 URL 配置 Core Data 存储
+//        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
+//        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
+//        
+//        // 配置 Persistent Store Description
+//        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
+//        container.persistentStoreDescriptions = [storeDescription]
+//        
+//        container.loadPersistentStores { _, error in
+//            if let error = error as NSError? {
+//                fatalError("Unresolved error \(error), \(error.userInfo)")
+//            }
+//        }
+//        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+//    }
+//}
+
+class PersistenceController {
     static let shared = PersistenceController()
 
     let container: NSPersistentCloudKitContainer
 
     init() {
         container = NSPersistentCloudKitContainer(name: "CourseModel")
-        // 使用 App Group 的 URL 配置 Core Data 存储
+        
         let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
         let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
         
-        // 配置 Persistent Store Description
         let storeDescription = NSPersistentStoreDescription(url: storeURL!)
+        storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
+
         container.persistentStoreDescriptions = [storeDescription]
+
         container.loadPersistentStores { _, error in
             if let error = error as NSError? {
                 fatalError("Unresolved error \(error), \(error.userInfo)")
