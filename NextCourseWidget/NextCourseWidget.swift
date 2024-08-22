@@ -202,23 +202,78 @@ struct NextCourseWidgetEntryView : View {
     }
 }
 
-struct NextCourseWidget: Widget {
-    let kind: String = "NextCourseWidget"
+struct NextCourseAccessoryRectangularView: View {
+    var entry: NextCourseWidgetProvider.Entry
 
-    var body: some WidgetConfiguration {
-        StaticConfiguration(kind: kind, provider: NextCourseWidgetProvider()) { entry in
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                if let course = entry.course {
+                    Text("下一堂課:")
+                        .font(.body)
+                    Text(course.name ?? "Unknown")
+                        .font(.body.bold())
+                        .lineLimit(1)
+                    Text("開始時間: \(course.startTime ?? "Unknown")")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text("下一堂課:")
+                        .font(.body)
+                    Text("No upcoming course")
+                        .font(.body.bold())
+                        .lineLimit(1)
+                    Text("時間: 無")
+                        .font(.body)
+                }
+            }
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .padding(.horizontal, 8)
+    }
+}
+
+struct WidgetView: View {
+    var entry: NextCourseWidgetProvider.Entry
+    @Environment(\.widgetFamily) var family
+
+    var body: some View {
+        switch family {
+        case .systemSmall:
             if #available(iOS 17.0, *) {
                 NextCourseWidgetEntryView(entry: entry)
                     .containerBackground(.fill.tertiary, for: .widget)
             } else {
                 NextCourseWidgetEntryView(entry: entry)
                     .padding()
-                    .background(Color.gray) // 旧版 iOS 的备用方案
+                    .background(Color.gray)
             }
+        case .accessoryRectangular:
+            if #available(iOS 17.0, *) {
+                NextCourseAccessoryRectangularView(entry: entry)
+                    .containerBackground(.fill.tertiary, for: .widget)
+            } else {
+                NextCourseAccessoryRectangularView(entry: entry)
+                    .padding()
+                    .background(Color.gray)
+            }
+        default:
+            Text("Unsupported")
+        }
+    }
+}
+
+struct NextCourseWidget: Widget {
+    let kind: String = "NextCourseWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: NextCourseWidgetProvider()) { entry in
+            WidgetView(entry: entry)
         }
         .configurationDisplayName("Next Course Widget")
         .description("Shows the next upcoming course.")
-        .supportedFamilies([.systemSmall])
+        .supportedFamilies([.systemSmall, .accessoryRectangular])
     }
 }
 //
