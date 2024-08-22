@@ -94,7 +94,7 @@ class CourseData: ObservableObject {
             print("Error: Failed to fetch courses from Core Data - \(error.localizedDescription)")
         }
         checkNotificationAuthorizationStatus()
-        scheduleDailyReminderNotification() //測試
+//        scheduleDailyReminderNotification() //測試
         listAllPendingNotifications() //列通知
 //        scheduleNotificationTest() //測試
     }
@@ -421,29 +421,29 @@ extension CourseData {
 //        }
 //    }
     
-    func scheduleDailyReminderNotification() {
-        let content = UNMutableNotificationContent()
-        content.title = "Reminder"
-        content.body = "It's 10 PM! Don't forget to check your courses."
-        content.sound = .default
-
-        // 创建触发器
-        var dateComponents = DateComponents()
-        dateComponents.hour = 22  // 10 PM
-        dateComponents.minute = 0
-        
-        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
-        
-        // 创建通知请求
-        let request = UNNotificationRequest(identifier: "dailyReminder", content: content, trigger: trigger)
-        
-        // 添加通知请求
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("Error scheduling daily reminder notification: \(error.localizedDescription)")
-            } else {
-                print("Daily reminder notification scheduled for 10 PM.")
-            }
-        }
-    }
+//    func scheduleDailyReminderNotification() {
+//        let content = UNMutableNotificationContent()
+//        content.title = "Reminder"
+//        content.body = "It's 10 PM! Don't forget to check your courses."
+//        content.sound = .default
+//
+//        // 创建触发器
+//        var dateComponents = DateComponents()
+//        dateComponents.hour = 22  // 10 PM
+//        dateComponents.minute = 0
+//        
+//        let trigger = UNCalendarNotificationTrigger(dateMatching: dateComponents, repeats: true)
+//        
+//        // 创建通知请求
+//        let request = UNNotificationRequest(identifier: "dailyReminder", content: content, trigger: trigger)
+//        
+//        // 添加通知请求
+//        UNUserNotificationCenter.current().add(request) { error in
+//            if let error = error {
+//                print("Error scheduling daily reminder notification: \(error.localizedDescription)")
+//            } else {
+//                print("Daily reminder notification scheduled for 10 PM.")
+//            }
+//        }
+//    }
 }
