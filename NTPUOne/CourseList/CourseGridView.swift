@@ -17,16 +17,30 @@ struct CourseGridView: View {
     @State private var isNewCourse = false
 
     var body: some View {
-        LazyVGrid(columns: columns) {
-            ForEach(["Mon", "Tue", "Wed", "Thu", "Fri"], id: \.self) { day in
-                Text(day)
+        VStack{
+            LazyVGrid(columns: columns) {
+                ForEach(["Mon", "Tue", "Wed", "Thu", "Fri"], id: \.self) { day in
+                    Text(day)
+                }
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
+                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
             }
-            ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
-                CourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+            LunchButtonView()
+            LazyVGrid(columns: columns) {
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
+                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
+            }
+            DinnerButtonView()
+            LazyVGrid(columns: columns) {
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
+                    EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
             }
         }
         .padding()
-//        .background(Color.gray.opacity(0.1))
+        //        .background(Color.gray.opacity(0.1))
         .cornerRadius(8)
         .sheet(isPresented: $showingSheet) {
             CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)
@@ -45,7 +59,7 @@ struct CourseGridView: View {
     }
 }
 
-struct CourseColumnView: View {
+struct MorningCourseColumnView: View {
     var day: String
     @ObservedObject var courseData: CourseData
     @Binding var isEdit: Bool
@@ -56,20 +70,59 @@ struct CourseColumnView: View {
     @Binding var newCourse: Course
 
     var body: some View {
-        VStack {
-            ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
+        VStack{
+            ForEach(Course.TimeSlot.allCases.prefix(4), id: \.self) { slot in
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
                 CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
-                if slot == .morning4 {
-                    LunchButtonView()
-                } else if slot == .afternoon5 {
-                    DinnerButtonView()
-                }
+                
             }
         }
     }
+}
+
+struct AfternoonCourseColumnView: View {
+    var day: String
+    @ObservedObject var courseData: CourseData
+    @Binding var isEdit: Bool
+    @Binding var showingSheet: Bool
+    @Binding var showingAlert: Bool
+    @Binding var selectedCourse: Course
+    @Binding var isNewCourse: Bool
+    @Binding var newCourse: Course
+
+    var body: some View {
+        VStack{
+            ForEach(Course.TimeSlot.allCases[4..<9], id: \.self) { slot in
+                let filteredCourses = courseData.courses.filter {
+                    $0.day == day && $0.timeSlot == slot
+                }
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+            }
+        }
+    }
+}
+
+struct EveningCourseColumnView: View {
+    var day: String
+    @ObservedObject var courseData: CourseData
+    @Binding var isEdit: Bool
+    @Binding var showingSheet: Bool
+    @Binding var showingAlert: Bool
+    @Binding var selectedCourse: Course
+    @Binding var isNewCourse: Bool
+    @Binding var newCourse: Course
+
+    var body: some View {
+        VStack{
+            let lastSlot = Course.TimeSlot.allCases.last!
+            let filteredCourses = courseData.courses.filter {
+                $0.day == day && $0.timeSlot == lastSlot
+            }
+            CourseSlotView(day: day, slot: lastSlot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+        }
+        }
 }
 
 struct CourseSlotView: View {
@@ -113,8 +166,8 @@ struct CourseSlotView: View {
                 }
             }
         }
-        .frame(height: 80)
-        .frame(minWidth: 50, maxWidth: 70)
+        .frame(height: 100)
+        .frame(minWidth: 65, maxWidth: 80)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(8)
     }
@@ -184,13 +237,14 @@ struct LunchButtonView: View {
             NavigationLink {
                 LunchView()
             } label: {
-                Text("午餐")
+                Text("午餐時間")
                     .font(.caption)
+                    .frame(minWidth: 300, maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
             }
         }
-        .frame(width: 60, height: 30)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(8)
     }
 }
 
@@ -201,12 +255,13 @@ struct DinnerButtonView: View {
             NavigationLink {
                 dinnerView()
             } label: {
-                Text("晚餐")
+                Text("晚餐時間")
                     .font(.caption)
+                    .frame(minWidth: 300, maxWidth: .infinity)
+                    .frame(height: 40)
+                    .background(Color.gray.opacity(0.1))
+                    .cornerRadius(8)
             }
         }
-        .frame(width: 60, height: 30)
-        .background(Color.gray.opacity(0.1))
-        .cornerRadius(8)
     }
 }
