@@ -92,6 +92,8 @@
 		3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D82C32BDC600B9F24A /* FManager.swift */; };
 		3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062DB2C352D0500B9F24A /* AddStoreView.swift */; };
 		3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F945E402C39909100A37CB3 /* NativeAdView.swift */; };
+		3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 3FDF35602C86946900952C69 /* SwiftSoup */; };
+		3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35622C86948F00952C69 /* CourseGet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -175,6 +177,7 @@
 		3F9062D82C32BDC600B9F24A /* FManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FManager.swift; sourceTree = "<group>"; };
 		3F9062DB2C352D0500B9F24A /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		3F945E402C39909100A37CB3 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
+		3FDF35622C86948F00952C69 /* CourseGet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGet.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -191,6 +194,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */,
 				3F9062CD2C2D0C9200B9F24A /* GoogleMobileAds in Frameworks */,
 				3F90628E2C2C18D300B9F24A /* FirebaseDatabase in Frameworks */,
 				3F90629C2C2C18D300B9F24A /* FirebaseFunctionsCombine-Community in Frameworks */,
@@ -244,6 +248,7 @@
 				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
 				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
 				3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */,
+				3FDF35622C86948F00952C69 /* CourseGet.swift */,
 			);
 			path = CourseList;
 			sourceTree = "<group>";
@@ -460,6 +465,7 @@
 				3F9062B52C2C290E00B9F24A /* FirebaseVertexAI-Preview */,
 				3F9062CC2C2D0C9200B9F24A /* GoogleMobileAds */,
 				3F59B8352C69F2E200AFB700 /* CalendarKit */,
+				3FDF35602C86946900952C69 /* SwiftSoup */,
 			);
 			productName = NTPUOne;
 			productReference = 3F8F95022C290C25001A1697 /* NTPUOne.app */;
@@ -496,6 +502,7 @@
 				3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 				3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */,
 				3F59B8342C69F2E100AFB700 /* XCRemoteSwiftPackageReference "CalendarKit" */,
+				3FDF355F2C86946900952C69 /* XCRemoteSwiftPackageReference "SwiftSoup" */,
 			);
 			productRefGroup = 3F8F95032C290C25001A1697 /* Products */;
 			projectDirPath = "";
@@ -583,6 +590,7 @@
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
 				3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */,
+				3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */,
 				3F9062662C294F8C00B9F24A /* UbikeData.swift in Sources */,
 				3F9062702C2AA56200B9F24A /* WeatherData.swift in Sources */,
 				3F9062C82C2CE8CC00B9F24A /* dinnerView.swift in Sources */,
@@ -950,6 +958,14 @@
 				minimumVersion = 11.6.0;
 			};
 		};
+		3FDF355F2C86946900952C69 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.5;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -1102,6 +1118,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		3FDF35602C86946900952C69 /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3FDF355F2C86946900952C69 /* XCRemoteSwiftPackageReference "SwiftSoup" */;
+			productName = SwiftSoup;
 		};
 /* End XCSwiftPackageProductDependency section */
 

@@ -11,6 +11,8 @@ import CloudKit
 struct TimeTableView: View {
     @EnvironmentObject var courseData: CourseData
     @State var isEdit = false
+    @State var isShowingGetCourseSheet = false
+
     @State private var refreshTrigger: Bool = false
     var body: some View {
         NavigationStack {
@@ -21,6 +23,14 @@ struct TimeTableView: View {
             }
             .navigationTitle("Course Schedule")
             .toolbar{
+                ToolbarItem{
+                    Button {
+                        isShowingGetCourseSheet.toggle()
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+
+                }
                 if isEdit == false{
                     ToolbarItem {
                         Button {
@@ -39,6 +49,10 @@ struct TimeTableView: View {
                     }
                 }
             }
+            .sheet(isPresented: $isShowingGetCourseSheet, content: {
+                CourseGetView(courseData: courseData, isPresented: $isShowingGetCourseSheet)
+                    .presentationDetents([.medium])
+            })
         }.onDisappear {
             isEdit = false
         }
