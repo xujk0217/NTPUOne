@@ -22,6 +22,8 @@ struct CourseG: Identifiable, Decodable, Equatable {
 // 视图模型 (ViewModel)
 class CourseGViewModel: ObservableObject {
     @Published var courseno: String = ""
+    @Published var courseYear: String = "113"
+    @Published var courseSemester: String = "1"
     @Published var courses: [CourseG] = []
     @Published var errorMessage: String?
     @Published var htmlString: String?  // 用于显示原始 HTML 的属性
@@ -41,7 +43,7 @@ class CourseGViewModel: ObservableObject {
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         request.setValue("text/html", forHTTPHeaderField: "Accept")
 
-        let bodyData = "qYear=113&qTerm=1&courseno=\(courseno)&cour=&teach=&week=&seq1=A&seq2=M"
+        let bodyData = "qYear=\(courseYear)&qTerm=\(courseSemester)&courseno=\(courseno)&cour=&teach=&week=&seq1=A&seq2=M"
         request.httpBody = bodyData.data(using: .utf8)
 
         URLSession.shared.dataTaskPublisher(for: request)
@@ -184,15 +186,25 @@ struct CourseGetView: View {
     
     @ObservedObject var courseData: CourseData
     
+    @ObservedObject var courseYearManager = CourseYearManager()
+    
     @State var showingSheet = false
     
     var endTime: Course.TimeSlot = Course.TimeSlot.morning1
     
     @State var selectCourse = CourseG(courseno: "", courseName: "", teacher: "", time: "", location: "")
     
+    var years = ["114", "113", "112", "111"]
+    
+    let semesters = ["1", "2"]
+    
     @State var isSelect = false
     
     @State var SelectCourseNo = ""
+    
+    @State var selectYear = "113"
+    
+    @State var selectSemester = "1"
     
     @Binding var isPresented: Bool
 
@@ -202,8 +214,21 @@ struct CourseGetView: View {
                 List {
                     Section{
                         HStack{
+                            // 使用 Picker 选择年份
+                            Picker("選擇年份", selection: $viewModel.courseYear) {
+                                ForEach(years, id: \.self) { year in
+                                    Text("\(year)")
+                                }
+                            }
+                            Picker("選擇學期", selection: $viewModel.courseSemester) {
+                                ForEach(semesters, id: \.self) { semester in
+                                    Text("\(semester)")
+                                }
+                            }
+                        }
+                        HStack{
                             Text("輸入課程編號:")
-                            TextField("輸入課程編號", text: $viewModel.courseno)
+                            TextField("如:U4001", text: $viewModel.courseno)
                         }
                         Button("查詢課程") {
                             viewModel.fetchCourses()
@@ -251,7 +276,9 @@ struct CourseGetView: View {
                                 .foregroundColor(.gray)
                         }
                     } header: {
-                        Text("搜尋結果")
+                        Text("搜尋結果（點選課程後按Next）")
+                    } footer: {
+                        Text("課程資訊可能錯誤，按Next後請再檢查一遍")
                     }
                 }
             }
@@ -294,6 +321,9 @@ struct CourseGetView: View {
                     showingSheet = false
                 }, courseData: courseData, isShowCourseG: $isPresented, endTimeSlot: setEndTimeSLot(selectCourse))
             })
+            .onAppear {
+                courseYearManager.loadYear()
+        }
             .navigationTitle("課程查詢")
         }
     }

@@ -94,6 +94,7 @@
 		3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F945E402C39909100A37CB3 /* NativeAdView.swift */; };
 		3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 3FDF35602C86946900952C69 /* SwiftSoup */; };
 		3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35622C86948F00952C69 /* CourseGet.swift */; };
+		3FDF35652C88A41600952C69 /* CourseYearManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35642C88A41600952C69 /* CourseYearManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -178,6 +179,7 @@
 		3F9062DB2C352D0500B9F24A /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		3F945E402C39909100A37CB3 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
 		3FDF35622C86948F00952C69 /* CourseGet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGet.swift; sourceTree = "<group>"; };
+		3FDF35642C88A41600952C69 /* CourseYearManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseYearManager.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -248,6 +250,7 @@
 				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
 				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
 				3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */,
+				3FDF35642C88A41600952C69 /* CourseYearManager.swift */,
 				3FDF35622C86948F00952C69 /* CourseGet.swift */,
 			);
 			path = CourseList;
@@ -614,6 +617,7 @@
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
+				3FDF35652C88A41600952C69 /* CourseYearManager.swift in Sources */,
 				3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */,
 				3F9062CA2C2CE8EB00B9F24A /* MSVIew.swift in Sources */,
 				3F9062BD2C2C524B00B9F24A /* AddOrderView.swift in Sources */,
