@@ -27,6 +27,16 @@ struct ContactMeView: View {
                     Text("名字")
                 }
                 Section {
+                    Button {
+                        UIApplication.shared.open(URL(string: "https://www.instagram.com/ntpuone_jk?igsh=ZG52MHc4MXdmZGFy&utm_source=qr")!)
+                    } label: {
+                        Text("ntpu_jk")
+                    }
+
+                } header: {
+                    Text("Instagram")
+                }
+                Section {
                     Text("kevin16021777@gmail.com")
                 } header: {
                     Text("email")
