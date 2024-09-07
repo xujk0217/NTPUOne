@@ -408,11 +408,13 @@ struct CourseGetView: View {
             case 9:
                 startS = Course.TimeSlot.afternoon5
             case 10:
-                startS = Course.TimeSlot.evening
+                startS = Course.TimeSlot.evening1
             case 11:
-                startS = Course.TimeSlot.evening
+                startS = Course.TimeSlot.evening2
             case 12:
-                startS = Course.TimeSlot.evening
+                startS = Course.TimeSlot.evening3
+            case 13:
+                startS = Course.TimeSlot.evening4
             default:
                 startS = Course.TimeSlot.morning1
             }
@@ -452,17 +454,13 @@ struct CourseGetView: View {
             case 9:
                 endS = Course.TimeSlot.afternoon5
             case 10:
-                endS = Course.TimeSlot.evening
+                endS = Course.TimeSlot.evening1
             case 11:
-                endS = Course.TimeSlot.evening
+                endS = Course.TimeSlot.evening2
             case 12:
-                endS = Course.TimeSlot.evening
+                endS = Course.TimeSlot.evening3
             case 13:
-                endS = Course.TimeSlot.evening
-            case 14:
-                endS = Course.TimeSlot.evening
-            case 15:
-                endS = Course.TimeSlot.evening
+                endS = Course.TimeSlot.evening4
             default:
                 endS = Course.TimeSlot.morning1
             }

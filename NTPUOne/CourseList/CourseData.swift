@@ -32,6 +32,9 @@ struct Course: Identifiable {
         case sixteen = "16:10"
         case seventeen = "17:10"
         case eighteen = "18:30"
+        case nineteen = "19:25"
+        case twenty = "20:25"
+        case twentyone = "21:20"
 
         var id: String { self.rawValue }
     }
@@ -46,7 +49,10 @@ struct Course: Identifiable {
         case afternoon3 = "Afternoon 3"
         case afternoon4 = "Afternoon 4"
         case afternoon5 = "Afternoon 5"
-        case evening = "Evening"
+        case evening1 = "Evening 1"
+        case evening2 = "Evening 2"
+        case evening3 = "Evening 3"
+        case evening4 = "Evening 4"
 
         var id: String { self.rawValue }
     }
@@ -140,8 +146,14 @@ class CourseData: ObservableObject {
             startTime = Course.TimeStart.sixteen
         case .afternoon5:
             startTime = Course.TimeStart.seventeen
-        case .evening:
+        case .evening1:
             startTime = Course.TimeStart.eighteen
+        case .evening2:
+            startTime = Course.TimeStart.nineteen
+        case .evening3:
+            startTime = Course.TimeStart.twenty
+        case .evening4:
+            startTime = Course.TimeStart.twentyone
         }
         newCourse.startTime = startTime.rawValue
         newCourse.timeSlot = course.timeSlot.rawValue
@@ -345,6 +357,12 @@ extension CourseData {
         case .seventeen: return 17
         case .eighteen: return 18
         case .none: return 8
+        case .nineteen:
+            return 19
+        case .twenty:
+            return 20
+        case .twentyone:
+            return 21
         }
     }
     

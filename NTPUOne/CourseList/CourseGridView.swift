@@ -116,13 +116,14 @@ struct EveningCourseColumnView: View {
 
     var body: some View {
         VStack{
-            let lastSlot = Course.TimeSlot.allCases.last!
-            let filteredCourses = courseData.courses.filter {
-                $0.day == day && $0.timeSlot == lastSlot
+            ForEach(Course.TimeSlot.allCases[9..<13], id: \.self) { slot in
+                let filteredCourses = courseData.courses.filter {
+                    $0.day == day && $0.timeSlot == slot
+                }
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
             }
-            CourseSlotView(day: day, slot: lastSlot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
         }
-        }
+    }
 }
 
 struct CourseSlotView: View {
