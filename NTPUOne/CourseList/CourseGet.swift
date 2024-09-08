@@ -424,7 +424,6 @@ struct CourseGetView: View {
     }
     
     func splitTimeGetEnd(from timeString: String) -> Course.TimeSlot? {
-        // 确保字符串长度大于3，否则无法安全切割
         guard timeString.count > 3 else {
             return Course.TimeSlot.morning1
         }

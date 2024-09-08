@@ -77,6 +77,27 @@ struct LinkView: View {
                         Text("下一堂課")
                     }
                     Section{
+                        VStack(alignment: .leading) {
+                            NavigationLink {
+                                SchoolPostView()
+                            } label: {
+                                VStack(alignment: .leading){
+                                    HStack{
+                                        Image(systemName: "text.bubble")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 30, height: 30)
+                                            .padding()
+                                        Text("學校公告")
+                                            .font(.callout.bold())
+                                    }
+                                }.foregroundStyle(Color.black)
+                            }
+                        }.frame(height: 50)
+                    } header: {
+                        Text("學校公告")
+                    }
+                    Section{
                         NavigationLink {
                             VStack{
                                 List{

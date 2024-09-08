@@ -49,7 +49,7 @@ struct Course: Identifiable {
         case afternoon3 = "Afternoon 3"
         case afternoon4 = "Afternoon 4"
         case afternoon5 = "Afternoon 5"
-        case evening1 = "Evening 1"
+        case evening1 = "Evening"
         case evening2 = "Evening 2"
         case evening3 = "Evening 3"
         case evening4 = "Evening 4"
