@@ -6,23 +6,29 @@
 //
 
 import SwiftUI
+import SafariServices
 
 struct SchoolPostView: View {
     
     @StateObject private var postManager = PostManager()
+    @State private var showSafariView = false
+    private let safariURL = URL(string: "https://new.ntpu.edu.tw/news")!
+
     
     var body: some View {
         NavigationStack{
-            List(postManager.publications, id: \._id) { publication in
-                if publication.title != ""{
-                    NavigationLink {
-                        PostDetailView(publication: publication)
-                    } label: {
-                        VStack(alignment: .leading) {
-                            Text(publication.title ?? "No Title")
-                                .font(.headline)
-                            Text(publication.createdAt?.prefix(10) ?? "No Time")
-                                .font(.subheadline)
+            Section{
+                List(postManager.publications, id: \._id) { publication in
+                    if publication.title != ""{
+                        NavigationLink {
+                            PostDetailView(publication: publication)
+                        } label: {
+                            VStack(alignment: .leading) {
+                                Text(publication.title ?? "No Title")
+                                    .font(.headline)
+                                Text(publication.createdAt?.prefix(10) ?? "No Time")
+                                    .font(.subheadline)
+                            }
                         }
                     }
                 }
@@ -31,6 +37,19 @@ struct SchoolPostView: View {
                 postManager.fetchPublications()
             }
             .navigationTitle("學校公告")
+            .toolbar{
+                ToolbarItem{
+                    Button {
+                        showSafariView.toggle()
+                    } label: {
+                        Image(systemName: "link")
+                    }
+
+                }
+            }
+            .sheet(isPresented: $showSafariView) {
+                SafariView(url: safariURL)
+            }
         }
     }
 }
