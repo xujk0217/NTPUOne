@@ -62,12 +62,12 @@ struct AddStoreView: View {
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {
-                                Text("經度：")
+                                Text("緯度：")
                                 TextField("沒有沒關係", text: $lat)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
                             HStack {
-                                Text("緯度：")
+                                Text("經度：")
                                 TextField("沒有沒關係", text: $lng)
                                     .textFieldStyle(.roundedBorder)
                             }.padding()
@@ -105,8 +105,13 @@ struct AddStoreView: View {
             var latDou:Double = 0.0
             var lngDou:Double = 0.0
             if let latD = Double(lat), let lngD = Double(lng){
-                latDou = latD
-                lngDou = lngD
+                if latD < 90, lngD < 180{
+                    latDou = latD
+                    lngDou = lngD
+                }else{
+                    latDou = 24.942406
+                    lngDou = 121.368198
+                }
             }else{
                 latDou = 24.942406
                 lngDou = 121.368198
