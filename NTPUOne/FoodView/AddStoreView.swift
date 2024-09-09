@@ -91,6 +91,8 @@ struct AddStoreView: View {
                                     .foregroundStyle(Color.red)
                                     .padding()
                             }
+                            Text("")
+                                .frame(height: 300)
                         }.padding()
                     }
                 }
