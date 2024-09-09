@@ -123,6 +123,9 @@ struct NextCourseWidgetProvider: TimelineProvider {
         case "16:10": return 16
         case "17:10": return 17
         case "18:30": return 18
+        case "19:25": return 19
+        case "20:25": return 20
+        case "21:20": return 21
         default: return 8 // 默认值
         }
     }
@@ -276,10 +279,3 @@ struct NextCourseWidget: Widget {
         .supportedFamilies([.systemSmall, .accessoryRectangular])
     }
 }
-//
-//#Preview(as: .systemSmall) {
-//    NextCourseWidget()
-//} timeline: {
-//    SimpleEntry(date: .now, emoji: "😀")
-//    SimpleEntry(date: .now, emoji: "🤩")
-//}
