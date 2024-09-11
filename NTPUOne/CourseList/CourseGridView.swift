@@ -188,6 +188,25 @@ struct CourseSlotView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
+    
+    let weekTimeFormatter: DateFormatter = {
+            let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter
+    }()
+    
+    let hourTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
+        return formatter
+    }()
+    
+    let minuteTimeFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "mm" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
+        return formatter
+    }()
 
     var body: some View {
         VStack {
@@ -199,7 +218,14 @@ struct CourseSlotView: View {
                             .foregroundColor(.green)
                     }
                 } else {
-                    EmptySlotView()
+                    VStack{
+                        if setCurrentCourse(day: day, slot: slot){
+                            Text("now")
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        }
+                        Text("")
+                    }
                 }
             } else {
                 ForEach(filteredCourses) { course in
@@ -211,9 +237,24 @@ struct CourseSlotView: View {
                         }
                     } else {
                         Button(action: { viewCourseDetails(course) }) {
-                            Text(course.name)
-                                .font(.caption)
-                                .foregroundColor(.black)
+                            VStack{
+                                if setCurrentCourse(day: day, slot: slot){
+                                    Text("now")
+                                        .font(.caption2)
+                                        .foregroundColor(.red)
+                                        .padding(2)
+                                }
+                                Spacer()
+                                Text(course.name)
+                                    .font(.caption)
+                                    .foregroundColor(.black)
+                                Spacer()
+                                if setCurrentCourse(day: day, slot: slot){
+                                    Text("")
+                                        .font(.caption2)
+                                        .foregroundColor(.red)
+                                }
+                            }
                         }
                     }
                 }
@@ -221,8 +262,90 @@ struct CourseSlotView: View {
         }
         .frame(height: 100)
         .frame(minWidth: 35, maxWidth: 80)
-        .background(Color.gray.opacity(0.1))
+        .background(setCurrentCourse(day: day, slot: slot) ? Color.yellow.opacity(0.1) : Color.gray.opacity(0.1))
         .cornerRadius(8)
+    }
+    
+    func setCurrentCourse(day: String, slot: Course.TimeSlot) -> Bool{
+        if day == (weekTimeFormatter.string(from: Date())){
+            switch slot {
+            case .morning1:
+                if hourTimeFormatter.string(from: Date()) == "8"{
+                    return true
+                }
+            case .morning2:
+                if hourTimeFormatter.string(from: Date()) == "9"{
+                    return true
+                }
+            case .morning3:
+                if hourTimeFormatter.string(from: Date()) == "10"{
+                    return true
+                }
+            case .morning4:
+                if hourTimeFormatter.string(from: Date()) == "11"{
+                    return true
+                }
+            case .afternoon1:
+                if hourTimeFormatter.string(from: Date()) == "13"{
+                    return true
+                }
+            case .afternoon2:
+                if hourTimeFormatter.string(from: Date()) == "14"{
+                    return true
+                }
+            case .afternoon3:
+                if hourTimeFormatter.string(from: Date()) == "15"{
+                    return true
+                }
+            case .afternoon4:
+                if hourTimeFormatter.string(from: Date()) == "16"{
+                    return true
+                }
+            case .afternoon5:
+                if hourTimeFormatter.string(from: Date()) == "17"{
+                    return true
+                }
+            case .evening1:
+                if hourTimeFormatter.string(from: Date()) == "18"{
+                    return true
+                } else if hourTimeFormatter.string(from: Date()) == "19"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! < 25{
+                        return true
+                    }
+                }
+            case .evening2:
+                if hourTimeFormatter.string(from: Date()) == "19"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! > 25{
+                        return true
+                    }
+                } else if hourTimeFormatter.string(from: Date()) == "20"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! < 20{
+                        return true
+                    }
+                }
+            case .evening3:
+                if hourTimeFormatter.string(from: Date()) == "20"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! > 20{
+                        return true
+                    }
+                } else if hourTimeFormatter.string(from: Date()) == "21"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! < 15{
+                        return true
+                    }
+                }
+            case .evening4:
+                if hourTimeFormatter.string(from: Date()) == "21"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! > 15{
+                        return true
+                    }
+                } else if hourTimeFormatter.string(from: Date()) == "22"{
+                    if Int(minuteTimeFormatter.string(from: Date()))! < 15{
+                        return true
+                    }
+                }
+            }
+        }
+        return false
     }
 
     func addNewCourse() {
@@ -244,13 +367,6 @@ struct CourseSlotView: View {
 
 }
 
-struct EmptySlotView: View {
-    var body: some View {
-        Text("")
-            .font(.largeTitle)
-            .foregroundColor(.green)
-    }
-}
 
 struct CourseFormSheet: View {
     @Binding var isNewCourse: Bool
