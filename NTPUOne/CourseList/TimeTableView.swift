@@ -12,13 +12,29 @@ struct TimeTableView: View {
     @EnvironmentObject var courseData: CourseData
     @State var isEdit = false
     @State var isShowingGetCourseSheet = false
+    @State private var isSaturday: Bool = UserDefaults.standard.bool(forKey: "isSaturday")
 
     @State private var refreshTrigger: Bool = false
     var body: some View {
         NavigationStack {
             ScrollView{
                 VStack {
-                    CourseGridView(courseData: courseData, isEdit: $isEdit)
+                    if isEdit{
+                        Toggle("Sat", isOn: $isSaturday)
+                            .padding()
+                            .background(Color.gray.opacity(0.1))
+                            .cornerRadius(20)
+                            .padding()
+                            .onChange(of: isSaturday) { newValue in
+                                // Save the new value to UserDefaults
+                                UserDefaults.standard.set(newValue, forKey: "isSaturday")
+                            }
+                    }
+                    if isSaturday == false{
+                        CourseGridView(courseData: courseData, isEdit: $isEdit)
+                    } else{
+                        CourseGridSatView(courseData: courseData, isEdit: $isEdit)
+                    }
                 }
             }
             .navigationTitle("Course Schedule")

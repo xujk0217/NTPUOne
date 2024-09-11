@@ -377,6 +377,8 @@ struct CourseGetView: View {
             day = "Thursday"
         case"每週五":
             day = "Friday"
+        case"每週六":
+            day = "Saturday"
         default:
             day = "Monday"
         }

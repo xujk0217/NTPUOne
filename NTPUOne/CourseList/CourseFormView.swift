@@ -55,7 +55,7 @@ struct CourseFormView: View {
                     }
                     Section {
                         Picker("Day", selection: $course.day) {
-                            ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
+                            ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], id: \.self) { day in
                                 Text(day).tag(day)
                             }
                         }
@@ -316,7 +316,7 @@ struct CourseGFormView: View {
                     }
                     Section {
                         Picker("Day", selection: $course.day) {
-                            ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"], id: \.self) { day in
+                            ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], id: \.self) { day in
                                 Text(day).tag(day)
                             }
                         }

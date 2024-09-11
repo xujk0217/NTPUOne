@@ -59,6 +59,58 @@ struct CourseGridView: View {
     }
 }
 
+struct CourseGridSatView: View {
+    @ObservedObject var courseData: CourseData
+    @Binding var isEdit: Bool
+    @State private var showingAlert = false
+    @State private var showingSheet = false
+    @State private var selectedCourse = Course(id: "", name: "", day: "Friday", startTime: .none, timeSlot: .morning1, location: "", teacher: "", isNotification: true)
+    @State private var newCourse = Course(id: "", name: "", day: "Monday", startTime: .none, timeSlot: .morning1, location: "", teacher: "", isNotification: true)
+    @State private var isNewCourse = false
+
+    var body: some View {
+        VStack{
+            LazyVGrid(columns: columns) {
+                ForEach(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], id: \.self) { day in
+                    Text(day)
+                }
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], id: \.self) { day in
+                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
+            }
+            LunchButtonView()
+            LazyVGrid(columns: columns) {
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], id: \.self) { day in
+                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
+            }
+            DinnerButtonView()
+            LazyVGrid(columns: columns) {
+                ForEach(["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"], id: \.self) { day in
+                    EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                }
+            }
+        }
+        .padding()
+        //        .background(Color.gray.opacity(0.1))
+        .cornerRadius(8)
+        .sheet(isPresented: $showingSheet) {
+            CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)
+        }
+        .alert(isPresented: $showingAlert) {
+            Alert(
+                title: Text(selectedCourse.name),
+                message: Text("教授：\(selectedCourse.teacher.isEmpty ? "..." : selectedCourse.teacher) 教授\n時間：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地點：\(selectedCourse.location.isEmpty ? "..." : selectedCourse.location)\n通知：\(selectedCourse.isNotification ? "開啟" : "關閉")"),
+                dismissButton: .default(Text("OK"))
+            )
+        }
+    }
+    
+    var columns: [GridItem] {
+        Array(repeating: .init(.flexible()), count: 6)
+    }
+}
+
 struct MorningCourseColumnView: View {
     var day: String
     @ObservedObject var courseData: CourseData
@@ -168,7 +220,7 @@ struct CourseSlotView: View {
             }
         }
         .frame(height: 100)
-        .frame(minWidth: 65, maxWidth: 80)
+        .frame(minWidth: 35, maxWidth: 80)
         .background(Color.gray.opacity(0.1))
         .cornerRadius(8)
     }

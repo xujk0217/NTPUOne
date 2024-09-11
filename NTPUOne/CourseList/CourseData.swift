@@ -338,6 +338,8 @@ extension CourseData {
         case "wednesday": return 4
         case "thursday": return 5
         case "friday": return 6
+        case "saturday": return 7
+        case "sunday": return 1
         default: return 1
         }
     }
