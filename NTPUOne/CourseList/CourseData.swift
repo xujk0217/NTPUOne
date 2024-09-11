@@ -326,6 +326,15 @@ extension CourseData {
         dateComponents.weekday = weekday(from: course.day) // 曜日
         dateComponents.hour = hour(from: course.startTime) // 小时
         dateComponents.minute = 0 // 分钟
+        if dateComponents.hour == 18{
+            dateComponents.minute = 20
+        } else if dateComponents.hour == 19{
+            dateComponents.minute = 15
+        } else if dateComponents.hour == 20{
+            dateComponents.minute = 10
+        }else if dateComponents.hour == 21{
+            dateComponents.minute = 5
+        }
         return dateComponents
     }
     
