@@ -175,6 +175,7 @@ struct CourseFormView: View {
         
         if isRepeat {
             if allowOverwrite{
+                var firstCourse = 0
                 for slot in timeSlotsToCheck {
                     guard let context = courseData.viewContext else {
                         print("viewContext is nil")
@@ -183,6 +184,14 @@ struct CourseFormView: View {
                     if let overwriteCourse = findDuplicateCourse(course.day, slot) {
                         courseData.deleteCourse(overwriteCourse)
                     }
+                    
+                    var notification = false
+                    
+                    if firstCourse == 0{
+                        notification = course.isNotification
+                        firstCourse = 1
+                    }
+    
                     // 使用 addCourse 方法添加课程
                     let newCourse = Course(id: UUID().uuidString,
                                             name: course.name ?? "",
@@ -191,7 +200,7 @@ struct CourseFormView: View {
                                             timeSlot: slot,
                                             location: course.location ?? "",
                                            teacher: course.teacher ?? "",
-                                           isNotification: course.isNotification)
+                                           isNotification: notification)
                     
                     courseData.addCourse(newCourse)
                 }
@@ -202,10 +211,18 @@ struct CourseFormView: View {
                 onCancel()
             }
         }else{
+            var firstCourse = 0
             for slot in timeSlotsToCheck {
                 guard let context = courseData.viewContext else {
                     print("viewContext is nil")
                     return
+                }
+                
+                var notification = false
+                
+                if firstCourse == 0{
+                    notification = course.isNotification
+                    firstCourse = 1
                 }
                 
                 // 使用 addCourse 方法添加课程
@@ -216,7 +233,7 @@ struct CourseFormView: View {
                                         timeSlot: slot,
                                         location: course.location ?? "",
                                        teacher: course.teacher ?? "", 
-                                       isNotification: course.isNotification)
+                                       isNotification: notification)
                 
                 courseData.addCourse(newCourse)
             }
@@ -267,6 +284,7 @@ struct CourseFormView: View {
     }
 }
 
+// 從課程代碼新增
 struct CourseGFormView: View {
     @Binding var course: Course
     var isNewCourse: Bool
@@ -436,6 +454,7 @@ struct CourseGFormView: View {
         
         if isRepeat {
             if allowOverwrite{
+                var firstCourse = 0
                 for slot in timeSlotsToCheck {
                     guard let context = courseData.viewContext else {
                         print("viewContext is nil")
@@ -444,6 +463,14 @@ struct CourseGFormView: View {
                     if let overwriteCourse = findDuplicateCourse(course.day, slot) {
                         courseData.deleteCourse(overwriteCourse)
                     }
+                    
+                    var notification = false
+                    
+                    if firstCourse == 0{
+                        notification = course.isNotification
+                        firstCourse = 1
+                    }
+                    
                     // 使用 addCourse 方法添加课程
                     let newCourse = Course(id: UUID().uuidString,
                                             name: course.name ?? "",
@@ -452,7 +479,7 @@ struct CourseGFormView: View {
                                             timeSlot: slot,
                                             location: course.location ?? "",
                                            teacher: course.teacher ?? "",
-                                           isNotification: course.isNotification)
+                                           isNotification: notification)
                     
                     courseData.addCourse(newCourse)
                 }
@@ -463,10 +490,18 @@ struct CourseGFormView: View {
                 onCancel()
             }
         }else{
+            var firstCourse = 0
             for slot in timeSlotsToCheck {
                 guard let context = courseData.viewContext else {
                     print("viewContext is nil")
                     return
+                }
+                
+                var notification = false
+                
+                if firstCourse == 0{
+                    notification = course.isNotification
+                    firstCourse = 1
                 }
                 
                 // 使用 addCourse 方法添加课程
@@ -477,7 +512,7 @@ struct CourseGFormView: View {
                                         timeSlot: slot,
                                         location: course.location ?? "",
                                        teacher: course.teacher ?? "",
-                                       isNotification: course.isNotification)
+                                       isNotification: notification)
                 
                 courseData.addCourse(newCourse)
             }
