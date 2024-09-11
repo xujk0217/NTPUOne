@@ -20,7 +20,7 @@ struct TimeTableView: View {
             ScrollView{
                 VStack {
                     if isEdit{
-                        Toggle("Sat", isOn: $isSaturday)
+                        Toggle("Saturday", isOn: $isSaturday)
                             .padding()
                             .background(Color.gray.opacity(0.1))
                             .cornerRadius(20)
