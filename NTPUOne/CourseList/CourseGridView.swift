@@ -270,11 +270,11 @@ struct CourseSlotView: View {
         if day == (weekTimeFormatter.string(from: Date())){
             switch slot {
             case .morning1:
-                if hourTimeFormatter.string(from: Date()) == "8"{
+                if hourTimeFormatter.string(from: Date()) == "08"{
                     return true
                 }
             case .morning2:
-                if hourTimeFormatter.string(from: Date()) == "9"{
+                if hourTimeFormatter.string(from: Date()) == "09"{
                     return true
                 }
             case .morning3:
