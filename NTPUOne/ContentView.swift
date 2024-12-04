@@ -36,23 +36,10 @@ struct ContentView: View {
                 Image(systemName: "cup.and.saucer.fill")
                 Text("Life")
             }.tag(2)
-            
-            if #available(iOS 17.0, *) {
-                TrafficView().tabItem {
-                    Image(systemName: "bicycle")
-                    Text("Traffic")
-                }.tag(3)
-            } else {
-                BackTrafficView().tabItem {
-                    Image(systemName: "bicycle")
-                    Text("Traffic")
-                }.tag(3)
-            }
-            
             AboutView().tabItem {
                 Image(systemName: "info.circle")
                 Text("About")
-            }.tag(4)
+            }.tag(3)
         }
     }
 }

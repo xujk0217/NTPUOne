@@ -40,6 +40,41 @@ struct LifeView: View {
                                     .padding(.horizontal)
                             }
                             Divider()
+                            Section{
+                                NavigationLink{
+                                    if #available(iOS 17.0, *) {
+                                        TrafficView()
+                                    } else {
+                                        BackTrafficView()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "bicycle")
+                                            .resizable()
+                                            .aspectRatio(contentMode: .fit)
+                                            .frame(width: 50, height: 50)
+                                            .foregroundStyle(Color.black)
+                                            .padding()
+                                            .padding(.leading)
+                                        Text("Ubike")
+                                            .padding()
+                                            .frame(alignment: .leading)
+                                            .foregroundStyle(Color.black)
+                                        
+                                        Spacer()
+                                    }
+                                    .frame(height: 100)
+                                    .background(Color.white)
+                                    .cornerRadius(10)
+                                    .padding(.horizontal)
+                                }
+                                
+                            } header:{
+                                Text("Traffic")
+                                    .padding(.horizontal)
+                            }
+                            
+                            Divider()
                             VStack(alignment: .leading) {
                                 Section {
                                     VStack(alignment: .leading, spacing: 10) {
@@ -133,7 +168,6 @@ struct LifeView: View {
                                     }
                                 } header: {
                                     Text("NTPU-今天吃什麼？")
-                                        .foregroundStyle(Color.black)
                                         .padding(.horizontal)
                                 }
                             }
