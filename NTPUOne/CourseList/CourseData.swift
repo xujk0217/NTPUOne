@@ -265,6 +265,33 @@ class CourseData: ObservableObject {
             print("Error: Failed to update course with id \(course.id) - \(error.localizedDescription)")
         }
     }
+    
+    func deleteAllCourses() {
+        guard let viewContext = viewContext else {
+            print("Error: View context is nil. Cannot delete all courses.")
+            return
+        }
+
+        let fetchRequest: NSFetchRequest<NSFetchRequestResult> = CourseEntity.fetchRequest()
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
+
+        do {
+            // 執行批次刪除
+            try viewContext.execute(deleteRequest)
+            try viewContext.save()
+            
+            // 清空記憶體中的課程
+            courses.removeAll()
+            
+            // 取消所有通知
+            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+
+            print("Success: All courses deleted from Core Data and notifications cleared.")
+        } catch {
+            print("Error: Failed to delete all courses - \(error.localizedDescription)")
+        }
+    }
+
 
     private func saveContext() {
         guard let viewContext = viewContext else {

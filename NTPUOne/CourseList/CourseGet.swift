@@ -194,7 +194,7 @@ struct CourseGetView: View {
     
     @State var selectCourse = CourseG(courseno: "", courseName: "", teacher: "", time: "", location: "")
     
-    var years = ["114", "113", "112", "111"]
+    var years = ["114", "113", "112"]
     
     let semesters = ["1", "2"]
     
