@@ -19,7 +19,7 @@ struct AddOrderView: View {
     @State private var url: String = ""
     @ObservedObject var rewardAd: RewardedAd
     enum Tags: String, CaseIterable, Identifiable {
-        case 活動, 公告, 其他
+        case 社團, 活動, 其他
         var id: Self { self }
     }
     @State private var tag: Tags = .其他
@@ -52,7 +52,7 @@ struct AddOrderView: View {
                                 Text("標籤：")
                                 Picker("選擇標籤", selection: $tag) {
                                     Text("活動").tag(Tags.活動)
-                                    Text("公告").tag(Tags.公告)
+                                    Text("社團").tag(Tags.社團)
                                     Text("其他").tag(Tags.其他)
                                 }.pickerStyle(.segmented)
                             }
@@ -126,7 +126,7 @@ struct AddOrderView: View {
         var tagReturn = "3"
         if tag == Tags.活動 {
             tagReturn = "1"
-        } else if tag == Tags.公告 {
+        } else if tag == Tags.社團 {
             tagReturn = "2"
         }
         if message != "", name != "" {

@@ -19,6 +19,7 @@
 		3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B82D2C6799D600AFB700 /* CourseFormView.swift */; };
 		3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8302C679AC400AFB700 /* CourseGridView.swift */; };
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
+		3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */; };
 		3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */; };
 		3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
 		3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
@@ -137,6 +138,7 @@
 		3F59B82D2C6799D600AFB700 /* CourseFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseFormView.swift; sourceTree = "<group>"; };
 		3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NTPUOne.entitlements; sourceTree = "<group>"; };
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
+		3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseLargeWidget.swift; sourceTree = "<group>"; };
 		3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
 		3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = CourseModel.xcdatamodel; sourceTree = "<group>"; };
 		3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -276,6 +278,7 @@
 			children = (
 				3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */,
 				3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */,
+				3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */,
 				3F8B9F8F2C759765007BF30B /* Assets.xcassets */,
 				3F8B9F912C759765007BF30B /* Info.plist */,
 			);
@@ -580,6 +583,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				3F8B9F8C2C759762007BF30B /* NextCourseWidgetBundle.swift in Sources */,
+				3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */,
 				3F8B9F9B2C75B113007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */,
 				3F8B9F9C2C75B116007BF30B /* CourseEntity+CoreDataClass.swift in Sources */,
 				3F8B9F9A2C75B0DD007BF30B /* CourseModel.xcdatamodeld in Sources */,
@@ -838,7 +842,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
 				DEVELOPMENT_TEAM = T593T3727N;
@@ -883,7 +887,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 12;
+				CURRENT_PROJECT_VERSION = 13;
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
 				DEVELOPMENT_TEAM = T593T3727N;
 				ENABLE_PREVIEWS = YES;

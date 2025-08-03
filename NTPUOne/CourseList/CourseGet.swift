@@ -22,7 +22,7 @@ struct CourseG: Identifiable, Decodable, Equatable {
 // 视图模型 (ViewModel)
 class CourseGViewModel: ObservableObject {
     @Published var courseno: String = ""
-    @Published var courseYear: String = "113"
+    @Published var courseYear: String = "114"
     @Published var courseSemester: String = "1"
     @Published var courses: [CourseG] = []
     @Published var errorMessage: String?
@@ -202,7 +202,7 @@ struct CourseGetView: View {
     
     @State var SelectCourseNo = ""
     
-    @State var selectYear = "113"
+    @State var selectYear = "114"
     
     @State var selectSemester = "1"
     

@@ -185,7 +185,7 @@ struct LinkView: View {
                         Button {
                             selectDemo = 2
                         } label: {
-                            Text("公告")
+                            Text("社團")
                                 .foregroundStyle(selectDemo == 2 ? Color.blue : Color.blue.opacity(0.3))
                                 .font(.caption.bold())
                                 .padding(6)
