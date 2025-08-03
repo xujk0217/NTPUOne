@@ -28,9 +28,9 @@ struct ObsTime: Decodable {
 
 struct WeatherElement: Decodable {
     let Weather: String
-    let WindSpeed: Double
-    let AirTemperature: Double
-    let RelativeHumidity: Double
+    let WindSpeed: String
+    let AirTemperature: String
+    let RelativeHumidity: String
     let DailyExtreme: DailyExtreme
 }
 
@@ -48,7 +48,7 @@ struct DailyLow: Decodable {
 }
 
 struct TemperatureInfo: Decodable {
-    let AirTemperature: Double
+    let AirTemperature: String
     let Occurred_at: OccurredAt
 }
 

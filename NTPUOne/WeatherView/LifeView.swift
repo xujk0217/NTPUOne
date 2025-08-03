@@ -20,25 +20,28 @@ struct LifeView: View {
     var body: some View {
         NavigationStack {
             VStack{
-                if let weatherData = weatherManager.weatherDatas {
-                    let station = weatherData.records.Station.first!
-                    ScrollView {
-                        VStack(alignment: .leading) {
-                            Section {
-                                weatherView(
-                                    weathers: station.WeatherElement.Weather,
-                                    currentTemperature: station.WeatherElement.AirTemperature,
-                                    maxTemperature: station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature,
-                                    minTemperature: station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature,
-                                    windSpeed: station.WeatherElement.WindSpeed,
-                                    getTime: station.ObsTime.DateTime,
-                                    humidity: station.WeatherElement.RelativeHumidity
-                                )
-                            } header: {
-                                Text("現在天氣")
-                                    .foregroundStyle(Color.black)
-                                    .padding(.horizontal)
+                ScrollView {
+                    VStack(alignment: .leading) {
+                        if let weatherData = weatherManager.weatherDatas {
+                            let station = weatherData.records.Station.first!
+                            WeatherSectionView(station: station)
+                        }else{
+                            HStack {
+                                Spacer()
+                                VStack(alignment: .center) {
+                                    Text("Loading...")
+                                        .onAppear {
+                                            weatherManager.fetchData()
+                                        }
+                                    ProgressView()
+                                }
+                                Spacer()
                             }
+                            .frame(height: 200)
+                            .background(Color.white)
+                            .cornerRadius(10)
+                            .padding(.horizontal)
+                        }
                             Divider()
                             Section{
                                 NavigationLink{
@@ -175,19 +178,43 @@ struct LifeView: View {
                     }
                     .navigationTitle("PU Life")
                     .background(Color.gray.opacity(0.1))
-                }else{
-                    Text("Loading...")
-                        .onAppear {
-                            weatherManager.fetchData()
-                        }
-                    ProgressView()
-                }
             }
         }.onAppear {
             weatherManager.fetchData()
         }
     }
 }
+
+struct WeatherSectionView: View {
+    let station: Station
+
+    var body: some View {
+        let weather = station.WeatherElement.Weather
+        let currentTemp = station.WeatherElement.AirTemperature
+        let maxTemp = station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature
+        let minTemp = station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature
+        let windSpeed = station.WeatherElement.WindSpeed
+        let time = station.ObsTime.DateTime
+        let humidity = station.WeatherElement.RelativeHumidity
+
+        return Section {
+            LifeView.weatherView(
+                weathers: weather,
+                currentTemperature: currentTemp,
+                maxTemperature: maxTemp,
+                minTemperature: minTemp,
+                windSpeed: windSpeed,
+                getTime: time,
+                humidity: humidity
+            )
+        } header: {
+            Text("現在天氣")
+                .foregroundStyle(Color.black)
+                .padding(.horizontal)
+        }
+    }
+}
+
 
 #Preview {
     LifeView()
@@ -196,12 +223,12 @@ struct LifeView: View {
 extension LifeView{
     struct weatherView: View{
         let weathers: String
-        let currentTemperature: Double
-        let maxTemperature: Double
-        let minTemperature: Double
-        let windSpeed: Double
+        let currentTemperature: String
+        let maxTemperature: String
+        let minTemperature: String
+        let windSpeed: String
         let getTime: String
-        let humidity: Double
+        let humidity: String
         var body: some View{
             VStack {
                 HStack {
@@ -219,22 +246,22 @@ extension LifeView{
                         VStack(alignment: .leading) {
                             HStack {
                                 Image(systemName: "thermometer.medium")
-                                Text(" \(currentTemperature, specifier: "%.1f")°C")
+                                Text(" \(currentTemperature)°C")
                                     .font(.title3.bold())
                             }
                             HStack {
                                 Image(systemName: "thermometer.sun")
-                                Text(" \(maxTemperature, specifier: "%.1f")°C")
+                                Text(" \(maxTemperature)°C")
                                     .font(.title3)
                             }
                             HStack {
                                 Image(systemName: "thermometer.snowflake")
-                                Text(" \(minTemperature, specifier: "%.1f")°C")
+                                Text(" \(minTemperature)°C")
                                     .font(.title3)
                             }
                             HStack {
                                 Image(systemName: "wind")
-                                Text(" \(windSpeed, specifier: "%.1f") m/s")
+                                Text(" \(windSpeed) m/s")
                                     .font(.title3)
                             }
                         }
@@ -244,33 +271,38 @@ extension LifeView{
                                 Text(getTime.substring(from: 11, length: 5))
                                     .font(.title3)
                             }
+//                            Spacer()
+//                            HStack {
+//                                if currentTemperature > 27{
+//                                    Image(systemName: "face.dashed")
+//                                }else if currentTemperature > 16{
+//                                    Image(systemName: "face.smiling")
+//                                }else{
+//                                    Image(systemName: "face.dashed.fill")
+//                                }
+//                                if currentTemperature > 30{
+//                                    Text("快蒸發了")
+//                                        .font(.title3)
+//                                }else if currentTemperature >= 28 {
+//                                    Text("好叻啊")
+//                                        .font(.title3)
+//                                }else if currentTemperature >= 23{
+//                                    Text("小熱")
+//                                        .font(.title3)
+//                                }else if currentTemperature > 15{
+//                                    Text("舒服")
+//                                        .font(.title3)
+//                                }else if currentTemperature > 11{
+//                                    Text("小冷")
+//                                        .font(.title3)
+//                                }else{
+//                                    Text("凍凍腦")
+//                                        .font(.title3)
+//                                }
+//                            }
                             HStack {
-                                if currentTemperature > 27{
-                                    Image(systemName: "face.dashed")
-                                }else if currentTemperature > 16{
-                                    Image(systemName: "face.smiling")
-                                }else{
-                                    Image(systemName: "face.dashed.fill")
-                                }
-                                if currentTemperature > 30{
-                                    Text("快蒸發了")
-                                        .font(.title3)
-                                }else if currentTemperature >= 28 {
-                                    Text("好叻啊")
-                                        .font(.title3)
-                                }else if currentTemperature >= 23{
-                                    Text("小熱")
-                                        .font(.title3)
-                                }else if currentTemperature > 15{
-                                    Text("舒服")
-                                        .font(.title3)
-                                }else if currentTemperature > 11{
-                                    Text("小冷")
-                                        .font(.title3)
-                                }else{
-                                    Text("凍凍腦")
-                                        .font(.title3)
-                                }
+                                Text(" ")
+                                    .font(.title3)
                             }
                             HStack {
                                 Text(" ")
