@@ -15,6 +15,8 @@ import GoogleMobileAds
 import UserNotifications
 import Network
 import WidgetKit
+import FirebaseAppCheck
+
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate {
     var window: UIWindow?
@@ -30,7 +32,31 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }()
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        
+        AppCheck.setAppCheckProviderFactory(MyAppCheckProviderFactory())
+        
+        
         FirebaseApp.configure()
+        
+        AppCheck.appCheck().token(forcingRefresh: true) { token, error in
+            if let token = token {
+                print("✅ AppCheck token: \(token.token)")
+            } else if let error = error {
+                print("❌ AppCheck failed: \(error.localizedDescription)")
+            } else {
+                print("❌ AppCheck failed: Unknown error")
+            }
+        }
+        
+        AppCheck.appCheck().token(forcingRefresh: true) { tokenResult, error in
+            if let token = tokenResult?.token {
+                print("✅ App Check token: \(token)")
+            } else if let error = error {
+                print("❌ Failed to get App Check token: \(error.localizedDescription)")
+            }
+        }
+
+        
         MonitorNetworkConnection()
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
         GADMobileAds.sharedInstance().start(completionHandler: nil)
@@ -87,6 +113,26 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 }
             }
         }
+}
+
+class MyAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
+  func createProvider(with app: FirebaseApp) -> AppCheckProvider? {
+    // This is where you decide which provider to use.
+    // App Attest is the recommended provider for real devices.
+    // For simulators, App Attest is not available, so you'd use a debug provider.
+      
+    #if targetEnvironment(simulator)
+      // Use AppCheckDebugProvider for simulators
+      // IMPORTANT: Remember to register your debug device in the Firebase console
+      // under App Check -> Debug tokens.
+      print("App Check: Using AppCheckDebugProvider for simulator.")
+      return AppCheckDebugProvider(app: app)
+    #else
+      // Use AppAttestProvider for real devices
+      print("App Check: Using AppAttestProvider for real device.")
+      return AppAttestProvider(app: app)
+    #endif
+  }
 }
 
 //struct PersistenceController {

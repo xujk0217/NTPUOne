@@ -20,6 +20,7 @@
 		3F59B8312C679AC400AFB700 /* CourseGridView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B8302C679AC400AFB700 /* CourseGridView.swift */; };
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
 		3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */; };
+		3F8453082E40B832008B04D4 /* AdvancedNativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */; };
 		3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */; };
 		3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
 		3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
@@ -139,6 +140,7 @@
 		3F59B82F2C679A7100AFB700 /* NTPUOne.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = NTPUOne.entitlements; sourceTree = "<group>"; };
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
 		3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseLargeWidget.swift; sourceTree = "<group>"; };
+		3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedNativeAdView.swift; sourceTree = "<group>"; };
 		3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
 		3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = CourseModel.xcdatamodel; sourceTree = "<group>"; };
 		3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -409,6 +411,7 @@
 				3F9062D02C2D71A000B9F24A /* BannerView.swift */,
 				3F24B5B42C37E83A00FEADFA /* RewardView.swift */,
 				3F945E402C39909100A37CB3 /* NativeAdView.swift */,
+				3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */,
 			);
 			path = Ads;
 			sourceTree = "<group>";
@@ -629,6 +632,7 @@
 				3FDF35692C8D3CB300952C69 /* PostManager.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
 				3F59B8252C671AB300AFB700 /* extention.swift in Sources */,
+				3F8453082E40B832008B04D4 /* AdvancedNativeAdView.swift in Sources */,
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
@@ -850,6 +854,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NTPUOne/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "NTPU one";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
@@ -894,6 +899,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NTPUOne/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "NTPU one";
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.lifestyle";
 				INFOPLIST_KEY_LSSupportsOpeningDocumentsInPlace = YES;
 				INFOPLIST_KEY_NSUserTrackingUsageDescription = "This identifier will be used to deliver personalized ads to you.";
