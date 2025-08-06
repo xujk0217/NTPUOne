@@ -41,6 +41,13 @@ struct ContactMeView: View {
                 } header: {
                     Text("email")
                 }
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                } header: {
+                    Text("廣告")
+                }
             }
         }.navigationTitle("Contact")
     }

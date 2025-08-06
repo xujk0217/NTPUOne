@@ -228,7 +228,7 @@ struct CourseGetView: View {
                         }
                         HStack{
                             Text("輸入課程編號:")
-                            TextField("如:U4001", text: $viewModel.courseno)
+                            TextField("如:U4001或只打部分數字", text: $viewModel.courseno)
                         }
                         Button("查詢課程") {
                             viewModel.fetchCourses()

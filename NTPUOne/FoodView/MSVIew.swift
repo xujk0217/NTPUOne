@@ -26,6 +26,13 @@ struct MSView: View {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
                             .foregroundStyle(Color.black)
                     }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    } header: {
+                        Text("廣告")
+                    }
                 }
                 .scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))

@@ -102,6 +102,13 @@ struct LinkView: View {
                             VStack{
                                 List{
                                     webSections
+                                    // 廣告標記
+                                    Section {
+                                        BannerAdView()
+                                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                                    } header: {
+                                        Text("廣告")
+                                    }
                                 }
                             }.navigationTitle("常用連結")
                         } label: {
@@ -117,6 +124,13 @@ struct LinkView: View {
                         }
                     } header: {
                         Text("常用連結")
+                    }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    } header: {
+                        Text("廣告")
                     }
                 }
                 .navigationTitle("NTPU one")

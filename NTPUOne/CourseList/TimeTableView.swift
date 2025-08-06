@@ -100,6 +100,11 @@ struct TimeTableView: View {
                 CourseGetView(courseData: courseData, isPresented: $isShowingGetCourseSheet)
                     .presentationDetents([.medium])
             })
+            // 廣告標記
+            Section {
+                BannerAdView()
+                        .frame(height: 50) // 橫幅廣告的高度通常是 50
+            }
         }.onDisappear {
             isEdit = false
         }

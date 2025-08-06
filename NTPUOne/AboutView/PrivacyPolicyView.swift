@@ -113,6 +113,9 @@ struct PrivacyPolicyView: View {
                 .padding()
                 .navigationTitle("Privacy Policy")
             }
+            // 廣告標記
+            BannerAdView()
+                    .frame(height: 50) // 橫幅廣告的高度通常是 50
         }
     }
 }

@@ -99,6 +99,13 @@ struct dietView: View {
                     Text("點擊進入地圖")
                         .foregroundStyle(Color.black)
                 }
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                } header: {
+                    Text("廣告")
+                }
             }.scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .background(Color.gray.opacity(0.1))

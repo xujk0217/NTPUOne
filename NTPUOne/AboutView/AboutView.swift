@@ -95,6 +95,13 @@ struct AboutView: View {
                 } header: {
                     Text("Me")
                 }
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                            .frame(height: 50)
+                } header: {
+                    Text("廣告")
+                }
             }
             .navigationTitle("About")
             .navigationDestination(isPresented: $isReward) {

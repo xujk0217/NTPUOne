@@ -50,6 +50,11 @@ struct SchoolPostView: View {
             .sheet(isPresented: $showSafariView) {
                 SafariView(url: safariURL)
             }
+            // 廣告標記
+            Section {
+                BannerAdView()
+                        .frame(height: 50) // 橫幅廣告的高度通常是 50
+            }
         }
     }
 }

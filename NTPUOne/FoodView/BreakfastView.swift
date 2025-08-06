@@ -77,6 +77,13 @@ struct BreakfastView: View {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
                             .foregroundStyle(Color.black)
                     }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    } header: {
+                        Text("廣告")
+                    }
                 }.scrollContentBackground(.hidden)
                     .background(Color.gray.opacity(0.1))
                 .navigationTitle("Breakfast")

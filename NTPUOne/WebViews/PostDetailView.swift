@@ -63,6 +63,9 @@ struct PostDetailView: View {
             .padding()
         }
         .navigationTitle("公告內文")
+        // 廣告標記
+        BannerAdView()
+                .frame(height: 50)
     }
 }
 

@@ -174,6 +174,21 @@ struct LifeView: View {
                                         .padding(.horizontal)
                                 }
                             }
+                            // 廣告標記
+                            Divider()
+                            Section {
+                                VStack{
+                                    BannerAdView()
+                                        .frame(height: 50)
+                                }
+                                    .frame(height: 100)
+                                    .background(Color.white)
+                                    .cornerRadius(10)
+                                    .padding(.horizontal)
+                            } header: {
+                                Text("廣告")
+                                    .padding(.horizontal)
+                            }
                         }
                     }
                     .navigationTitle("PU Life")
@@ -246,22 +261,22 @@ extension LifeView{
                         VStack(alignment: .leading) {
                             HStack {
                                 Image(systemName: "thermometer.medium")
-                                Text(" \(currentTemperature)°C")
+                                Text(currentTemperature == "-99" ? "—-°C" : " \(currentTemperature)°C")
                                     .font(.title3.bold())
                             }
                             HStack {
                                 Image(systemName: "thermometer.sun")
-                                Text(" \(maxTemperature)°C")
+                                Text(maxTemperature == "-99" ? "—-°C" : " \(maxTemperature)°C")
                                     .font(.title3)
                             }
                             HStack {
                                 Image(systemName: "thermometer.snowflake")
-                                Text(" \(minTemperature)°C")
+                                Text(minTemperature == "-99" ? "—-°C" : " \(minTemperature)°C")
                                     .font(.title3)
                             }
                             HStack {
                                 Image(systemName: "wind")
-                                Text(" \(windSpeed) m/s")
+                                Text(windSpeed == "-99" ? "—-m/s" : " \(windSpeed) m/s")
                                     .font(.title3)
                             }
                         }

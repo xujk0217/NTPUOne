@@ -77,3 +77,35 @@ struct BannerView: UIViewControllerRepresentable {
         }
     }
 }
+
+
+import SwiftUI
+import GoogleMobileAds
+
+struct BannerAdView: UIViewRepresentable {
+    // 橫幅廣告的測試 ID
+    let adUnitID = "ca-app-pub-3940256099942544/2934735716"
+    // 正式
+//    let adUnitID = "ca-app-pub-4105005748617921/1051002729"
+    
+    // 橫幅廣告的大小
+    let adSize = GADAdSizeBanner
+    
+    func makeUIView(context: Context) -> GADBannerView {
+        let bannerView = GADBannerView(adSize: adSize)
+        
+        // 取得 rootViewController
+        let rootVC = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first { $0.isKeyWindow }?.rootViewController
+        
+        bannerView.adUnitID = adUnitID
+        bannerView.rootViewController = rootVC
+        bannerView.load(GADRequest())
+        
+        return bannerView
+    }
+    
+    func updateUIView(_ uiView: GADBannerView, context: Context) {}
+}

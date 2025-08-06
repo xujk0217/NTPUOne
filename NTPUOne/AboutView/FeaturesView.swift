@@ -86,9 +86,12 @@ struct FeaturesView: View {
                             }
                         }.padding()
                     }
+                    // 廣告標記
+                    BannerAdView()
+                            .frame(height: 50)
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.edgesIgnoringSafeArea(.bottom)
+        }//.edgesIgnoringSafeArea(.bottom)
     }
     func sendPressed() {
         if issue != "", detail != ""{

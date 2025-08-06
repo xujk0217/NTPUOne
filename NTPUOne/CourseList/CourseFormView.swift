@@ -86,6 +86,13 @@ struct CourseFormView: View {
                             Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
                         }
                     }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    } header: {
+                        Text("廣告")
+                    }
                 }
                 .navigationTitle(isNewCourse ? "New Course" : "Edit Course")
                 .toolbar {
@@ -364,6 +371,13 @@ struct CourseGFormView: View {
                         if isNewCourse {
                             Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
                         }
+                    }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    } header: {
+                        Text("廣告")
                     }
                 }
                 .navigationTitle(isNewCourse ? "New Course" : "Edit Course")
