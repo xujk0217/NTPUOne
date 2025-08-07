@@ -21,6 +21,9 @@
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
 		3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */; };
 		3F8453082E40B832008B04D4 /* AdvancedNativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */; };
+		3F84530A2E4399AC008B04D4 /* SpinningWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453092E4399AC008B04D4 /* SpinningWheelView.swift */; };
+		3F84530C2E4399BA008B04D4 /* Triangle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F84530B2E4399BA008B04D4 /* Triangle.swift */; };
+		3F84530E2E4399C8008B04D4 /* RandomFoodView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F84530D2E4399C8008B04D4 /* RandomFoodView.swift */; };
 		3F8B9F702C70CCA4007BF30B /* CoreDataManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */; };
 		3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F712C70CD3E007BF30B /* CourseModel.xcdatamodeld */; };
 		3F8B9F7E2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */; };
@@ -141,6 +144,9 @@
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
 		3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseLargeWidget.swift; sourceTree = "<group>"; };
 		3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedNativeAdView.swift; sourceTree = "<group>"; };
+		3F8453092E4399AC008B04D4 /* SpinningWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinningWheelView.swift; sourceTree = "<group>"; };
+		3F84530B2E4399BA008B04D4 /* Triangle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Triangle.swift; sourceTree = "<group>"; };
+		3F84530D2E4399C8008B04D4 /* RandomFoodView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RandomFoodView.swift; sourceTree = "<group>"; };
 		3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreDataManager.swift; sourceTree = "<group>"; };
 		3F8B9F722C70CD3E007BF30B /* CourseModel.xcdatamodel */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcdatamodel; path = CourseModel.xcdatamodel; sourceTree = "<group>"; };
 		3F8B9F7C2C70D8D5007BF30B /* CourseEntity+CoreDataClass.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CourseEntity+CoreDataClass.swift"; sourceTree = "<group>"; };
@@ -399,6 +405,9 @@
 				3F9062C72C2CE8CC00B9F24A /* dinnerView.swift */,
 				3F9062C92C2CE8EB00B9F24A /* MSVIew.swift */,
 				3F9062D62C32B3D100B9F24A /* dietView.swift */,
+				3F8453092E4399AC008B04D4 /* SpinningWheelView.swift */,
+				3F84530B2E4399BA008B04D4 /* Triangle.swift */,
+				3F84530D2E4399C8008B04D4 /* RandomFoodView.swift */,
 				3F9062DB2C352D0500B9F24A /* AddStoreView.swift */,
 				3F9062D82C32BDC600B9F24A /* FManager.swift */,
 			);
@@ -615,9 +624,11 @@
 				3F9062C82C2CE8CC00B9F24A /* dinnerView.swift in Sources */,
 				3F59B82A2C67987B00AFB700 /* TimeTableView.swift in Sources */,
 				3F59B82E2C6799D600AFB700 /* CourseFormView.swift in Sources */,
+				3F84530C2E4399BA008B04D4 /* Triangle.swift in Sources */,
 				3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3FDF35672C8C82E200952C69 /* SchoolPostView.swift in Sources */,
+				3F84530E2E4399C8008B04D4 /* RandomFoodView.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
 				3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */,
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
@@ -634,6 +645,7 @@
 				3F59B8252C671AB300AFB700 /* extention.swift in Sources */,
 				3F8453082E40B832008B04D4 /* AdvancedNativeAdView.swift in Sources */,
 				3F9062C62C2CE8C000B9F24A /* LunchView.swift in Sources */,
+				3F84530A2E4399AC008B04D4 /* SpinningWheelView.swift in Sources */,
 				3F90626C2C296E3300B9F24A /* MoreBikeView.swift in Sources */,
 				3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */,
 				3FDF356B2C8D3FF800952C69 /* PostDetailView.swift in Sources */,

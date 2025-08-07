@@ -125,6 +125,29 @@ struct LinkView: View {
                     } header: {
                         Text("常用連結")
                     }
+                    if #available(iOS 17.0, *) {
+                        Section{
+                            NavigationLink {
+                                RandomFoodView()
+                            } label: {
+                                VStack(alignment: .leading){
+                                    HStack{
+                                        Image(systemName: "chart.pie")
+                                            .resizable()
+                                            .scaledToFit()
+                                            .frame(width: 30, height: 30)
+                                            .padding()
+                                        Text("吃飯轉盤")
+                                            .font(.callout.bold())
+                                    }
+                                }.foregroundStyle(Color.black)
+                            }
+                        } header: {
+                            Text("吃飯轉盤")
+                        }
+                    } else {
+                        // Fallback on earlier versions
+                    }
                     // 廣告標記
                     Section {
                         BannerAdView()

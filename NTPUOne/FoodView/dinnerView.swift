@@ -66,7 +66,7 @@ struct StoreNavigationLinkL: View {
     var store: FDetail?
 
     var body: some View {
-        NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNamed)) {
+        NavigationLink(destination: dietView(store: store!, currCollectName: K.FStoreF.collectionNamed)) {
             StoreRowViewL(store: store)
         }
     }

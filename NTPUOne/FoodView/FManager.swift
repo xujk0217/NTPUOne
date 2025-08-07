@@ -51,9 +51,19 @@ class FManager: ObservableObject {
                 }
             }
     }
+    
+    func getCollectionName(for diet: String) -> String {
+        switch diet {
+        case "B": return K.FStoreF.collectionNameB
+        case "L": return K.FStoreF.collectionNamel
+        case "D": return K.FStoreF.collectionNamed
+        default:  return K.FStoreF.collectionNamem
+        }
+    }
+
 }
 
-struct FDetail: Identifiable, Codable {
+struct FDetail: Identifiable, Codable, Equatable {
     @DocumentID var id: String?
     let store: String
     let time: String
