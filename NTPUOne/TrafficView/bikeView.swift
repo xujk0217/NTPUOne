@@ -13,6 +13,10 @@ struct bikeView: View {
     
     @State private var position: MapCameraPosition
     @State private var selectionResult: MKMapItem?
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
 
     init(Bike: UBResults) {
         self.Bike = Bike
@@ -58,8 +62,15 @@ struct bikeView: View {
                 }.listRowBackground(Color.white.opacity(0.7))
                 // 廣告標記
                 Section {
-                    BannerAdView()
-                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    NativeAdBoxView(
+                        style: .compact(media: 120),
+                        height: $adHeight
+                    )
+                    .frame(height: adHeight)
+                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
+                    .padding(.horizontal, 8)
                 } header: {
                     Text("廣告")
                 }
@@ -100,6 +111,10 @@ struct noMapBikeView: View {
     
     let Bike: UBResults?
     
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
     var body: some View {
         NavigationStack {
             List{
@@ -135,6 +150,20 @@ struct noMapBikeView: View {
                 .scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .background(Color.gray.opacity(0.1))
+                // 廣告標記
+                Section {
+                    NativeAdBoxView(
+                        style: .compact(media: 120),
+                        height: $adHeight
+                    )
+                    .frame(height: adHeight)
+                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
+                    .padding(.horizontal, 8)
+                } header: {
+                    Text("廣告")
+                }
             }.navigationTitle(Bike!.sna.substring(from: 11))
         }
     }

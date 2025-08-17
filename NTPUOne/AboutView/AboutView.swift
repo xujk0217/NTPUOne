@@ -23,6 +23,11 @@ struct AboutView: View {
     
     @State private var remainingTime = 0
     private let rewardWaitTime = 5 // 等待时间
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
     var body: some View {
         NavigationStack {
             List {
@@ -97,8 +102,15 @@ struct AboutView: View {
                 }
                 // 廣告標記
                 Section {
-                    BannerAdView()
-                            .frame(height: 50)
+                    NativeAdBoxView(
+                        style: .compact(media: 120),
+                        height: $adHeight
+                    )
+                    .frame(height: adHeight)
+                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
+                    .padding(.horizontal, 8)
                 } header: {
                     Text("廣告")
                 }

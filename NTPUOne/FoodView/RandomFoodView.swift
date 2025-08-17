@@ -15,7 +15,11 @@ struct RandomFoodView: View {
     @State private var resetTrigger = false
     @State private var selectedIDs: Set<String> = []
     @State private var showAlert = false
-
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
 
     let dietKeys = ["B", "L", "D", "M"]
     let dietOptions = ["B": "早餐", "L": "午餐", "D": "晚餐", "M": "宵夜"]
@@ -120,6 +124,21 @@ struct RandomFoodView: View {
                         Text("目前沒有餐廳，可到 Life 頁面新增")
                     }
                 }
+                
+                // 廣告標記
+                Section {
+                    NativeAdBoxView(
+                        style: .compact(media: 120),
+                        height: $adHeight
+                    )
+                    .frame(height: adHeight)
+                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
+                    .padding(.horizontal, 8)
+                } header: {
+                    Text("廣告")
+                }
             }
             .navigationTitle("轉盤推薦餐廳")
             .onAppear {
@@ -135,11 +154,6 @@ struct RandomFoodView: View {
             }
             .alert("至少要保留一間餐廳參加抽籤", isPresented: $showAlert) {
                 Button("OK", role: .cancel) {}
-            }
-            // 廣告標記
-            Section {
-                BannerAdView()
-                        .frame(height: 50)
             }
         }
     }

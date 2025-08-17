@@ -84,9 +84,9 @@ import GoogleMobileAds
 
 struct BannerAdView: UIViewRepresentable {
     // 橫幅廣告的測試 ID
-    let adUnitID = "ca-app-pub-3940256099942544/2934735716"
+//    let adUnitID = "ca-app-pub-3940256099942544/2934735716"
     // 正式
-//    let adUnitID = "ca-app-pub-4105005748617921/1051002729"
+    let adUnitID = "ca-app-pub-4105005748617921/1051002729"
     
     // 橫幅廣告的大小
     let adSize = GADAdSizeBanner

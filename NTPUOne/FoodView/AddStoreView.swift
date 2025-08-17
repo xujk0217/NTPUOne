@@ -95,6 +95,11 @@ struct AddStoreView: View {
                                 .frame(height: 300)
                         }.padding()
                     }
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }.edgesIgnoringSafeArea(.bottom)

@@ -9,6 +9,9 @@ import SwiftUI
 import SafariServices
 
 struct ContactMeView: View {
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
     var body: some View {
         VStack {
             List {
@@ -43,8 +46,15 @@ struct ContactMeView: View {
                 }
                 // 廣告標記
                 Section {
-                    BannerAdView()
-                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    NativeAdBoxView(
+                        style: .compact(media: 120),
+                        height: $adHeight
+                    )
+                    .frame(height: adHeight)
+                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.white)
+                    .padding(.horizontal, 8)
                 } header: {
                     Text("廣告")
                 }

@@ -17,6 +17,11 @@ import Firebase
 
 struct LifeView: View {
     @ObservedObject var weatherManager = WeatherManager()
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
     var body: some View {
         NavigationStack {
             VStack{
@@ -176,15 +181,22 @@ struct LifeView: View {
                             }
                             // 廣告標記
                             Divider()
+                            // 廣告標記
                             Section {
-                                VStack{
-                                    BannerAdView()
-                                        .frame(height: 50)
+                                VStack {
+                                    NativeAdBoxView(
+                                        style: .compact(media: 120),
+                                        height: $adHeight
+                                    )
+                                    .frame(height: adHeight)
+                                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                                    .listRowSeparator(.hidden)
+                                    .listRowBackground(Color.white)
+                                    .padding(.horizontal, 8)
                                 }
-                                    .frame(height: 100)
-                                    .background(Color.white)
-                                    .cornerRadius(10)
-                                    .padding(.horizontal)
+                                .background(Color.white)
+                                .cornerRadius(10)
+                                .padding(.horizontal)
                             } header: {
                                 Text("廣告")
                                     .padding(.horizontal)

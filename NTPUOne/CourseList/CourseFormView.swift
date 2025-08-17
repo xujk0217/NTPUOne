@@ -22,6 +22,11 @@ struct CourseFormView: View {
     @State private var allowOverwrite = false
     @State private var overwriteCourse: Course? = nil
     @State private var endTimeSlot: Course.TimeSlot = .morning1
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
 
     var body: some View {
         let filteredTimeSlots = getFilteredTimeSlots()
@@ -88,8 +93,15 @@ struct CourseFormView: View {
                     }
                     // 廣告標記
                     Section {
-                        BannerAdView()
-                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                        NativeAdBoxView(
+                            style: .compact(media: 120),
+                            height: $adHeight
+                        )
+                        .frame(height: adHeight)
+                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white)
+                        .padding(.horizontal, 8)
                     } header: {
                         Text("廣告")
                     }
@@ -308,6 +320,12 @@ struct CourseGFormView: View {
     @State private var allowOverwrite = false
     @State private var overwriteCourse: Course? = nil
     @State var endTimeSlot: Course.TimeSlot
+    
+    
+    // adview
+    @State private var adHeight: CGFloat = 100
+    @State private var rowWidth: CGFloat = 0
+    
 
     var body: some View {
         let filteredTimeSlots = getFilteredTimeSlots()
@@ -374,8 +392,15 @@ struct CourseGFormView: View {
                     }
                     // 廣告標記
                     Section {
-                        BannerAdView()
-                            .frame(height: 50) // 橫幅廣告的高度通常是 50
+                        NativeAdBoxView(
+                            style: .compact(media: 120),
+                            height: $adHeight
+                        )
+                        .frame(height: adHeight)
+                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.white)
+                        .padding(.horizontal, 8)
                     } header: {
                         Text("廣告")
                     }
