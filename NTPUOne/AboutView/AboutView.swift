@@ -44,7 +44,8 @@ struct AboutView: View {
                             Text("今天已無橫幅廣告")
                             Spacer()
                             Button(role: .destructive) {
-                                adFree.clear()  
+                                adFree.clear()
+                                preloadRewardedIfNeeded()
                             } label: {
                                 Text("重置（我想看廣告）")
                             }
@@ -55,7 +56,7 @@ struct AboutView: View {
                         } label: {
                             HStack {
                                 Image(systemName: "film.stack")
-                                Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅")
+                                Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅廣告")
                             }
                         }
                         .disabled(isLoading)
