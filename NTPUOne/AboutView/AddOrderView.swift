@@ -17,155 +17,188 @@ struct AddOrderView: View {
     @State private var email: String = ""
     @State private var time: String = ""
     @State private var url: String = ""
+
     @ObservedObject var rewardAd: RewardedAd
     @EnvironmentObject var adFree: AdFreeService
+
     enum Tags: String, CaseIterable, Identifiable {
         case 社團, 活動, 其他
         var id: Self { self }
     }
     @State private var tag: Tags = .其他
-    
-    @State var isSuccessSend = false
+
+    @State private var isSuccessSend = false
     @State private var firebaseFail = false
-    
-    @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
-    
-    let db = Firestore.firestore()
-    
+    @State private var isSubmitting = false
+
+    @Environment(\.dismiss) private var dismiss
+    private let db = Firestore.firestore()
+
+    // 驗證：訊息與姓名必填
+    private var isFormValid: Bool {
+        !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    // 標籤轉存字串
+    private var tagValue: String {
+        switch tag {
+        case .活動: return "1"
+        case .社團: return "2"
+        case .其他: return "3"
+        }
+    }
+
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack {
-                        HStack {
-                            Text("活動內容：")
-                            TextField("輸入公告事項（注意長度）", text: $message)
-                                .textFieldStyle(.roundedBorder)
-                        }.padding()
-                        
-                        HStack {
-                            Text("相關網址：")
-                            TextField("沒有也可以", text: $url)
-                                .textFieldStyle(.roundedBorder)
-                        }.padding()
-                        
-                        VStack {
-                            HStack {
-                                Text("標籤：")
-                                Picker("選擇標籤", selection: $tag) {
-                                    Text("活動").tag(Tags.活動)
-                                    Text("社團").tag(Tags.社團)
-                                    Text("其他").tag(Tags.其他)
-                                }.pickerStyle(.segmented)
+            ZStack {
+                Form {
+                    Section("公告內容＊") {
+                        TextEditor(text: $message)
+                            .frame(minHeight: 120)
+                            .overlay {
+                                if message.isEmpty {
+                                    VStack{
+                                        Text("輸入公告事項")
+                                            .foregroundStyle(.secondary)
+                                            .padding(.top, 8)
+                                            .frame(maxWidth: .infinity, alignment: .leading)
+                                        Spacer()
+                                    }
+                                }
                             }
-                            Text("若是標籤與內容不符會刪除")
+                        HStack {
+                            Text("注意長度與重點")
                                 .font(.caption)
-                                .foregroundColor(.gray)
-                        }.padding()
-                        
-                        Divider()
-                        
-                        HStack {
-                            Text("你的名字：")
-                            TextField("名字或暱稱", text: $name)
-                                .textFieldStyle(.roundedBorder)
-                        }.padding()
-                        
-                        HStack {
-                            Text("你的信箱：")
-                            TextField("讓我找得到你（沒有也可以）", text: $email)
-                                .textFieldStyle(.roundedBorder)
-                        }.padding()
-                        
-                        HStack {
-                            Text("你想展示多久：")
-                            TextField("日期或是時間", text: $time)
-                                .textFieldStyle(.roundedBorder)
-                        }.padding()
-                        
-                        Divider()
-                        
-                        Text("若是有想討論或是有問題，都可以聯絡我～")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Text("\(message.count) 字")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Section("相關資訊") {
+                        TextField("相關網址（選填）", text: $url)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    }
+
+                    Section("分類") {
+                        Picker("選擇標籤", selection: $tag) {
+                            ForEach(Tags.allCases) { t in
+                                Text(t.rawValue).tag(t)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text("若標籤與內容不符，可能會被移除。")
                             .font(.caption)
-                            .foregroundColor(.gray)
-                        
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Section {
+                        TextField("你的名字＊", text: $name)
+                            .textInputAutocapitalization(.words)
+
+                        TextField("你的信箱（選填）", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+
+                        TextField("展示時間（例如：至 10/15 或一週）", text: $time)
+                            .textInputAutocapitalization(.never)
+                    } header: {
+                        Text("聯絡資訊")
+                    } footer: {
+                        if !isFormValid {
+                            Text("「公告內容」與「你的名字」為必填。")
+                        }
+                        if firebaseFail {
+                            Text("送出失敗，請稍後再試或確認網路連線。")
+                                .foregroundStyle(.red)
+                        }
+                    }
+                    
+                    Section {
+                        Button(action: {
+                            sendPressed()
+                        }) {
+                            if isSubmitting {
+                                ProgressView()
+                            } else {
+                                Text("送出")
+                                    .font(.headline)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!isFormValid || isSubmitting)
+
                         NavigationLink {
                             ContactMeView()
                         } label: {
-                            Text("聯絡我～")
+                            Label("聯絡我～", systemImage: "message")
                                 .bold()
-                                .padding()
                         }
-                        
-                        Button {
-                            sendPressed()
-                        } label: {
-                            Text("送出")
-                                .font(.title3.bold())
-                                .padding()
-                                .foregroundColor(.white)
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                        }
-                        .alert("上傳成功", isPresented: $isSuccessSend) {
-                            Button("OK") {
-                                isSuccessSend = false
-                            }
-                        }
-                        
-                        if firebaseFail {
-                            Text("送出失敗，請填好內容以及名字，或者網路有問題，稍後再試～")
-                                .foregroundStyle(Color.red)
-                                .padding()
-                        }
-                    }.padding()
+                    }
+                    .listRowBackground(Color.clear)
+                }
             }
             .navigationTitle("新增公告")
-            if !adFree.isAdFree{
-                // 廣告標記
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") {
+                        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                                        to: nil, from: nil, for: nil)
+                    }
+                }
+            }
+            .alert("上傳成功", isPresented: $isSuccessSend) {
+                Button("OK") { isSuccessSend = false }
+            }
+            // 廣告標記
+            if !adFree.isAdFree {
                 Section {
                     BannerAdView()
                         .frame(height: 50)
                 }
+                .listRowBackground(Color.clear)
             }
         }
     }
-    
-    func sendPressed() {
-        var tagReturn = "3"
-        if tag == Tags.活動 {
-            tagReturn = "1"
-        } else if tag == Tags.社團 {
-            tagReturn = "2"
-        }
-        if message != "", name != "" {
-            db.collection(K.FStoreOr.collectionName).addDocument(data: [
-                K.FStoreOr.messageField: message,
-                K.FStoreOr.nameField: name,
-                K.FStoreOr.timeField: time,
-                K.FStoreOr.emailField: email,
-                K.FStoreOr.urlField: url,
-                K.FStoreOr.tagField: tagReturn,
-                K.FStoreOr.dateField: Date().timeIntervalSince1970
-            ]) { error in
-                if let e = error {
-                    print("There was an issue saving data to firestore, \(e)")
-                    firebaseFail = true
-                } else {
-                    print("success save data!")
-                    DispatchQueue.main.async {
-                        self.message = ""
-                        self.name = ""
-                        self.url = ""
-                        self.email = ""
-                        self.time = ""
-                    }
-                    self.isSuccessSend = true
-                    self.presentationMode.wrappedValue.dismiss()
-                }
-            }
-        } else {
+
+    // MARK: - Firestore
+    private func sendPressed() {
+        guard isFormValid else {
             firebaseFail = true
+            return
+        }
+        isSubmitting = true
+        firebaseFail = false
+
+        let data: [String: Any] = [
+            K.FStoreOr.messageField: message.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.nameField: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.timeField: time.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.emailField: email.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.urlField: url.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.tagField: tagValue,
+            K.FStoreOr.dateField: Date().timeIntervalSince1970
+        ]
+
+        db.collection(K.FStoreOr.collectionName).addDocument(data: data) { error in
+            isSubmitting = false
+            if let e = error {
+                print("There was an issue saving data to Firestore, \(e)")
+                firebaseFail = true
+                return
+            }
+            // 清空表單並關閉
+            message = ""; name = ""; url = ""; email = ""; time = ""
+            isSuccessSend = true
+            dismiss()
         }
     }
 }
-

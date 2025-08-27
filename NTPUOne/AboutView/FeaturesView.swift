@@ -12,116 +12,138 @@ import FirebaseAuth
 import AppTrackingTransparency
 
 struct FeaturesView: View {
-    @State private var email:String = ""
-    @State private var issue:String = ""
-    @State private var detail:String = ""
-    @State var containHeight: CGFloat = 0
+    @State private var email: String = ""
+    @State private var issue: String = ""
+    @State private var detail: String = ""
+    @State private var containHeight: CGFloat = 0
+
     @EnvironmentObject var adFree: AdFreeService
-    @State var isSuccessSend = false
-    
+    @State private var isSuccessSend = false
     @State private var firebaseFail = false
-    
-    @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
-    
-    let db = Firestore.firestore()
-    
-    var body: some View {
-        VStack {
-            VStack {
-                NavigationStack{
-                    ScrollView {
-                        VStack {
-                            HStack {
-                                Text("功能名稱：")
-                                TextField("功能", text: $issue)
-                                    .textFieldStyle(.roundedBorder)
-                            }.padding()
-                            HStack {
-                                Text("功能詳情：")
-//                                TextField("具體如何表現", text: $detail)
-//                                    .textFieldStyle(.roundedBorder)
-                                VStack{
-                                    AutoSizingTF(
-                                        hint: "具體如何表現",
-                                        text: $detail,
-                                        containerHeight: $containHeight,
-                                        onEnd: {
-                                        //当键盘被关闭时调用该方法
-                                            UIApplication
-                                                .shared
-                                                .sendAction(
-                                                    #selector(
-                                                        UIResponder.resignFirstResponder
-                                                    ),
-                                                    to: nil,
-                                                    from: nil,
-                                                    for: nil
-                                                )
-                                        }
-                                    )
-                                    .frame(height: containHeight < 120 ? containHeight : 120)
-                                }
-                            }.padding()
-                            HStack {
-                                Text("你的信箱：")
-                                TextField("讓我找得到你（沒有也可以）", text: $email)
-                                    .textFieldStyle(.roundedBorder)
-                            }.padding()
-                            Button {
-                                sendPressed()
-                            } label: {
-                                Text("送出")
-                                    .font(.title3.bold())
-                                    .padding()
-                            }.foregroundColor(.white)
-                                .background(Color.blue)
-                                .cornerRadius(10)
-                                .alert("上傳成功", isPresented: $isSuccessSend) {
-                                            
-                                        }
-                            if firebaseFail{
-                                Text("送出失敗，請填好功能以及詳情，或者網路有問題，稍後再試～")
-                                    .foregroundStyle(Color.red)
-                                    .padding()
-                            }
-                        }.padding()
-                    }
-                    if !adFree.isAdFree{
-                        // 廣告標記
-                        BannerAdView()
-                            .frame(height: 50)
-                    }
-                }
-            }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }//.edgesIgnoringSafeArea(.bottom)
+    @State private var isSubmitting = false
+
+    @Environment(\.dismiss) private var dismiss
+    private let db = Firestore.firestore()
+
+    // 驗證：名稱＋詳情必填
+    private var isFormValid: Bool {
+        !issue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
-    func sendPressed() {
-        if issue != "", detail != ""{
-            db.collection(K.FStoreR.collectionNameFt).addDocument(data: [
-                K.FStoreR.issueField: issue,
-                K.FStoreR.detailField: detail,
-                K.FStoreR.emailField: email,
-            ]) { error in
-                if let e = error{
-                    print("There was an issue saving data to firestore, \(e)")
-                    firebaseFail = true
-                }else{
-                    print("success save data!")
-                    DispatchQueue.main.async{
-                        self.detail = ""
-                        self.issue = ""
-                        self.email = ""
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Form {
+                    Section("功能名稱＊") {
+                        TextField("例如：課表分享、課程提醒…", text: $issue)
+                            .textInputAutocapitalization(.sentences)
+                            .autocorrectionDisabled(false)
                     }
-                    self.isSuccessSend = true
-                    self.presentationMode.wrappedValue.dismiss()
+
+                    Section("功能詳情＊") {
+                        // 你的 AutoSizingTF；高度限制 160，輸入多時可捲動
+                        AutoSizingTF(
+                            hint: "具體如何表現（情境、按鈕位置、流程…）",
+                            text: $detail,
+                            containerHeight: $containHeight,
+                            onEnd: { hideKeyboard() }
+                        )
+                        .frame(minHeight: 80, maxHeight: 160)
+                    }
+
+                    Section {
+                        TextField("你的信箱（選填）", text: $email)
+                            .keyboardType(.emailAddress)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                    } header: {
+                      Text("聯絡方式（選填）")
+                    } footer: {
+                        if !isFormValid {
+                            Text("「功能名稱」與「功能詳情」為必填。")
+                        }
+                        if firebaseFail {
+                            Text("送出失敗，請稍後再試或確認網路連線。")
+                                .foregroundStyle(.red)
+                        }
+                    }
+
+                    Section {
+                        Button {
+                            sendPressed()
+                        } label: {
+                            if isSubmitting {
+                                ProgressView()
+                            } else {
+                                Text("送出")
+                                    .font(.headline)
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .disabled(!isFormValid || isSubmitting)
+                    }
+                    .listRowBackground(Color.clear)
                 }
             }
-        }else{
-            firebaseFail = true
+            .navigationTitle("功能回報")
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("完成") { hideKeyboard() }
+                }
+            }
+            .alert("上傳成功", isPresented: $isSuccessSend) {
+                Button("OK") { isSuccessSend = false }
+            }
+            // 廣告標記
+            if !adFree.isAdFree {
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
+                .listRowBackground(Color.clear)
+            }
         }
+    }
+
+    // MARK: - Actions
+
+    private func sendPressed() {
+        guard isFormValid else {
+            firebaseFail = true
+            return
+        }
+        isSubmitting = true
+        firebaseFail = false
+
+        let data: [String: Any] = [
+            K.FStoreR.issueField: issue.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreR.detailField: detail.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreR.emailField: email.trimmingCharacters(in: .whitespacesAndNewlines)
+        ]
+
+        db.collection(K.FStoreR.collectionNameFt).addDocument(data: data) { error in
+            isSubmitting = false
+            if let e = error {
+                print("Firestore error: \(e)")
+                firebaseFail = true
+                return
+            }
+            // 成功
+            issue = ""; detail = ""; email = ""
+            isSuccessSend = true
+            dismiss()
+        }
+    }
+
+    private func hideKeyboard() {
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
+                                        to: nil, from: nil, for: nil)
     }
 }
 
 #Preview {
     FeaturesView()
+        .environmentObject(AdFreeService())
 }
