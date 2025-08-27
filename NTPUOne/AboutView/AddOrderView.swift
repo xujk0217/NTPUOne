@@ -18,6 +18,7 @@ struct AddOrderView: View {
     @State private var time: String = ""
     @State private var url: String = ""
     @ObservedObject var rewardAd: RewardedAd
+    @EnvironmentObject var adFree: AdFreeService
     enum Tags: String, CaseIterable, Identifiable {
         case 社團, 活動, 其他
         var id: Self { self }
@@ -119,10 +120,12 @@ struct AddOrderView: View {
                     }.padding()
             }
             .navigationTitle("新增公告")
-            // 廣告標記
-            Section {
-                BannerAdView()
-                        .frame(height: 50) // 橫幅廣告的高度通常是 50
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }
     }

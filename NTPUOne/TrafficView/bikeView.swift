@@ -10,6 +10,7 @@ import MapKit
 @available(iOS 17.0, *)
 struct bikeView: View {
     let Bike: UBResults
+    @EnvironmentObject var adFree: AdFreeService
     
     @State private var position: MapCameraPosition
     @State private var selectionResult: MKMapItem?
@@ -60,25 +61,32 @@ struct bikeView: View {
                         }
                     }
                 }.listRowBackground(Color.white.opacity(0.7))
-                // 廣告標記
-                Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
-                }
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
             }
             .scrollContentBackground(.hidden)
 //            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
             .background(Color.gray.opacity(0.1))
             .navigationTitle(Bike.sna.substring(from: 11))
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
+            }
         }
     }
 }
@@ -108,7 +116,7 @@ extension bikeView {
 
 
 struct noMapBikeView: View {
-    
+    @EnvironmentObject var adFree: AdFreeService
     let Bike: UBResults?
     
     // adview
@@ -150,21 +158,28 @@ struct noMapBikeView: View {
                 .scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .background(Color.gray.opacity(0.1))
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
+            }.navigationTitle(Bike!.sna.substring(from: 11))
+            if !adFree.isAdFree{
                 // 廣告標記
                 Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
+                    BannerAdView()
+                        .frame(height: 50)
                 }
-            }.navigationTitle(Bike!.sna.substring(from: 11))
+            }
         }
     }
 }

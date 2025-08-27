@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct PrivacyPolicyView: View {
+    @EnvironmentObject var adFree: AdFreeService
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -113,9 +114,13 @@ struct PrivacyPolicyView: View {
                 .padding()
                 .navigationTitle("Privacy Policy")
             }
-            // 廣告標記
-            BannerAdView()
-                    .frame(height: 50) // 橫幅廣告的高度通常是 50
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
+            }
         }
     }
 }

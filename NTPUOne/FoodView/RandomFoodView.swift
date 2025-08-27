@@ -10,6 +10,7 @@ import SwiftUI
 @available(iOS 17.0, *)
 struct RandomFoodView: View {
     @ObservedObject private var fManager = FManager()
+    @EnvironmentObject var adFree: AdFreeService
     @State private var whichDiet: String = "B"
     @State private var selectedRestaurant: FDetail?
     @State private var resetTrigger = false
@@ -125,20 +126,20 @@ struct RandomFoodView: View {
                     }
                 }
                 
-                // 廣告標記
-                Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
-                }
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
             }
             .navigationTitle("轉盤推薦餐廳")
             .onAppear {
@@ -154,6 +155,13 @@ struct RandomFoodView: View {
             }
             .alert("至少要保留一間餐廳參加抽籤", isPresented: $showAlert) {
                 Button("OK", role: .cancel) {}
+            }
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }
     }

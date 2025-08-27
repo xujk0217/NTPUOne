@@ -9,6 +9,7 @@ import SwiftUI
 
 struct LunchView: View {
     @ObservedObject var fManager = FManager()
+    @EnvironmentObject var adFree: AdFreeService
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
@@ -29,20 +30,20 @@ struct LunchView: View {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
                             .foregroundStyle(Color.black)
                     }
-                    // 廣告標記
-                    Section {
-                        NativeAdBoxView(
-                            style: .compact(media: 120),
-                            height: $adHeight
-                        )
-                        .frame(height: adHeight)
-                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.white)
-                        .padding(.horizontal, 8)
-                    } header: {
-                        Text("廣告")
-                    }
+//                    // 廣告標記
+//                    Section {
+//                        NativeAdBoxView(
+//                            style: .compact(media: 120),
+//                            height: $adHeight
+//                        )
+//                        .frame(height: adHeight)
+//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                        .listRowSeparator(.hidden)
+//                        .listRowBackground(Color.white)
+//                        .padding(.horizontal, 8)
+//                    } header: {
+//                        Text("廣告")
+//                    }
                 }
                 .scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
@@ -60,6 +61,13 @@ struct LunchView: View {
                 }
                 .onAppear {
                     fManager.loadF(whichDiet: "L")
+                }
+                if !adFree.isAdFree{
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50)
+                    }
                 }
             }
         } else {

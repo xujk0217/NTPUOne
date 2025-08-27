@@ -17,6 +17,7 @@ import Firebase
 
 struct LifeView: View {
     @ObservedObject var weatherManager = WeatherManager()
+    @EnvironmentObject var adFree: AdFreeService
     
     // adview
     @State private var adHeight: CGFloat = 100
@@ -179,32 +180,38 @@ struct LifeView: View {
                                         .padding(.horizontal)
                                 }
                             }
-                            // 廣告標記
-                            Divider()
-                            // 廣告標記
-                            Section {
-                                VStack {
-                                    NativeAdBoxView(
-                                        style: .compact(media: 120),
-                                        height: $adHeight
-                                    )
-                                    .frame(height: adHeight)
-                                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                                    .listRowSeparator(.hidden)
-                                    .listRowBackground(Color.white)
-                                    .padding(.horizontal, 8)
-                                }
-                                .background(Color.white)
-                                .cornerRadius(10)
-                                .padding(.horizontal)
-                            } header: {
-                                Text("廣告")
-                                    .padding(.horizontal)
-                            }
+//                            Divider()
+//                            // 廣告標記
+//                            Section {
+//                                VStack {
+//                                    NativeAdBoxView(
+//                                        style: .compact(media: 120),
+//                                        height: $adHeight
+//                                    )
+//                                    .frame(height: adHeight)
+//                                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                                    .listRowSeparator(.hidden)
+//                                    .listRowBackground(Color.white)
+//                                    .padding(.horizontal, 8)
+//                                }
+//                                .background(Color.white)
+//                                .cornerRadius(10)
+//                                .padding(.horizontal)
+//                            } header: {
+//                                Text("廣告")
+//                                    .padding(.horizontal)
+//                            }
                         }
                     }
                     .navigationTitle("PU Life")
                     .background(Color.gray.opacity(0.1))
+            }
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }.onAppear {
             weatherManager.fetchData()

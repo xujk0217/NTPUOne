@@ -11,6 +11,7 @@ import SafariServices
 struct SchoolPostView: View {
     
     @StateObject private var postManager = PostManager()
+    @EnvironmentObject var adFree: AdFreeService
     @State private var showSafariView = false
     private let safariURL = URL(string: "https://new.ntpu.edu.tw/news")!
 
@@ -50,10 +51,12 @@ struct SchoolPostView: View {
             .sheet(isPresented: $showSafariView) {
                 SafariView(url: safariURL)
             }
-            // 廣告標記
-            Section {
-                BannerAdView()
-                        .frame(height: 50) // 橫幅廣告的高度通常是 50
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }
     }

@@ -24,6 +24,7 @@ struct HTMLView: UIViewRepresentable {
 
 struct PostDetailView: View {
     @StateObject private var postManager = PostManager()
+    @EnvironmentObject var adFree: AdFreeService
     var publication: Publication
     let baseURL = "https://cms-carrier.ntpu.edu.tw"
     var body: some View {
@@ -63,9 +64,11 @@ struct PostDetailView: View {
             .padding()
         }
         .navigationTitle("公告內文")
-        // 廣告標記
-        BannerAdView()
+        if !adFree.isAdFree{
+            // 廣告標記
+            BannerAdView()
                 .frame(height: 50)
+        }
     }
 }
 

@@ -10,6 +10,7 @@ import CloudKit
 
 struct TimeTableView: View {
     @EnvironmentObject var courseData: CourseData
+    @EnvironmentObject var adFree: AdFreeService
     @State var isEdit = false
     @State var isShowingGetCourseSheet = false
     @State private var isSaturday: Bool = UserDefaults.standard.bool(forKey: "isSaturday")
@@ -100,10 +101,12 @@ struct TimeTableView: View {
                 CourseGetView(courseData: courseData, isPresented: $isShowingGetCourseSheet)
                     .presentationDetents([.medium])
             })
-            // 廣告標記
-            Section {
-                BannerAdView()
-                        .frame(height: 50) // 橫幅廣告的高度通常是 50
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }.onDisappear {
             isEdit = false

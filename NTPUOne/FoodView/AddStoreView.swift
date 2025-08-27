@@ -13,6 +13,7 @@ import AppTrackingTransparency
 
 struct AddStoreView: View {
     let currCollectName: String?
+    @EnvironmentObject var adFree: AdFreeService
     @State private var store:String = ""
     @State private var time:String = ""
     @State private var url:String = ""
@@ -95,14 +96,16 @@ struct AddStoreView: View {
                                 .frame(height: 300)
                         }.padding()
                     }
-                    // 廣告標記
-                    Section {
-                        BannerAdView()
-                                .frame(height: 50) // 橫幅廣告的高度通常是 50
+                    if !adFree.isAdFree{
+                        // 廣告標記
+                        Section {
+                            BannerAdView()
+                                .frame(height: 50)
+                        }
                     }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
-        }.edgesIgnoringSafeArea(.bottom)
+        }/*.edgesIgnoringSafeArea(.bottom)*/
             .navigationTitle("新增店家")
     }
     

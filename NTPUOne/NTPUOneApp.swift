@@ -188,12 +188,20 @@ class PersistenceController {
 struct NTPUOneApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     let persistenceController = PersistenceController.shared
+    @StateObject private var adFree = AdFreeService.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(CourseData(context: persistenceController.container.viewContext))
+                .environmentObject(adFree)
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                adFree.refresh()   // 回到前景時刷新到期狀態
+            }
         }
     }
 }

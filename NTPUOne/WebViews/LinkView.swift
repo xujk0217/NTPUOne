@@ -18,6 +18,13 @@ import Firebase
 struct LinkView: View {
     @ObservedObject var webManager = WebManager()
     @StateObject private var orderManager = OrderManager()
+    @EnvironmentObject var adFree: AdFreeService
+    @State private var isLoading = false
+    private let helper = RewardedAdHelper()
+    @State private var showAdConfirm = false
+    @State private var showNotReadyAlert = false
+
+    private let rewardedUnitID = "ca-app-pub-4105005748617921/1893622165"
     
     @State private var urlString: String? = nil
     @State private var showWebView = false
@@ -107,22 +114,29 @@ struct LinkView: View {
                             VStack{
                                 List{
                                     webSections
-                                    // 廣告標記
-                                    Section {
-                                        NativeAdBoxView(
-                                            style: .compact(media: 120),
-                                            height: $adHeight
-                                        )
-                                        .frame(height: adHeight)
-                                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                                        .listRowSeparator(.hidden)
-                                        .listRowBackground(Color.white)
-                                        .padding(.horizontal, 8)
-                                    } header: {
-                                        Text("廣告")
-                                    }
+//                                    // 廣告標記
+//                                    Section {
+//                                        NativeAdBoxView(
+//                                            style: .compact(media: 120),
+//                                            height: $adHeight
+//                                        )
+//                                        .frame(height: adHeight)
+//                                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                                        .listRowSeparator(.hidden)
+//                                        .listRowBackground(Color.white)
+//                                        .padding(.horizontal, 8)
+//                                    } header: {
+//                                        Text("廣告")
+//                                    }
                                 }
                             }.navigationTitle("常用連結")
+                            if !adFree.isAdFree{
+                                // 廣告標記
+                                Section {
+                                    BannerAdView()
+                                        .frame(height: 50)
+                                }
+                            }
                         } label: {
                             HStack {
                                 Image(systemName: "macwindow")
@@ -160,20 +174,20 @@ struct LinkView: View {
                     } else {
                         // Fallback on earlier versions
                     }
-                    // 廣告標記
-                    Section {
-                        NativeAdBoxView(
-                            style: .compact(media: 120),
-                            height: $adHeight
-                        )
-                        .frame(height: adHeight)
-                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.white)
-                        .padding(.horizontal, 8)
-                    } header: {
-                        Text("廣告")
-                    }
+//                    // 廣告標記
+//                    Section {
+//                        NativeAdBoxView(
+//                            style: .compact(media: 120),
+//                            height: $adHeight
+//                        )
+//                        .frame(height: adHeight)
+//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                        .listRowSeparator(.hidden)
+//                        .listRowBackground(Color.white)
+//                        .padding(.horizontal, 8)
+//                    } header: {
+//                        Text("廣告")
+//                    }
                 }
                 .navigationTitle("NTPU one")
                 .onAppear {
@@ -192,9 +206,89 @@ struct LinkView: View {
                         dismissButton: .default(Text("OK"))
                     )
                 }
+                if !adFree.isAdFree{
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50)
+                    }
+                }
+            }
+            .toolbar {
+                // 右上角按鈕
+                ToolbarItem(placement: toolbarPlacementTrailing) {
+                    if adFree.isAdFree {
+                        Label("今天已無橫幅廣告", systemImage: "checkmark.seal.fill")
+                            .labelStyle(.iconOnly)
+                            .foregroundStyle(.green)
+                            .help("今天 23:59 前都不會顯示橫幅")
+                    } else {
+                        Button {
+                            if !isLoading {
+                                showAdConfirm = true
+                            }
+                        } label: {
+                            if isLoading {
+                                ProgressView()
+                            } else {
+                                Label("看 30 秒影片，今日關閉橫幅", systemImage: "film.stack")
+                                    .labelStyle(.iconOnly) // 只顯示圖示；想顯示文字可拿掉
+                            }
+                        }
+                        .disabled(isLoading)
+                        .help("觀看完成後，今日關閉橫幅廣告")
+                    }
+                }
+            }
+            .onAppear { preloadRewardedIfNeeded() }
+            .alert("關閉今日橫幅廣告？", isPresented: $showAdConfirm) {
+                Button("取消", role: .cancel) { }
+                Button("開始觀看") {
+                    if isLoading {
+                        // 若尚未預載好，給個提示（可省略）
+                        showNotReadyAlert = true
+                    } else {
+                        showRewarded()
+                    }
+                }
+            } message: {
+                Text("觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。")
+            }
+            .alert("影片尚未就緒", isPresented: $showNotReadyAlert) {
+                Button("好", role: .cancel) { }
+            } message: {
+                Text("正在載入廣告，請稍後再試。")
             }
         }
     }
+    
+    // iOS 17 用 .topBarTrailing；iOS 16/15 用 .navigationBarTrailing
+    private var toolbarPlacementTrailing: ToolbarItemPlacement {
+        if #available(iOS 17.0, *) { return .topBarTrailing }
+        else { return .navigationBarTrailing }
+    }
+
+    private func preloadRewardedIfNeeded() {
+        guard !adFree.isAdFree else { return }
+        isLoading = true
+        helper.load(adUnitID: rewardedUnitID) { _ in
+            DispatchQueue.main.async { self.isLoading = false }
+        }
+    }
+
+    private func showRewarded() {
+        guard let root = UIApplication.shared.connectedScenes
+            .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+            .first else { return }
+
+        helper.present(from: root, onReward: {
+            adFree.grantForTodayEnd() // ✅ 觀看完成 → 今日關閉橫幅
+        }, onDismiss: {
+            // 若你允許再次觀看，可在關閉後預載下一支
+            // preloadRewardedIfNeeded()
+        })
+    }
+    
     private var orderSection: some View {
         Group {
             if let order = orderManager.order {

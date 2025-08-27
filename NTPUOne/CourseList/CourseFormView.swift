@@ -10,6 +10,7 @@ import CoreData
 
 struct CourseFormView: View {
     @Binding var course: Course
+    @EnvironmentObject var adFree: AdFreeService
     var isNewCourse: Bool
     var onSave: () -> Void
     var onCancel: () -> Void
@@ -91,20 +92,20 @@ struct CourseFormView: View {
                             Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
                         }
                     }
-                    // 廣告標記
-                    Section {
-                        NativeAdBoxView(
-                            style: .compact(media: 120),
-                            height: $adHeight
-                        )
-                        .frame(height: adHeight)
-                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.white)
-                        .padding(.horizontal, 8)
-                    } header: {
-                        Text("廣告")
-                    }
+//                     //廣告標記
+//                    Section {
+//                        NativeAdBoxView(
+//                            style: .compact(media: 120),
+//                            height: $adHeight
+//                        )
+//                        .frame(height: adHeight)
+//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                        .listRowSeparator(.hidden)
+//                        .listRowBackground(Color.white)
+//                        .padding(.horizontal, 8)
+//                    } header: {
+//                        Text("廣告")
+//                    }
                 }
                 .navigationTitle(isNewCourse ? "New Course" : "Edit Course")
                 .toolbar {
@@ -123,6 +124,13 @@ struct CourseFormView: View {
                         Button("Cancel") {
                             onCancel()
                         }
+                    }
+                }
+                if !adFree.isAdFree{
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50)
                     }
                 }
                 if !isNewCourse{
@@ -306,6 +314,7 @@ struct CourseFormView: View {
 // 從課程代碼新增
 struct CourseGFormView: View {
     @Binding var course: Course
+    @EnvironmentObject var adFree: AdFreeService
     var isNewCourse: Bool
     var onSave: () -> Void
     var onCancel: () -> Void
@@ -390,20 +399,20 @@ struct CourseGFormView: View {
                             Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
                         }
                     }
-                    // 廣告標記
-                    Section {
-                        NativeAdBoxView(
-                            style: .compact(media: 120),
-                            height: $adHeight
-                        )
-                        .frame(height: adHeight)
-                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.white)
-                        .padding(.horizontal, 8)
-                    } header: {
-                        Text("廣告")
-                    }
+//                    // 廣告標記
+//                    Section {
+//                        NativeAdBoxView(
+//                            style: .compact(media: 120),
+//                            height: $adHeight
+//                        )
+//                        .frame(height: adHeight)
+//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                        .listRowSeparator(.hidden)
+//                        .listRowBackground(Color.white)
+//                        .padding(.horizontal, 8)
+//                    } header: {
+//                        Text("廣告")
+//                    }
                 }
                 .navigationTitle(isNewCourse ? "New Course" : "Edit Course")
                 .toolbar {
@@ -422,6 +431,13 @@ struct CourseGFormView: View {
                         Button("Cancel") {
                             onCancel()
                         }
+                    }
+                }
+                if !adFree.isAdFree{
+                    // 廣告標記
+                    Section {
+                        BannerAdView()
+                            .frame(height: 50)
                     }
                 }
                 if !isNewCourse{

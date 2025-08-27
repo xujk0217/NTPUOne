@@ -161,7 +161,8 @@ final class NativeAdContainerView: UIView {
         // 標題
         headlineLabel.font = .boldSystemFont(ofSize: 13)
         headlineLabel.numberOfLines = 2
-        headlineLabel.lineBreakMode = .byWordWrapping
+        headlineLabel.lineBreakMode = .byCharWrapping
+//        headlineLabel.lineBreakMode = .byWordWrapping
         headlineLabel.allowsDefaultTighteningForTruncation = true
         headlineLabel.isUserInteractionEnabled = false
         adView.headlineView = headlineLabel
@@ -171,7 +172,7 @@ final class NativeAdContainerView: UIView {
 
         // 內文
         bodyLabel.font = .systemFont(ofSize: 10)
-        bodyLabel.numberOfLines = 3
+        bodyLabel.numberOfLines = 4
         bodyLabel.lineBreakMode = .byCharWrapping // 長字/無空白也能斷行
         bodyLabel.isUserInteractionEnabled = false
         adView.bodyView = bodyLabel
@@ -232,6 +233,15 @@ final class NativeAdContainerView: UIView {
             vStack.addArrangedSubview(bodyLabel)
             vStack.addArrangedSubview(ctaButton)
 
+            // 限制文字區最大寬度（最多佔整張卡片寬度的 72%）
+            let textMaxWidthRatio: CGFloat = 0.65
+            let textMaxWidthGuide = UILayoutGuide()
+            adView.addLayoutGuide(textMaxWidthGuide)
+            NSLayoutConstraint.activate([
+                textMaxWidthGuide.widthAnchor.constraint(equalTo: adView.widthAnchor, multiplier: textMaxWidthRatio),
+                vStack.widthAnchor.constraint(lessThanOrEqualTo: textMaxWidthGuide.widthAnchor)
+            ])
+
             // CTA 尺寸與約束（此時 CTA 已在層級樹內，可以安全加）
             ctaButton.heightAnchor.constraint(equalToConstant: 36).isActive = true
             ctaButton.setContentCompressionResistancePriority(.required, for: .horizontal)
@@ -247,6 +257,7 @@ final class NativeAdContainerView: UIView {
                 hStack.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -12),
                 hStack.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -12),
             ])
+
 
         case .topMedia16x9(let minHeight):
             let vStack = UIStackView()

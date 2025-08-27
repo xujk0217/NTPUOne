@@ -18,6 +18,7 @@ import Firebase
 @available(iOS 17.0, *)
 struct TrafficView: View {
     @ObservedObject var bikeManager = UbikeManager()
+    @EnvironmentObject var adFree: AdFreeService
     
     @State private var isExpanded = false
     var trafficTitle = "UBike in ntpu"
@@ -99,23 +100,30 @@ struct TrafficView: View {
                                 Text("更新頻率：每5分鐘")
                                     .foregroundStyle(Color.black)
                             }
-                            // 廣告標記
-                            Section {
-                                NativeAdBoxView(
-                                    style: .compact(media: 120),
-                                    height: $adHeight
-                                )
-                                .frame(height: adHeight)
-                                .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                                .listRowSeparator(.hidden)
-                                .listRowBackground(Color.white)
-                                .padding(.horizontal, 8)
-                            } header: {
-                                Text("廣告")
-                            }
+//                            // 廣告標記
+//                            Section {
+//                                NativeAdBoxView(
+//                                    style: .compact(media: 120),
+//                                    height: $adHeight
+//                                )
+//                                .frame(height: adHeight)
+//                                .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                                .listRowSeparator(.hidden)
+//                                .listRowBackground(Color.white)
+//                                .padding(.horizontal, 8)
+//                            } header: {
+//                                Text("廣告")
+//                            }
                         }
                         .navigationTitle("Traffic")
                         .toolbarBackground(.hidden, for: .navigationBar)
+                    if !adFree.isAdFree{
+                        // 廣告標記
+                        Section {
+                            BannerAdView()
+                                .frame(height: 50)
+                        }
+                    }
                 } else {
                     VStack {
                         Text("Loading...")

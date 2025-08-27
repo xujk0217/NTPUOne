@@ -19,7 +19,13 @@ struct AboutView: View {
     //about rewardAds
     //準備RewardedAd使用
     @StateObject private var rewardAd = RewardedAd()
+    @EnvironmentObject var adFree: AdFreeService
     @State private var isReward = false
+    
+    @State private var isLoading = false
+    private let helper = RewardedAdHelper()
+    
+    private let rewardedUnitID = "ca-app-pub-4105005748617921/1893622165"
     
     @State private var remainingTime = 0
     private let rewardWaitTime = 5 // 等待时间
@@ -31,6 +37,30 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section(header: Text("消除廣告")) {
+                    if adFree.isAdFree {
+                        HStack {
+                            Image(systemName: "checkmark.seal.fill")
+                            Text("今天已無橫幅廣告")
+                            Spacer()
+                            Button(role: .destructive) {
+                                adFree.clear()  
+                            } label: {
+                                Text("重置（我想看廣告）")
+                            }
+                        }
+                    } else {
+                        Button {
+                            showRewarded()
+                        } label: {
+                            HStack {
+                                Image(systemName: "film.stack")
+                                Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅")
+                            }
+                        }
+                        .disabled(isLoading)
+                    }
+                }
                 Section {
                     VStack {
                         Button {
@@ -100,28 +130,36 @@ struct AboutView: View {
                 } header: {
                     Text("Me")
                 }
-                // 廣告標記
-                Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
-                }
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
             }
             .navigationTitle("About")
+            .onAppear { preloadRewardedIfNeeded() }
             .navigationDestination(isPresented: $isReward) {
                 AddOrderView(rewardAd: rewardAd)
             }
             .onChange(of: isReward) { newValue in
                 if !newValue {
                     startTimer()
+                }
+            }
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
                 }
             }
         }
@@ -140,6 +178,24 @@ struct AboutView: View {
                 timer.invalidate()
             }
         }
+    }
+    private func preloadRewardedIfNeeded() {
+        guard !adFree.isAdFree else { return }
+        isLoading = true
+        helper.load(adUnitID: rewardedUnitID) { _ in
+            DispatchQueue.main.async { self.isLoading = false }
+        }
+    }
+
+    private func showRewarded() {
+        guard let root = UIApplication.shared.connectedScenes
+            .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
+            .first else { return }
+
+        helper.present(from: root, onReward: {
+            adFree.grantForTodayEnd()
+        }, onDismiss: {
+        })
     }
 }
 

@@ -18,6 +18,7 @@ struct ReportBugView: View {
     @State var containHeight: CGFloat = 0
     
     @State var isSuccessSend = false
+    @EnvironmentObject var adFree: AdFreeService
     
     @State private var firebaseFail = false
     
@@ -85,9 +86,11 @@ struct ReportBugView: View {
                             }
                         }.padding()
                     }
-                    // 廣告標記
-                    BannerAdView()
+                    if !adFree.isAdFree{
+                        // 廣告標記
+                        BannerAdView()
                             .frame(height: 50)
+                    }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }//.edgesIgnoringSafeArea(.bottom)

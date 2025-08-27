@@ -14,6 +14,7 @@ import FirebaseFirestoreSwift
 struct dietView: View {
     @State var store: FDetail
     let currCollectName: String?
+    @EnvironmentObject var adFree: AdFreeService
 
     @State private var isStar = false
     @State private var position: MapCameraPosition
@@ -90,26 +91,33 @@ struct dietView: View {
                         .foregroundStyle(.black)
                 }
 
-                // 廣告標記
-                Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
-                }
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
             }
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
             .navigationTitle(store.store)
             .onDisappear {
                 isStar = false
+            }
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }
     }
@@ -180,6 +188,7 @@ struct dietView: View {
 
 
 struct noMapDietView: View {
+    @EnvironmentObject var adFree: AdFreeService
     let store: FDetail?
     let currCollectName: String?
     
@@ -258,26 +267,33 @@ struct noMapDietView: View {
                 } footer: {
                     Text("點擊進入地圖")
                 }
-                // 廣告標記
-                Section {
-                    NativeAdBoxView(
-                        style: .compact(media: 120),
-                        height: $adHeight
-                    )
-                    .frame(height: adHeight)
-                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.white)
-                    .padding(.horizontal, 8)
-                } header: {
-                    Text("廣告")
-                }
+//                // 廣告標記
+//                Section {
+//                    NativeAdBoxView(
+//                        style: .compact(media: 120),
+//                        height: $adHeight
+//                    )
+//                    .frame(height: adHeight)
+//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
+//                    .listRowSeparator(.hidden)
+//                    .listRowBackground(Color.white)
+//                    .padding(.horizontal, 8)
+//                } header: {
+//                    Text("廣告")
+//                }
             }.scrollContentBackground(.hidden)
 //                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .background(Color.gray.opacity(0.1))
             .navigationTitle(store!.store)
             .onDisappear {
                 isStar = false
+            }
+            if !adFree.isAdFree{
+                // 廣告標記
+                Section {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
             }
         }
     }

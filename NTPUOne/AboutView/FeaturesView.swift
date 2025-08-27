@@ -16,7 +16,7 @@ struct FeaturesView: View {
     @State private var issue:String = ""
     @State private var detail:String = ""
     @State var containHeight: CGFloat = 0
-    
+    @EnvironmentObject var adFree: AdFreeService
     @State var isSuccessSend = false
     
     @State private var firebaseFail = false
@@ -86,9 +86,11 @@ struct FeaturesView: View {
                             }
                         }.padding()
                     }
-                    // 廣告標記
-                    BannerAdView()
+                    if !adFree.isAdFree{
+                        // 廣告標記
+                        BannerAdView()
                             .frame(height: 50)
+                    }
                 }
             }.frame(maxWidth: .infinity, maxHeight: .infinity)
         }//.edgesIgnoringSafeArea(.bottom)
