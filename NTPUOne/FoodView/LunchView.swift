@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct LunchView: View {
-    @ObservedObject var fManager = FManager()
+    @StateObject var fManager = FManager()
     @EnvironmentObject var adFree: AdFreeService
     // adview
     @State private var adHeight: CGFloat = 100

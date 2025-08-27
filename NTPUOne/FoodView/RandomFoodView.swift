@@ -9,7 +9,7 @@ import SwiftUI
 
 @available(iOS 17.0, *)
 struct RandomFoodView: View {
-    @ObservedObject private var fManager = FManager()
+    @StateObject private var fManager = FManager()
     @EnvironmentObject var adFree: AdFreeService
     @State private var whichDiet: String = "B"
     @State private var selectedRestaurant: FDetail?
