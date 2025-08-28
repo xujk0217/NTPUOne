@@ -51,6 +51,11 @@ struct LinkView: View {
     @State var startIndexO = 0
     
     
+    @State private var goSchoolPosts = false
+    @State private var goLinks = false
+    @State private var goRandomFood = false
+    
+    
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
@@ -60,134 +65,167 @@ struct LinkView: View {
             VStack {
                 List {
                     orderSection
-                    Section{
-                        VStack(alignment: .leading) {
-                            if let nextCourse = nextCourseOnAppear{
-                                Button{
-                                    courseName = nextCourse.name
-                                    courseTeacher = nextCourse.teacher
-                                    courseTime = nextCourse.startTime.rawValue
-                                    courseLocation = nextCourse.location
-                                    courseDay = nextCourse.day
-                                    showingAlert = true
-                                } label: {
-                                    VStack(alignment: .leading){
-                                        Text("\(nextCourse.name)")
-                                            .font(.title3.bold())
-                                        Text("開始時間：\(nextCourse.day), \(nextCourse.startTime.rawValue)")
+                    Section("下一堂課") {
+                        if let c = nextCourseOnAppear {
+                            Button {
+                                courseName = c.name
+                                courseTeacher = c.teacher
+                                courseTime = c.startTime.rawValue
+                                courseLocation = c.location
+                                courseDay = c.day
+                                showingAlert = true
+                            } label: {
+                                HStack(alignment: .top, spacing: 12) {
+                                    // 左側圖示圓點
+                                    ZStack {
+                                        Circle()
+                                            .fill(slotTint(c.timeSlot).opacity(0.15))
+                                            .frame(width: 44, height: 44)
+                                        Image(systemName: "book.closed.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(slotTint(c.timeSlot))
+                                    }
+
+                                    // 主要文字
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(c.name)
+                                            .font(.headline)
+                                            .lineLimit(1)
+
+                                        // 時間 + 倒數
+                                        HStack(spacing: 8) {
+                                            Label("\(c.day) • \(c.startTime.rawValue)", systemImage: "clock")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                            if let m = minutesUntilStart(of: c) {
+                                                Text("還有 \(m) 分")
+                                                    .font(.caption.weight(.semibold))
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 2)
+                                                    .background(slotTint(c.timeSlot).opacity(0.12))
+                                                    .clipShape(Capsule())
+                                            }
+                                        }
+
+                                        // 地點 + 老師
+                                        HStack(spacing: 12) {
+                                            Label(c.location.isEmpty ? "—" : c.location,
+                                                  systemImage: "mappin.and.ellipse")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+
+                                            Label(c.teacher.isEmpty ? "—" : c.teacher,
+                                                  systemImage: "person.fill")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                                .lineLimit(1)
+                                        }
+                                    }
+
+                                    Spacer()
+
+                                    // 若有開啟提醒可以顯示個小鈴鐺（可選）
+                                    if c.isNotification {
+                                        Image(systemName: "bell.fill")
                                             .font(.callout)
-                                    }.foregroundStyle(Color.black)
-                                }
-                            }else{
-                                Text("今日已沒有課程")
-                                    .font(.title3.bold())
-                                Text("開始時間：無")
-                                    .font(.callout)
-                            }
-                        }.frame(height: 50)
-                    } header: {
-                        Text("下一堂課")
-                    }
-                    Section{
-                        VStack(alignment: .leading) {
-                            NavigationLink {
-                                SchoolPostView()
-                            } label: {
-                                VStack(alignment: .leading){
-                                    HStack{
-                                        Image(systemName: "text.bubble")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30, height: 30)
-                                            .padding()
-                                        Text("學校公告")
-                                            .font(.callout.bold())
+                                            .foregroundStyle(slotTint(c.timeSlot))
                                     }
-                                }.foregroundStyle(Color.black)
-                            }
-                        }.frame(height: 50)
-                    } header: {
-                        Text("學校公告")
-                    }
-                    Section{
-                        NavigationLink {
-                            VStack{
-                                List{
-                                    webSections
-//                                    // 廣告標記
-//                                    Section {
-//                                        NativeAdBoxView(
-//                                            style: .compact(media: 120),
-//                                            height: $adHeight
-//                                        )
-//                                        .frame(height: adHeight)
-//                                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                                        .listRowSeparator(.hidden)
-//                                        .listRowBackground(Color.white)
-//                                        .padding(.horizontal, 8)
-//                                    } header: {
-//                                        Text("廣告")
-//                                    }
                                 }
-                            }.navigationTitle("常用連結")
-                            if !adFree.isAdFree{
-                                // 廣告標記
-                                Section {
-                                    BannerAdView()
-                                        .frame(height: 50)
+                                .padding(12)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color(.systemBackground))
+                                        .overlay(alignment: .leading) {
+                                            // 左側色條
+                                            Rectangle()
+                                                .fill(slotTint(c.timeSlot))
+                                                .frame(width: 4)
+                                        }
+                                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                                )
+                                .foregroundStyle(.primary)
+                            }
+                            .buttonStyle(.plain) // 避免 List 預設高亮
+                            .contentShape(Rectangle())
+                            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            
+                        } else {
+                            // 沒有課的樣式
+                            HStack(spacing: 12) {
+                                Image(systemName: "checkmark.circle")
+                                    .font(.title2)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("今日已沒有課程")
+                                        .font(.headline)
+                                    Text("好好休息～")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
                                 }
+                                Spacer()
                             }
-                        } label: {
-                            HStack {
-                                Image(systemName: "macwindow")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 30, height: 30)
-                                    .padding()
-                                Text("常用連結")
-                                    .font(.callout.bold())
-                            }.frame(height: 50)
+                            .padding(12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color(.white))
+                            )
+                            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                         }
-                    } header: {
-                        Text("常用連結")
                     }
-                    if #available(iOS 17.0, *) {
-                        Section{
-                            NavigationLink {
-                                RandomFoodView()
-                            } label: {
-                                VStack(alignment: .leading){
-                                    HStack{
-                                        Image(systemName: "chart.pie")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 30, height: 30)
-                                            .padding()
-                                        Text("吃飯轉盤")
-                                            .font(.callout.bold())
-                                    }
-                                }.foregroundStyle(Color.black)
-                            }
-                        } header: {
-                            Text("吃飯轉盤")
-                        }
-                    } else {
-                        // Fallback on earlier versions
-                    }
-//                    // 廣告標記
-//                    Section {
-//                        NativeAdBoxView(
-//                            style: .compact(media: 120),
-//                            height: $adHeight
-//                        )
-//                        .frame(height: adHeight)
-//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                        .listRowSeparator(.hidden)
-//                        .listRowBackground(Color.white)
-//                        .padding(.horizontal, 8)
+                    .listRowBackground(Color.clear)
+
+//                    Section{
+//                        VStack(alignment: .leading) {
+//                            if let nextCourse = nextCourseOnAppear{
+//                                Button{
+//                                    courseName = nextCourse.name
+//                                    courseTeacher = nextCourse.teacher
+//                                    courseTime = nextCourse.startTime.rawValue
+//                                    courseLocation = nextCourse.location
+//                                    courseDay = nextCourse.day
+//                                    showingAlert = true
+//                                } label: {
+//                                    VStack(alignment: .leading){
+//                                        Text("\(nextCourse.name)")
+//                                            .font(.title3.bold())
+//                                        Text("開始時間：\(nextCourse.day), \(nextCourse.startTime.rawValue)")
+//                                            .font(.callout)
+//                                    }.foregroundStyle(Color.black)
+//                                }
+//                            }else{
+//                                Text("今日已沒有課程")
+//                                    .font(.title3.bold())
+//                                Text("開始時間：無")
+//                                    .font(.callout)
+//                            }
+//                        }.frame(height: 50)
 //                    } header: {
-//                        Text("廣告")
+//                        Text("下一堂課")
 //                    }
+                    
+                    Section("功能快捷") {
+                        LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+                            Button { goSchoolPosts = true } label: {
+                                featureCard(icon: "text.bubble.fill", title: "學校公告", iconColor: .blue)
+                            }
+                            .buttonStyle(.plain).contentShape(Rectangle())
+
+                            Button { goLinks = true } label: {
+                                featureCard(icon: "macwindow", title: "常用連結", iconColor: .green)
+                            }
+                            .buttonStyle(.plain).contentShape(Rectangle())
+
+                            if #available(iOS 17.0, *) {
+                                Button { goRandomFood = true } label: {
+                                    featureCard(icon: "chart.pie.fill", title: "吃飯轉盤", iconColor: .orange)
+                                }
+                                .buttonStyle(.plain).contentShape(Rectangle())
+                            }
+                        }
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
+                    }
                 }
                 .navigationTitle("NTPU one")
                 .onAppear {
@@ -212,6 +250,30 @@ struct LinkView: View {
                         BannerAdView()
                             .frame(height: 50)
                     }
+                }
+                // 放在 NavigationStack 裡、List 後面（同一層）
+                NavigationLink(destination: SchoolPostView(), isActive: $goSchoolPosts) { EmptyView() }.hidden()
+
+                NavigationLink(destination:
+                    VStack{
+                        List {
+                            webSections
+                        }
+                       // 廣告標記
+                       if !adFree.isAdFree {
+                           Section { BannerAdView().frame(height: 50) }
+                       }
+                    }
+                    .navigationTitle("常用連結")
+                , isActive: $goLinks) { EmptyView() }.hidden()
+
+                if #available(iOS 17.0, *) {
+                    NavigationLink(
+                        destination: RandomFoodView()
+                            .onDisappear { goRandomFood = false },
+                        isActive: $goRandomFood
+                    ) { EmptyView() }
+                    .hidden()
                 }
             }
             .toolbar {
@@ -261,6 +323,51 @@ struct LinkView: View {
             }
         }
     }
+    
+    @ViewBuilder
+    private func featureCard(icon: String,
+                             title: String,
+                             iconColor: Color? = nil) -> some View {
+        VStack {
+            let img = Image(systemName: icon).font(.system(size: 28)).padding(.top).padding(.bottom, 8)
+            
+            if let iconColor {
+                img.foregroundStyle(iconColor)
+            } else {
+                img.foregroundStyle(.primary)
+            }
+
+            Text(title)
+              .font(.footnote.bold())
+              .multilineTextAlignment(.center)
+              .foregroundStyle(.primary)
+              .padding(.bottom)
+        }
+        .frame(maxWidth: .infinity, minHeight: 70)
+        .background(Color(.white))
+        .cornerRadius(12)
+    }
+
+    // 倒數分鐘（若已過時回傳 nil）
+    private func minutesUntilStart(of course: Course) -> Int? {
+        guard let date = getCourseDate(for: course) else { return nil }
+        let diff = date.timeIntervalSince(Date())
+        let mins = Int(ceil(diff / 60))
+        return mins > 0 ? mins : nil
+    }
+
+    // 依時段給色彩（可自行調整）
+    private func slotTint(_ slot: Course.TimeSlot) -> Color {
+        switch slot {
+        case .morning1, .morning2, .morning3, .morning4:
+            return .blue
+        case .afternoon1, .afternoon2, .afternoon3, .afternoon4, .afternoon5:
+            return .orange
+        case .evening1, .evening2, .evening3, .evening4:
+            return .purple
+        }
+    }
+
     
     // iOS 17 用 .topBarTrailing；iOS 16/15 用 .navigationBarTrailing
     private var toolbarPlacementTrailing: ToolbarItemPlacement {
