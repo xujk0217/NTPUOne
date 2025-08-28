@@ -40,7 +40,7 @@ struct bikeView: View {
                     Text("腳踏車地圖")
                 } footer: {
                     Text("名稱：站名-(腳踏車數/總數)")
-                }.listRowBackground(Color.white.opacity(0.7))
+                }
                 Section {
                     HStack {
                         Text(Bike.tot)
@@ -60,25 +60,8 @@ struct bikeView: View {
                             }
                         }
                     }
-                }.listRowBackground(Color.white.opacity(0.7))
-//                // 廣告標記
-//                Section {
-//                    NativeAdBoxView(
-//                        style: .compact(media: 120),
-//                        height: $adHeight
-//                    )
-//                    .frame(height: adHeight)
-//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                    .listRowSeparator(.hidden)
-//                    .listRowBackground(Color.white)
-//                    .padding(.horizontal, 8)
-//                } header: {
-//                    Text("廣告")
-//                }
+                }
             }
-            .scrollContentBackground(.hidden)
-//            .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
-            .background(Color.gray.opacity(0.1))
             .navigationTitle(Bike.sna.substring(from: 11))
             if !adFree.isAdFree{
                 // 廣告標記
@@ -130,10 +113,8 @@ struct noMapBikeView: View {
                     Text("升級至 IOS 17.0 以開啟地圖功能")
                 } header: {
                     Text("腳踏車地圖")
-                        .foregroundStyle(Color.black)
                 } footer: {
                     Text("名稱：站名-(腳踏車數/總數)")
-                        .foregroundStyle(Color.black)
                 }
                 Section{
                     HStack{
@@ -154,24 +135,7 @@ struct noMapBikeView: View {
                             }
                         }
                     }
-                }.listRowBackground(Color.white.opacity(0.7))
-                .scrollContentBackground(.hidden)
-//                .background(.linearGradient(colors: [.white, .green], startPoint: .bottomLeading, endPoint: .topTrailing))
-                .background(Color.gray.opacity(0.1))
-//                // 廣告標記
-//                Section {
-//                    NativeAdBoxView(
-//                        style: .compact(media: 120),
-//                        height: $adHeight
-//                    )
-//                    .frame(height: adHeight)
-//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                    .listRowSeparator(.hidden)
-//                    .listRowBackground(Color.white)
-//                    .padding(.horizontal, 8)
-//                } header: {
-//                    Text("廣告")
-//                }
+                }
             }.navigationTitle(Bike!.sna.substring(from: 11))
             if !adFree.isAdFree{
                 // 廣告標記

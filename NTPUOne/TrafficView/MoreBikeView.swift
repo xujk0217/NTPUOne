@@ -9,7 +9,7 @@ import SwiftUI
 
 struct MoreBikeView: View {
     
-    @ObservedObject var bikeManager = UbikeManager()
+    @StateObject var bikeManager = UbikeManager()
     @EnvironmentObject var adFree: AdFreeService
     
     // adview
@@ -45,7 +45,7 @@ struct MoreBikeView: View {
                                                             }
                                                         }
                                                     }
-                                                }.listRowBackground(Color.white.opacity(0.7))
+                                                }
                                             } else {
                                                 // Fallback on earlier versions
                                                 NavigationLink(destination: noMapBikeView(Bike: stop)){
@@ -67,14 +67,13 @@ struct MoreBikeView: View {
                                                             }
                                                         }
                                                     }
-                                                }.listRowBackground(Color.white.opacity(0.7))
+                                                }
                                             }
                                         }
                                     }
                                 } header: {
                                     HStack {
                                         Text("Ubike")
-                                            .foregroundStyle(Color.black)
                                         Spacer()
                                     }
                                 }

@@ -125,23 +125,8 @@ struct RandomFoodView: View {
                         Text("目前沒有餐廳，可到 Life 頁面新增")
                     }
                 }
-                
-//                // 廣告標記
-//                Section {
-//                    NativeAdBoxView(
-//                        style: .compact(media: 120),
-//                        height: $adHeight
-//                    )
-//                    .frame(height: adHeight)
-//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                    .listRowSeparator(.hidden)
-//                    .listRowBackground(Color.white)
-//                    .padding(.horizontal, 8)
-//                } header: {
-//                    Text("廣告")
-//                }
             }
-            .navigationTitle("轉盤推薦餐廳")
+            .navigationTitle("吃飯轉盤")
             .onAppear {
                 fManager.loadF(whichDiet: whichDiet)
                 if let list = fManager.Food {

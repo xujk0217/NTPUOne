@@ -31,6 +31,8 @@ struct LinkView: View {
     @State private var showSafariView = false
     @State private var selectDemo = 0
     
+    let cardShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+    
     //Course
     @ObservedObject var courseData: CourseData
     @State private var nextCourseOnAppear: Course?
@@ -134,13 +136,17 @@ struct LinkView: View {
                                 .padding(12)
                                 .background(
                                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color(.systemBackground))
+                                        .fill(Color(.secondarySystemBackground))
                                         .overlay(alignment: .leading) {
-                                            // 左側色條
                                             Rectangle()
                                                 .fill(slotTint(c.timeSlot))
                                                 .frame(width: 4)
                                         }
+                                        .clipShape(cardShape)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                                .strokeBorder(.quaternary)
+                                        )
                                         .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                                 )
                                 .foregroundStyle(.primary)
@@ -148,6 +154,7 @@ struct LinkView: View {
                             .buttonStyle(.plain) // 避免 List 預設高亮
                             .contentShape(Rectangle())
                             .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            
                             
                         } else {
                             // 沒有課的樣式
@@ -166,41 +173,17 @@ struct LinkView: View {
                             .padding(12)
                             .background(
                                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.white))
+                                    .fill(Color(.secondarySystemBackground))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                            .strokeBorder(.quaternary)
+                                    )
+                                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
                             )
-                            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            .listRowInsets(.init(top: 1, leading: 1, bottom: 1, trailing: 1))
                         }
                     }
                     .listRowBackground(Color.clear)
-
-//                    Section{
-//                        VStack(alignment: .leading) {
-//                            if let nextCourse = nextCourseOnAppear{
-//                                Button{
-//                                    courseName = nextCourse.name
-//                                    courseTeacher = nextCourse.teacher
-//                                    courseTime = nextCourse.startTime.rawValue
-//                                    courseLocation = nextCourse.location
-//                                    courseDay = nextCourse.day
-//                                    showingAlert = true
-//                                } label: {
-//                                    VStack(alignment: .leading){
-//                                        Text("\(nextCourse.name)")
-//                                            .font(.title3.bold())
-//                                        Text("開始時間：\(nextCourse.day), \(nextCourse.startTime.rawValue)")
-//                                            .font(.callout)
-//                                    }.foregroundStyle(Color.black)
-//                                }
-//                            }else{
-//                                Text("今日已沒有課程")
-//                                    .font(.title3.bold())
-//                                Text("開始時間：無")
-//                                    .font(.callout)
-//                            }
-//                        }.frame(height: 50)
-//                    } header: {
-//                        Text("下一堂課")
-//                    }
                     
                     Section("功能快捷") {
                         LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
@@ -268,8 +251,7 @@ struct LinkView: View {
 
                 if #available(iOS 17.0, *) {
                     NavigationLink(
-                        destination: RandomFoodView()
-                            .onDisappear { goRandomFood = false },
+                        destination: RandomFoodView(),
                         isActive: $goRandomFood
                     ) { EmptyView() }
                     .hidden()
@@ -343,7 +325,14 @@ struct LinkView: View {
               .padding(.bottom)
         }
         .frame(maxWidth: .infinity, minHeight: 70)
-        .background(Color(.white))
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(.quaternary)
+                )
+        )
         .cornerRadius(12)
     }
 
@@ -413,64 +402,22 @@ struct LinkView: View {
                             .onAppear(perform: orderManager.loadOrderOther)
                     }
                 } header: {
-                    HStack{
-                        Button {
-                            selectDemo = 0
-                        } label: {
-                            Text("All")
-                                .foregroundStyle(selectDemo == 0 ? Color.blue : Color.blue.opacity(0.3))
-                                .font(.caption.bold())
-                                .padding(6)
-                                .padding(.horizontal, 3)
-                                .background(selectDemo == 0 ? Color.white : Color.white.opacity(0.3))
-                                .cornerRadius(5.0)
-                                .padding(.leading, -12)
+                    HStack {
+                        Picker("", selection: $selectDemo) {
+                            Text("All").tag(0)
+                            Text("活動").tag(1)
+                            Text("社團").tag(2)
+                            Text("其他").tag(3)
                         }
-                        Button {
-                            selectDemo = 1
-                        } label: {
-                            Text("活動")
-                                .foregroundStyle(selectDemo == 1 ? Color.blue : Color.blue.opacity(0.3))
-                                .font(.caption.bold())
-                                .padding(6)
-                                .padding(.horizontal, 3)
-                                .background(selectDemo == 1 ? Color.white : Color.white.opacity(0.3))
-                                .cornerRadius(5.0)
-                        }
-                        
-                        Button {
-                            selectDemo = 2
-                        } label: {
-                            Text("社團")
-                                .foregroundStyle(selectDemo == 2 ? Color.blue : Color.blue.opacity(0.3))
-                                .font(.caption.bold())
-                                .padding(6)
-                                .padding(.horizontal, 3)
-                                .background(selectDemo == 2 ? Color.white : Color.white.opacity(0.3))
-                                .cornerRadius(5.0)
-                        }
-                        
-                        Button {
-                            selectDemo = 3
-                        } label: {
-                            Text("其他")
-                                .foregroundStyle(selectDemo == 3 ? Color.blue : Color.blue.opacity(0.3))
-                                .font(.caption.bold())
-                                .padding(6)
-                                .padding(.horizontal, 3)
-                                .background(selectDemo == 3 ? Color.white : Color.white.opacity(0.3))
-                                .cornerRadius(5.0)
-                        }
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        Spacer()
                     }
                 } footer: {
                     VStack {
                         Text("如需新增活動廣播，請至 about 頁面新增")
-                            .foregroundStyle(Color.black)
+                            .foregroundStyle(.secondary)
                             .padding(.bottom)
-                        Divider()
-//                        Text("常用網址")
-//                            .foregroundStyle(Color.black)
-//                            .font(.callout)
                     }
                 }
             } else {
@@ -482,6 +429,7 @@ struct LinkView: View {
                     }
                 } footer: {
                     Text("連線中，請確認網路連線")
+                        .foregroundStyle(.secondary)
                 }
             }
         }
@@ -532,35 +480,44 @@ struct LinkView: View {
     
     private func webLinkButton(for web: WebData) -> some View {
         Group {
-//            if ["http://dafl.ntpu.edu.tw/main.php", "http://www.rebe.ntpu.edu.tw", "https://past-exam.ntpu.cc", "https://cof.ntpu.edu.tw/student_new.htm"].contains(web.url) {
-                AnyView(
-                    Button(action: {
-                        handleURL(web.url)
-                    }) {
-                        webLinkLabel(for: web)
-                    }
-                        .foregroundStyle(Color.black)
-                )
-//            } else {
-//                AnyView(
-//                    NavigationLink(destination: WebDetailView(url: web.url)) {
-//                        webLinkLabel(for: web)
-//                    }
-//                )
-//            }
+            AnyView(
+                Button(action: {
+                    handleURL(web.url)
+                }) {
+                    webLinkLabel(for: web)
+                }
+            )
         }
     }
     
     private func webLinkLabel(for web: WebData) -> some View {
-        HStack {
+        HStack(spacing: 12) {
+            // 圖示徽章
             Image(systemName: web.image)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 30, height: 30)
-                .padding()
-            Text(web.title)
-                .font(.callout.bold())
-        }.foregroundStyle(Color.black)
+                .font(.system(size: 20))
+                .foregroundStyle(.tint)
+                .frame(width: 36, height: 36)
+                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            // 標題 + 網域（可選）
+            VStack(alignment: .leading, spacing: 2) {
+                Text(web.title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if let h = host(from: web.url) {
+                    Text(h)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Spacer()
+
+            Image(systemName: "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 8)
     }
     
     func handleURL(_ urlString: String) {
@@ -600,196 +557,123 @@ struct LinkView: View {
     }
     
     var DemoView: some View {
-        TabView(selection: $startIndex) {
-            if let orders = orderManager.order {
-                ForEach(orders.indices, id: \.self) { index in
-                    VStack {
-                        Spacer()
-                        HStack {
-                            Spacer()
-                            Text("\(orders[index].message) \n -by \(orders[index].name)")
-                                .font(.headline)
-                                .lineLimit(5)
-                                .multilineTextAlignment(.center)
-                                .padding()
-                            Spacer()
-                        }
-                        Spacer()
-                    }
-                    .onTapGesture {
-                        if let url = URL(string: orders[index].url) {
-                            if UIApplication.shared.canOpenURL(url) {
-                                handleURL(orders[index].url)
-                            } else {
-                                print("Cannot open URL: \(orders[index].url)")
-                            }
-                        }
-                    }
+        let orders = orderManager.order ?? []
+
+        return TabView(selection: $startIndex) {
+            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
+                AnnouncementCard(
+                    message: item.message,
+                    author: "— \(item.name)",
+                    tag: item.tag,
+                    urlString: item.url
+                ) {
+                    handleURL(item.url)
                 }
-                .background(Color.white)
-                .cornerRadius(15)
-                .overlay(RoundedRectangle(cornerRadius: 15)
-                    .stroke(Color.black))
-                .padding(.horizontal, 1)
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.horizontal, 8)
+                .tag(index)
             }
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
+        .frame(height: 160)
         .onReceive(timer) { _ in
             withAnimation {
-                if let orders = orderManager.order, orders.count > 1 {
+                if orders.count > 1 {
                     startIndex = (startIndex + 1) % orders.count
                 }
             }
         }
-        .frame(height: 160)
     }
+
     
     var DemoViewEvent: some View {
-        TabView(selection: $startIndexE) {
-            if let orders = orderManager.order {
-                ForEach(orders.indices, id: \.self) { index in
-                    if orders[index].tag == "1"{
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                Text("\(orders[index].message) \n -by \(orders[index].name)")
-                                    .font(.headline)
-                                    .lineLimit(5)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                                Spacer()
-                            }
-                            Spacer()
-                        }
-                        .onTapGesture {
-                            if let url = URL(string: orders[index].url) {
-                                if UIApplication.shared.canOpenURL(url) {
-                                    handleURL(orders[index].url)
-                                } else {
-                                    print("Cannot open URL: \(orders[index].url)")
-                                }
-                            }
-                        }
-                    }
+        let orders = orderManager.order ?? []
+        let tagged = orders.enumerated().filter { $0.element.tag == "1" }  // 活動
+        let total = tagged.count
+
+        return TabView(selection: $startIndexE) {
+            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
+                AnnouncementCard(
+                    message: item.message,
+                    author: "— \(item.name)",
+                    tag: item.tag,
+                    urlString: item.url
+                ) {
+                    handleURL(item.url)
                 }
-                .background(Color.white)
-                .cornerRadius(15)
-                .overlay(RoundedRectangle(cornerRadius: 15)
-                    .stroke(Color.black))
-                .padding(.horizontal, 1)
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.horizontal, 8)
+                .tag(index)
             }
+
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-        .onReceive(timer) { _ in
-                withAnimation {
-                    if let orders = orderManager.order {
-                        if orderManager.eventN > 1 {
-                            startIndexE = (startIndexE + 1) % orderManager.eventN
-                        }
-                    }
-                }
-            }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .onReceive(timer) { _ in
+            guard total > 1 else { return }
+            withAnimation { startIndexE = (startIndexE + 1) % total }
+        }
     }
-    
+
     var DemoViewPost: some View {
-        TabView(selection: $startIndexP) {
-            if let orders = orderManager.order {
-                ForEach(orders.indices, id: \.self) { index in
-                    if orders[index].tag == "2"{
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                Text("\(orders[index].message) \n -by \(orders[index].name)")
-                                    .font(.headline)
-                                    .lineLimit(5)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                                Spacer()
-                            }
-                            Spacer()
-                        }
-                        .onTapGesture {
-                            if let url = URL(string: orders[index].url) {
-                                if UIApplication.shared.canOpenURL(url) {
-                                    handleURL(orders[index].url)
-                                } else {
-                                    print("Cannot open URL: \(orders[index].url)")
-                                }
-                            }
-                        }
-                    }
+        let orders = orderManager.order ?? []
+        let tagged = orders.enumerated().filter { $0.element.tag == "2" }  // 社團
+        let total = tagged.count
+
+        return TabView(selection: $startIndexP) {
+            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
+                AnnouncementCard(
+                    message: item.message,
+                    author: "— \(item.name)",
+                    tag: item.tag,                    // 若你的型別是 Int，記得轉成 String
+                    urlString: item.url
+                ) {
+                    handleURL(item.url)               // 你的開啟邏輯
                 }
-                .background(Color.white)
-                .cornerRadius(15)
-                .overlay(RoundedRectangle(cornerRadius: 15)
-                    .stroke(Color.black))
-                .padding(.horizontal, 1)
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.horizontal, 8)
+                .tag(index)
             }
+
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-        .onReceive(timer) { _ in
-                withAnimation {
-                    if let orders = orderManager.order {
-                        if orderManager.postN > 1 {
-                            startIndexP = (startIndexP + 1) % orderManager.postN
-                        }
-                    }
-                }
-            }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .onReceive(timer) { _ in
+            guard total > 1 else { return }
+            withAnimation { startIndexP = (startIndexP + 1) % total }
+        }
     }
-    
+
     var DemoViewOther: some View {
-        TabView(selection: $startIndexO) {
-            if let orders = orderManager.order {
-                ForEach(orders.indices, id: \.self) { index in
-                    if orders[index].tag == "3"{
-                        VStack {
-                            Spacer()
-                            HStack {
-                                Spacer()
-                                Text("\(orders[index].message) \n -by \(orders[index].name)")
-                                    .font(.headline)
-                                    .lineLimit(5)
-                                    .multilineTextAlignment(.center)
-                                    .padding()
-                                Spacer()
-                            }
-                            Spacer()
-                        }
-                        .onTapGesture {
-                            if let url = URL(string: orders[index].url) {
-                                if UIApplication.shared.canOpenURL(url) {
-                                    handleURL(orders[index].url)
-                                } else {
-                                    print("Cannot open URL: \(orders[index].url)")
-                                }
-                            }
-                        }
-                    }
+        let orders = orderManager.order ?? []
+        let tagged = orders.enumerated().filter { $0.element.tag == "3" }  // 其他
+        let total = tagged.count
+
+        return TabView(selection: $startIndexO) {
+            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
+                AnnouncementCard(
+                    message: item.message,
+                    author: "— \(item.name)",
+                    tag: item.tag,                    // 若你的型別是 Int，記得轉成 String
+                    urlString: item.url
+                ) {
+                    handleURL(item.url)               // 你的開啟邏輯
                 }
-                .background(Color.white)
-                .cornerRadius(15)
-                .overlay(RoundedRectangle(cornerRadius: 15)
-                    .stroke(Color.black))
-                .padding(.horizontal, 1)
+                .frame(maxWidth: .infinity, minHeight: 140)
+                .padding(.horizontal, 8)
+                .tag(index)
             }
+
         }
-        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .automatic))
-        .onReceive(timer) { _ in
-                withAnimation {
-                    if let orders = orderManager.order {
-                        if orderManager.otherN > 1 {
-                            startIndexO = (startIndexO + 1) % orderManager.otherN
-                        }
-                    }
-                }
-            }
+        .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .onReceive(timer) { _ in
+            guard total > 1 else { return }
+            withAnimation { startIndexO = (startIndexO + 1) % total }
+        }
     }
+
+    
     
     func nextUpcomingCourse() -> Course? {
         let currentDate = Date()
@@ -852,3 +736,112 @@ struct LinkView: View {
     }
 }
 
+import UIKit // UIPasteboard 複製連結
+
+// 分類→標題+顏色
+private func tagInfo(_ tag: String) -> (title: String, color: Color) {
+    switch tag {
+    case "1": return ("活動", .blue)
+    case "2": return ("社團", .green)
+    case "3": return ("其他", .orange)
+    default:  return ("公告", .gray)
+    }
+}
+
+// 從 url 取網域（去掉 www.）
+private func host(from urlString: String) -> String? {
+    guard let url = URL(string: urlString), let h = url.host else { return nil }
+    return h.replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
+}
+
+// 上方左側分類膠囊
+private struct TagChip: View {
+    let text: String
+    let color: Color
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 8).padding(.vertical, 4)
+            .foregroundStyle(color)
+            .background(color.opacity(0.12), in: Capsule())
+    }
+}
+
+// 右下角「有連結」提示膠囊
+private struct LinkChip: View {
+    let host: String
+    var body: some View {
+        Label("前往 · \(host)", systemImage: "arrow.up.right.square")
+            .font(.caption2.weight(.semibold))
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .foregroundStyle(.tint)
+            .background(Color.accentColor.opacity(0.12), in: Capsule())
+    }
+}
+
+// 可重用的公告卡片內容
+private struct AnnouncementCard: View {
+    let message: String
+    let author: String
+    let tag: String
+    let urlString: String?
+    let onTap: () -> Void
+
+    var hasURL: Bool { (urlString?.isEmpty == false) && (URL(string: urlString!) != nil) }
+    var tagMeta: (title: String, color: Color) { tagInfo(tag) }
+
+    var body: some View {
+        ZStack {
+            // 背景卡片（深/淺色自動適配）
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(.quaternary)
+
+            VStack(alignment: .leading, spacing: 8) {
+                // 左上分類
+                HStack {
+                    TagChip(text: tagMeta.title, color: tagMeta.color)
+
+                    Spacer()
+
+                    if hasURL, let h = host(from: urlString!) {
+                        LinkChip(host: h)
+                    }
+                }
+
+                // 內文
+                Text(message)
+                    .font(.headline)
+                    .multilineTextAlignment(.leading)
+                    .lineLimit(4)
+                    .lineSpacing(2)
+                    .foregroundStyle(.primary)
+                    .padding(.top, 2)
+
+                Spacer(minLength: 6)
+
+                // 底部：作者
+                Label(author, systemImage: "person.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .labelStyle(.titleAndIcon)
+
+            }
+            .padding(12)
+        }
+        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+        .contentShape(Rectangle())
+        .onTapGesture { if hasURL { onTap() } }   // 只有有連結時才動作
+        .opacity(hasURL ? 1 : 0.9)                // 無連結略微降噪
+        .contextMenu {                            // 長按選單（有連結時）
+            if hasURL, let urlStr = urlString {
+                Button("開啟連結", systemImage: "arrow.up.right.square") { onTap() }
+                Button("複製連結", systemImage: "doc.on.doc") {
+                    UIPasteboard.general.string = urlStr
+                }
+            }
+        }
+        .accessibilityAddTraits(.isButton)
+    }
+}

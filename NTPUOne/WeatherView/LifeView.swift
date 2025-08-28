@@ -175,12 +175,12 @@ private struct IconBadge: View {
 private struct CardBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(.white))
-//            .overlay(
-//                RoundedRectangle(cornerRadius: 14, style: .continuous)
-//                    .strokeBorder(.quaternary)
-//            )
-//            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+            .fill(Color(.secondarySystemBackground))
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .strokeBorder(.quaternary)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
     }
 }
 
@@ -282,7 +282,7 @@ extension LifeView{
             }
             .padding(14)
             .background(
-                cardShape.fill(Color(.white))  // 或 Color(.secondarySystemBackground)
+                cardShape.fill(Color(.secondarySystemBackground))
             )
             .overlay(
                 cardShape.strokeBorder(.quaternary)  // 邊框

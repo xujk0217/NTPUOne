@@ -24,7 +24,7 @@ struct UnifiedCourseGridView: View {
         VStack {
             LazyVGrid(columns: columns) {
                 ForEach(displayedShortDays, id: \.self) { day in
-                    Text(day)
+                    DayBadge(text: day)
                 }
                 ForEach(displayedDays, id: \.self) { day in
                     MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
@@ -150,183 +150,124 @@ struct CourseSlotView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
-    
-    let weekTimeFormatter: DateFormatter = {
-            let formatter = DateFormatter()
-        formatter.dateFormat = "EEEE" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
-        formatter.locale = Locale(identifier: "en_US")
-        return formatter
+
+    // 時間格式器（避免每次 new）
+    private let weekFmt: DateFormatter = {
+        let f = DateFormatter(); f.dateFormat = "EEEE"; f.locale = Locale(identifier: "en_US"); return f
     }()
-    
-    let hourTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
-        return formatter
-    }()
-    
-    let minuteTimeFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "mm" // EEEE 表示星期，HH:mm 表示 24 小時制的時：分
-        return formatter
-    }()
+    private let hourFmt: DateFormatter = { let f = DateFormatter(); f.dateFormat = "HH"; return f }()
+    private let minuteFmt: DateFormatter = { let f = DateFormatter(); f.dateFormat = "mm"; return f }()
 
     var body: some View {
-        VStack {
+        let isNow = setCurrentCourse(day: day, slot: slot)
+
+        VStack(spacing: 4) {
             if filteredCourses.isEmpty {
                 if isEdit {
-                    Button(action: addNewCourse) {
-                        Text("+")
-                            .font(.largeTitle)
-                            .foregroundColor(.green)
-                    }
+                    AddCourseTile(tint: slotTint(slot)) { addNewCourse() }
                 } else {
-                    VStack{
-                        if setCurrentCourse(day: day, slot: slot){
-                            Text("now")
-                                .font(.caption2)
-                                .foregroundColor(.red)
-                        }
-                        Text("")
+                    // 留空但顯示 NOW 標籤（若命中）
+                    if isNow {
+                        Text("NOW")
+                            .font(.caption2.weight(.bold))
+                            .padding(.horizontal, 6).padding(.vertical, 2)
+                            .background(Color.red.opacity(0.15), in: Capsule())
+                            .foregroundStyle(.red)
+                    } else {
+                        Spacer(minLength: 0)
+                        Text("").font(.caption)
+                        Spacer(minLength: 0)
                     }
                 }
             } else {
                 ForEach(filteredCourses) { course in
                     if isEdit {
-                        Button(action: { editCourse(course) }) {
+                        Button { editCourse(course) } label: {
                             Text(course.name)
-                                .font(.caption)
-                                .foregroundColor(.blue)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(2)
+                                .multilineTextAlignment(.center)
+                                .frame(maxWidth: .infinity)
+                                .padding(6)
+                                .foregroundStyle(slotTint(slot))
                         }
+                        .buttonStyle(.plain)
                     } else {
-                        Button(action: { viewCourseDetails(course) }) {
-                            VStack{
-                                if setCurrentCourse(day: day, slot: slot){
-                                    Text("now")
-                                        .font(.caption2)
-                                        .foregroundColor(.red)
-                                        .padding(2)
+                        Button { viewCourseDetails(course) } label: {
+                            VStack(spacing: 4) {
+                                if isNow {
+                                    Text("NOW")
+                                        .font(.caption2.weight(.bold))
+                                        .padding(.horizontal, 6).padding(.vertical, 2)
+                                        .background(Color.red.opacity(0.15), in: Capsule())
+                                        .foregroundStyle(.red)
                                 }
-                                Spacer()
                                 Text(course.name)
                                     .font(.caption)
-                                    .foregroundColor(.black)
-                                Spacer()
-                                if setCurrentCourse(day: day, slot: slot){
-                                    Text("")
-                                        .font(.caption2)
-                                        .foregroundColor(.red)
-                                }
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .foregroundStyle(.primary)
                             }
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 6).padding(.vertical, 8)
                         }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
                     }
                 }
             }
         }
         .frame(height: 100)
         .frame(minWidth: 35, maxWidth: 80)
-        .background(setCurrentCourse(day: day, slot: slot) ? Color.yellow.opacity(0.1) : Color.gray.opacity(0.1))
-        .cornerRadius(8)
-    }
-    
-    func setCurrentCourse(day: String, slot: Course.TimeSlot) -> Bool{
-        if day == (weekTimeFormatter.string(from: Date())){
-            switch slot {
-            case .morning1:
-                if hourTimeFormatter.string(from: Date()) == "08"{
-                    return true
-                }
-            case .morning2:
-                if hourTimeFormatter.string(from: Date()) == "09"{
-                    return true
-                }
-            case .morning3:
-                if hourTimeFormatter.string(from: Date()) == "10"{
-                    return true
-                }
-            case .morning4:
-                if hourTimeFormatter.string(from: Date()) == "11"{
-                    return true
-                }
-            case .afternoon1:
-                if hourTimeFormatter.string(from: Date()) == "13"{
-                    return true
-                }
-            case .afternoon2:
-                if hourTimeFormatter.string(from: Date()) == "14"{
-                    return true
-                }
-            case .afternoon3:
-                if hourTimeFormatter.string(from: Date()) == "15"{
-                    return true
-                }
-            case .afternoon4:
-                if hourTimeFormatter.string(from: Date()) == "16"{
-                    return true
-                }
-            case .afternoon5:
-                if hourTimeFormatter.string(from: Date()) == "17"{
-                    return true
-                }
-            case .evening1:
-                if hourTimeFormatter.string(from: Date()) == "18"{
-                    return true
-                } else if hourTimeFormatter.string(from: Date()) == "19"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! < 25{
-                        return true
-                    }
-                }
-            case .evening2:
-                if hourTimeFormatter.string(from: Date()) == "19"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! > 25{
-                        return true
-                    }
-                } else if hourTimeFormatter.string(from: Date()) == "20"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! < 20{
-                        return true
-                    }
-                }
-            case .evening3:
-                if hourTimeFormatter.string(from: Date()) == "20"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! > 20{
-                        return true
-                    }
-                } else if hourTimeFormatter.string(from: Date()) == "21"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! < 15{
-                        return true
-                    }
-                }
-            case .evening4:
-                if hourTimeFormatter.string(from: Date()) == "21"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! > 15{
-                        return true
-                    }
-                } else if hourTimeFormatter.string(from: Date()) == "22"{
-                    if Int(minuteTimeFormatter.string(from: Date()))! < 15{
-                        return true
-                    }
-                }
-            }
-        }
-        return false
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(isNow ? slotTint(slot).opacity(0.08) : Color.gray.opacity(0.08))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.15))
+        )
     }
 
+    // ===== 互動 =====
     func addNewCourse() {
         newCourse = Course(id: UUID().uuidString, name: "", day: day, startTime: .none, timeSlot: slot, location: "", teacher: "", isNotification: true)
         isNewCourse = true
         showingSheet = true
     }
-
     func editCourse(_ course: Course) {
         selectedCourse = course
         isNewCourse = false
         showingSheet = true
     }
-
     func viewCourseDetails(_ course: Course) {
         selectedCourse = course
         showingAlert = true
     }
 
+    // ===== 現在時段判斷（保留你的邏輯，只調整命名）=====
+    func setCurrentCourse(day: String, slot: Course.TimeSlot) -> Bool {
+        let now = Date()
+        if day != weekFmt.string(from: now) { return false }
+        let hh = hourFmt.string(from: now)
+        let mm = Int(minuteFmt.string(from: now)) ?? 0
+
+        switch slot {
+        case .morning1: return hh == "08"
+        case .morning2: return hh == "09"
+        case .morning3: return hh == "10"
+        case .morning4: return hh == "11"
+        case .afternoon1: return hh == "13"
+        case .afternoon2: return hh == "14"
+        case .afternoon3: return hh == "15"
+        case .afternoon4: return hh == "16"
+        case .afternoon5: return hh == "17"
+        case .evening1: return (hh == "18") || (hh == "19" && mm < 25)
+        case .evening2: return (hh == "19" && mm >= 25) || (hh == "20" && mm < 20)
+        case .evening3: return (hh == "20" && mm >= 20) || (hh == "21" && mm < 15)
+        case .evening4: return (hh == "21" && mm >= 15) || (hh == "22" && mm < 15)
+        }
+    }
 }
 
 
@@ -361,38 +302,104 @@ struct CourseFormSheet: View {
         }
     }
 }
-// 分离出来的午餐按钮视图
+
 struct LunchButtonView: View {
     var body: some View {
-        VStack {
-            NavigationLink {
-                LunchView()
-            } label: {
-                Text("午餐時間")
-                    .font(.caption)
-                    .frame(minWidth: 300, maxWidth: .infinity)
-                    .frame(height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+        NavigationLink {
+            LunchView()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "takeoutbag.and.cup.and.straw.fill")
+                    .imageScale(.medium)
+                Text("午餐時間").font(.subheadline.weight(.semibold))
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(.quaternary)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
+        .buttonStyle(.plain)
+        .padding(.vertical, 4)
     }
 }
 
-// 分离出来的晚餐按钮视图
 struct DinnerButtonView: View {
     var body: some View {
-        VStack {
-            NavigationLink {
-                dinnerView()
-            } label: {
-                Text("晚餐時間")
-                    .font(.caption)
-                    .frame(minWidth: 300, maxWidth: .infinity)
-                    .frame(height: 40)
-                    .background(Color.gray.opacity(0.1))
-                    .cornerRadius(8)
+        NavigationLink {
+            dinnerView()
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "fork.knife")
+                    .imageScale(.medium)
+                Text("晚餐時間").font(.subheadline.weight(.semibold))
+                Spacer()
+                Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
+            .padding(12)
+            .background(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .strokeBorder(.quaternary)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
+        .buttonStyle(.plain)
+        .padding(.vertical, 4)
+    }
+}
+
+
+private func slotTint(_ slot: Course.TimeSlot) -> Color {
+    switch slot {
+    case .morning1, .morning2, .morning3, .morning4: return .blue
+    case .afternoon1, .afternoon2, .afternoon3, .afternoon4, .afternoon5: return .orange
+    case .evening1, .evening2, .evening3, .evening4: return .purple
+    }
+}
+
+private struct DayBadge: View {
+    let text: String
+    var body: some View {
+        Text(text)
+            .font(.caption2.weight(.semibold))
+            .padding(.vertical, 6).frame(maxWidth: .infinity)
+            .background(Color(.secondarySystemBackground))
+            .foregroundStyle(.secondary)
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
+private struct AddCourseTile: View {
+    let tint: Color
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 6) {
+                Image(systemName: "plus")
+                    .font(.headline)
+                Text("新增").font(.caption2)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(8)
+            .foregroundStyle(tint)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(style: StrokeStyle(lineWidth: 1, dash: [4]))
+                    .foregroundStyle(tint.opacity(0.5))
+            )
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
     }
 }

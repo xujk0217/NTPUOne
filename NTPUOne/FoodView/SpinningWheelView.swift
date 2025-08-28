@@ -17,8 +17,8 @@ struct SpinningWheelView: View {
     @State private var rotation: Double = 0
     @State private var isSpinning = false
     
-    let Ecolors: [Color] = [.orange.opacity(0.3), .white]
-    let Ocolors: [Color] = [.orange.opacity(0.3), .white, .gray.opacity(0.3)]
+    let Ecolors: [Color] = [.orange.opacity(0.8), Color(.systemBackground).opacity(0.8)]
+    let Ocolors: [Color] = [.orange.opacity(0.8), Color(.systemBackground).opacity(0.8), .gray.opacity(0.8)]
 
     var body: some View {
         VStack(spacing: 16) {
@@ -26,7 +26,8 @@ struct SpinningWheelView: View {
             ZStack{
                 ZStack {
                     Circle()
-                        .stroke(Color.gray.opacity(0.2), lineWidth: 2)
+                        .fill(Color.white)
+                        .stroke(Color(.gray.opacity(0.3)), lineWidth: 2)
                         .frame(width: 280, height: 280)
 
                     ForEach(restaurants.indices, id: \.self) { index in
@@ -47,7 +48,7 @@ struct SpinningWheelView: View {
                         VStack {
                             Text(restaurants[index].store)
                                 .font(.caption2)
-                                .foregroundColor(.black)
+                                .foregroundColor(.primary)
                                 .rotationEffect(.degrees(-startAngle - anglePerItem / 2))
                                 .frame(width: 70)
                                 .lineLimit(1)
