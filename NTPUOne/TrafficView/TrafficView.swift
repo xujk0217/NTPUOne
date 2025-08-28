@@ -53,10 +53,8 @@ struct TrafficView: View {
                                 .frame(height: 300)
                             } header: {
                                 Text("腳踏車地圖")
-                                    .foregroundStyle(Color.black)
                             } footer: {
                                 Text("名稱：站名-(腳踏車數/總數)")
-                                    .foregroundStyle(Color.black)
                             }
                             
                             Section {
@@ -87,7 +85,6 @@ struct TrafficView: View {
                             } header: {
                                 HStack {
                                     Text("Ubike in NTPU")
-                                        .foregroundStyle(Color.black)
                                     Spacer()
                                     if isExpanded {
                                         NavigationLink(destination: MoreBikeView()) {
@@ -98,7 +95,6 @@ struct TrafficView: View {
                                 }
                             } footer: {
                                 Text("更新頻率：每5分鐘")
-                                    .foregroundStyle(Color.black)
                             }
 //                            // 廣告標記
 //                            Section {

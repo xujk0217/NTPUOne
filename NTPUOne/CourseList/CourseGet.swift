@@ -284,7 +284,7 @@ struct CourseGetView: View {
                                             .padding()
                                     }
                                     .padding()
-                                    .foregroundStyle(SelectCourseNo == course.courseno ? Color.blue : Color.black)
+                                    .foregroundStyle(SelectCourseNo == course.courseno ? Color.blue : Color.primary)
                                 }
                             }
                         } else {

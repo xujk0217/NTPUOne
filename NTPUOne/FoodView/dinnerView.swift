@@ -27,7 +27,6 @@ struct dinnerView: View {
                         }
                     } header: {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
-                            .foregroundStyle(Color.black)
                     }
 //                    // 廣告標記
 //                    Section {

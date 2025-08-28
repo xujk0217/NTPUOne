@@ -39,7 +39,6 @@ struct dietView: View {
                     mapView
                 } header: {
                     Text("餐廳位置")
-                        .foregroundStyle(.black)
                 }
 
                 if !store.check {
@@ -88,7 +87,6 @@ struct dietView: View {
                     }
                 } footer: {
                     Text("點擊進入地圖")
-                        .foregroundStyle(.black)
                 }
 
 //                // 廣告標記

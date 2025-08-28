@@ -36,10 +36,8 @@ struct BackTrafficView: View {
                                 Text("升級至 IOS 17.0 以開啟地圖功能")
                             } header: {
                                 Text("腳踏車地圖")
-                                    .foregroundStyle(Color.black)
                             } footer: {
                                 Text("名稱：站名-(腳踏車數/總數)")
-                                    .foregroundStyle(Color.black)
                             }
                             Section {
                                 DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded) {
@@ -69,7 +67,6 @@ struct BackTrafficView: View {
                             } header: {
                                 HStack {
                                     Text("Ubike in NTPU")
-                                        .foregroundStyle(Color.black)
                                     Spacer()
                                     if isExpanded {
                                         NavigationLink(destination: MoreBikeView()) {
@@ -80,7 +77,6 @@ struct BackTrafficView: View {
                                 }
                             } footer: {
                                 Text("更新頻率：每5分鐘")
-                                    .foregroundStyle(Color.black)
                             }
 //                            // 廣告標記
 //                            Section {

@@ -437,7 +437,7 @@ struct LinkView: View {
     
     private var webSections: some View {
         ForEach(webManager.websArray) { webs in
-            Section(header: Text(webs.title).foregroundStyle(Color.black), footer: footerText(for: webs.id).foregroundStyle(Color.black)) {
+            Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
                 if webs.id == 3 {
                     disclosureGroup(for: webs)
                 } else if webs.id == 4 {
