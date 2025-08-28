@@ -98,7 +98,7 @@ struct LinkView: View {
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                             if let m = minutesUntilStart(of: c) {
-                                                Text("還有 \(m) 分")
+                                                Text("還有 \(m-5) 分")
                                                     .font(.caption.weight(.semibold))
                                                     .padding(.horizontal, 8)
                                                     .padding(.vertical, 2)
@@ -125,7 +125,6 @@ struct LinkView: View {
 
                                     Spacer()
 
-                                    // 若有開啟提醒可以顯示個小鈴鐺（可選）
                                     if c.isNotification {
                                         Image(systemName: "bell.fill")
                                             .font(.callout)
@@ -240,7 +239,7 @@ struct LinkView: View {
                 .alert(isPresented: $showingAlert) {
                     Alert(
                         title: Text(courseName),
-                        message: Text("教授：\(courseTeacher == "" ? "..." : courseTeacher) 教授\n時間：\(courseDay), \(courseTime)\n地點：\(courseLocation == "" ? "..." : courseLocation)"),
+                        message: Text("教授：\(courseTeacher == "" ? " - " : courseTeacher) 教授\n時間：\(courseDay), \(courseTime)\n地點：\(courseLocation == "" ? " - " : courseLocation)"),
                         dismissButton: .default(Text("OK"))
                     )
                 }

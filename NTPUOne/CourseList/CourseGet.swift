@@ -19,14 +19,15 @@ struct CourseG: Identifiable, Decodable, Equatable {
     var location: String
 }
 
-// 视图模型 (ViewModel)
+// ViewModel
 class CourseGViewModel: ObservableObject {
     @Published var courseno: String = ""
     @Published var courseYear: String = "114"
     @Published var courseSemester: String = "1"
     @Published var courses: [CourseG] = []
     @Published var errorMessage: String?
-    @Published var htmlString: String?  // 用于显示原始 HTML 的属性
+    @Published var htmlString: String?
+    @Published var isLoading: Bool = false
 
     private var cancellables = Set<AnyCancellable>()
 
@@ -36,6 +37,12 @@ class CourseGViewModel: ObservableObject {
                 self.errorMessage = "Invalid URL"
             }
             return
+        }
+        
+        DispatchQueue.main.async {
+            self.isLoading = true
+            self.errorMessage = nil
+            self.courses = []
         }
 
         var request = URLRequest(url: url)
@@ -75,6 +82,7 @@ class CourseGViewModel: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completion in
+                self.isLoading = false
                 switch completion {
                 case .failure(let error):
                     self.errorMessage = error.localizedDescription
@@ -179,7 +187,7 @@ class CourseGViewModel: ObservableObject {
     }
 }
 
-// SwiftUI视图
+// SwiftUI
 struct CourseGetView: View {
     @State var newCourse = Course(id: "", name: "", day: "Monday", startTime: .none, timeSlot: .morning1, location: "", teacher: "", isNotification: true)
     @StateObject var viewModel = CourseGViewModel()
@@ -230,9 +238,17 @@ struct CourseGetView: View {
                             Text("輸入課程編號:")
                             TextField("如:U4001或只打部分數字", text: $viewModel.courseno)
                         }
-                        Button("查詢課程") {
-                            viewModel.fetchCourses()
+                        Button(action: { viewModel.fetchCourses() }) {
+                            HStack(spacing: 8) {
+                                if viewModel.isLoading {
+                                    ProgressView().scaleEffect(0.9)
+                                }
+                                Text(viewModel.isLoading ? "搜尋中…" : "查詢課程")
+                                    .fontWeight(.semibold)
+                            }
                         }
+                        .disabled(viewModel.isLoading)
+
                     } header: {
                         Text("課程查詢")
                     } footer: {
