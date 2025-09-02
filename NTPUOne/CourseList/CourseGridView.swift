@@ -17,7 +17,9 @@ struct UnifiedCourseGridView: View {
     @State private var isNewCourse = false
     
     @Binding var includeSaturday: Bool
-    
+
+    @State var peekCourse: Course? = nil
+
     @Binding var includeNight: Bool
 
     var body: some View {
@@ -27,20 +29,20 @@ struct UnifiedCourseGridView: View {
                     DayBadge(text: day)
                 }
                 ForEach(displayedDays, id: \.self) { day in
-                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
                 }
             }
             LunchButtonView()
             LazyVGrid(columns: columns) {
                 ForEach(displayedDays, id: \.self) { day in
-                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
                 }
             }
             if includeNight{
                 DinnerButtonView()
                 LazyVGrid(columns: columns) {
                     ForEach(displayedDays, id: \.self) { day in
-                        EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                        EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
                     }
                 }
             }
@@ -50,12 +52,10 @@ struct UnifiedCourseGridView: View {
         .sheet(isPresented: $showingSheet) {
             CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)
         }
-        .alert(isPresented: $showingAlert) {
-            Alert(
-                title: Text(selectedCourse.name),
-                message: Text("教授：\(selectedCourse.teacher.isEmpty ? "..." : selectedCourse.teacher) 教授\n時間：\(selectedCourse.day), \(selectedCourse.startTime.rawValue)\n地點：\(selectedCourse.location.isEmpty ? "..." : selectedCourse.location)\n通知：\(selectedCourse.isNotification ? "開啟" : "關閉")"),
-                dismissButton: .default(Text("OK"))
-            )
+        .sheet(item: $peekCourse) { course in
+            CourseDetailSheet(course: course)
+                .presentationDetents([.fraction(0.35)])
+                .presentationDragIndicator(.visible)
         }
     }
 
@@ -82,6 +82,7 @@ struct MorningCourseColumnView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
+    @Binding var peekCourse: Course?
 
     var body: some View {
         VStack{
@@ -89,7 +90,7 @@ struct MorningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
                 
             }
         }
@@ -105,6 +106,7 @@ struct AfternoonCourseColumnView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
+    @Binding var peekCourse: Course?
 
     var body: some View {
         VStack{
@@ -112,7 +114,7 @@ struct AfternoonCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
             }
         }
     }
@@ -127,6 +129,7 @@ struct EveningCourseColumnView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
+    @Binding var peekCourse: Course?
 
     var body: some View {
         VStack{
@@ -134,7 +137,7 @@ struct EveningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
             }
         }
     }
@@ -150,6 +153,7 @@ struct CourseSlotView: View {
     @Binding var selectedCourse: Course
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
+    @Binding var peekCourse: Course?
 
     // 時間格式器（避免每次 new）
     private let weekFmt: DateFormatter = {
@@ -183,13 +187,22 @@ struct CourseSlotView: View {
                 ForEach(filteredCourses) { course in
                     if isEdit {
                         Button { editCourse(course) } label: {
-                            Text(course.name)
-                                .font(.caption.weight(.semibold))
-                                .lineLimit(2)
-                                .multilineTextAlignment(.center)
-                                .frame(maxWidth: .infinity)
-                                .padding(6)
-                                .foregroundStyle(slotTint(slot))
+                            VStack(spacing: 2) {
+                                Text(course.name)
+                                    .font(.caption.weight(.semibold))
+                                    .lineLimit(2)
+                                    .multilineTextAlignment(.center)
+                                    .frame(maxWidth: .infinity)
+                                    .foregroundStyle(slotTint(slot))          // 保持原本 tint 給課名
+
+                                Text(course.location.isEmpty ? "—" : course.location)
+                                    .font(.caption2)
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
+                                    .foregroundStyle(.secondary)              // 教室用次要色
+                            }
+                            .padding(6)
+                            
                         }
                         .buttonStyle(.plain)
                     } else {
@@ -202,11 +215,19 @@ struct CourseSlotView: View {
                                         .background(Color.red.opacity(0.15), in: Capsule())
                                         .foregroundStyle(.red)
                                 }
-                                Text(course.name)
-                                    .font(.caption)
-                                    .lineLimit(2)
-                                    .multilineTextAlignment(.center)
-                                    .foregroundStyle(.primary)
+                                VStack(spacing: 2) {
+                                    Text(course.name)
+                                        .font(.caption)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                        .foregroundStyle(.primary)
+
+                                    Text(course.location.isEmpty ? "—" : course.location)
+                                        .font(.caption2)
+                                        .lineLimit(1)
+                                        .truncationMode(.tail)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
                             .frame(maxWidth: .infinity)
                             .padding(.horizontal, 6).padding(.vertical, 8)
@@ -221,11 +242,11 @@ struct CourseSlotView: View {
         .frame(minWidth: 35, maxWidth: 80)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isNow ? slotTint(slot).opacity(0.08) : Color.gray.opacity(0.08))
+                .fill(isNow ? slotTint(slot).opacity(0.08) : Color.gray.opacity(0.15))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.15))
+                .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.25))
         )
     }
 
@@ -241,8 +262,14 @@ struct CourseSlotView: View {
         showingSheet = true
     }
     func viewCourseDetails(_ course: Course) {
-        selectedCourse = course
-        showingAlert = true
+//        selectedCourse = course
+//        showingAlert = true
+        if peekCourse?.id == course.id {
+            peekCourse = nil
+            DispatchQueue.main.async { peekCourse = course }
+        } else {
+            peekCourse = course
+        }
     }
 
     // ===== 現在時段判斷（保留你的邏輯，只調整命名）=====
@@ -401,5 +428,65 @@ private struct AddCourseTile: View {
         }
         .buttonStyle(.plain)
         .contentShape(Rectangle())
+    }
+}
+
+struct CourseDetailSheet: View {
+    let course: Course
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 16) {
+            // 標題
+            HStack(alignment: .firstTextBaseline) {
+                Text(course.name.isEmpty ? "未命名課程" : course.name)
+                    .font(.title3.bold())
+                    .lineLimit(2)
+                Spacer()
+            }
+
+            // 資訊卡
+            VStack(spacing: 10) {
+                infoRow(icon: "person.fill", title: "教授",  value: course.teacher.isEmpty ? "—" : "\(course.teacher) 教授")
+                infoRow(icon: "calendar",   title: "時間",  value: "\(course.day), \(course.startTime.rawValue)")
+                infoRow(icon: "mappin.and.ellipse", title: "地點",  value: course.location.isEmpty ? "—" : course.location)
+                infoRow(icon: course.isNotification ? "bell.fill" : "bell.slash.fill",
+                        title: "通知", value: course.isNotification ? "開啟" : "關閉")
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(.quaternary)
+            )
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .padding(.top, 16)
+    }
+
+    @ViewBuilder
+    private func infoRow(icon: String, title: String, value: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            Image(systemName: icon)
+                .font(.body)
+                .foregroundStyle(.tint)
+                .frame(width: 20)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.subheadline)
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+            }
+            Spacer()
+        }
     }
 }

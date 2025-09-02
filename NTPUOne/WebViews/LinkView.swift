@@ -57,6 +57,8 @@ struct LinkView: View {
     @State private var goLinks = false
     @State private var goRandomFood = false
     
+    @State private var peekCourse: Course? = nil
+    
     
     // adview
     @State private var adHeight: CGFloat = 100
@@ -70,12 +72,13 @@ struct LinkView: View {
                     Section("下一堂課") {
                         if let c = nextCourseOnAppear {
                             Button {
-                                courseName = c.name
-                                courseTeacher = c.teacher
-                                courseTime = c.startTime.rawValue
-                                courseLocation = c.location
-                                courseDay = c.day
-                                showingAlert = true
+//                                courseName = c.name
+//                                courseTeacher = c.teacher
+//                                courseTime = c.startTime.rawValue
+//                                courseLocation = c.location
+//                                courseDay = c.day
+//                                showingAlert = true
+                                peekCourse = c
                             } label: {
                                 HStack(alignment: .top, spacing: 12) {
                                     // 左側圖示圓點
@@ -219,12 +222,10 @@ struct LinkView: View {
                         WebDetailView(url: urlString)
                     }
                 }
-                .alert(isPresented: $showingAlert) {
-                    Alert(
-                        title: Text(courseName),
-                        message: Text("教授：\(courseTeacher == "" ? " - " : courseTeacher) 教授\n時間：\(courseDay), \(courseTime)\n地點：\(courseLocation == "" ? " - " : courseLocation)"),
-                        dismissButton: .default(Text("OK"))
-                    )
+                .sheet(item: $peekCourse) { course in
+                    CourseDetailSheet(course: course)
+                        .presentationDetents([.fraction(0.35)])
+                        .presentationDragIndicator(.visible)
                 }
                 if !adFree.isAdFree{
                     // 廣告標記
