@@ -46,24 +46,7 @@ struct RandomFoodView: View {
                 } header: {
                     Text("餐別選擇")
                 }
-
-                // MARK: - 轉盤轉動區
-                if let foodList = fManager.Food {
-                    let filteredList = foodList.filter { restaurant in
-                        selectedIDs.contains(restaurant.id ?? "")
-                    }
-
-                    Section {
-                        SpinningWheelView(restaurants: filteredList, resetTrigger: $resetTrigger) { selected in
-                            selectedRestaurant = selected
-                        }
-                    } header: {
-                        Text("轉盤")
-                    }
-                }
-
-
-                // MARK: - 結果顯示區（中獎 or 顯示清單）
+                // MARK: - 結果顯示區（中獎）
                 Section {
                     if let restaurant = selectedRestaurant {
                         NavigationLink(
@@ -86,7 +69,7 @@ struct RandomFoodView: View {
                         )
                     } else {
                         VStack{
-                            Text("點擊上方輪盤按鈕即可抽獎")
+                            Text("點擊下方輪盤按鈕即可抽獎")
                                 .font(.headline)
                         }
                         .padding()
@@ -95,6 +78,23 @@ struct RandomFoodView: View {
                 } header: {
                     Text("推薦結果")
                 }
+                
+                // MARK: - 轉盤轉動區
+                if let foodList = fManager.Food {
+                    let filteredList = foodList.filter { restaurant in
+                        selectedIDs.contains(restaurant.id ?? "")
+                    }
+
+                    Section {
+                        SpinningWheelView(restaurants: filteredList, resetTrigger: $resetTrigger) { selected in
+                            selectedRestaurant = selected
+                        }
+                    } header: {
+                        Text("轉盤")
+                    }
+                }
+
+                // MARK: - 顯示清單
                 Section(header: Text("餐廳列表"),
                         footer: Text("勾選你想要參加抽籤的餐廳\n可到 Life 頁面新增餐廳")) {
                     if let foodList = fManager.Food {
