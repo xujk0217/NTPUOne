@@ -34,32 +34,47 @@ struct AboutView: View {
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
     
+    //admin
+    @AppStorage("isAdmin") private var isAdmin: Bool = false
+    
     var body: some View {
         NavigationStack {
             List {
-                Section(header: Text("消除廣告")) {
-                    if adFree.isAdFree {
-                        HStack {
-                            Image(systemName: "checkmark.seal.fill")
-                            Text("今天已無橫幅廣告")
-                            Spacer()
-                            Button(role: .destructive) {
-                                adFree.clear()
-                                preloadRewardedIfNeeded()
-                            } label: {
-                                Text("重置（我想看廣告）")
-                            }
-                        }
-                    } else {
-                        Button {
-                            showRewarded()
+                if isAdmin {
+                    Section{
+                        NavigationLink{
+                            AdminConsoleView()
                         } label: {
-                            HStack {
-                                Image(systemName: "film.stack")
-                                Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅廣告")
-                            }
+                            Text("Admin page")
                         }
-                        .disabled(isLoading)
+                    } header: {
+                        Text("Admin")
+                    }
+                }else{
+                    Section(header: Text("消除廣告")) {
+                        if adFree.isAdFree {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                Text("今天已無橫幅廣告")
+                                Spacer()
+                                Button(role: .destructive) {
+                                    adFree.clear()
+                                    preloadRewardedIfNeeded()
+                                } label: {
+                                    Text("重置（我想看廣告）")
+                                }
+                            }
+                        } else {
+                            Button {
+                                showRewarded()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "film.stack")
+                                    Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅廣告")
+                                }
+                            }
+                            .disabled(isLoading)
+                        }
                     }
                 }
                 Section {
@@ -131,20 +146,6 @@ struct AboutView: View {
                 } header: {
                     Text("Me")
                 }
-//                // 廣告標記
-//                Section {
-//                    NativeAdBoxView(
-//                        style: .compact(media: 120),
-//                        height: $adHeight
-//                    )
-//                    .frame(height: adHeight)
-//                    .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                    .listRowSeparator(.hidden)
-//                    .listRowBackground(Color.white)
-//                    .padding(.horizontal, 8)
-//                } header: {
-//                    Text("廣告")
-//                }
             }
             .navigationTitle("About")
             .onAppear { preloadRewardedIfNeeded() }

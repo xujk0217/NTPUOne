@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 56;
+	objectVersion = 70;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -21,6 +21,8 @@
 		3F59B8362C69F2E200AFB700 /* CalendarKit in Frameworks */ = {isa = PBXBuildFile; productRef = 3F59B8352C69F2E200AFB700 /* CalendarKit */; };
 		3F5C1F2D2E5F282E00129A0D /* AdFreeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5C1F2C2E5F282E00129A0D /* AdFreeService.swift */; };
 		3F5C1F2F2E5F286000129A0D /* RewardedAdHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5C1F2E2E5F286000129A0D /* RewardedAdHelper.swift */; };
+		3F5C1F382E6B6AB000129A0D /* ReportModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5C1F372E6B6AB000129A0D /* ReportModel.swift */; };
+		3F5C1F3A2E6B6AD200129A0D /* ReportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F5C1F392E6B6AD200129A0D /* ReportManager.swift */; };
 		3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */; };
 		3F8453082E40B832008B04D4 /* AdvancedNativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */; };
 		3F84530A2E4399AC008B04D4 /* SpinningWheelView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F8453092E4399AC008B04D4 /* SpinningWheelView.swift */; };
@@ -146,6 +148,8 @@
 		3F59B8302C679AC400AFB700 /* CourseGridView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGridView.swift; sourceTree = "<group>"; };
 		3F5C1F2C2E5F282E00129A0D /* AdFreeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdFreeService.swift; sourceTree = "<group>"; };
 		3F5C1F2E2E5F286000129A0D /* RewardedAdHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardedAdHelper.swift; sourceTree = "<group>"; };
+		3F5C1F372E6B6AB000129A0D /* ReportModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportModel.swift; sourceTree = "<group>"; };
+		3F5C1F392E6B6AD200129A0D /* ReportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportManager.swift; sourceTree = "<group>"; };
 		3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseLargeWidget.swift; sourceTree = "<group>"; };
 		3F8453072E40B832008B04D4 /* AdvancedNativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdvancedNativeAdView.swift; sourceTree = "<group>"; };
 		3F8453092E4399AC008B04D4 /* SpinningWheelView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpinningWheelView.swift; sourceTree = "<group>"; };
@@ -201,6 +205,10 @@
 		3FDF35682C8D3CB300952C69 /* PostManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostManager.swift; sourceTree = "<group>"; };
 		3FDF356A2C8D3FF800952C69 /* PostDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PostDetailView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		3F5C1F302E6B41AC00129A0D /* Admin */ = {isa = PBXFileSystemSynchronizedRootGroup; explicitFileTypes = {}; explicitFolders = (); path = Admin; sourceTree = "<group>"; };
+/* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
 		3F8B9F812C759762007BF30B /* Frameworks */ = {
@@ -391,6 +399,9 @@
 		3F9062B72C2C500400B9F24A /* AboutView */ = {
 			isa = PBXGroup;
 			children = (
+				3F5C1F392E6B6AD200129A0D /* ReportManager.swift */,
+				3F5C1F372E6B6AB000129A0D /* ReportModel.swift */,
+				3F5C1F302E6B41AC00129A0D /* Admin */,
 				3F59B81F2C67187300AFB700 /* AboutView.swift */,
 				3F9062BC2C2C524B00B9F24A /* AddOrderView.swift */,
 				3F9062C12C2CE70400B9F24A /* ReportBugView.swift */,
@@ -465,6 +476,9 @@
 			);
 			dependencies = (
 				3F8B9F932C759765007BF30B /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				3F5C1F302E6B41AC00129A0D /* Admin */,
 			);
 			name = NTPUOne;
 			packageProductDependencies = (
@@ -636,8 +650,10 @@
 				3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */,
 				3F9062732C2AB86700B9F24A /* WeatherManager.swift in Sources */,
 				3FDF35672C8C82E200952C69 /* SchoolPostView.swift in Sources */,
+				3F5C1F3A2E6B6AD200129A0D /* ReportManager.swift in Sources */,
 				3F84530E2E4399C8008B04D4 /* RandomFoodView.swift in Sources */,
 				3F8F951A2C291401001A1697 /* WebView.swift in Sources */,
+				3F5C1F382E6B6AB000129A0D /* ReportModel.swift in Sources */,
 				3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */,
 				3F9062BB2C2C515000B9F24A /* ContactMeView.swift in Sources */,
 				3F59B81E2C6710E500AFB700 /* LifeView.swift in Sources */,

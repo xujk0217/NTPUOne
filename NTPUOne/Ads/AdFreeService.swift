@@ -13,6 +13,8 @@ import Combine
 final class AdFreeService: ObservableObject {
     @Published private(set) var isAdFree: Bool = false
     @AppStorage("adFreeUntil") private var adFreeUntilTs: Double = 0
+    
+    @AppStorage("isAdmin") private var isAdmin: Bool = false
 
     static let shared = AdFreeService()
     private var cancellables = Set<AnyCancellable>()
@@ -26,7 +28,12 @@ final class AdFreeService: ObservableObject {
     }
 
     func refresh(now: Date = Date()) {
-        isAdFree = now.timeIntervalSince1970 < adFreeUntilTs
+        if isAdmin{
+            adFreeUntilTs = Calendar.current.date(byAdding: .year, value: 100, to: Date())!.timeIntervalSince1970
+            isAdFree = true
+        } else {
+            isAdFree = now.timeIntervalSince1970 < adFreeUntilTs
+        }
     }
 
     /// 今天 23:59:59 到期

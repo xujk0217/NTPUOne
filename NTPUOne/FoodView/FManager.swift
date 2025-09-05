@@ -60,6 +60,32 @@ class FManager: ObservableObject {
         default:  return K.FStoreF.collectionNamem
         }
     }
+    
+    /// 原子遞增星數（支援 +/−，多人同時操作不會彼此覆蓋）
+    func incrementStar(diet: String, id: String, delta: Double) {
+        let col = getCollectionName(for: diet)
+        db.collection(col).document(id).updateData([
+            K.FStoreF.starField: FieldValue.increment(delta)
+        ]) { err in
+            if let err = err { print("incrementStar failed: \(err)") }
+        }
+    }
+
+    /// 批次更新欄位（保留其他欄位）
+    func updateFoodFields(diet: String, id: String, fields: [String: Any]) {
+        let col = getCollectionName(for: diet)
+        db.collection(col).document(id).updateData(fields) { err in
+            if let err = err { print("updateFoodFields failed: \(err)") }
+        }
+    }
+
+    /// 刪除指定餐廳
+    func deleteFood(diet: String, id: String) {
+        let col = getCollectionName(for: diet)
+        db.collection(col).document(id).delete { err in
+            if let err = err { print("deleteFood failed: \(err)") }
+        }
+    }
 
 }
 

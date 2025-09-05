@@ -15,6 +15,15 @@ struct ContactMeView: View {
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
     @EnvironmentObject var adFree: AdFreeService
+    
+    // admin
+    @AppStorage("isAdmin") private var isAdmin: Bool = false
+    private let correctPassword = "910351"
+    @State private var tapCount = 0
+    @State private var showPasswordPrompt = false
+    @State private var passwordInput = ""
+    @State private var showWrongPasswordAlert = false
+    
     var body: some View {
         List {
             // Profile Card
@@ -40,6 +49,13 @@ struct ContactMeView: View {
                 }
                 .padding(.vertical, 4)
             } header: { Text("名字") }
+            .onTapGesture {
+                tapCount += 1
+                if tapCount >= 15 {
+                    tapCount = 0
+                    showPasswordPrompt = true
+                }
+            }
             
             // Social
             Section("社群") {
@@ -76,11 +92,44 @@ struct ContactMeView: View {
                     }
                 }
             }
+            if isAdmin {
+                Section("Admin"){
+                    VStack(spacing: 15) {
+                        Text("✅ 你現在是管理員")
+                            .foregroundColor(.green)
+
+                        Button("登出管理員") {
+                            isAdmin = false
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
+            }
         }
         .listStyle(.insetGrouped)
         .navigationTitle("Contact")
         .navigationBarTitleDisplayMode(.inline)
         .tint(.blue)
+        .alert("輸入管理員密碼", isPresented: $showPasswordPrompt) {
+            SecureField("密碼", text: $passwordInput)
+
+            Button("確認") {
+                if passwordInput == correctPassword {
+                    isAdmin = true   // ✅ 登入成功
+                    adFree.refresh()
+                } else {
+                    showWrongPasswordAlert = true
+                }
+                passwordInput = ""
+            }
+
+            Button("取消", role: .cancel) {
+                passwordInput = ""
+            }
+        }
+        .alert("密碼錯誤", isPresented: $showWrongPasswordAlert) {
+            Button("OK", role: .cancel) {}
+        }
         if !adFree.isAdFree{
             // 廣告標記
             Section {
