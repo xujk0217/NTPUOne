@@ -16,6 +16,7 @@ import UserNotifications
 import Network
 import WidgetKit
 import FirebaseAppCheck
+import StoreKit
 
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate {
@@ -190,6 +191,10 @@ struct NTPUOneApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var adFree = AdFreeService.shared
     @Environment(\.scenePhase) private var scenePhase
+    
+    init() {
+        incrementLaunchCount()
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -202,6 +207,27 @@ struct NTPUOneApp: App {
             if phase == .active {
                 adFree.refresh()   // 回到前景時刷新到期狀態
             }
+        }
+    }
+    
+    func incrementLaunchCount() {
+        let defaults = UserDefaults.standard
+        let launchCountKey = "appLaunchCount"
+        var count = defaults.integer(forKey: launchCountKey)
+        count += 1
+        defaults.set(count, forKey: launchCountKey)
+
+        print("App 已開啟 \(count) 次")
+
+        if count >= 3 && Bool.random() {
+            requestAppReview()
+        }
+    }
+
+    func requestAppReview() {
+        if let scene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
+            SKStoreReviewController.requestReview(in: scene)
         }
     }
 }
