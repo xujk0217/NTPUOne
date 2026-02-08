@@ -50,8 +50,8 @@ struct LifeView: View {
                                 .frame(height: 160)
                                 .background {
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(Color(.systemBackground))
-                                        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                        .fill(Color(.tertiarySystemBackground))
+                                        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
                                 }
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .padding(.horizontal)
@@ -173,8 +173,8 @@ private struct IconBadge: View {
 private struct CardBackground: View {
     var body: some View {
         RoundedRectangle(cornerRadius: 16, style: .continuous)
-            .fill(Color(.systemBackground))
-            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+            .fill(Color(.tertiarySystemBackground))
+            .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
     }
 }
 
@@ -276,8 +276,8 @@ extension LifeView{
             }
             .padding(14)
             .background {
-                cardShape.fill(Color(.systemBackground))
-                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                cardShape.fill(Color(.tertiarySystemBackground))
+                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
             }
             .overlay(alignment: .leading) {
                 Capsule()

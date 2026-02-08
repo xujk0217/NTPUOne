@@ -139,7 +139,7 @@ struct LinkView: View {
                                 .padding(12)
                                 .background {
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(Color(.systemBackground))
+                                        .fill(Color(.tertiarySystemBackground))
                                         .overlay(alignment: .leading) {
                                             Capsule()
                                                 .fill(slotTint(c.timeSlot))
@@ -147,7 +147,7 @@ struct LinkView: View {
                                                 .padding(.vertical, 8)
                                                 .padding(.leading, 6)
                                         }
-                                        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
                                 }
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .foregroundStyle(.primary)
@@ -174,8 +174,8 @@ struct LinkView: View {
                             .padding(12)
                             .background {
                                 RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color(.systemBackground))
-                                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                    .fill(Color(.tertiarySystemBackground))
+                                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
                             }
                             .listRowInsets(.init(top: 1, leading: 1, bottom: 1, trailing: 1))
                         }
@@ -322,12 +322,8 @@ struct LinkView: View {
         .frame(maxWidth: .infinity, minHeight: 70)
         .background {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.systemBackground))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color(.separator), lineWidth: 0.5)
-                }
-                .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
+                .fill(Color(.tertiarySystemBackground))
+                .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
         }
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
@@ -790,7 +786,7 @@ private struct AnnouncementCard: View {
         ZStack {
             // 背景卡片（適配 iOS 26 Liquid Glass 風格）
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.systemBackground))
+                .fill(Color(.secondarySystemBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(Color(.separator), lineWidth: 0.5)
