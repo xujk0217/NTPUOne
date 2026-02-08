@@ -48,14 +48,12 @@ struct LifeView: View {
                                     Spacer()
                                 }
                                 .frame(height: 160)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .fill(Color(.secondarySystemBackground))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .strokeBorder(.quaternary)
-                                )
+                                .background {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color(.systemBackground))
+                                        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .padding(.horizontal)
                             }
                         }
@@ -171,16 +169,12 @@ private struct IconBadge: View {
     }
 }
 
-// 小元件：卡片背景（含邊框＋陰影）
+// 小元件：卡片背景（適配 iOS 26 Liquid Glass 風格）
 private struct CardBackground: View {
     var body: some View {
-        RoundedRectangle(cornerRadius: 14, style: .continuous)
-            .fill(Color(.secondarySystemBackground))
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(.quaternary)
-            )
-            .shadow(color: .black.opacity(0.05), radius: 6, x: 0, y: 2)
+        RoundedRectangle(cornerRadius: 16, style: .continuous)
+            .fill(Color(.systemBackground))
+            .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
     }
 }
 
@@ -281,19 +275,18 @@ extension LifeView{
                 }
             }
             .padding(14)
-            .background(
-                cardShape.fill(Color(.secondarySystemBackground))
-            )
-            .overlay(
-                cardShape.strokeBorder(.quaternary)  // 邊框
-            )
-            .overlay(alignment: .leading) {
-                Rectangle()
-                    .fill(tint)
-                    .frame(width: 4) // 左側色條
+            .background {
+                cardShape.fill(Color(.systemBackground))
+                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
             }
-            .clipShape(cardShape)  // ✅ 關鍵：裁切避免溢出圓角
-            .shadow(color: .black.opacity(0.06), radius: 6, x: 0, y: 2)
+            .overlay(alignment: .leading) {
+                Capsule()
+                    .fill(tint)
+                    .frame(width: 4)
+                    .padding(.vertical, 8)
+                    .padding(.leading, 6)
+            }
+            .clipShape(cardShape)
             .padding(.horizontal)
             .padding(.bottom, 6)
         }

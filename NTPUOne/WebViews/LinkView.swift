@@ -137,21 +137,19 @@ struct LinkView: View {
                                     }
                                 }
                                 .padding(12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                        .fill(Color(.secondarySystemBackground))
+                                .background {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color(.systemBackground))
                                         .overlay(alignment: .leading) {
-                                            Rectangle()
+                                            Capsule()
                                                 .fill(slotTint(c.timeSlot))
                                                 .frame(width: 4)
+                                                .padding(.vertical, 8)
+                                                .padding(.leading, 6)
                                         }
-                                        .clipShape(cardShape)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                .strokeBorder(.quaternary)
-                                        )
-                                        .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-                                )
+                                        .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                                 .foregroundStyle(.primary)
                             }
                             .buttonStyle(.plain) // 避免 List 預設高亮
@@ -174,15 +172,11 @@ struct LinkView: View {
                                 Spacer()
                             }
                             .padding(12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.secondarySystemBackground))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                            .strokeBorder(.quaternary)
-                                    )
-                                    .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
-                            )
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color(.systemBackground))
+                                    .shadow(color: .black.opacity(0.15), radius: 12, x: 0, y: 6)
+                            }
                             .listRowInsets(.init(top: 1, leading: 1, bottom: 1, trailing: 1))
                         }
                     }
@@ -326,15 +320,16 @@ struct LinkView: View {
               .padding(.bottom)
         }
         .frame(maxWidth: .infinity, minHeight: 70)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-                .overlay(
+        .background {
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(.systemBackground))
+                .overlay {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(.quaternary)
-                )
-        )
-        .cornerRadius(12)
+                        .stroke(Color(.separator), lineWidth: 0.5)
+                }
+                .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     // 倒數分鐘（若已過時回傳 nil）
@@ -793,11 +788,14 @@ private struct AnnouncementCard: View {
 
     var body: some View {
         ZStack {
-            // 背景卡片（深/淺色自動適配）
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(.quaternary)
+            // 背景卡片（適配 iOS 26 Liquid Glass 風格）
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color(.systemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .stroke(Color(.separator), lineWidth: 0.5)
+                }
+                .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
 
             VStack(alignment: .leading, spacing: 8) {
                 // 左上分類
@@ -829,9 +827,8 @@ private struct AnnouncementCard: View {
                     .labelStyle(.titleAndIcon)
 
             }
-            .padding(12)
+            .padding(14)
         }
-        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
         .contentShape(Rectangle())
         .onTapGesture { if hasURL { onTap() } }   // 只有有連結時才動作
         .opacity(hasURL ? 1 : 0.9)                // 無連結略微降噪
