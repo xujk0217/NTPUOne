@@ -22,9 +22,32 @@ struct CourseG: Identifiable, Decodable, Equatable {
 // ViewModel
 class CourseGViewModel: ObservableObject {
     @Published var courseno: String = ""
-    @Published var courseYear: String = "114"
-    @Published var courseSemester: String = "1"
+    @Published var courseYear: String
+    @Published var courseSemester: String
     @Published var courses: [CourseG] = []
+    
+    // 根據當前日期計算預設年份和學期
+    static func getDefaultYearAndSemester() -> (year: String, semester: String) {
+        let now = Date()
+        let calendar = Calendar.current
+        let month = calendar.component(.month, from: now)
+        let westernYear = calendar.component(.year, from: now)
+        let rocYear = westernYear - 1911
+        
+        // 1-7月：前一年 + 第二學期
+        // 8-12月：今年 + 第一學期
+        if month >= 1 && month <= 7 {
+            return (year: String(rocYear - 1), semester: "2")
+        } else {
+            return (year: String(rocYear), semester: "1")
+        }
+    }
+    
+    init() {
+        let defaults = CourseGViewModel.getDefaultYearAndSemester()
+        self.courseYear = defaults.year
+        self.courseSemester = defaults.semester
+    }
     @Published var errorMessage: String?
     @Published var htmlString: String?
     @Published var isLoading: Bool = false
@@ -202,7 +225,12 @@ struct CourseGetView: View {
     
     @State var selectCourse = CourseG(courseno: "", courseName: "", teacher: "", time: "", location: "")
     
-    var years = ["114", "113", "112"]
+    // 動態計算年份選項：當前民國年 ± 1
+    var years: [String] {
+        let westernYear = Calendar.current.component(.year, from: Date())
+        let rocYear = westernYear - 1911
+        return [String(rocYear + 1), String(rocYear), String(rocYear - 1)]
+    }
     
     let semesters = ["1", "2"]
     
