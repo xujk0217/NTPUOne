@@ -206,6 +206,29 @@ class OrderManager: ObservableObject {
                     if let err = err { print("deleteOrder failed: \(err)") }
                 }
         }
+    
+    /// 上傳新的 Order 到 Firebase
+    func uploadOrder(message: String, name: String, url: String, tag: String, time: String, email: String, completion: ((Bool) -> Void)? = nil) {
+        let data: [String: Any] = [
+            K.FStoreOr.messageField: message,
+            K.FStoreOr.nameField: name,
+            K.FStoreOr.urlField: url,
+            K.FStoreOr.tagField: tag,
+            K.FStoreOr.timeField: time,
+            K.FStoreOr.emailField: email,
+            K.FStoreOr.dateField: Date().timeIntervalSince1970
+        ]
+        
+        db.collection(K.FStoreOr.collectionName).addDocument(data: data) { err in
+            if let err = err {
+                print("uploadOrder failed: \(err)")
+                completion?(false)
+            } else {
+                print("uploadOrder success")
+                completion?(true)
+            }
+        }
+    }
 }
 
 struct Order: Identifiable, Codable, Equatable {

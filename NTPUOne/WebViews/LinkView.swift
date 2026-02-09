@@ -51,6 +51,7 @@ struct LinkView: View {
     @State var startIndexE = 0
     @State var startIndexP = 0
     @State var startIndexO = 0
+    @State private var isDragging = false   // 追蹤用戶是否正在拖動
     
     
     @State private var goSchoolPosts = false
@@ -557,7 +558,9 @@ struct LinkView: View {
                     message: item.message,
                     author: "— \(item.name)",
                     tag: item.tag,
-                    urlString: item.url
+                    urlString: item.url,
+                    email: item.email,
+                    time: item.time
                 ) {
                     handleURL(item.url)
                 }
@@ -568,7 +571,13 @@ struct LinkView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isDragging = true }
+                .onEnded { _ in isDragging = false }
+        )
         .onReceive(timer) { _ in
+            guard !isDragging else { return }
             withAnimation {
                 if orders.count > 1 {
                     startIndex = (startIndex + 1) % orders.count
@@ -589,7 +598,9 @@ struct LinkView: View {
                     message: item.message,
                     author: "— \(item.name)",
                     tag: item.tag,
-                    urlString: item.url
+                    urlString: item.url,
+                    email: item.email,
+                    time: item.time
                 ) {
                     handleURL(item.url)
                 }
@@ -601,7 +612,13 @@ struct LinkView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isDragging = true }
+                .onEnded { _ in isDragging = false }
+        )
         .onReceive(timer) { _ in
+            guard !isDragging else { return }
             guard total > 1 else { return }
             withAnimation { startIndexE = (startIndexE + 1) % total }
         }
@@ -617,10 +634,12 @@ struct LinkView: View {
                 AnnouncementCard(
                     message: item.message,
                     author: "— \(item.name)",
-                    tag: item.tag,                    // 若你的型別是 Int，記得轉成 String
-                    urlString: item.url
+                    tag: item.tag,
+                    urlString: item.url,
+                    email: item.email,
+                    time: item.time
                 ) {
-                    handleURL(item.url)               // 你的開啟邏輯
+                    handleURL(item.url)
                 }
                 .frame(maxWidth: .infinity, minHeight: 140)
                 .padding(.horizontal, 8)
@@ -630,7 +649,13 @@ struct LinkView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isDragging = true }
+                .onEnded { _ in isDragging = false }
+        )
         .onReceive(timer) { _ in
+            guard !isDragging else { return }
             guard total > 1 else { return }
             withAnimation { startIndexP = (startIndexP + 1) % total }
         }
@@ -646,10 +671,12 @@ struct LinkView: View {
                 AnnouncementCard(
                     message: item.message,
                     author: "— \(item.name)",
-                    tag: item.tag,                    // 若你的型別是 Int，記得轉成 String
-                    urlString: item.url
+                    tag: item.tag,
+                    urlString: item.url,
+                    email: item.email,
+                    time: item.time
                 ) {
-                    handleURL(item.url)               // 你的開啟邏輯
+                    handleURL(item.url)
                 }
                 .frame(maxWidth: .infinity, minHeight: 140)
                 .padding(.horizontal, 8)
@@ -659,7 +686,13 @@ struct LinkView: View {
         }
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in isDragging = true }
+                .onEnded { _ in isDragging = false }
+        )
         .onReceive(timer) { _ in
+            guard !isDragging else { return }
             guard total > 1 else { return }
             withAnimation { startIndexO = (startIndexO + 1) % total }
         }
@@ -731,7 +764,7 @@ struct LinkView: View {
 import UIKit // UIPasteboard 複製連結
 
 // 分類→標題+顏色
-private func tagInfo(_ tag: String) -> (title: String, color: Color) {
+func tagInfo(_ tag: String) -> (title: String, color: Color) {
     switch tag {
     case "1": return ("活動", .blue)
     case "2": return ("社團", .green)
@@ -741,13 +774,13 @@ private func tagInfo(_ tag: String) -> (title: String, color: Color) {
 }
 
 // 從 url 取網域（去掉 www.）
-private func host(from urlString: String) -> String? {
+func host(from urlString: String) -> String? {
     guard let url = URL(string: urlString), let h = url.host else { return nil }
     return h.replacingOccurrences(of: #"^www\."#, with: "", options: .regularExpression)
 }
 
 // 上方左側分類膠囊
-private struct TagChip: View {
+struct TagChip: View {
     let text: String
     let color: Color
     var body: some View {
@@ -760,7 +793,7 @@ private struct TagChip: View {
 }
 
 // 右下角「有連結」提示膠囊
-private struct LinkChip: View {
+struct LinkChip: View {
     let host: String
     var body: some View {
         Label("前往 · \(host)", systemImage: "arrow.up.right.square")
@@ -772,15 +805,38 @@ private struct LinkChip: View {
 }
 
 // 可重用的公告卡片內容
-private struct AnnouncementCard: View {
+struct AnnouncementCard: View {
     let message: String
     let author: String
     let tag: String
     let urlString: String?
+    let email: String?          // 圖片網址
+    var time: String? = nil     // 新增 time 參數
     let onTap: () -> Void
 
     var hasURL: Bool { (urlString?.isEmpty == false) && (URL(string: urlString!) != nil) }
     var tagMeta: (title: String, color: Color) { tagInfo(tag) }
+    
+    /// 判斷是否為圖片型公告（email 和 time 相同且是有效的圖片網址）
+    var isImageCard: Bool {
+        guard let email = email, !email.isEmpty else { return false }
+        guard let time = time, !time.isEmpty else { return false }
+        guard email == time else { return false }
+        return isValidImageURL(email)
+    }
+    
+    /// 圖片網址（從 email 取得）
+    var imageURL: String? {
+        guard isImageCard else { return nil }
+        return email
+    }
+    
+    private func isValidImageURL(_ urlString: String) -> Bool {
+        guard URL(string: urlString) != nil else { return false }
+        let imageExtensions = ["jpg", "jpeg", "png", "gif", "webp"]
+        let ext = (urlString as NSString).pathExtension.lowercased()
+        return imageExtensions.contains(ext) || urlString.contains("cms-carrier.ntpu.edu.tw")
+    }
 
     var body: some View {
         ZStack {
@@ -792,43 +848,19 @@ private struct AnnouncementCard: View {
                         .stroke(Color(.separator), lineWidth: 0.5)
                 }
                 .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
-
-            VStack(alignment: .leading, spacing: 8) {
-                // 左上分類
-                HStack {
-                    TagChip(text: tagMeta.title, color: tagMeta.color)
-
-                    Spacer()
-
-                    if hasURL, let h = host(from: urlString!) {
-                        LinkChip(host: h)
-                    }
-                }
-
-                // 內文
-                Text(message)
-                    .font(.headline)
-                    .multilineTextAlignment(.leading)
-                    .lineLimit(4)
-                    .lineSpacing(2)
-                    .foregroundStyle(.primary)
-                    .padding(.top, 2)
-
-                Spacer(minLength: 6)
-
-                // 底部：作者
-                Label(author, systemImage: "person.fill")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .labelStyle(.titleAndIcon)
-
+            
+            if isImageCard {
+                // 圖片型公告
+                imageCardContent
+            } else {
+                // 一般文字型公告
+                textCardContent
             }
-            .padding(14)
         }
         .contentShape(Rectangle())
-        .onTapGesture { if hasURL { onTap() } }   // 只有有連結時才動作
-        .opacity(hasURL ? 1 : 0.9)                // 無連結略微降噪
-        .contextMenu {                            // 長按選單（有連結時）
+        .onTapGesture { if hasURL { onTap() } }
+        .opacity(hasURL ? 1 : 0.9)
+        .contextMenu {
             if hasURL, let urlStr = urlString {
                 Button("開啟連結", systemImage: "arrow.up.right.square") { onTap() }
                 Button("複製連結", systemImage: "doc.on.doc") {
@@ -837,5 +869,109 @@ private struct AnnouncementCard: View {
             }
         }
         .accessibilityAddTraits(.isButton)
+    }
+    
+    // MARK: - 圖片型公告內容
+    private var imageCardContent: some View {
+        ZStack {
+            // 背景圖片（填滿整個卡片，左右裁切）
+            GeometryReader { geo in
+                AsyncImage(url: URL(string: imageURL ?? "")) { phase in
+                    switch phase {
+                    case .empty:
+                        Color(.systemGray5)
+                            .overlay(ProgressView())
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(width: geo.size.width, height: geo.size.height)
+                            .clipped()
+                    case .failure:
+                        Color(.systemGray5)
+                            .overlay {
+                                Image(systemName: "photo")
+                                    .font(.title)
+                                    .foregroundStyle(.secondary)
+                            }
+                    @unknown default:
+                        Color(.systemGray5)
+                    }
+                }
+                .frame(width: geo.size.width, height: geo.size.height)
+            }
+            
+            // 漸層遮罩（讓文字更清楚）
+            LinearGradient(
+                colors: [.black.opacity(0.5), .black.opacity(0.1), .black.opacity(0.1), .black.opacity(0.5)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            
+            // 資訊層（固定佈局，和文字型一樣的結構）
+            VStack(alignment: .leading, spacing: 8) {
+                // 頂部：標籤 + 連結
+                HStack {
+                    TagChip(text: tagMeta.title, color: .white)
+                        .background(tagMeta.color.opacity(0.85), in: Capsule())
+
+                    Spacer()
+
+                    if hasURL, let h = host(from: urlString!) {
+                        Label("前往 · \(h)", systemImage: "arrow.up.right.square")
+                            .font(.caption2.weight(.semibold))
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .foregroundStyle(.white)
+                            .background(.white.opacity(0.3), in: Capsule())
+                    }
+                }
+
+                Spacer(minLength: 6)
+
+                // 底部：作者
+                Label(author, systemImage: "person.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
+                    .labelStyle(.titleAndIcon)
+                    .shadow(color: .black.opacity(0.5), radius: 2, x: 0, y: 1)
+            }
+            .padding(14)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+    }
+    
+    // MARK: - 一般文字型公告內容
+    private var textCardContent: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            // 左上分類
+            HStack {
+                TagChip(text: tagMeta.title, color: tagMeta.color)
+
+                Spacer()
+
+                if hasURL, let h = host(from: urlString!) {
+                    LinkChip(host: h)
+                }
+            }
+
+            // 內文
+            Text(message)
+                .font(.headline)
+                .multilineTextAlignment(.leading)
+                .lineLimit(4)
+                .lineSpacing(2)
+                .foregroundStyle(.primary)
+                .padding(.top, 2)
+
+            Spacer(minLength: 6)
+
+            // 底部：作者
+            Label(author, systemImage: "person.fill")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
+
+        }
+        .padding(14)
     }
 }
