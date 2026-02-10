@@ -30,6 +30,10 @@ struct Memo: Identifiable, Equatable {
     // 提醒規則
     var reminderRules: [ReminderRule]
     
+    // 自動提醒設定
+    var disableAutoDueReminder: Bool = false  // 是否禁用自動截止前提醒
+    var disableAutoPlanReminder: Bool = false // 是否禁用自動計劃時間提醒
+    
     // MARK: - 計算屬性
     
     /// 是否逾期

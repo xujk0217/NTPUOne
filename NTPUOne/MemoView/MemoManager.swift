@@ -166,7 +166,9 @@ class MemoManager: ObservableObject {
             dueAt: entity.dueAt,
             planAt: entity.planAt,
             doneAt: entity.doneAt,
-            reminderRules: reminderRules
+            reminderRules: reminderRules,
+            disableAutoDueReminder: entity.disableAutoDueReminder,
+            disableAutoPlanReminder: entity.disableAutoPlanReminder
         )
     }
     
@@ -255,6 +257,8 @@ class MemoManager: ObservableObject {
         entity.dueAt = memo.dueAt
         entity.planAt = memo.planAt
         entity.doneAt = memo.doneAt
+        entity.disableAutoDueReminder = memo.disableAutoDueReminder
+        entity.disableAutoPlanReminder = memo.disableAutoPlanReminder
         
         // 編碼提醒規則
         do {
@@ -471,27 +475,52 @@ class MemoManager: ObservableObject {
             )
         }
         
-        // 2. 自動在截止時間前 30 分鐘提醒（如果有設定截止時間）
-        if let dueAt = memo.dueAt {
-            let thirtyMinsBefore = dueAt.addingTimeInterval(-30 * 60)
-            if thirtyMinsBefore > Date() {
-                scheduleNotificationRequest(
-                    identifier: "memo_\(memo.id)_auto_due",
-                    memo: memo,
-                    triggerDate: thirtyMinsBefore,
-                    bodyOverride: "距離截止時間還有 30 分鐘"
-                )
+        // 2. 自動在截止時間前提醒（如果有設定截止時間且用戶未自訂且未禁用）
+        if let dueAt = memo.dueAt, !memo.disableAutoDueReminder {
+            // 檢查是否已有用戶自訂的截止前提醒
+            let hasBeforeDueReminder = memo.reminderRules.contains { rule in
+                rule.enabled && rule.kind == .beforeDue
+            }
+            
+            if !hasBeforeDueReminder {
+                // 提醒1：截止前一天
+                let oneDayBefore = dueAt.addingTimeInterval(-24 * 60 * 60)
+                if oneDayBefore > Date() {
+                    scheduleNotificationRequest(
+                        identifier: "memo_\(memo.id)_auto_due_1day",
+                        memo: memo,
+                        triggerDate: oneDayBefore,
+                        bodyOverride: "距離截止時間還有 1 天"
+                    )
+                }
+                
+                // 提醒2：截止前 30 分鐘
+                let thirtyMinsBefore = dueAt.addingTimeInterval(-30 * 60)
+                if thirtyMinsBefore > Date() {
+                    scheduleNotificationRequest(
+                        identifier: "memo_\(memo.id)_auto_due_30min",
+                        memo: memo,
+                        triggerDate: thirtyMinsBefore,
+                        bodyOverride: "距離截止時間還有 30 分鐘"
+                    )
+                }
             }
         }
         
-        // 3. 自動在計劃時間提醒（如果有設定計劃時間）
-        if let planAt = memo.planAt, planAt > Date() {
-            scheduleNotificationRequest(
-                identifier: "memo_\(memo.id)_auto_plan",
-                memo: memo,
-                triggerDate: planAt,
-                bodyOverride: "計劃時間到了，該開始處理了"
-            )
+        // 3. 自動在計劃時間提醒（如果有設定計劃時間且用戶未自訂且未禁用）
+        if let planAt = memo.planAt, planAt > Date(), !memo.disableAutoPlanReminder {
+            // 檢查是否已有用戶自訂的計劃時間提醒
+            let hasPlanReminder = memo.reminderRules.contains { rule in
+                rule.enabled && rule.kind == .atPlan
+            }
+            if !hasPlanReminder {
+                scheduleNotificationRequest(
+                    identifier: "memo_\(memo.id)_auto_plan",
+                    memo: memo,
+                    triggerDate: planAt,
+                    bodyOverride: "計劃時間到了，該開始處理了"
+                )
+            }
         }
     }
 
@@ -613,7 +642,8 @@ class MemoManager: ObservableObject {
     func cancelNotification(for memo: Memo) {
         // 取消所有與此備忘錄相關的通知
         var identifiers = memo.reminderRules.map { "memo_\(memo.id)_\($0.id)" }
-        identifiers.append("memo_\(memo.id)_auto_due")
+        identifiers.append("memo_\(memo.id)_auto_due_1day")
+        identifiers.append("memo_\(memo.id)_auto_due_30min")
         identifiers.append("memo_\(memo.id)_auto_plan")
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
         print("Cancelled notifications for memo '\(memo.title)'")

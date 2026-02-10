@@ -93,7 +93,7 @@ struct MorningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager, courseData: courseData)
                 
             }
         }
@@ -118,7 +118,7 @@ struct AfternoonCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager, courseData: courseData)
             }
         }
     }
@@ -142,7 +142,7 @@ struct EveningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager, courseData: courseData)
             }
         }
     }
@@ -160,6 +160,7 @@ struct CourseSlotView: View {
     @Binding var newCourse: Course
     @Binding var peekCourse: Course?
     @ObservedObject var memoManager: MemoManager
+    @ObservedObject var courseData: CourseData
 
     // 時間格式器（避免每次 new）
     private let weekFmt: DateFormatter = {
@@ -281,10 +282,68 @@ struct CourseSlotView: View {
         .id(memoManager.memos.map { $0.id }.joined())
     }
     
-    // 取得與課程相關的備忘錄
+    // 判斷兩個時段是否相連
+    func areTimeSlotsConnected(_ slot1: Course.TimeSlot, _ slot2: Course.TimeSlot) -> Bool {
+        let slots = Course.TimeSlot.allCases
+        guard let index1 = slots.firstIndex(of: slot1),
+              let index2 = slots.firstIndex(of: slot2) else {
+            return false
+        }
+        return abs(index1 - index2) == 1
+    }
+    
+    // 找出當前課程所在的連續課程段
+    func findConnectedCourseGroup(for course: Course) -> Set<String> {
+        // 找出所有與當前課程同名且在同一天的課程
+        let sameNameCourses = courseData.courses.filter { otherCourse in
+            otherCourse.name == course.name && otherCourse.day == course.day
+        }.sorted { $0.timeSlot.rawValue < $1.timeSlot.rawValue }
+        
+        if sameNameCourses.isEmpty {
+            return [course.id]
+        }
+        
+        // 將課程按連續性分組
+        var groups: [[Course]] = []
+        var currentGroup: [Course] = []
+        
+        for (index, currentCourse) in sameNameCourses.enumerated() {
+            if currentGroup.isEmpty {
+                currentGroup.append(currentCourse)
+            } else if let lastCourse = currentGroup.last,
+                      areTimeSlotsConnected(lastCourse.timeSlot, currentCourse.timeSlot) {
+                // 如果與上一個課程連續，加入當前組
+                currentGroup.append(currentCourse)
+            } else {
+                // 不連續，開始新的組
+                groups.append(currentGroup)
+                currentGroup = [currentCourse]
+            }
+            
+            // 最後一個課程，將當前組加入
+            if index == sameNameCourses.count - 1 {
+                groups.append(currentGroup)
+            }
+        }
+        
+        // 找出當前課程所在的組
+        for group in groups {
+            if group.contains(where: { $0.id == course.id }) {
+                return Set(group.map { $0.id })
+            }
+        }
+        
+        return [course.id]
+    }
+    
+    // 取得與課程相關的備忘錄（檢查同名且連續的課程）
     func getRelatedMemos(for course: Course) -> [Memo] {
+        // 找出當前課程所在的連續課程段
+        let connectedCourseIds = findConnectedCourseGroup(for: course)
+        
+        // 返回與這些課程關聯的所有未完成備忘錄
         return memoManager.memos.filter { memo in
-            memo.courseLink == course.id && memo.status != .done
+            connectedCourseIds.contains(memo.courseLink ?? "") && memo.status != .done
         }
     }
 
@@ -515,41 +574,81 @@ struct CourseDetailSheet: View {
                         Spacer()
                     }
                     
-                    VStack(spacing: 8) {
-                        ForEach(relatedMemos) { memo in
-                            HStack(alignment: .top, spacing: 8) {
-                                Image(systemName: memo.status.icon)
-                                    .font(.caption)
-                                    .foregroundStyle(memo.status.color)
-                                    .frame(width: 20)
+                    // 按類型分組
+                    let groupedMemos = Dictionary(grouping: relatedMemos) { $0.tagType }
+                    let sortedTags = groupedMemos.keys.sorted { $0.rawValue < $1.rawValue }
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        ForEach(sortedTags, id: \.self) { tagType in
+                            VStack(alignment: .leading, spacing: 6) {
+                                // 類型標題
+                                HStack(spacing: 4) {
+                                    Image(systemName: tagType.icon)
+                                        .font(.caption)
+                                        .foregroundStyle(tagType.color)
+                                    Text(tagType.rawValue)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(tagType.color)
+                                }
+                                .padding(.leading, 4)
                                 
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(memo.title)
-                                        .font(.subheadline)
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(2)
-                                    
-                                    HStack(spacing: 8) {
-                                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
-                                            .font(.caption2)
-                                            .foregroundStyle(memo.tagType.color)
-                                        
-                                        if let desc = memo.dueDateDescription {
-                                            Text("• \(desc)")
-                                                .font(.caption2)
-                                                .foregroundStyle(memo.isOverdue ? .red : .secondary)
+                                // 該類型的任務
+                                if let memos = groupedMemos[tagType] {
+                                    VStack(spacing: 4) {
+                                        ForEach(memos) { memo in
+                                            HStack(alignment: .top, spacing: 8) {
+                                                Image(systemName: memo.status.icon)
+                                                    .font(.caption2)
+                                                    .foregroundStyle(memo.status.color)
+                                                    .frame(width: 16)
+                                                
+                                                VStack(alignment: .leading, spacing: 2) {
+                                                    Text(memo.title)
+                                                        .font(.subheadline)
+                                                        .foregroundStyle(.primary)
+                                                        .lineLimit(2)
+                                                    
+                                                    HStack(spacing: 6) {
+                                                        // 顯示時間
+                                                        if let dueAt = memo.dueAt {
+                                                            HStack(spacing: 2) {
+                                                                Image(systemName: "clock.badge.exclamationmark")
+                                                                    .font(.caption2)
+                                                                Text(formatShortDate(dueAt))
+                                                                    .font(.caption2)
+                                                            }
+                                                            .foregroundStyle(memo.isOverdue ? .red : .orange)
+                                                        } else if let planAt = memo.planAt {
+                                                            HStack(spacing: 2) {
+                                                                Image(systemName: "calendar")
+                                                                    .font(.caption2)
+                                                                Text(formatShortDate(planAt))
+                                                                    .font(.caption2)
+                                                            }
+                                                            .foregroundStyle(.blue)
+                                                        }
+                                                        
+                                                        // 狀態描述
+                                                        if let desc = memo.dueDateDescription {
+                                                            Text("• \(desc)")
+                                                                .font(.caption2)
+                                                                .foregroundStyle(memo.isOverdue ? .red : .secondary)
+                                                        }
+                                                    }
+                                                }
+                                                
+                                                Spacer()
+                                            }
+                                            .padding(.vertical, 6)
+                                            .padding(.horizontal, 8)
+                                            .background(
+                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                                    .fill(Color(.tertiarySystemBackground))
+                                            )
                                         }
                                     }
                                 }
-                                
-                                Spacer()
                             }
-                            .padding(.vertical, 4)
-                            .padding(.horizontal, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(Color(.tertiarySystemBackground))
-                            )
                         }
                     }
                 }
@@ -591,10 +690,99 @@ struct CourseDetailSheet: View {
         }
     }
     
-    // 取得與課程相關的備忘錄
+    // 格式化簡短日期
+    private func formatShortDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        let now = Date()
+        
+        // 如果是今天，只顯示時間
+        if calendar.isDateInToday(date) {
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        
+        // 如果是明天，顯示「明天 HH:mm」
+        if calendar.isDateInTomorrow(date) {
+            formatter.dateFormat = "HH:mm"
+            return "明天 " + formatter.string(from: date)
+        }
+        
+        // 如果是本週內，顯示星期幾和時間
+        if let weekDiff = calendar.dateComponents([.weekOfYear], from: now, to: date).weekOfYear,
+           weekDiff == 0 {
+            formatter.dateFormat = "E HH:mm"
+            formatter.locale = Locale(identifier: "zh_TW")
+            return formatter.string(from: date)
+        }
+        
+        // 其他情況顯示月/日 時間
+        formatter.dateFormat = "M/d HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    // 判斷兩個時段是否相連
+    func areTimeSlotsConnected(_ slot1: Course.TimeSlot, _ slot2: Course.TimeSlot) -> Bool {
+        let slots = Course.TimeSlot.allCases
+        guard let index1 = slots.firstIndex(of: slot1),
+              let index2 = slots.firstIndex(of: slot2) else {
+            return false
+        }
+        return abs(index1 - index2) == 1
+    }
+    
+    // 找出當前課程所在的連續課程段
+    func findConnectedCourseGroup(for course: Course) -> Set<String> {
+        // 找出所有與當前課程同名且在同一天的課程
+        let sameNameCourses = courseData.courses.filter { otherCourse in
+            otherCourse.name == course.name && otherCourse.day == course.day
+        }.sorted { $0.timeSlot.rawValue < $1.timeSlot.rawValue }
+        
+        if sameNameCourses.isEmpty {
+            return [course.id]
+        }
+        
+        // 將課程按連續性分組
+        var groups: [[Course]] = []
+        var currentGroup: [Course] = []
+        
+        for (index, currentCourse) in sameNameCourses.enumerated() {
+            if currentGroup.isEmpty {
+                currentGroup.append(currentCourse)
+            } else if let lastCourse = currentGroup.last,
+                      areTimeSlotsConnected(lastCourse.timeSlot, currentCourse.timeSlot) {
+                // 如果與上一個課程連續，加入當前組
+                currentGroup.append(currentCourse)
+            } else {
+                // 不連續，開始新的組
+                groups.append(currentGroup)
+                currentGroup = [currentCourse]
+            }
+            
+            // 最後一個課程，將當前組加入
+            if index == sameNameCourses.count - 1 {
+                groups.append(currentGroup)
+            }
+        }
+        
+        // 找出當前課程所在的組
+        for group in groups {
+            if group.contains(where: { $0.id == course.id }) {
+                return Set(group.map { $0.id })
+            }
+        }
+        
+        return [course.id]
+    }
+    
+    // 取得與課程相關的備忘錄（檢查同名且連續的課程）
     func getRelatedMemos() -> [Memo] {
+        // 找出當前課程所在的連續課程段
+        let connectedCourseIds = findConnectedCourseGroup(for: course)
+        
+        // 返回與這些課程關聯的所有未完成備忘錄
         return memoManager.memos.filter { memo in
-            memo.courseLink == course.id && memo.status != .done
+            connectedCourseIds.contains(memo.courseLink ?? "") && memo.status != .done
         }
         .sorted { memo1, memo2 in
             // 優先顯示逾期的

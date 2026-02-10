@@ -34,6 +34,8 @@ struct MemoFormView: View {
     
     @State private var reminderRules: [ReminderRule] = []
     @State private var showAddReminder: Bool = false
+    @State private var disableAutoDueReminder: Bool = false
+    @State private var disableAutoPlanReminder: Bool = false
     
     private var isEditing: Bool { memo != nil }
     
@@ -199,6 +201,13 @@ struct MemoFormView: View {
                 
                 // 提醒設定
                 Section {
+                    // 檢查是否有自動提醒
+                    let hasBeforeDueReminder = reminderRules.contains { $0.enabled && $0.kind == .beforeDue }
+                    let hasPlanReminder = reminderRules.contains { $0.enabled && $0.kind == .atPlan }
+                    let showAutoDueReminder = hasDueDate && !hasBeforeDueReminder && !disableAutoDueReminder
+                    let showAutoPlanReminder = hasPlanDate && !hasPlanReminder && !disableAutoPlanReminder
+                    
+                    // 用戶自訂提醒
                     ForEach(reminderRules) { rule in
                         HStack {
                             VStack(alignment: .leading) {
@@ -228,6 +237,115 @@ struct MemoFormView: View {
                                     .foregroundColor(.red)
                             }
                             .buttonStyle(.plain)
+                        }
+                    }
+                    
+                    // 自動截止前提醒
+                    if showAutoDueReminder {
+                        // 提醒1：截止前一天
+                        let oneDayBefore = dueDate.addingTimeInterval(-24 * 60 * 60)
+                        if oneDayBefore > Date() {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("自動")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(formatDate(oneDayBefore))
+                                        .font(.subheadline)
+                                    Text("距離截止時間還有 1 天")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { !disableAutoDueReminder },
+                                    set: { disableAutoDueReminder = !$0 }
+                                ))
+                                .labelsHidden()
+                            }
+                        }
+                        
+                        // 提醒2：截止前30分鐘
+                        let thirtyMinsBefore = dueDate.addingTimeInterval(-30 * 60)
+                        if thirtyMinsBefore > Date() {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("自動")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(formatDate(thirtyMinsBefore))
+                                        .font(.subheadline)
+                                    Text("距離截止時間還有 30 分鐘")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { !disableAutoDueReminder },
+                                    set: { disableAutoDueReminder = !$0 }
+                                ))
+                                .labelsHidden()
+                            }
+                        }
+                    } else if hasDueDate && !hasBeforeDueReminder && disableAutoDueReminder {
+                        // 顯示已禁用的自動提醒
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("自動（已禁用）")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("截止前 30 分鐘")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { !disableAutoDueReminder },
+                                set: { disableAutoDueReminder = !$0 }
+                            ))
+                            .labelsHidden()
+                        }
+                    }
+                    
+                    // 自動計劃時間提醒
+                    if showAutoPlanReminder {
+                        if planDate > Date() {
+                            HStack {
+                                VStack(alignment: .leading) {
+                                    Text("自動")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(formatDate(planDate))
+                                        .font(.subheadline)
+                                    Text("計劃時間到了，該開始處理了")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Toggle("", isOn: Binding(
+                                    get: { !disableAutoPlanReminder },
+                                    set: { disableAutoPlanReminder = !$0 }
+                                ))
+                                .labelsHidden()
+                            }
+                        }
+                    } else if hasPlanDate && !hasPlanReminder && disableAutoPlanReminder {
+                        // 顯示已禁用的自動提醒
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text("自動（已禁用）")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                Text("計劃時間")
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                            }
+                            Spacer()
+                            Toggle("", isOn: Binding(
+                                get: { !disableAutoPlanReminder },
+                                set: { disableAutoPlanReminder = !$0 }
+                            ))
+                            .labelsHidden()
                         }
                     }
                     
@@ -311,6 +429,8 @@ struct MemoFormView: View {
             }
             
             reminderRules = memo.reminderRules
+            disableAutoDueReminder = memo.disableAutoDueReminder
+            disableAutoPlanReminder = memo.disableAutoPlanReminder
         } else {
             // 新增模式：套用預設值
             if let presetCourseLink = presetCourseLink {
@@ -340,6 +460,8 @@ struct MemoFormView: View {
             updatedMemo.planAt = hasPlanDate ? planDate : nil
             updatedMemo.updatedAt = now
             updatedMemo.reminderRules = reminderRules
+            updatedMemo.disableAutoDueReminder = disableAutoDueReminder
+            updatedMemo.disableAutoPlanReminder = disableAutoPlanReminder
             
             // 如果狀態改為完成，設定完成時間
             if status == .done && existingMemo.status != .done {
@@ -361,6 +483,8 @@ struct MemoFormView: View {
                 planAt: hasPlanDate ? planDate : nil
             )
             newMemo.reminderRules = reminderRules
+            newMemo.disableAutoDueReminder = disableAutoDueReminder
+            newMemo.disableAutoPlanReminder = disableAutoPlanReminder
             
             memoManager.addMemo(newMemo)
         }

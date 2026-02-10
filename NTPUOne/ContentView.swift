@@ -25,6 +25,7 @@ struct ContentView: View {
         let context = CoreDataManager.shared.persistentContainer.viewContext
         self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
     }
+    ˇ
     
     var body: some View {
         TabView(selection: $selectedTab) {

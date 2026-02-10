@@ -113,11 +113,18 @@ struct MemoDetailSheet: View {
                         rule.repeatType != .none || rule.triggerAt > Date()
                     }
                     
+                    // 檢查是否有自動提醒
+                    let hasBeforeDueReminder = memo.reminderRules.contains { $0.enabled && $0.kind == .beforeDue }
+                    let hasPlanReminder = memo.reminderRules.contains { $0.enabled && $0.kind == .atPlan }
+                    let showAutoDueReminder = memo.dueAt != nil && !hasBeforeDueReminder && !memo.disableAutoDueReminder
+                    let showAutoPlanReminder = memo.planAt != nil && !hasPlanReminder && !memo.disableAutoPlanReminder
+                    
                     // 顯示現有提醒
-                    if activeRules.isEmpty {
+                    if activeRules.isEmpty && !showAutoDueReminder && !showAutoPlanReminder && !memo.disableAutoDueReminder && !memo.disableAutoPlanReminder {
                         Text("尚未設定提醒")
                             .foregroundColor(.secondary)
                     } else {
+                        // 用戶自訂提醒
                         ForEach(activeRules) { rule in
                             HStack {
                                 Image(systemName: rule.enabled ? "bell.fill" : "bell.slash")
@@ -133,6 +140,104 @@ struct MemoDetailSheet: View {
                                 }
                                 Spacer()
                                 Text(rule.kind.rawValue)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 自動截止前提醒
+                        if showAutoDueReminder, let dueAt = memo.dueAt {
+                            // 提醒1：截止前一天
+                            let oneDayBefore = dueAt.addingTimeInterval(-24 * 60 * 60)
+                            if oneDayBefore > Date() {
+                                HStack {
+                                    Image(systemName: "bell.fill")
+                                        .foregroundColor(.blue)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(formatDate(oneDayBefore))
+                                            .font(.subheadline)
+                                        Text("距離截止時間還有 1 天")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Text("自動")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                            
+                            // 提醒2：截止前 30 分鐘
+                            let thirtyMinsBefore = dueAt.addingTimeInterval(-30 * 60)
+                            if thirtyMinsBefore > Date() {
+                                HStack {
+                                    Image(systemName: "bell.fill")
+                                        .foregroundColor(.blue)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(formatDate(thirtyMinsBefore))
+                                            .font(.subheadline)
+                                        Text("距離截止時間還有 30 分鐘")
+                                            .font(.caption2)
+                                            .foregroundColor(.secondary)
+                                    }
+                                    Spacer()
+                                    Text("自動")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        } else if memo.dueAt != nil && !hasBeforeDueReminder && memo.disableAutoDueReminder {
+                            // 顯示已禁用的自動提醒
+                            HStack {
+                                Image(systemName: "bell.slash")
+                                    .foregroundColor(.gray)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("截止前 30 分鐘")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Text("已禁用")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text("自動")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                        
+                        // 自動計劃時間提醒
+                        if showAutoPlanReminder, let planAt = memo.planAt, planAt > Date() {
+                            HStack {
+                                Image(systemName: "bell.fill")
+                                    .foregroundColor(.blue)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(formatDate(planAt))
+                                        .font(.subheadline)
+                                    Text("計劃時間到了，該開始處理了")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text("自動")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        } else if memo.planAt != nil && !hasPlanReminder && memo.disableAutoPlanReminder {
+                            // 顯示已禁用的自動提醒
+                            HStack {
+                                Image(systemName: "bell.slash")
+                                    .foregroundColor(.gray)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("計劃時間")
+                                        .font(.subheadline)
+                                        .foregroundColor(.secondary)
+                                    Text("已禁用")
+                                        .font(.caption2)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Text("自動")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }

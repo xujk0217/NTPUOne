@@ -35,6 +35,10 @@ extension MemoEntity {
     
     // 提醒規則（JSON 字串儲存）
     @NSManaged public var reminderRulesData: Data?
+    
+    // 自動提醒設定
+    @NSManaged public var disableAutoDueReminder: Bool
+    @NSManaged public var disableAutoPlanReminder: Bool
 }
 
 extension MemoEntity: Identifiable {
