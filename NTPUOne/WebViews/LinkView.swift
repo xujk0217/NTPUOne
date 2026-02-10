@@ -876,7 +876,6 @@ struct LinkView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .buttonStyle(.plain)
                 
                 Button {
                     goLunch = true
@@ -895,7 +894,6 @@ struct LinkView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .buttonStyle(.plain)
                 
                 Button {
                     goDinner = true
@@ -914,7 +912,6 @@ struct LinkView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .buttonStyle(.plain)
                 
                 Button {
                     goMidnightSnack = true
@@ -933,7 +930,6 @@ struct LinkView: View {
                             .foregroundStyle(.tertiary)
                     }
                 }
-                .buttonStyle(.plain)
             }
             .navigationTitle("選擇餐點")
             .navigationBarTitleDisplayMode(.inline)
