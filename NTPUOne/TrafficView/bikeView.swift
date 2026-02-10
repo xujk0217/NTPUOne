@@ -43,7 +43,7 @@ struct bikeView: View {
                 }
                 Section {
                     HStack {
-                        Text(Bike.tot)
+                        Text(Bike.tot_quantity)
                             .font(.title.bold())
                         VStack {
                             HStack {
@@ -52,7 +52,7 @@ struct bikeView: View {
                             }
                             HStack {
                                 Image(systemName: "bicycle")
-                                Text(Bike.sbi)
+                                Text(Bike.sbi_quantity)
                                 Spacer()
                                 Image(systemName: "baseball.diamond.bases")
                                 Text(Bike.bemp)
@@ -76,10 +76,10 @@ struct bikeView: View {
 
 #Preview {
     if #available(iOS 17.0, *) {
-        bikeView(Bike: UBResults(sno: "0", sna: "0", snaen: "0", lat: "0", lng: "0", tot: "0", sbi: "0", bemp: "0"))
+        bikeView(Bike: UBResults(sno: "0", sna: "0", snaen: "0", lat: "0", lng: "0", tot_quantity: "0", sbi_quantity: "0", bemp: "0"))
     } else {
         // Fallback on earlier versions
-        noMapBikeView(Bike: UBResults(sno: "0", sna: "0", snaen: "0", lat: "0", lng: "0", tot: "0", sbi: "0", bemp: "0"))
+        noMapBikeView(Bike: UBResults(sno: "0", sna: "0", snaen: "0", lat: "0", lng: "0", tot_quantity: "0", sbi_quantity: "0", bemp: "0"))
     }
 }
 
@@ -89,7 +89,7 @@ extension bikeView {
     var mapView: some View {
         VStack {
             Map(position: $position, selection: $selectionResult) {
-                Marker("\(Bike.sna.substring(from: 11))-(\(Bike.sbi)/\(Bike.tot))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(Bike.lat)!, longitude: Double(Bike.lng)!))
+                Marker("\(Bike.sna.substring(from: 11))-(\(Bike.sbi_quantity)/\(Bike.tot_quantity))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(Bike.lat)!, longitude: Double(Bike.lng)!))
             }
             .mapStyle(.standard(elevation: .realistic))
         }
@@ -118,7 +118,7 @@ struct noMapBikeView: View {
                 }
                 Section{
                     HStack{
-                        Text(Bike!.tot)
+                        Text(Bike!.tot_quantity)
                             .font(.title.bold())
                         VStack{
                             HStack {
@@ -127,7 +127,7 @@ struct noMapBikeView: View {
                             }
                             HStack{
                                 Image(systemName: "bicycle")
-                                Text(Bike!.sbi)
+                                Text(Bike!.sbi_quantity)
                                 Spacer()
                                 Image(systemName: "baseball.diamond.bases")
                                 Text(Bike!.bemp)

@@ -356,27 +356,6 @@ struct LinkView: View {
             VStack(spacing: 0) {
                 ForEach(todayMemos) { memo in
                     todayTaskRow(memo: memo)
-                        .contextMenu {
-                            Button(role: .destructive) {
-                                memoManager.deleteMemo(memo)
-                            } label: {
-                                Label("刪除", systemImage: "trash")
-                            }
-                            
-                            Button {
-                                let nextStatus: Memo.MemoStatus = {
-                                    switch memo.status {
-                                    case .todo: return .doing
-                                    case .doing: return .done
-                                    case .done: return .todo
-                                    case .snoozed: return .doing
-                                    }
-                                }()
-                                memoManager.updateStatus(memo, to: nextStatus)
-                            } label: {
-                                Label("標記為\(nextStatusName(memo.status))", systemImage: "checkmark.circle")
-                            }
-                        }
                     
                     if memo.id != todayMemos.last?.id {
                         Divider()
@@ -831,8 +810,6 @@ struct LinkView: View {
             }
             return false
         }
-        .prefix(5)  // 只顯示前5個
-        .map { $0 }
     }
     
     // 新增：簡化版天氣視圖

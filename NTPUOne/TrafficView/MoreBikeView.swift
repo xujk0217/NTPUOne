@@ -28,7 +28,7 @@ struct MoreBikeView: View {
                                             if #available(iOS 17.0, *) {
                                                 NavigationLink(destination: bikeView(Bike: stop)){
                                                     HStack{
-                                                        Text(stop.tot)
+                                                        Text(stop.tot_quantity)
                                                             .font(.title.bold())
                                                         VStack{
                                                             HStack {
@@ -37,7 +37,7 @@ struct MoreBikeView: View {
                                                             }
                                                             HStack{
                                                                 Image(systemName: "bicycle")
-                                                                Text(stop.sbi)
+                                                                Text(stop.sbi_quantity)
                                                                 Spacer()
                                                                 Image(systemName: "baseball.diamond.bases")
                                                                 Text(stop.bemp)
@@ -50,7 +50,7 @@ struct MoreBikeView: View {
                                                 // Fallback on earlier versions
                                                 NavigationLink(destination: noMapBikeView(Bike: stop)){
                                                     HStack{
-                                                        Text(stop.tot)
+                                                        Text(stop.tot_quantity)
                                                             .font(.title.bold())
                                                         VStack{
                                                             HStack {
@@ -59,7 +59,7 @@ struct MoreBikeView: View {
                                                             }
                                                             HStack{
                                                                 Image(systemName: "bicycle")
-                                                                Text(stop.sbi)
+                                                                Text(stop.sbi_quantity)
                                                                 Spacer()
                                                                 Image(systemName: "baseball.diamond.bases")
                                                                 Text(stop.bemp)

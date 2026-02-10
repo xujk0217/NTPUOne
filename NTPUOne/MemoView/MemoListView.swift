@@ -140,21 +140,24 @@ struct MemoListView: View {
                                 }
                             }
                             
-                            // 類型篩選區塊
-                            Section("類型篩選") {
+                            // 類型篩選區塊（多選）
+                            Section("類型篩選（可多選）") {
                                 ForEach(Memo.TagType.allCases, id: \.self) { tagType in
                                     Button {
-                                        if memoManager.filterTagType == tagType {
-                                            memoManager.filterTagType = nil
+                                        if memoManager.filterTagTypes.contains(tagType) {
+                                            memoManager.filterTagTypes.remove(tagType)
                                         } else {
-                                            memoManager.filterTagType = tagType
+                                            memoManager.filterTagTypes.insert(tagType)
                                         }
                                         memoManager.applyFiltersAndSort()
                                     } label: {
                                         HStack {
                                             Label(tagType.rawValue, systemImage: tagType.icon)
-                                            if memoManager.filterTagType == tagType {
+                                                .foregroundColor(tagType.color)
+                                            Spacer()
+                                            if memoManager.filterTagTypes.contains(tagType) {
                                                 Image(systemName: "checkmark")
+                                                    .foregroundColor(.blue)
                                             }
                                         }
                                     }
@@ -178,13 +181,13 @@ struct MemoListView: View {
                             
                             // 清除篩選
                             if memoManager.filterStatus != nil || memoManager.filterIncompleteOnly || 
-                               memoManager.showOverdueOnly || memoManager.filterTagType != nil {
+                               memoManager.showOverdueOnly || !memoManager.filterTagTypes.isEmpty {
                                 Section {
                                     Button(role: .destructive) {
                                         memoManager.filterStatus = nil
                                         memoManager.filterIncompleteOnly = false
                                         memoManager.showOverdueOnly = false
-                                        memoManager.filterTagType = nil
+                                        memoManager.filterTagTypes.removeAll()
                                         memoManager.applyFiltersAndSort()
                                     } label: {
                                         Label("清除所有篩選", systemImage: "xmark.circle")
@@ -218,7 +221,7 @@ struct MemoListView: View {
         memoManager.filterStatus != nil || 
         memoManager.filterIncompleteOnly || 
         memoManager.showOverdueOnly || 
-        memoManager.filterTagType != nil
+        !memoManager.filterTagTypes.isEmpty
     }
     
     // MARK: - 統計卡片

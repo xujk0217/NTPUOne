@@ -7,6 +7,7 @@
 
 import SwiftUI
 import UserNotifications
+import GoogleMobileAds
 
 // MARK: - 優先級標籤元件
 struct PriorityBadge: View {
@@ -39,6 +40,7 @@ struct PriorityBadge: View {
 struct TodayView: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
+    @EnvironmentObject var adFree: AdFreeService
     
     @State private var selectedTab = 0
     @State private var showAddMemo = false
@@ -65,8 +67,16 @@ struct TodayView: View {
     }
     
     var body: some View {
-        NavigationStack {
-            navigationContent
+        VStack(spacing: 0) {
+            NavigationStack {
+                navigationContent
+            }
+            
+            // 横幅广告
+            if !adFree.isAdFree {
+                BannerAdView()
+                    .frame(height: 50)
+            }
         }
         .onAppear {
             loadManualPlannedTodayOrder()
@@ -163,7 +173,7 @@ struct TodayView: View {
         }
         
         ToolbarItem(placement: .navigationBarLeading) {
-            HStack {
+            HStack(spacing: 12) {
                 // 排序選項
                 Menu {
                     ForEach(MemoManager.SortOption.allCases, id: \.self) { option in
@@ -234,20 +244,20 @@ struct TodayView: View {
                         }
                     }
                     
-                    // 類型篩選區塊
-                    Section("類型篩選") {
+                    // 類型篩選區塊（多選）
+                    Section("類型篩選（可多選）") {
                         ForEach(Memo.TagType.allCases, id: \.self) { tagType in
                             Button {
-                                if memoManager.filterTagType == tagType {
-                                    memoManager.filterTagType = nil
+                                if memoManager.filterTagTypes.contains(tagType) {
+                                    memoManager.filterTagTypes.remove(tagType)
                                 } else {
-                                    memoManager.filterTagType = tagType
+                                    memoManager.filterTagTypes.insert(tagType)
                                 }
                                 memoManager.applyFiltersAndSort()
                             } label: {
                                 HStack {
-                                    Label(tagType.rawValue, systemImage: tagType.icon)
-                                    if memoManager.filterTagType == tagType {
+                                    Text(tagType.rawValue)
+                                    if memoManager.filterTagTypes.contains(tagType) {
                                         Image(systemName: "checkmark")
                                     }
                                 }
@@ -272,13 +282,13 @@ struct TodayView: View {
                     
                     // 清除篩選
                     if memoManager.filterStatus != nil || memoManager.filterIncompleteOnly || 
-                       memoManager.showOverdueOnly || memoManager.filterTagType != nil {
+                       memoManager.showOverdueOnly || !memoManager.filterTagTypes.isEmpty {
                         Section {
                             Button(role: .destructive) {
                                 memoManager.filterStatus = nil
                                 memoManager.filterIncompleteOnly = false
                                 memoManager.showOverdueOnly = false
-                                memoManager.filterTagType = nil
+                                memoManager.filterTagTypes.removeAll()
                                 memoManager.applyFiltersAndSort()
                             } label: {
                                 Label("清除所有篩選", systemImage: "xmark.circle")
@@ -299,7 +309,7 @@ struct TodayView: View {
         memoManager.filterStatus != nil || 
         memoManager.filterIncompleteOnly || 
         memoManager.showOverdueOnly || 
-        memoManager.filterTagType != nil
+        !memoManager.filterTagTypes.isEmpty
     }
     
     // MARK: - 頂部統計
@@ -445,10 +455,14 @@ struct TodayView: View {
                 ForEach(Memo.TagType.allCases) { tag in
                     FilterChipView(
                         title: tag.rawValue,
-                        isSelected: memoManager.filterTagType == tag,
+                        isSelected: memoManager.filterTagTypes.contains(tag),
                         color: tag.color
                     ) {
-                        memoManager.filterTagType = (memoManager.filterTagType == tag) ? nil : tag
+                        if memoManager.filterTagTypes.contains(tag) {
+                            memoManager.filterTagTypes.remove(tag)
+                        } else {
+                            memoManager.filterTagTypes.insert(tag)
+                        }
                         memoManager.applyFiltersAndSort()
                     }
                 }

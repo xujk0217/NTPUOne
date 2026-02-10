@@ -16,7 +16,7 @@ class MemoManager: ObservableObject {
     
     // 篩選條件
     @Published var filterStatus: Memo.MemoStatus? = nil
-    @Published var filterTagType: Memo.TagType? = nil
+    @Published var filterTagTypes: Set<Memo.TagType> = []  // 改为多选
     @Published var filterCourseLink: String? = nil
     @Published var filterIncompleteOnly: Bool = true
     @Published var showOverdueOnly: Bool = false
@@ -336,8 +336,8 @@ class MemoManager: ObservableObject {
         }
         
         // 標籤篩選
-        if let tagType = filterTagType {
-            result = result.filter { $0.tagType == tagType }
+        if !filterTagTypes.isEmpty {
+            result = result.filter { filterTagTypes.contains($0.tagType) }
         }
         
         // 課程篩選

@@ -44,7 +44,7 @@ struct TrafficView: View {
                                             ForEach(bikeDatas) { stop in
                                                 let title = stop.sna.substring(from: 11)
                                                 let coordinate = CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!)
-                                                Marker("\(title)-(\(stop.sbi)/\(stop.tot))", systemImage: "bicycle", coordinate: coordinate)
+                                                Marker("\(title)-(\(stop.sbi_quantity)/\(stop.tot_quantity))", systemImage: "bicycle", coordinate: coordinate)
                                             }
                                         }
                                         .mapStyle(.standard(elevation: .realistic))
@@ -62,7 +62,7 @@ struct TrafficView: View {
                                     ForEach(bikeDatas.filter { isNTPU(sno: $0.sno) }) { stop in
                                         NavigationLink(destination: bikeView(Bike: stop)) {
                                             HStack {
-                                                Text(stop.tot)
+                                                Text(stop.tot_quantity)
                                                     .font(.title.bold())
                                                 VStack {
                                                     HStack {
@@ -71,7 +71,7 @@ struct TrafficView: View {
                                                     }
                                                     HStack {
                                                         Image(systemName: "bicycle")
-                                                        Text(stop.sbi)
+                                                        Text(stop.sbi_quantity)
                                                         Spacer()
                                                         Image(systemName: "baseball.diamond.bases")
                                                         Text(stop.bemp)
@@ -121,12 +121,39 @@ struct TrafficView: View {
                         }
                     }
                 } else {
-                    VStack {
-                        Text("Loading...")
-                        ProgressView()
-                            .onAppear {
-                                bikeManager.fetchData()
+                    VStack(spacing: 16) {
+                        if let errorMessage = bikeManager.errorMessage {
+                            // 显示错误信息
+                            VStack(spacing: 12) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 50))
+                                    .foregroundColor(.orange)
+                                
+                                Text("無法載入 Ubike 資料")
+                                    .font(.headline)
+                                
+                                Text(errorMessage)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal)
+                                
+                                Button("重新載入") {
+                                    bikeManager.errorMessage = nil
+                                    bikeManager.fetchData()
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.blue)
                             }
+                            .padding()
+                        } else {
+                            // 显示 loading
+                            Text("Loading...")
+                            ProgressView()
+                                .onAppear {
+                                    bikeManager.fetchData()
+                                }
+                        }
                     }
                 }
             }

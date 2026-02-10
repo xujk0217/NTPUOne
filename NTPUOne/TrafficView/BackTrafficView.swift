@@ -44,7 +44,7 @@ struct BackTrafficView: View {
                                     ForEach(bikeDatas.filter { isNTPU(sno: $0.sno) }) { stop in
                                         NavigationLink(destination: noMapBikeView(Bike: stop)) {
                                             HStack {
-                                                Text(stop.tot)
+                                                Text(stop.tot_quantity)
                                                     .font(.title.bold())
                                                 VStack {
                                                     HStack {
@@ -53,7 +53,7 @@ struct BackTrafficView: View {
                                                     }
                                                     HStack {
                                                         Image(systemName: "bicycle")
-                                                        Text(stop.sbi)
+                                                        Text(stop.sbi_quantity)
                                                         Spacer()
                                                         Image(systemName: "baseball.diamond.bases")
                                                         Text(stop.bemp)

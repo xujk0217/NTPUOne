@@ -20,7 +20,7 @@ struct UBResults: Decodable, Identifiable{
     let lat: String
     let lng: String
     
-    let tot: String //total space
-    let sbi: String  //bikes
+    let tot_quantity: String  //total space
+    let sbi_quantity: String  //bikes
     let bemp: String  //Docks
 }
