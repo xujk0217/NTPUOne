@@ -106,7 +106,11 @@ class CourseData: ObservableObject {
     }
     
     func scheduleNotificationsForAllCourses() {
-        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        // 只移除課程通知，避免清掉 Memo 通知
+        let courseIds = courses.map { $0.id }
+        if !courseIds.isEmpty {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: courseIds)
+        }
         for course in courses {
             if course.isNotification {
                 scheduleNotification(for: course)
@@ -281,10 +285,13 @@ class CourseData: ObservableObject {
             try viewContext.save()
             
             // 清空記憶體中的課程
+            let courseIds = courses.map { $0.id }
             courses.removeAll()
             
-            // 取消所有通知
-            UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+            // 只取消課程通知，避免清掉 Memo 通知
+            if !courseIds.isEmpty {
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: courseIds)
+            }
 
             print("Success: All courses deleted from Core Data and notifications cleared.")
         } catch {
@@ -314,8 +321,11 @@ extension CourseData {
     // 调度通知的方法
     func scheduleNotification(for course: Course) {
         let content = UNMutableNotificationContent()
-        content.title = course.name
-        content.body = "Your class is about to start!"
+        let location = course.location.isEmpty ? "未填寫" : course.location
+        let teacher = course.teacher.isEmpty ? "未填寫" : course.teacher
+        content.title = "📚 \(course.name)"
+        content.subtitle = "上課提醒"
+        content.body = "時間：\(course.day) \(course.startTime.rawValue)\n地點：\(location)\n老師：\(teacher)"
         content.sound = .default
         
         // 创建触发器

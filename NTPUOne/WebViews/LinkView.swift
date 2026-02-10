@@ -35,6 +35,7 @@ struct LinkView: View {
     
     //Course
     @ObservedObject var courseData: CourseData
+    @StateObject private var memoManager: MemoManager
     @State private var nextCourseOnAppear: Course?
     @State private var showingAlert = false
     let currentDate = Date()
@@ -57,6 +58,7 @@ struct LinkView: View {
     @State private var goSchoolPosts = false
     @State private var goLinks = false
     @State private var goRandomFood = false
+    @State private var goToday = false
     
     @State private var peekCourse: Course? = nil
     
@@ -64,6 +66,13 @@ struct LinkView: View {
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
+    
+    // 初始化 MemoManager
+    init(courseData: CourseData) {
+        self.courseData = courseData
+        let context = CoreDataManager.shared.persistentContainer.viewContext
+        self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
+    }
     
     var body: some View {
         NavigationStack {
@@ -183,6 +192,73 @@ struct LinkView: View {
                     }
                     .listRowBackground(Color.clear)
                     
+                    // 今日待辦入口
+                    Section("今日待辦") {
+                        Button {
+                            goToday = true
+                        } label: {
+                            HStack(spacing: 12) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.purple.opacity(0.15))
+                                        .frame(width: 44, height: 44)
+                                    Image(systemName: "checklist")
+                                        .font(.title3)
+                                        .foregroundStyle(.purple)
+                                }
+                                
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("待辦事項")
+                                        .font(.headline)
+                                    
+                                    let stats = getTodayMemoStats()
+                                    HStack(spacing: 8) {
+                                        if stats.overdue > 0 {
+                                            Label("\(stats.overdue) 逾期", systemImage: "exclamationmark.triangle.fill")
+                                                .font(.caption)
+                                                .foregroundStyle(.red)
+                                        }
+                                        if stats.planExpired > 0 {
+                                            Label("\(stats.planExpired) 計劃過期", systemImage: "calendar.badge.exclamationmark")
+                                                .font(.caption)
+                                                .foregroundStyle(.purple)
+                                        }
+                                        if stats.today > 0 {
+                                            Label("\(stats.today) 今日待辦", systemImage: "clock")
+                                                .font(.caption)
+                                                .foregroundStyle(.orange)
+                                        }
+                                        if stats.total > 0 && stats.overdue == 0 && stats.today == 0 && stats.planExpired == 0 {
+                                            Label("\(stats.total) 項進行中", systemImage: "list.bullet")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        if stats.total == 0 {
+                                            Text("沒有待辦事項")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .padding(12)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color(.tertiarySystemBackground))
+                                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
+                    .listRowBackground(Color.clear)
+                    
                     Section("功能快捷") {
                         LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
                             Button { goSchoolPosts = true } label: {
@@ -252,6 +328,13 @@ struct LinkView: View {
                     ) { EmptyView() }
                     .hidden()
                 }
+                
+                // 今日頁面 NavigationLink
+                NavigationLink(
+                    destination: TodayView(memoManager: memoManager, courseData: courseData),
+                    isActive: $goToday
+                ) { EmptyView() }
+                .hidden()
             }
             .toolbar {
                 // 右上角按鈕
@@ -347,6 +430,34 @@ struct LinkView: View {
         case .evening1, .evening2, .evening3, .evening4:
             return .purple
         }
+    }
+    
+    // 取得今日待辦統計
+    private func getTodayMemoStats() -> (overdue: Int, planExpired: Int, today: Int, total: Int) {
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: todayStart)!
+        let now = Date()
+        let overdue = memoManager.memos.filter { memo in
+            memo.status != .done && memo.isOverdue
+        }.count
+        
+        let planExpired = memoManager.memos.filter { memo in
+            guard memo.status != .done, let planAt = memo.planAt else { return false }
+            if let dueAt = memo.dueAt, dueAt < now { return false }
+            return planAt < todayStart
+        }.count
+        
+        let todayCount = memoManager.memos.filter { memo in
+            guard memo.status != .done && !memo.isOverdue else { return false }
+            if let dueAt = memo.dueAt, dueAt >= todayStart && dueAt < tomorrow { return true }
+            if let planAt = memo.planAt, planAt >= todayStart && planAt < tomorrow { return true }
+            return false
+        }.count
+        
+        let total = memoManager.memos.filter { $0.status != .done }.count
+        
+        return (overdue, planExpired, todayCount, total)
     }
 
     

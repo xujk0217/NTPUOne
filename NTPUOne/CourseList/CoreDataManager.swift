@@ -15,6 +15,13 @@ class CoreDataManager {
 
     private init() {
         persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel")
+        
+        // 啟用自動輕量級遷移，確保資料不會遺失
+        if let description = persistentContainer.persistentStoreDescriptions.first {
+            description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        }
+        
         persistentContainer.loadPersistentStores { (description, error) in
             if let error = error {
                 fatalError("Unable to load persistent stores: \(error)")
