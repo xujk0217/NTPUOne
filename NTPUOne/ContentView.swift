@@ -25,16 +25,15 @@ struct ContentView: View {
         let context = CoreDataManager.shared.persistentContainer.viewContext
         self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
     }
-    ˇ
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            LinkView(courseData: courseData).tabItem {
+            LinkView(courseData: courseData, memoManager: memoManager).tabItem {
                 Image(systemName: "house")
                 Text("Main")
             }.tag(0)
             
-            TimeTableView().tabItem {
+            TimeTableView(memoManager: memoManager).tabItem {
                 Image(systemName: "list.bullet.clipboard")
                 Text("Timetable")
             }.tag(1)

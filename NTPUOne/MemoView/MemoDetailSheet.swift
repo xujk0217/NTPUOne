@@ -12,14 +12,14 @@ struct MemoDetailSheet: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
     
-    let memo: Memo
+    @State private var memo: Memo
     @State private var showEditSheet = false
     @State private var currentStatus: Memo.MemoStatus
     
     init(memoManager: MemoManager, courseData: CourseData, memo: Memo) {
         self.memoManager = memoManager
         self.courseData = courseData
-        self.memo = memo
+        self._memo = State(initialValue: memo)
         self._currentStatus = State(initialValue: memo.status)
     }
     
@@ -268,7 +268,13 @@ struct MemoDetailSheet: View {
                     }
                 }
             }
-            .sheet(isPresented: $showEditSheet) {
+            .sheet(isPresented: $showEditSheet, onDismiss: {
+                // 編輯完成後，重新從 memoManager 獲取最新的 memo 數據
+                if let updatedMemo = memoManager.memos.first(where: { $0.id == memo.id }) {
+                    memo = updatedMemo
+                    currentStatus = updatedMemo.status
+                }
+            }) {
                 MemoFormView(
                     memoManager: memoManager,
                     courseData: courseData,

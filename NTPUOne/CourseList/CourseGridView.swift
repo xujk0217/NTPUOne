@@ -52,9 +52,12 @@ struct UnifiedCourseGridView: View {
         .padding()
         .cornerRadius(8)
         .sheet(isPresented: $showingSheet) {
-            CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)
+            CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet, memoManager: memoManager)
         }
-        .sheet(item: $peekCourse) { course in
+        .sheet(item: $peekCourse, onDismiss: {
+            // 當課程詳情 sheet 關閉時，重新加載備忘錄數據以確保點點更新
+            memoManager.loadMemosFromCoreData()
+        }) { course in
             CourseDetailSheet(course: course, memoManager: memoManager, courseData: courseData)
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
@@ -279,7 +282,7 @@ struct CourseSlotView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.25))
         )
-        .id(memoManager.memos.map { $0.id }.joined())
+        .id("\(memoManager.memos.count)_\(memoManager.memos.map { "\($0.id)_\($0.status.rawValue)_\($0.courseLink ?? "")" }.joined(separator: "_"))")
     }
     
     // 判斷兩個時段是否相連
@@ -292,53 +295,24 @@ struct CourseSlotView: View {
         return abs(index1 - index2) == 1
     }
     
-    // 找出當前課程所在的連續課程段
+    // 找出同一天所有同名課程
     func findConnectedCourseGroup(for course: Course) -> Set<String> {
         // 找出所有與當前課程同名且在同一天的課程
-        let sameNameCourses = courseData.courses.filter { otherCourse in
+        let sameNameSameDayCourses = courseData.courses.filter { otherCourse in
             otherCourse.name == course.name && otherCourse.day == course.day
-        }.sorted { $0.timeSlot.rawValue < $1.timeSlot.rawValue }
+        }
         
-        if sameNameCourses.isEmpty {
+        if sameNameSameDayCourses.isEmpty {
             return [course.id]
         }
         
-        // 將課程按連續性分組
-        var groups: [[Course]] = []
-        var currentGroup: [Course] = []
-        
-        for (index, currentCourse) in sameNameCourses.enumerated() {
-            if currentGroup.isEmpty {
-                currentGroup.append(currentCourse)
-            } else if let lastCourse = currentGroup.last,
-                      areTimeSlotsConnected(lastCourse.timeSlot, currentCourse.timeSlot) {
-                // 如果與上一個課程連續，加入當前組
-                currentGroup.append(currentCourse)
-            } else {
-                // 不連續，開始新的組
-                groups.append(currentGroup)
-                currentGroup = [currentCourse]
-            }
-            
-            // 最後一個課程，將當前組加入
-            if index == sameNameCourses.count - 1 {
-                groups.append(currentGroup)
-            }
-        }
-        
-        // 找出當前課程所在的組
-        for group in groups {
-            if group.contains(where: { $0.id == course.id }) {
-                return Set(group.map { $0.id })
-            }
-        }
-        
-        return [course.id]
+        // 返回同一天所有同名課程的 ID
+        return Set(sameNameSameDayCourses.map { $0.id })
     }
     
-    // 取得與課程相關的備忘錄（檢查同名且連續的課程）
+    // 取得與課程相關的備忘錄（檢查同一天的同名課程）
     func getRelatedMemos(for course: Course) -> [Memo] {
-        // 找出當前課程所在的連續課程段
+        // 找出同一天所有同名課程
         let connectedCourseIds = findConnectedCourseGroup(for: course)
         
         // 返回與這些課程關聯的所有未完成備忘錄
@@ -401,29 +375,110 @@ struct CourseFormSheet: View {
     @Binding var newCourse: Course
     var courseData: CourseData
     @Binding var showingSheet: Bool
+    var memoManager: MemoManager
+    
+    @State private var showDeleteAlert = false
+    @State private var relatedMemoCount = 0
+    @State private var isLastCourseWithName = false
     
     var body: some View {
-        if !isNewCourse {
-            CourseFormView(course: $selectedCourse, isNewCourse: false, onSave: {
-                if let index = courseData.courses.firstIndex(where: { $0.id == selectedCourse.id }) {
-                    courseData.courses[index] = selectedCourse
-                    courseData.updateCourse(selectedCourse)
-                }
-                showingSheet = false
-            }, onCancel: {
-                showingSheet = false
-            }, onDelete: {
-                courseData.deleteCourse(selectedCourse)
-                showingSheet = false
-            }, courseData: courseData)
-        } else {
-            CourseFormView(course: $newCourse, isNewCourse: true, onSave: {
-                courseData.addCourse(newCourse)
-                showingSheet = false
-            }, onCancel: {
-                showingSheet = false
-            }, courseData: courseData)
+        ZStack {
+            if !isNewCourse {
+                CourseFormView(course: $selectedCourse, isNewCourse: false, onSave: {
+                    if let index = courseData.courses.firstIndex(where: { $0.id == selectedCourse.id }) {
+                        courseData.courses[index] = selectedCourse
+                        courseData.updateCourse(selectedCourse)
+                    }
+                    showingSheet = false
+                }, onCancel: {
+                    showingSheet = false
+                }, onDelete: {
+                    handleDeleteCourse()
+                }, courseData: courseData)
+            } else {
+                CourseFormView(course: $newCourse, isNewCourse: true, onSave: {
+                    courseData.addCourse(newCourse)
+                    showingSheet = false
+                }, onCancel: {
+                    showingSheet = false
+                }, courseData: courseData)
+            }
         }
+        .alert("確認刪除課程", isPresented: $showDeleteAlert) {
+            Button("刪除", role: .destructive) {
+                performDelete()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            if isLastCourseWithName && relatedMemoCount > 0 {
+                Text("這是最後一個「\(selectedCourse.name)」課程，刪除後將同時刪除 \(relatedMemoCount) 個相關任務。此操作無法復原。")
+            } else {
+                Text("確定要刪除這個課程嗎？此操作無法復原。")
+            }
+        }
+    }
+    
+    private func handleDeleteCourse() {
+        // 檢查是否是最後一個同名課程
+        let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }
+        isLastCourseWithName = sameNameCourses.count == 1
+        
+        // 如果是最後一個，計算相關任務數量
+        // courseLink 存的是課程 ID，需要收集所有同名課程的 ID
+        if isLastCourseWithName {
+            let sameNameCourseIds = Set(sameNameCourses.map { $0.id })
+            relatedMemoCount = memoManager.memos.filter { memo in
+                guard let courseLink = memo.courseLink else { return false }
+                return sameNameCourseIds.contains(courseLink)
+            }.count
+        } else {
+            relatedMemoCount = 0
+        }
+        
+        print("📋 刪除檢查: 同名課程數=\(sameNameCourses.count), 是最後一個=\(isLastCourseWithName), 相關任務數=\(relatedMemoCount)")
+        
+        // 顯示確認提示
+        showDeleteAlert = true
+    }
+    
+    private func performDelete() {
+        print("🗑️ 開始執行刪除: 課程名稱=\(selectedCourse.name)")
+        
+        let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }
+        
+        if isLastCourseWithName {
+            // 最後一個同名課程，刪除相關任務
+            let sameNameCourseIds = Set(sameNameCourses.map { $0.id })
+            let relatedMemos = memoManager.memos.filter { memo in
+                guard let courseLink = memo.courseLink else { return false }
+                return sameNameCourseIds.contains(courseLink)
+            }
+            print("🗑️ 找到 \(relatedMemos.count) 個相關任務需要刪除")
+            for memo in relatedMemos {
+                print("🗑️ 刪除任務: \(memo.title)")
+                memoManager.deleteMemo(memo)
+            }
+        } else {
+            // 還有其他同名課程，把指向被刪除課程的任務轉移到另一個同名課程
+            if let otherCourse = sameNameCourses.first(where: { $0.id != selectedCourse.id }) {
+                let affectedMemos = memoManager.memos.filter { $0.courseLink == selectedCourse.id }
+                print("🔄 轉移 \(affectedMemos.count) 個任務到課程 ID: \(otherCourse.id)")
+                for memo in affectedMemos {
+                    var updatedMemo = memo
+                    updatedMemo.courseLink = otherCourse.id
+                    memoManager.updateMemo(updatedMemo)
+                }
+            }
+        }
+        
+        // 刪除課程
+        print("🗑️ 刪除課程: \(selectedCourse.name)")
+        courseData.deleteCourse(selectedCourse)
+        
+        // 刷新備忘錄數據
+        memoManager.loadMemosFromCoreData()
+        
+        showingSheet = false
     }
 }
 
@@ -721,63 +776,24 @@ struct CourseDetailSheet: View {
         return formatter.string(from: date)
     }
     
-    // 判斷兩個時段是否相連
-    func areTimeSlotsConnected(_ slot1: Course.TimeSlot, _ slot2: Course.TimeSlot) -> Bool {
-        let slots = Course.TimeSlot.allCases
-        guard let index1 = slots.firstIndex(of: slot1),
-              let index2 = slots.firstIndex(of: slot2) else {
-            return false
-        }
-        return abs(index1 - index2) == 1
-    }
-    
-    // 找出當前課程所在的連續課程段
+    // 找出同一天所有同名課程
     func findConnectedCourseGroup(for course: Course) -> Set<String> {
         // 找出所有與當前課程同名且在同一天的課程
-        let sameNameCourses = courseData.courses.filter { otherCourse in
+        let sameNameSameDayCourses = courseData.courses.filter { otherCourse in
             otherCourse.name == course.name && otherCourse.day == course.day
-        }.sorted { $0.timeSlot.rawValue < $1.timeSlot.rawValue }
+        }
         
-        if sameNameCourses.isEmpty {
+        if sameNameSameDayCourses.isEmpty {
             return [course.id]
         }
         
-        // 將課程按連續性分組
-        var groups: [[Course]] = []
-        var currentGroup: [Course] = []
-        
-        for (index, currentCourse) in sameNameCourses.enumerated() {
-            if currentGroup.isEmpty {
-                currentGroup.append(currentCourse)
-            } else if let lastCourse = currentGroup.last,
-                      areTimeSlotsConnected(lastCourse.timeSlot, currentCourse.timeSlot) {
-                // 如果與上一個課程連續，加入當前組
-                currentGroup.append(currentCourse)
-            } else {
-                // 不連續，開始新的組
-                groups.append(currentGroup)
-                currentGroup = [currentCourse]
-            }
-            
-            // 最後一個課程，將當前組加入
-            if index == sameNameCourses.count - 1 {
-                groups.append(currentGroup)
-            }
-        }
-        
-        // 找出當前課程所在的組
-        for group in groups {
-            if group.contains(where: { $0.id == course.id }) {
-                return Set(group.map { $0.id })
-            }
-        }
-        
-        return [course.id]
+        // 返回同一天所有同名課程的 ID
+        return Set(sameNameSameDayCourses.map { $0.id })
     }
     
-    // 取得與課程相關的備忘錄（檢查同名且連續的課程）
+    // 取得與課程相關的備忘錄（檢查同一天的同名課程）
     func getRelatedMemos() -> [Memo] {
-        // 找出當前課程所在的連續課程段
+        // 找出同一天所有同名課程
         let connectedCourseIds = findConnectedCourseGroup(for: course)
         
         // 返回與這些課程關聯的所有未完成備忘錄

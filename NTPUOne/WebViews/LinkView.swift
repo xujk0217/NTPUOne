@@ -36,7 +36,7 @@ struct LinkView: View {
     
     //Course
     @ObservedObject var courseData: CourseData
-    @StateObject private var memoManager: MemoManager
+    @ObservedObject var memoManager: MemoManager
     @State private var nextCourseOnAppear: Course?
     @State private var showingAlert = false
     let currentDate = Date()
@@ -78,10 +78,9 @@ struct LinkView: View {
     @State private var rowWidth: CGFloat = 0
     
     // 初始化 MemoManager
-    init(courseData: CourseData) {
+    init(courseData: CourseData, memoManager: MemoManager) {
         self.courseData = courseData
-        let context = CoreDataManager.shared.persistentContainer.viewContext
-        self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
+        self.memoManager = memoManager
     }
     
     // MARK: - 子視圖
