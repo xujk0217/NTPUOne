@@ -557,6 +557,8 @@ struct LinkView: View {
                 .onAppear {
                     nextCourseOnAppear = nextUpcomingCourse()
                     webManager.createData()
+                    // 每次顯示時重新加載備忘錄數據，確保任務列表是最新的
+                    memoManager.loadMemosFromCoreData()
                 }
                 .sheet(isPresented: $showWebView) {
                     if let urlString = urlString {
@@ -568,7 +570,10 @@ struct LinkView: View {
                         .presentationDetents([.fraction(0.35)])
                         .presentationDragIndicator(.visible)
                 }
-                .sheet(item: $selectedMemoForDetail) { memo in
+                .sheet(item: $selectedMemoForDetail, onDismiss: {
+                    // 當備忘錄詳情 sheet 關閉時，重新加載數據以確保任務列表更新
+                    memoManager.loadMemosFromCoreData()
+                }) { memo in
                     MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)
                 }
                 .sheet(isPresented: $showWeatherDetail) {
