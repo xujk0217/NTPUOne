@@ -115,7 +115,7 @@ struct TodayView: View {
 
     private var navigationContent: some View {
         mainStack
-            .navigationTitle("待辦事項")
+            .navigationTitle("備忘錄")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 toolbarContent
@@ -129,9 +129,6 @@ struct TodayView: View {
             
             // Tab 選擇器
             tabPicker
-            
-            // 篩選標籤
-            filterTagsView
             
             // 內容區（使用普通切換，不用 page style）
             Group {
@@ -166,35 +163,143 @@ struct TodayView: View {
         }
         
         ToolbarItem(placement: .navigationBarLeading) {
-            // 排序選項
-            Menu {
-                ForEach(MemoManager.SortOption.allCases, id: \.self) { option in
-                    Button {
-                        memoManager.sortBy = option
-                        memoManager.applyFiltersAndSort()
-                    } label: {
-                        HStack {
-                            Text(option.rawValue)
-                            if memoManager.sortBy == option {
-                                Image(systemName: "checkmark")
+            HStack {
+                // 排序選項
+                Menu {
+                    ForEach(MemoManager.SortOption.allCases, id: \.self) { option in
+                        Button {
+                            memoManager.sortBy = option
+                            memoManager.applyFiltersAndSort()
+                        } label: {
+                            HStack {
+                                Text(option.rawValue)
+                                if memoManager.sortBy == option {
+                                    Image(systemName: "checkmark")
+                                }
                             }
                         }
                     }
-                }
-                
-                Divider()
-                
-                // 除錯選項
-                Button {
-                    showScheduledSheet = true
-                    loadScheduledMemos()
+                    
+                    Divider()
+                    
+                    // 除錯選項
+                    Button {
+                        showScheduledSheet = true
+                        loadScheduledMemos()
+                    } label: {
+                        Label("列出排程通知", systemImage: "list.bullet")
+                    }
                 } label: {
-                    Label("列出排程通知", systemImage: "list.bullet")
+                    Image(systemName: "arrow.up.arrow.down.circle")
                 }
-            } label: {
-                Image(systemName: "arrow.up.arrow.down.circle")
+                
+                // 篩選選單
+                Menu {
+                    // 狀態篩選區塊
+                    Section("狀態篩選") {
+                        Button {
+                            if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
+                                memoManager.filterIncompleteOnly = false
+                            } else {
+                                memoManager.filterStatus = nil
+                                memoManager.filterIncompleteOnly = true
+                            }
+                            memoManager.applyFiltersAndSort()
+                        } label: {
+                            HStack {
+                                Text("未完成")
+                                if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                        
+                        ForEach([Memo.MemoStatus.todo, .doing, .done, .snoozed], id: \.self) { status in
+                            Button {
+                                if memoManager.filterStatus == status {
+                                    memoManager.filterStatus = nil
+                                } else {
+                                    memoManager.filterStatus = status
+                                    memoManager.filterIncompleteOnly = false
+                                }
+                                memoManager.applyFiltersAndSort()
+                            } label: {
+                                HStack {
+                                    Text(status.displayName)
+                                    if memoManager.filterStatus == status {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 類型篩選區塊
+                    Section("類型篩選") {
+                        ForEach(Memo.TagType.allCases, id: \.self) { tagType in
+                            Button {
+                                if memoManager.filterTagType == tagType {
+                                    memoManager.filterTagType = nil
+                                } else {
+                                    memoManager.filterTagType = tagType
+                                }
+                                memoManager.applyFiltersAndSort()
+                            } label: {
+                                HStack {
+                                    Label(tagType.rawValue, systemImage: tagType.icon)
+                                    if memoManager.filterTagType == tagType {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 其他篩選
+                    Section("其他") {
+                        Button {
+                            memoManager.showOverdueOnly.toggle()
+                            memoManager.applyFiltersAndSort()
+                        } label: {
+                            HStack {
+                                Text("僅顯示逾期")
+                                if memoManager.showOverdueOnly {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                    
+                    // 清除篩選
+                    if memoManager.filterStatus != nil || memoManager.filterIncompleteOnly || 
+                       memoManager.showOverdueOnly || memoManager.filterTagType != nil {
+                        Section {
+                            Button(role: .destructive) {
+                                memoManager.filterStatus = nil
+                                memoManager.filterIncompleteOnly = false
+                                memoManager.showOverdueOnly = false
+                                memoManager.filterTagType = nil
+                                memoManager.applyFiltersAndSort()
+                            } label: {
+                                Label("清除所有篩選", systemImage: "xmark.circle")
+                            }
+                        }
+                    }
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                        .symbolVariant(hasActiveFilters ? .fill : .none)
+                        .foregroundColor(hasActiveFilters ? .blue : .primary)
+                }
             }
         }
+    }
+    
+    // 計算是否有啟用的篩選器
+    private var hasActiveFilters: Bool {
+        memoManager.filterStatus != nil || 
+        memoManager.filterIncompleteOnly || 
+        memoManager.showOverdueOnly || 
+        memoManager.filterTagType != nil
     }
     
     // MARK: - 頂部統計

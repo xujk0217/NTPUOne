@@ -21,6 +21,8 @@ struct UnifiedCourseGridView: View {
     @State var peekCourse: Course? = nil
 
     @Binding var includeNight: Bool
+    
+    @ObservedObject var memoManager: MemoManager  // 新增
 
     var body: some View {
         VStack {
@@ -29,20 +31,20 @@ struct UnifiedCourseGridView: View {
                     DayBadge(text: day)
                 }
                 ForEach(displayedDays, id: \.self) { day in
-                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
                 }
             }
             LunchButtonView()
             LazyVGrid(columns: columns) {
                 ForEach(displayedDays, id: \.self) { day in
-                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                    AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
                 }
             }
             if includeNight{
                 DinnerButtonView()
                 LazyVGrid(columns: columns) {
                     ForEach(displayedDays, id: \.self) { day in
-                        EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                        EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
                     }
                 }
             }
@@ -53,8 +55,8 @@ struct UnifiedCourseGridView: View {
             CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet)
         }
         .sheet(item: $peekCourse) { course in
-            CourseDetailSheet(course: course)
-                .presentationDetents([.fraction(0.35)])
+            CourseDetailSheet(course: course, memoManager: memoManager, courseData: courseData)
+                .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -83,6 +85,7 @@ struct MorningCourseColumnView: View {
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
     @Binding var peekCourse: Course?
+    @ObservedObject var memoManager: MemoManager
 
     var body: some View {
         VStack{
@@ -90,7 +93,7 @@ struct MorningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
                 
             }
         }
@@ -107,6 +110,7 @@ struct AfternoonCourseColumnView: View {
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
     @Binding var peekCourse: Course?
+    @ObservedObject var memoManager: MemoManager
 
     var body: some View {
         VStack{
@@ -114,7 +118,7 @@ struct AfternoonCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
             }
         }
     }
@@ -130,6 +134,7 @@ struct EveningCourseColumnView: View {
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
     @Binding var peekCourse: Course?
+    @ObservedObject var memoManager: MemoManager
 
     var body: some View {
         VStack{
@@ -137,7 +142,7 @@ struct EveningCourseColumnView: View {
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
                 }
-                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse)
+                CourseSlotView(day: day, slot: slot, filteredCourses: filteredCourses, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
             }
         }
     }
@@ -154,6 +159,7 @@ struct CourseSlotView: View {
     @Binding var isNewCourse: Bool
     @Binding var newCourse: Course
     @Binding var peekCourse: Course?
+    @ObservedObject var memoManager: MemoManager
 
     // 時間格式器（避免每次 new）
     private let weekFmt: DateFormatter = {
@@ -200,6 +206,18 @@ struct CourseSlotView: View {
                                     .lineLimit(1)
                                     .truncationMode(.tail)
                                     .foregroundStyle(.secondary)              // 教室用次要色
+                                
+                                // 顯示備忘錄相關的顏色點
+                                if !getRelatedMemos(for: course).isEmpty {
+                                    HStack(spacing: 2) {
+                                        ForEach(getRelatedMemos(for: course).prefix(3), id: \.id) { memo in
+                                            Circle()
+                                                .fill(memo.tagType.color)
+                                                .frame(width: 4, height: 4)
+                                        }
+                                    }
+                                    .padding(.top, 2)
+                                }
                             }
                             .padding(6)
                             
@@ -227,6 +245,18 @@ struct CourseSlotView: View {
                                         .lineLimit(1)
                                         .truncationMode(.tail)
                                         .foregroundStyle(.secondary)
+                                    
+                                    // 顯示備忘錄相關的顏色點
+                                    if !getRelatedMemos(for: course).isEmpty {
+                                        HStack(spacing: 2) {
+                                            ForEach(getRelatedMemos(for: course).prefix(3), id: \.id) { memo in
+                                                Circle()
+                                                    .fill(memo.tagType.color)
+                                                    .frame(width: 4, height: 4)
+                                            }
+                                        }
+                                        .padding(.top, 2)
+                                    }
                                 }
                             }
                             .frame(maxWidth: .infinity)
@@ -248,6 +278,14 @@ struct CourseSlotView: View {
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.25))
         )
+        .id(memoManager.memos.map { $0.id }.joined())
+    }
+    
+    // 取得與課程相關的備忘錄
+    func getRelatedMemos(for course: Course) -> [Memo] {
+        return memoManager.memos.filter { memo in
+            memo.courseLink == course.id && memo.status != .done
+        }
     }
 
     // ===== 互動 =====
@@ -433,6 +471,8 @@ private struct AddCourseTile: View {
 
 struct CourseDetailSheet: View {
     let course: Course
+    @ObservedObject var memoManager: MemoManager
+    @ObservedObject var courseData: CourseData
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -462,6 +502,67 @@ struct CourseDetailSheet: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(.quaternary)
             )
+            
+            // 相關任務列表
+            let relatedMemos = getRelatedMemos()
+            if !relatedMemos.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Image(systemName: "checklist")
+                            .font(.headline)
+                        Text("相關任務")
+                            .font(.headline)
+                        Spacer()
+                    }
+                    
+                    VStack(spacing: 8) {
+                        ForEach(relatedMemos) { memo in
+                            HStack(alignment: .top, spacing: 8) {
+                                Image(systemName: memo.status.icon)
+                                    .font(.caption)
+                                    .foregroundStyle(memo.status.color)
+                                    .frame(width: 20)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(memo.title)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(2)
+                                    
+                                    HStack(spacing: 8) {
+                                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                                            .font(.caption2)
+                                            .foregroundStyle(memo.tagType.color)
+                                        
+                                        if let desc = memo.dueDateDescription {
+                                            Text("• \(desc)")
+                                                .font(.caption2)
+                                                .foregroundStyle(memo.isOverdue ? .red : .secondary)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(Color(.tertiarySystemBackground))
+                            )
+                        }
+                    }
+                }
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(.quaternary)
+                )
+            }
 
             Spacer(minLength: 0)
         }
@@ -487,6 +588,24 @@ struct CourseDetailSheet: View {
                     .lineLimit(2)
             }
             Spacer()
+        }
+    }
+    
+    // 取得與課程相關的備忘錄
+    func getRelatedMemos() -> [Memo] {
+        return memoManager.memos.filter { memo in
+            memo.courseLink == course.id && memo.status != .done
+        }
+        .sorted { memo1, memo2 in
+            // 優先顯示逾期的
+            if memo1.isOverdue && !memo2.isOverdue { return true }
+            if !memo1.isOverdue && memo2.isOverdue { return false }
+            
+            // 然後按截止時間排序
+            if let due1 = memo1.dueAt, let due2 = memo2.dueAt {
+                return due1 < due2
+            }
+            return false
         }
     }
 }

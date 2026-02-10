@@ -17,8 +17,14 @@ struct ContentView: View {
     @ObservedObject var weatherManager = WeatherManager()
     @StateObject private var orderManager = OrderManager()
     @ObservedObject var fManager = FManager()
+    @StateObject private var memoManager: MemoManager
     
     @State var selectedTab = 0
+    
+    init() {
+        let context = CoreDataManager.shared.persistentContainer.viewContext
+        self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
+    }
     
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -32,9 +38,9 @@ struct ContentView: View {
                 Text("Timetable")
             }.tag(1)
             
-            LifeView().tabItem {
-                Image(systemName: "cup.and.saucer.fill")
-                Text("Life")
+            TodayView(memoManager: memoManager, courseData: courseData).tabItem {
+                Image(systemName: "note.text")
+                Text("Memo")
             }.tag(2)
             AboutView().tabItem {
                 Image(systemName: "info.circle")

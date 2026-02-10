@@ -23,6 +23,7 @@ struct LinkView: View {
     private let helper = RewardedAdHelper()
     @State private var showAdConfirm = false
     @State private var showNotReadyAlert = false
+    @StateObject var weatherManager = WeatherManager()  // 新增 weather manager
 
     private let rewardedUnitID = "ca-app-pub-4105005748617921/1893622165"
     
@@ -59,6 +60,15 @@ struct LinkView: View {
     @State private var goLinks = false
     @State private var goRandomFood = false
     @State private var goToday = false
+    @State private var goTraffic = false  // 新增：前往交通頁面
+    @State private var showFoodMenu = false  // 新增：顯示餐廳選單
+    @State private var goBreakfast = false
+    @State private var goLunch = false
+    @State private var goDinner = false
+    @State private var goMidnightSnack = false
+    @State private var showTodayTasks = false  // 新增：顯示今日代辦展開
+    @State private var selectedMemoForDetail: Memo? = nil  // 新增：選中的備忘錄
+    @State private var showWeatherDetail = false  // 新增：顯示天氣詳情
     
     @State private var peekCourse: Course? = nil
     
@@ -74,214 +84,495 @@ struct LinkView: View {
         self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
     }
     
+    // MARK: - 子視圖
+    
+    // 天气 Toolbar 按钮
+    @ViewBuilder
+    private func weatherToolbarButton(station: Station) -> some View {
+        let weather = station.WeatherElement.Weather
+        let currentTemp = station.WeatherElement.AirTemperature
+        
+        Button {
+            showWeatherDetail = true
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: weatherIcon(weather))
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(weatherTint(weather))
+                
+                Text(safeTemp(currentTemp))
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+            }
+        }
+    }
+    
+    // 天气详情 Sheet
+    @ViewBuilder
+    private var weatherDetailSheet: some View {
+        if let weatherData = weatherManager.weatherDatas,
+           let station = weatherData.records.Station.first {
+            NavigationStack {
+                WeatherDetailView(station: station)
+                    .navigationTitle("天氣詳情")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("關閉") {
+                                showWeatherDetail = false
+                            }
+                        }
+                    }
+            }
+            .presentationDetents([.medium, .large])
+        }
+    }
+    
+    @ViewBuilder
+    private var weatherBannerSection: some View {
+        Section {
+            if let weatherData = weatherManager.weatherDatas,
+               let station = weatherData.records.Station.first {
+                weatherBannerView(station: station)
+            } else {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .onAppear { weatherManager.fetchData() }
+                    Spacer()
+                }
+                .frame(height: 50)
+            }
+        }
+        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+        .listRowBackground(Color.clear)
+    }
+    
+    @ViewBuilder
+    private func weatherBannerView(station: Station) -> some View {
+        let weather = station.WeatherElement.Weather
+        let currentTemp = station.WeatherElement.AirTemperature
+        let maxTemp = station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature
+        let minTemp = station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature
+        
+        HStack(spacing: 12) {
+            // 天氣圖示
+            ZStack {
+                Circle()
+                    .fill(weatherTint(weather).opacity(0.15))
+                    .frame(width: 50, height: 50)
+                Image(systemName: weatherIcon(weather))
+                    .font(.title2)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(weatherTint(weather))
+            }
+            
+            // 天氣資訊
+            VStack(alignment: .leading, spacing: 3) {
+                Text(weather)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                
+                HStack(spacing: 10) {
+                    Text(safeTemp(currentTemp))
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.primary)
+                    
+                    Text("高\(safeTemp(maxTemp)) 低\(safeTemp(minTemp))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        }
+    }
+    
+    @ViewBuilder
+    private var nextCourseSection: some View {
+        Section("下一堂課") {
+            if let c = nextCourseOnAppear {
+                nextCourseCard(course: c)
+            } else {
+                noCourseCard
+            }
+        }
+        .listRowBackground(Color.clear)
+    }
+    
+    @ViewBuilder
+    private func nextCourseCard(course: Course) -> some View {
+        Button {
+            peekCourse = course
+        } label: {
+            HStack(alignment: .top, spacing: 12) {
+                // 左側圖示圓點
+                ZStack {
+                    Circle()
+                        .fill(slotTint(course.timeSlot).opacity(0.15))
+                        .frame(width: 44, height: 44)
+                    Image(systemName: "book.closed.fill")
+                        .font(.title3)
+                        .foregroundStyle(slotTint(course.timeSlot))
+                }
+
+                // 主要文字
+                courseInfoView(course: course)
+
+                Spacer()
+
+                if course.isNotification {
+                    Image(systemName: "bell.fill")
+                        .font(.callout)
+                        .foregroundStyle(slotTint(course.timeSlot))
+                }
+            }
+            .padding(12)
+            .background {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(Color(.tertiarySystemBackground))
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(slotTint(course.timeSlot))
+                            .frame(width: 4)
+                            .padding(.vertical, 8)
+                            .padding(.leading, 6)
+                    }
+                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .foregroundStyle(.primary)
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+    }
+    
+    @ViewBuilder
+    private func courseInfoView(course: Course) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(course.name)
+                .font(.headline)
+                .lineLimit(1)
+
+            // 時間 + 倒數
+            HStack(spacing: 8) {
+                Label("\(course.day) • \(course.startTime.rawValue)", systemImage: "clock")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if let m = minutesUntilStart(of: course) {
+                    Text("還有 \(m-5) 分")
+                        .font(.caption.weight(.semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(slotTint(course.timeSlot).opacity(0.12))
+                        .clipShape(Capsule())
+                }
+            }
+
+            // 地點 + 老師
+            HStack(spacing: 12) {
+                Label(course.location.isEmpty ? "—" : course.location,
+                      systemImage: "mappin.and.ellipse")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                Label(course.teacher.isEmpty ? "—" : course.teacher,
+                      systemImage: "person.fill")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var noCourseCard: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "checkmark.circle")
+                .font(.title2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("今日已沒有課程")
+                    .font(.headline)
+                Text("好好休息～")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.tertiarySystemBackground))
+                .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+        }
+        .listRowInsets(.init(top: 1, leading: 1, bottom: 1, trailing: 1))
+    }
+    
+    @ViewBuilder
+    private var todayTasksSection: some View {
+        Section {
+            todayTasksDisclosureGroup
+        }
+    }
+    
+    @ViewBuilder
+    private var todayTasksDisclosureGroup: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                showTodayTasks.toggle()
+            } label: {
+                todayTasksLabel
+            }
+            .buttonStyle(.plain)
+            .animation(nil, value: showTodayTasks)
+            
+            if showTodayTasks {
+                todayTasksList
+                    .transition(.opacity.combined(with: .scale(scale: 1.0, anchor: .top)))
+                    .animation(.easeInOut(duration: 0.25), value: showTodayTasks)
+            }
+        }
+        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+    }
+    
+    @ViewBuilder
+    private var todayTasksList: some View {
+        let todayMemos = getTodayMemos()
+        if todayMemos.isEmpty {
+            Text("沒有今日待辦事項")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
+                .padding(.horizontal, 12)
+        } else {
+            VStack(spacing: 0) {
+                ForEach(todayMemos) { memo in
+                    todayTaskRow(memo: memo)
+                        .contextMenu {
+                            Button(role: .destructive) {
+                                memoManager.deleteMemo(memo)
+                            } label: {
+                                Label("刪除", systemImage: "trash")
+                            }
+                            
+                            Button {
+                                let nextStatus: Memo.MemoStatus = {
+                                    switch memo.status {
+                                    case .todo: return .doing
+                                    case .doing: return .done
+                                    case .done: return .todo
+                                    case .snoozed: return .doing
+                                    }
+                                }()
+                                memoManager.updateStatus(memo, to: nextStatus)
+                            } label: {
+                                Label("標記為\(nextStatusName(memo.status))", systemImage: "checkmark.circle")
+                            }
+                        }
+                    
+                    if memo.id != todayMemos.last?.id {
+                        Divider()
+                            .padding(.leading, 60)
+                    }
+                }
+            }
+            .padding(.top, 8)
+        }
+    }
+    
+    private func nextStatusName(_ currentStatus: Memo.MemoStatus) -> String {
+        switch currentStatus {
+        case .todo: return "進行中"
+        case .doing: return "已完成"
+        case .done: return "待辦"
+        case .snoozed: return "進行中"
+        }
+    }
+    
+    @ViewBuilder
+    private func todayTaskRow(memo: Memo) -> some View {
+        Button {
+            selectedMemoForDetail = memo
+        } label: {
+            HStack(spacing: 12) {
+                // 狀態圖示
+                ZStack {
+                    Circle()
+                        .fill(memo.status.color.opacity(0.15))
+                        .frame(width: 36, height: 36)
+                    Image(systemName: memo.status.icon)
+                        .font(.system(size: 18))
+                        .foregroundStyle(memo.status.color)
+                }
+                
+                // 主要內容
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(memo.title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    
+                    HStack(spacing: 3) {
+                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                            .font(.caption2)
+                            .foregroundStyle(memo.tagType.color)
+                            .labelStyle(.titleAndIcon)
+                        
+                        if let desc = memo.dueDateDescription {
+                            Text("• \(desc)")
+                                .font(.caption2)
+                                .foregroundStyle(memo.isOverdue ? .red : .secondary)
+                        }
+                    }
+                }
+                
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+    
+    @ViewBuilder
+    private var todayTasksLabel: some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.purple.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "checklist")
+                    .font(.title3)
+                    .foregroundStyle(.purple)
+            }
+            
+            VStack(alignment: .leading, spacing: 4) {
+                Text("今日待辦")
+                    .font(.headline)
+                
+                todayTasksStatsView
+            }
+            
+            Spacer()
+            
+            Image(systemName: showTodayTasks ? "chevron.down" : "chevron.right")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.tertiarySystemBackground))
+        }
+    }
+    
+    @ViewBuilder
+    private var todayTasksStatsView: some View {
+        let stats = getTodayMemoStats()
+        HStack(spacing: 8) {
+            if stats.overdue > 0 {
+                Label("\(stats.overdue) 逾期", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+            if stats.planExpired > 0 {
+                Label("\(stats.planExpired) 計劃過期", systemImage: "calendar.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.purple)
+            }
+            if stats.today > 0 {
+                Label("\(stats.today) 今日待辦", systemImage: "clock")
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
+            if stats.total > 0 && stats.overdue == 0 && stats.today == 0 && stats.planExpired == 0 {
+                Label("\(stats.total) 項進行中", systemImage: "list.bullet")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            if stats.total == 0 {
+                Text("沒有待辦事項")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var weatherSection: some View {
+        Section {
+            if let weatherData = weatherManager.weatherDatas,
+               let station = weatherData.records.Station.first {
+                compactWeatherView(station: station)
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+            } else {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                        .onAppear { weatherManager.fetchData() }
+                    Spacer()
+                }
+                .frame(height: 60)
+                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+            }
+        }
+        .listRowBackground(Color.clear)
+    }
+    
+    @ViewBuilder
+    private var quickFeaturesSection: some View {
+        Section("功能快捷") {
+            LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+                Button { goSchoolPosts = true } label: {
+                    featureCard(icon: "text.bubble.fill", title: "學校公告", iconColor: .blue)
+                }
+                .buttonStyle(.plain).contentShape(Rectangle())
+
+                Button { goLinks = true } label: {
+                    featureCard(icon: "macwindow", title: "常用連結", iconColor: .green)
+                }
+                .buttonStyle(.plain).contentShape(Rectangle())
+
+                if #available(iOS 17.0, *) {
+                    Button { goRandomFood = true } label: {
+                        featureCard(icon: "chart.pie.fill", title: "吃飯轉盤", iconColor: .orange)
+                    }
+                    .buttonStyle(.plain).contentShape(Rectangle())
+                }
+                
+                Button { goTraffic = true } label: {
+                    featureCard(icon: "bicycle", title: "Ubike", iconColor: .green)
+                }
+                .buttonStyle(.plain).contentShape(Rectangle())
+                
+                Button { showFoodMenu = true } label: {
+                    featureCard(icon: "fork.knife", title: "餐廳", iconColor: .red)
+                }
+                .buttonStyle(.plain).contentShape(Rectangle())
+            }
+            .listRowSeparator(.hidden)
+            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+            .listRowBackground(Color.clear)
+        }
+    }
+    
     var body: some View {
         NavigationStack {
             VStack {
                 List {
                     orderSection
-                    Section("下一堂課") {
-                        if let c = nextCourseOnAppear {
-                            Button {
-//                                courseName = c.name
-//                                courseTeacher = c.teacher
-//                                courseTime = c.startTime.rawValue
-//                                courseLocation = c.location
-//                                courseDay = c.day
-//                                showingAlert = true
-                                peekCourse = c
-                            } label: {
-                                HStack(alignment: .top, spacing: 12) {
-                                    // 左側圖示圓點
-                                    ZStack {
-                                        Circle()
-                                            .fill(slotTint(c.timeSlot).opacity(0.15))
-                                            .frame(width: 44, height: 44)
-                                        Image(systemName: "book.closed.fill")
-                                            .font(.title3)
-                                            .foregroundStyle(slotTint(c.timeSlot))
-                                    }
-
-                                    // 主要文字
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        Text(c.name)
-                                            .font(.headline)
-                                            .lineLimit(1)
-
-                                        // 時間 + 倒數
-                                        HStack(spacing: 8) {
-                                            Label("\(c.day) • \(c.startTime.rawValue)", systemImage: "clock")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                            if let m = minutesUntilStart(of: c) {
-                                                Text("還有 \(m-5) 分")
-                                                    .font(.caption.weight(.semibold))
-                                                    .padding(.horizontal, 8)
-                                                    .padding(.vertical, 2)
-                                                    .background(slotTint(c.timeSlot).opacity(0.12))
-                                                    .clipShape(Capsule())
-                                            }
-                                        }
-
-                                        // 地點 + 老師
-                                        HStack(spacing: 12) {
-                                            Label(c.location.isEmpty ? "—" : c.location,
-                                                  systemImage: "mappin.and.ellipse")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-
-                                            Label(c.teacher.isEmpty ? "—" : c.teacher,
-                                                  systemImage: "person.fill")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                                .lineLimit(1)
-                                        }
-                                    }
-
-                                    Spacer()
-
-                                    if c.isNotification {
-                                        Image(systemName: "bell.fill")
-                                            .font(.callout)
-                                            .foregroundStyle(slotTint(c.timeSlot))
-                                    }
-                                }
-                                .padding(12)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(Color(.tertiarySystemBackground))
-                                        .overlay(alignment: .leading) {
-                                            Capsule()
-                                                .fill(slotTint(c.timeSlot))
-                                                .frame(width: 4)
-                                                .padding(.vertical, 8)
-                                                .padding(.leading, 6)
-                                        }
-                                        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
-                                }
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .foregroundStyle(.primary)
-                            }
-                            .buttonStyle(.plain) // 避免 List 預設高亮
-                            .contentShape(Rectangle())
-                            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                            
-                            
-                        } else {
-                            // 沒有課的樣式
-                            HStack(spacing: 12) {
-                                Image(systemName: "checkmark.circle")
-                                    .font(.title2)
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("今日已沒有課程")
-                                        .font(.headline)
-                                    Text("好好休息～")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                            }
-                            .padding(12)
-                            .background {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color(.tertiarySystemBackground))
-                                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
-                            }
-                            .listRowInsets(.init(top: 1, leading: 1, bottom: 1, trailing: 1))
-                        }
-                    }
-                    .listRowBackground(Color.clear)
-                    
-                    // 今日待辦入口
-                    Section("今日待辦") {
-                        Button {
-                            goToday = true
-                        } label: {
-                            HStack(spacing: 12) {
-                                ZStack {
-                                    Circle()
-                                        .fill(Color.purple.opacity(0.15))
-                                        .frame(width: 44, height: 44)
-                                    Image(systemName: "checklist")
-                                        .font(.title3)
-                                        .foregroundStyle(.purple)
-                                }
-                                
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("待辦事項")
-                                        .font(.headline)
-                                    
-                                    let stats = getTodayMemoStats()
-                                    HStack(spacing: 8) {
-                                        if stats.overdue > 0 {
-                                            Label("\(stats.overdue) 逾期", systemImage: "exclamationmark.triangle.fill")
-                                                .font(.caption)
-                                                .foregroundStyle(.red)
-                                        }
-                                        if stats.planExpired > 0 {
-                                            Label("\(stats.planExpired) 計劃過期", systemImage: "calendar.badge.exclamationmark")
-                                                .font(.caption)
-                                                .foregroundStyle(.purple)
-                                        }
-                                        if stats.today > 0 {
-                                            Label("\(stats.today) 今日待辦", systemImage: "clock")
-                                                .font(.caption)
-                                                .foregroundStyle(.orange)
-                                        }
-                                        if stats.total > 0 && stats.overdue == 0 && stats.today == 0 && stats.planExpired == 0 {
-                                            Label("\(stats.total) 項進行中", systemImage: "list.bullet")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                        if stats.total == 0 {
-                                            Text("沒有待辦事項")
-                                                .font(.caption)
-                                                .foregroundStyle(.secondary)
-                                        }
-                                    }
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.right")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            .padding(12)
-                            .background {
-                                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                    .fill(Color(.tertiarySystemBackground))
-                                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                    }
-                    .listRowBackground(Color.clear)
-                    
-                    Section("功能快捷") {
-                        LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
-                            Button { goSchoolPosts = true } label: {
-                                featureCard(icon: "text.bubble.fill", title: "學校公告", iconColor: .blue)
-                            }
-                            .buttonStyle(.plain).contentShape(Rectangle())
-
-                            Button { goLinks = true } label: {
-                                featureCard(icon: "macwindow", title: "常用連結", iconColor: .green)
-                            }
-                            .buttonStyle(.plain).contentShape(Rectangle())
-
-                            if #available(iOS 17.0, *) {
-                                Button { goRandomFood = true } label: {
-                                    featureCard(icon: "chart.pie.fill", title: "吃飯轉盤", iconColor: .orange)
-                                }
-                                .buttonStyle(.plain).contentShape(Rectangle())
-                            }
-                        }
-                        .listRowSeparator(.hidden)
-                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(Color.clear)
-                    }
+                    nextCourseSection
+                    todayTasksSection
+                    quickFeaturesSection
                 }
                 .navigationTitle("NTPU one")
                 .onAppear {
@@ -294,9 +585,15 @@ struct LinkView: View {
                     }
                 }
                 .sheet(item: $peekCourse) { course in
-                    CourseDetailSheet(course: course)
+                    CourseDetailSheet(course: course, memoManager: memoManager, courseData: courseData)
                         .presentationDetents([.fraction(0.35)])
                         .presentationDragIndicator(.visible)
+                }
+                .sheet(item: $selectedMemoForDetail) { memo in
+                    MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)
+                }
+                .sheet(isPresented: $showWeatherDetail) {
+                    weatherDetailSheet
                 }
                 if !adFree.isAdFree{
                     // 廣告標記
@@ -335,8 +632,51 @@ struct LinkView: View {
                     isActive: $goToday
                 ) { EmptyView() }
                 .hidden()
+                
+                // 新增：交通（Ubike）NavigationLink
+                if #available(iOS 17.0, *) {
+                    NavigationLink(
+                        destination: TrafficView(),
+                        isActive: $goTraffic
+                    ) { EmptyView() }
+                    .hidden()
+                } else {
+                    NavigationLink(
+                        destination: BackTrafficView(),
+                        isActive: $goTraffic
+                    ) { EmptyView() }
+                    .hidden()
+                }
+                
+                // 新增：餐廳選單 NavigationLinks
+                NavigationLink(destination: BreakfastView(), isActive: $goBreakfast) { EmptyView() }.hidden()
+                NavigationLink(destination: LunchView(), isActive: $goLunch) { EmptyView() }.hidden()
+                NavigationLink(destination: dinnerView(), isActive: $goDinner) { EmptyView() }.hidden()
+                NavigationLink(destination: MSView(), isActive: $goMidnightSnack) { EmptyView() }.hidden()
+            }
+            .sheet(isPresented: $showFoodMenu) {
+                foodMenuSheet
             }
             .toolbar {
+                // 左上角天气按钮
+                ToolbarItem(placement: .topBarLeading) {
+                    if let weatherData = weatherManager.weatherDatas,
+                       let station = weatherData.records.Station.first {
+                        weatherToolbarButton(station: station)
+                    } else {
+                        Button {
+                            // 加载中不可点击
+                        } label: {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .controlSize(.small)
+                            }
+                        }
+                        .disabled(true)
+                        .onAppear { weatherManager.fetchData() }
+                    }
+                }
+                
                 // 右上角按鈕
                 ToolbarItem(placement: toolbarPlacementTrailing) {
                     if adFree.isAdFree {
@@ -458,6 +798,201 @@ struct LinkView: View {
         let total = memoManager.memos.filter { $0.status != .done }.count
         
         return (overdue, planExpired, todayCount, total)
+    }
+    
+    // 新增：取得今日待辦任務列表
+    private func getTodayMemos() -> [Memo] {
+        let calendar = Calendar.current
+        let todayStart = calendar.startOfDay(for: Date())
+        let tomorrow = calendar.date(byAdding: .day, value: 1, to: todayStart)!
+        
+        return memoManager.memos.filter { memo in
+            guard memo.status != .done else { return false }
+            
+            // 包含逾期的任務
+            if memo.isOverdue { return true }
+            
+            // 今日截止的任務
+            if let dueAt = memo.dueAt, dueAt >= todayStart && dueAt < tomorrow { return true }
+            
+            // 今日計劃的任務
+            if let planAt = memo.planAt, planAt >= todayStart && planAt < tomorrow { return true }
+            
+            return false
+        }
+        .sorted { memo1, memo2 in
+            // 優先顯示逾期的
+            if memo1.isOverdue && !memo2.isOverdue { return true }
+            if !memo1.isOverdue && memo2.isOverdue { return false }
+            
+            // 然後按截止時間排序
+            if let due1 = memo1.dueAt, let due2 = memo2.dueAt {
+                return due1 < due2
+            }
+            return false
+        }
+        .prefix(5)  // 只顯示前5個
+        .map { $0 }
+    }
+    
+    // 新增：簡化版天氣視圖
+    @ViewBuilder
+    private func compactWeatherView(station: Station) -> some View {
+        let weather = station.WeatherElement.Weather
+        let currentTemp = station.WeatherElement.AirTemperature
+        let maxTemp = station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature
+        let minTemp = station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature
+        
+        HStack(spacing: 12) {
+            // 天氣圖示
+            ZStack {
+                Circle()
+                    .fill(weatherTint(weather).opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: weatherIcon(weather))
+                    .font(.title3)
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(weatherTint(weather))
+            }
+            
+            // 天氣資訊
+            VStack(alignment: .leading, spacing: 2) {
+                Text(weather)
+                    .font(.subheadline.weight(.semibold))
+                HStack(spacing: 8) {
+                    Text(safeTemp(currentTemp))
+                        .font(.title3.weight(.bold))
+                    Text("高\(safeTemp(maxTemp)) 低\(safeTemp(minTemp))")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            
+            Spacer()
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.tertiarySystemBackground))
+                .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+        }
+    }
+    
+    // 新增：餐廳選單 Sheet
+    private var foodMenuSheet: some View {
+        NavigationStack {
+            List {
+                Button {
+                    goBreakfast = true
+                    showFoodMenu = false
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "cup.and.saucer.fill")
+                            .font(.title2)
+                            .foregroundStyle(.orange)
+                            .frame(width: 40)
+                        Text("早餐")
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    goLunch = true
+                    showFoodMenu = false
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "carrot.fill")
+                            .font(.title2)
+                            .foregroundStyle(.green)
+                            .frame(width: 40)
+                        Text("午餐")
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    goDinner = true
+                    showFoodMenu = false
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "wineglass.fill")
+                            .font(.title2)
+                            .foregroundStyle(.purple)
+                            .frame(width: 40)
+                        Text("晚餐")
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+                
+                Button {
+                    goMidnightSnack = true
+                    showFoodMenu = false
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "moon.stars.fill")
+                            .font(.title2)
+                            .foregroundStyle(.indigo)
+                            .frame(width: 40)
+                        Text("宵夜")
+                            .font(.headline)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.plain)
+            }
+            .navigationTitle("選擇餐點")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("關閉") {
+                        showFoodMenu = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+    
+    // 天氣相關輔助函數
+    private func safeTemp(_ s: String) -> String {
+        (s == "-99" || s.isEmpty) ? "—" : "\(s)°"
+    }
+    
+    private func weatherTint(_ text: String) -> Color {
+        if text.contains("雷") { return .purple }
+        if text.contains("雪") { return .indigo }
+        if text.contains("雨") { return .teal }
+        if text.contains("陰") { return .gray }
+        if text.contains("多雲") { return .blue }
+        return .orange
+    }
+    
+    private func weatherIcon(_ weather: String) -> String {
+        if weather.contains("晴") && weather.contains("雨") { return "cloud.sun.rain" }
+        if weather.contains("晴") { return "sun.max" }
+        if weather.contains("多雲") && weather.contains("雨") { return "cloud.rain" }
+        if weather.contains("多雲") { return "cloud.sun" }
+        if weather.contains("陰") { return "cloud" }
+        if weather.contains("雨") { return "cloud.rain" }
+        return "cloud"
     }
 
     
@@ -1084,5 +1619,150 @@ struct AnnouncementCard: View {
 
         }
         .padding(14)
+    }
+}
+
+// MARK: - WeatherDetailView
+struct WeatherDetailView: View {
+    let station: Station
+    
+    var body: some View {
+        let weather = station.WeatherElement.Weather
+        let currentTemp = station.WeatherElement.AirTemperature
+        let maxTemp = station.WeatherElement.DailyExtreme.DailyHigh.TemperatureInfo.AirTemperature
+        let minTemp = station.WeatherElement.DailyExtreme.DailyLow.TemperatureInfo.AirTemperature
+        let windSpeed = station.WeatherElement.WindSpeed
+        let humidity = station.WeatherElement.RelativeHumidity
+        let time = station.ObsTime.DateTime
+        
+        ScrollView {
+            VStack(spacing: 20) {
+                // 主要天气信息
+                VStack(spacing: 16) {
+                    // 天气图标
+                    ZStack {
+                        Circle()
+                            .fill(weatherTint(weather).opacity(0.15))
+                            .frame(width: 120, height: 120)
+                        Image(systemName: weatherIcon(weather))
+                            .font(.system(size: 60))
+                            .symbolRenderingMode(.hierarchical)
+                            .foregroundStyle(weatherTint(weather))
+                    }
+                    
+                    // 天气描述
+                    Text(weather)
+                        .font(.title.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    
+                    // 当前温度
+                    Text(safeTemp(currentTemp))
+                        .font(.system(size: 72, weight: .thin))
+                        .foregroundStyle(.primary)
+                    
+                    // 高低温
+                    HStack(spacing: 20) {
+                        VStack {
+                            Text("最高")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(safeTemp(maxTemp))
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
+                        
+                        Divider()
+                            .frame(height: 40)
+                        
+                        VStack {
+                            Text("最低")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text(safeTemp(minTemp))
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+                .padding(.top, 20)
+                
+                // 详细信息卡片
+                VStack(spacing: 12) {
+                    weatherInfoRow(icon: "wind", title: "風速", value: safeWind(windSpeed))
+                    Divider()
+                    weatherInfoRow(icon: "humidity", title: "濕度", value: safeHumidity(humidity))
+                    Divider()
+                    weatherInfoRow(icon: "clock", title: "更新時間", value: shortTimeString(time))
+                }
+                .padding(16)
+                .background {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                }
+                .padding(.horizontal)
+                
+                Spacer(minLength: 20)
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private func weatherInfoRow(icon: String, title: String, value: String) -> some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.title3)
+                .foregroundStyle(.blue)
+                .frame(width: 30)
+            
+            Text(title)
+                .font(.body)
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.primary)
+        }
+    }
+    
+    private func safeTemp(_ s: String) -> String {
+        (s == "-99" || s.isEmpty) ? "—" : "\(s)°C"
+    }
+    
+    private func safeWind(_ s: String) -> String {
+        (s == "-99" || s.isEmpty) ? "—" : "\(s) m/s"
+    }
+    
+    private func safeHumidity(_ s: String) -> String {
+        (s == "-99" || s.isEmpty) ? "—" : "\(s)%"
+    }
+    
+    private func shortTimeString(_ s: String) -> String {
+        guard s.count >= 16 else { return "—" }
+        let start = s.index(s.startIndex, offsetBy: 11)
+        let end = s.index(start, offsetBy: 5, limitedBy: s.endIndex) ?? s.endIndex
+        return String(s[start..<end])
+    }
+    
+    private func weatherTint(_ text: String) -> Color {
+        if text.contains("雷") { return .purple }
+        if text.contains("雪") { return .indigo }
+        if text.contains("雨") { return .teal }
+        if text.contains("陰") { return .gray }
+        if text.contains("多雲") { return .blue }
+        return .orange
+    }
+    
+    private func weatherIcon(_ weather: String) -> String {
+        if weather.contains("晴") && weather.contains("雨") { return "cloud.sun.rain" }
+        if weather.contains("晴") { return "sun.max" }
+        if weather.contains("多雲") && weather.contains("雨") { return "cloud.rain" }
+        if weather.contains("多雲") { return "cloud.sun" }
+        if weather.contains("陰") { return "cloud" }
+        if weather.contains("雨") { return "cloud.rain" }
+        if weather.contains("雷") { return "cloud.bolt.rain" }
+        if weather.contains("雪") { return "cloud.snow" }
+        return "cloud"
     }
 }

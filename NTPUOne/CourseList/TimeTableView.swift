@@ -11,6 +11,7 @@ import CloudKit
 struct TimeTableView: View {
     @EnvironmentObject var courseData: CourseData
     @EnvironmentObject var adFree: AdFreeService
+    @StateObject private var memoManager: MemoManager
     @State var isEdit = false
     @State var isShowingGetCourseSheet = false
     @State private var isSaturday: Bool = UserDefaults.standard.bool(forKey: "isSaturday")
@@ -19,6 +20,12 @@ struct TimeTableView: View {
     @State var showDeleteAllAlert = false
 
     @State private var refreshTrigger: Bool = false
+    
+    init() {
+        let context = CoreDataManager.shared.persistentContainer.viewContext
+        self._memoManager = StateObject(wrappedValue: MemoManager(context: context))
+    }
+    
     var body: some View {
         NavigationStack {
             ScrollView{
@@ -51,7 +58,7 @@ struct TimeTableView: View {
 //                    } else{
 //                        CourseGridSatView(courseData: courseData, isEdit: $isEdit)
 //                    }
-                    UnifiedCourseGridView(courseData: courseData, isEdit: $isEdit, includeSaturday: $isSaturday, includeNight: $includeNight)
+                    UnifiedCourseGridView(courseData: courseData, isEdit: $isEdit, includeSaturday: $isSaturday, includeNight: $includeNight, memoManager: memoManager)
 
                     if isEdit{
                         Button(role: .destructive) {
