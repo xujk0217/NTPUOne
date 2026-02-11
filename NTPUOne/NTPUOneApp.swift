@@ -24,9 +24,20 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     
     lazy var persistentContainer: NSPersistentCloudKitContainer = {
         let container = NSPersistentCloudKitContainer(name: "CourseModel")
+        
+        // 使用App Group共享路径
+        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
+        if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite") {
+            let storeDescription = NSPersistentStoreDescription(url: storeURL)
+            storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
+            container.persistentStoreDescriptions = [storeDescription]
+        }
+        
         container.loadPersistentStores(completionHandler: { (storeDescription, error) in
             if let error = error as NSError? {
                 fatalError("Unresolved error \(error), \(error.userInfo)")
+            } else {
+                print("✅ Persistent store loaded at: \(storeDescription.url?.path ?? "unknown")")
             }
         })
         return container
@@ -206,6 +217,7 @@ struct NTPUOneApp: App {
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 adFree.refresh()   // 回到前景時刷新到期狀態
+                WidgetCenter.shared.reloadAllTimelines()  // 刷新所有 Widget
             }
         }
     }

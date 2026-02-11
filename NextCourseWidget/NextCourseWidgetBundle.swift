@@ -13,5 +13,6 @@ struct NextCourseWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextCourseWidget()
         CourseLargeWidget()
+        MemoWidget()
     }
 }

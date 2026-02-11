@@ -13,22 +13,23 @@ import CoreData
 struct CourseLargeEntry: TimelineEntry {
     let date: Date
     let allCourses: [CourseEntity]
+    let allMemos: [MemoEntity]
 }
 
 struct CourseLargeProvider: TimelineProvider {
     func placeholder(in context: Context) -> CourseLargeEntry {
-        CourseLargeEntry(date: Date(), allCourses: [])
+        CourseLargeEntry(date: Date(), allCourses: [], allMemos: [])
     }
 
     func getSnapshot(in context: Context, completion: @escaping (CourseLargeEntry) -> ()) {
-        let entry = CourseLargeEntry(date: Date(), allCourses: fetchAllCourses())
+        let entry = CourseLargeEntry(date: Date(), allCourses: fetchAllCourses(), allMemos: fetchAllMemos())
         completion(entry)
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<CourseLargeEntry>) -> ()) {
         let currentDate = Date()
         let nextUpdate = Calendar.current.date(byAdding: .minute, value: 30, to: currentDate) ?? Date()
-        let entry = CourseLargeEntry(date: currentDate, allCourses: fetchAllCourses())
+        let entry = CourseLargeEntry(date: currentDate, allCourses: fetchAllCourses(), allMemos: fetchAllMemos())
         let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
         completion(timeline)
     }
@@ -60,6 +61,37 @@ struct CourseLargeProvider: TimelineProvider {
             return []
         }
     }
+    
+    private func fetchAllMemos() -> [MemoEntity] {
+        let container = NSPersistentCloudKitContainer(name: "CourseModel")
+        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
+        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
+        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
+        container.persistentStoreDescriptions = [storeDescription]
+        
+        container.loadPersistentStores { storeDescription, error in
+            if let error = error as NSError? {
+                fatalError("Unresolved error \(error), \(error.userInfo)")
+            } else {
+                print("Persistent store loaded: \(storeDescription)")
+            }
+        }
+        
+        let context = container.viewContext
+        let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+        
+        // 只獲取未完成的備忘錄
+        request.predicate = NSPredicate(format: "status != %@", "已完成")
+        
+        do {
+            let result = try context.fetch(request)
+            print("Fetched \(result.count) memos from Core Data.")
+            return result
+        } catch {
+            print("Error fetching memos: \(error)")
+            return []
+        }
+    }
 }
 
 
@@ -69,69 +101,229 @@ struct CourseLargeView: View {
     let entry: CourseLargeProvider.Entry
 
     let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    let timeSlots: [Course.TimeSlot] = [
-        .morning1, .morning2, .morning3, .morning4,
-        .afternoon1, .afternoon2, .afternoon3, .afternoon4, .afternoon5
-    ]
-    let timeTexts: [String] = ["08.", "09.", "10.", "11.", "13.", "14.", "15.", "16.", "17."]
+    let daysChinese = ["一", "二", "三", "四", "五"]
+    
+    // 根據是否有晚上課程動態調整顯示的時段
+    var displayedTimeSlots: [Course.TimeSlot] {
+        let baseSlots: [Course.TimeSlot] = [
+            .morning1, .morning2, .morning3, .morning4,
+            .afternoon1, .afternoon2, .afternoon3, .afternoon4, .afternoon5
+        ]
+        
+        // 檢查是否有晚上的課程
+        let hasEveningCourses = entry.allCourses.contains { course in
+            if let timeSlot = course.timeSlot {
+                return timeSlot.hasPrefix("Evening")
+            }
+            return false
+        }
+        
+        if hasEveningCourses {
+            return baseSlots + [.evening1, .evening2, .evening3, .evening4]
+        } else {
+            return baseSlots
+        }
+    }
+    
+    var displayedTimeTexts: [String] {
+        let baseTexts = ["08", "09", "10", "11", "13", "14", "15", "16", "17"]
+        
+        let hasEveningCourses = entry.allCourses.contains { course in
+            if let timeSlot = course.timeSlot {
+                return timeSlot.hasPrefix("Evening")
+            }
+            return false
+        }
+        
+        if hasEveningCourses {
+            return baseTexts + ["18", "19", "20", "21"]
+        } else {
+            return baseTexts
+        }
+    }
 
     var body: some View {
         GeometryReader { geometry in
-            let totalWidth = geometry.size.width - 12 // subtracting horizontal padding (6 + 6)
-            let columnWidth = (totalWidth - 30 - (CGFloat(days.count - 1) * 2)) / CGFloat(days.count)
+            let totalWidth = geometry.size.width - 16
+            let columnWidth = (totalWidth - 32 - (CGFloat(days.count - 1) * 3)) / CGFloat(days.count)
+            let hasEvening = displayedTimeSlots.count > 9
+            
+            // 動態計算格子高度，確保所有內容都能顯示
+            let headerHeight: CGFloat = 28
+            let vPadding: CGFloat = hasEvening ? 4 : 6
+            let hPadding: CGFloat = 8
+            let rowSpacing: CGFloat = hasEvening ? 2 : 3
+            let dividerHeight: CGFloat = 1
+            let dividerPadding: CGFloat = hasEvening ? 0.5 : 1
+            
+            let numDividers = hasEvening ? 2 : 1
+            let totalDividerSpace = CGFloat(numDividers) * (dividerHeight + dividerPadding * 2)
+            let totalRowSpacing = CGFloat(displayedTimeSlots.count - 1) * rowSpacing
+            
+            let availableHeight = geometry.size.height - vPadding * 2 - headerHeight - totalDividerSpace - totalRowSpacing - rowSpacing
+            let cellHeight = availableHeight / CGFloat(displayedTimeSlots.count)
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(spacing: rowSpacing) {
                 // Header Row
-                HStack(spacing: 2) {
-                    Text("") // Top-left blank corner
-                        .frame(width: 30, height: 30)
+                HStack(spacing: 3) {
+                    // 左上角時間圖標
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.blue.opacity(0.15))
+                        Image(systemName: "clock")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.blue)
+                    }
+                    .frame(width: 32, height: headerHeight)
 
-                    ForEach(days, id: \.self) { day in
-                        Text(day.prefix(3))
-                            .font(.caption.bold())
-                            .frame(width: columnWidth, height: 30)
+                    ForEach(Array(zip(days, daysChinese)), id: \.0) { day, dayChar in
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 6)
+                                .fill(isToday(day: day) ? Color.blue.opacity(0.2) : Color.gray.opacity(0.1))
+                            
+                            VStack(spacing: 0) {
+                                Text(dayChar)
+                                    .font(.system(size: 13, weight: .bold))
+                                    .foregroundColor(isToday(day: day) ? .blue : .primary)
+                            }
+                        }
+                        .frame(width: columnWidth, height: headerHeight)
                     }
                 }
 
                 // Course Rows
-                ForEach(timeSlots.indices, id: \.self) { index in
-                    let slot = timeSlots[index]
-                    let timeText = timeTexts[index]
+                ForEach(displayedTimeSlots.indices, id: \.self) { index in
+                    let slot = displayedTimeSlots[index]
+                    let timeText = displayedTimeTexts[index]
 
+                    // 上下午分隔線
                     if index == 4 {
-                        Divider().padding(.vertical, 2)
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: dividerHeight)
+                            .padding(.vertical, dividerPadding)
+                    }
+                    
+                    // 下午和晚上的分隔線
+                    if index == 9 && hasEvening {
+                        Rectangle()
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: dividerHeight)
+                            .padding(.vertical, dividerPadding)
                     }
 
-                    HStack(spacing: 2) {
+                    HStack(spacing: 3) {
                         // 時間欄
-                        Text(timeText)
-                            .font(.caption2)
-                            .frame(width: 30, height: 30)
-                            .background(Color.gray.opacity(0.1))
+                        ZStack {
+                            RoundedRectangle(cornerRadius: hasEvening ? 4 : 6)
+                                .fill(Color.gray.opacity(0.08))
+                            Text(timeText)
+                                .font(.system(size: hasEvening ? 9 : 11, weight: .medium))
+                                .foregroundColor(.secondary)
+                        }
+                        .frame(width: 32, height: cellHeight)
 
                         // 各天的課程格子
                         ForEach(days, id: \.self) { day in
                             let course = entry.allCourses.first { $0.day == day && $0.timeSlot == slot.rawValue }
+                            let memos = getMemosForCourse(course: course, day: day, allCourses: entry.allCourses, allMemos: entry.allMemos)
+                            let isCurrentSlot = highlightCell(day: day, slot: slot)
 
-                            ZStack {
-                                Rectangle()
-                                    .fill(highlightCell(day: day, slot: slot) ? Color.yellow.opacity(0.3) : Color.gray.opacity(0.1))
-
-                                Text(course?.name ?? "")
-                                    .font(.system(size: 10))
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.5)
-                                    .padding(2)
+                            ZStack(alignment: .topTrailing) {
+                                // 背景
+                                RoundedRectangle(cornerRadius: hasEvening ? 4 : 6)
+                                    .fill(getCellBackground(course: course, isCurrentSlot: isCurrentSlot))
+                                
+                                // 當前時段邊框
+                                if isCurrentSlot {
+                                    RoundedRectangle(cornerRadius: hasEvening ? 4 : 6)
+                                        .strokeBorder(Color.blue.opacity(0.6), lineWidth: hasEvening ? 1.5 : 2)
+                                }
+                                
+                                // 課程名稱
+                                if let courseName = course?.name, !courseName.isEmpty {
+                                    Text(courseName)
+                                        .font(.system(size: hasEvening ? 7.5 : 9, weight: .medium))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
+                                        .foregroundColor(isCurrentSlot ? .blue : .primary)
+                                        .padding(.horizontal, hasEvening ? 2 : 3)
+                                        .padding(.vertical, 1)
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                                }
+                                
+                                // 備忘錄點點
+                                if !memos.isEmpty {
+                                    HStack(spacing: 1) {
+                                        ForEach(memos.prefix(3), id: \.id) { memo in
+                                            Circle()
+                                                .fill(colorForTagType(memo.tagType ?? "其他"))
+                                                .frame(width: hasEvening ? 3 : 4, height: hasEvening ? 3 : 4)
+                                                .shadow(color: .black.opacity(0.2), radius: 0.5)
+                                        }
+                                    }
+                                    .padding(hasEvening ? 1.5 : 2)
+                                }
                             }
-                            .frame(width: columnWidth, height: 30)
+                            .frame(width: columnWidth, height: cellHeight)
                         }
                     }
                 }
             }
-            .padding(6)
+            .padding(.horizontal, hPadding)
+            .padding(.vertical, vPadding)
+        }
+    }
+    
+    // 判斷是否為今天
+    func isToday(day: String) -> Bool {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "EEEE"
+        formatter.locale = Locale(identifier: "en_US")
+        return formatter.string(from: Date()) == day
+    }
+    
+    // 獲取格子背景色
+    func getCellBackground(course: CourseEntity?, isCurrentSlot: Bool) -> Color {
+        if course != nil {
+            if isCurrentSlot {
+                return Color.blue.opacity(0.25)
+            } else {
+                return Color.blue.opacity(0.12)
+            }
+        } else {
+            return Color.gray.opacity(0.06)
         }
     }
 
+    // 獲取與課程相關的備忘錄（根據同名且同一天的課程）
+    func getMemosForCourse(course: CourseEntity?, day: String, allCourses: [CourseEntity], allMemos: [MemoEntity]) -> [MemoEntity] {
+        guard let courseName = course?.name, !courseName.isEmpty else { return [] }
+        
+        // 找出同一天所有同名課程的 ID
+        let sameNameSameDayCourseIds = allCourses
+            .filter { $0.name == courseName && $0.day == day }
+            .compactMap { $0.id }
+        
+        // 返回與這些課程關聯的所有未完成備忘錄
+        return allMemos.filter { memo in
+            guard let courseLink = memo.courseLink else { return false }
+            return sameNameSameDayCourseIds.contains(courseLink)
+        }
+    }
+    
+    // 根據標籤類型返回對應的顏色
+    func colorForTagType(_ tagType: String) -> Color {
+        switch tagType {
+        case "活動": return .orange
+        case "作業": return .blue
+        case "考試": return .red
+        case "會議": return .purple
+        case "提醒": return .yellow
+        default: return .gray
+        }
+    }
+    
     func highlightCell(day: String, slot: Course.TimeSlot) -> Bool {
         let now = Date()
         let formatter = DateFormatter()
@@ -154,6 +346,10 @@ struct CourseLargeView: View {
             case .afternoon3: return hour == 15
             case .afternoon4: return hour == 16
             case .afternoon5: return hour == 17
+            case .evening1: return hour == 18
+            case .evening2: return hour == 19
+            case .evening3: return hour == 20
+            case .evening4: return hour == 21
             default: return false
         }
     }

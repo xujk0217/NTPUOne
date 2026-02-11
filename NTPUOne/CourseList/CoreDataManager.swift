@@ -16,15 +16,24 @@ class CoreDataManager {
     private init() {
         persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel")
         
-        // 啟用自動輕量級遷移，確保資料不會遺失
-        if let description = persistentContainer.persistentStoreDescriptions.first {
-            description.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
-            description.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+        // 使用App Group共享路径
+        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
+        if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite") {
+            let storeDescription = NSPersistentStoreDescription(url: storeURL)
+            storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
+            
+            // 啟用自動輕量級遷移，確保資料不會遺失
+            storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
+            storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
+            
+            persistentContainer.persistentStoreDescriptions = [storeDescription]
         }
         
         persistentContainer.loadPersistentStores { (description, error) in
             if let error = error {
                 fatalError("Unable to load persistent stores: \(error)")
+            } else {
+                print("✅ CoreDataManager store loaded at: \(description.url?.path ?? "unknown")")
             }
         }
     }
