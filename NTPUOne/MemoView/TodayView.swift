@@ -959,7 +959,10 @@ struct TodayView: View {
                 
                 // 標籤和課程
                 HStack(spacing: 8) {
-                    Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                    HStack(spacing: 2) {
+                        Image(systemName: memo.tagType.icon)
+                        Text(memo.tagType.rawValue)
+                    }
                         .font(.caption2)
                         .foregroundColor(memo.tagType.color)
                     
@@ -1018,7 +1021,7 @@ struct TodayView: View {
     
     // MARK: - Section Header Label
     private func sectionHeaderLabel(title: String, color: Color, count: Int) -> some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 4) {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
@@ -1511,7 +1514,10 @@ struct ScheduledNotificationsSheet: View {
             }
             
             HStack(spacing: 8) {
-                Label(item.memo.tagType.rawValue, systemImage: item.memo.tagType.icon)
+                HStack(spacing: 2) {
+                    Image(systemName: item.memo.tagType.icon)
+                    Text(item.memo.tagType.rawValue)
+                }
                     .font(.caption)
                     .foregroundColor(item.memo.tagType.color)
                 
@@ -1685,7 +1691,10 @@ struct TodayMemoCard: View {
                     
                     // 標籤和課程
                     HStack(spacing: 8) {
-                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                        HStack(spacing: 2) {
+                            Image(systemName: memo.tagType.icon)
+                            Text(memo.tagType.rawValue)
+                        }
                             .font(.caption2)
                             .foregroundColor(memo.tagType.color)
                             .padding(.horizontal, 6)
@@ -1985,7 +1994,10 @@ struct CourseMemoRow: View {
                     // 資訊行
                     HStack(spacing: 8) {
                         // 標籤類型
-                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                        HStack(spacing: 2) {
+                            Image(systemName: memo.tagType.icon)
+                            Text(memo.tagType.rawValue)
+                        }
                             .font(.caption2)
                             .foregroundColor(memo.tagType.color)
                         

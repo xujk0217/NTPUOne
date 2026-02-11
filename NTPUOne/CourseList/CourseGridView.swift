@@ -59,7 +59,7 @@ struct UnifiedCourseGridView: View {
             memoManager.loadMemosFromCoreData()
         }) { course in
             CourseDetailSheet(course: course, memoManager: memoManager, courseData: courseData)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
                 .presentationDragIndicator(.visible)
         }
     }
@@ -211,12 +211,13 @@ struct CourseSlotView: View {
                                     .truncationMode(.tail)
                                     .foregroundStyle(.secondary)              // 教室用次要色
                                 
-                                // 顯示備忘錄相關的顏色點
-                                if !getRelatedMemos(for: course).isEmpty {
+                                // 顯示備忘錄相關的顏色點（每個顏色只顯示一個）
+                                let uniqueTagTypes = getUniqueTagTypes(for: course)
+                                if !uniqueTagTypes.isEmpty {
                                     HStack(spacing: 2) {
-                                        ForEach(getRelatedMemos(for: course).prefix(3), id: \.id) { memo in
+                                        ForEach(uniqueTagTypes, id: \.self) { tagType in
                                             Circle()
-                                                .fill(memo.tagType.color)
+                                                .fill(tagType.color)
                                                 .frame(width: 4, height: 4)
                                         }
                                     }
@@ -250,12 +251,13 @@ struct CourseSlotView: View {
                                         .truncationMode(.tail)
                                         .foregroundStyle(.secondary)
                                     
-                                    // 顯示備忘錄相關的顏色點
-                                    if !getRelatedMemos(for: course).isEmpty {
+                                    // 顯示備忘錄相關的顏色點（每個顏色只顯示一個）
+                                    let uniqueTagTypes = getUniqueTagTypes(for: course)
+                                    if !uniqueTagTypes.isEmpty {
                                         HStack(spacing: 2) {
-                                            ForEach(getRelatedMemos(for: course).prefix(3), id: \.id) { memo in
+                                            ForEach(uniqueTagTypes, id: \.self) { tagType in
                                                 Circle()
-                                                    .fill(memo.tagType.color)
+                                                    .fill(tagType.color)
                                                     .frame(width: 4, height: 4)
                                             }
                                         }
@@ -319,6 +321,22 @@ struct CourseSlotView: View {
         return memoManager.memos.filter { memo in
             connectedCourseIds.contains(memo.courseLink ?? "") && memo.status != .done
         }
+    }
+    
+    // 取得與課程相關的不重複標籤類型（每個顏色只顯示一個）
+    func getUniqueTagTypes(for course: Course) -> [Memo.TagType] {
+        let relatedMemos = getRelatedMemos(for: course)
+        var seenTagTypes = Set<Memo.TagType>()
+        var uniqueTagTypes: [Memo.TagType] = []
+        
+        for memo in relatedMemos {
+            if !seenTagTypes.contains(memo.tagType) {
+                seenTagTypes.insert(memo.tagType)
+                uniqueTagTypes.append(memo.tagType)
+            }
+        }
+        
+        return uniqueTagTypes
     }
 
     // ===== 互動 =====
@@ -588,16 +606,42 @@ struct CourseDetailSheet: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
     @Environment(\.dismiss) private var dismiss
+    
+    @State private var selectedMemo: Memo? = nil
+    @State private var isEditingOrder: Bool = false
+    
+    // 標籤順序持久化（使用 JSON 字串存儲）
+    @AppStorage("courseDetailTagOrder") private var tagOrderData: String = ""
+    
+    private var tagOrder: [Memo.TagType] {
+        get {
+            guard !tagOrderData.isEmpty,
+                  let data = tagOrderData.data(using: .utf8),
+                  let rawValues = try? JSONDecoder().decode([String].self, from: data) else {
+                return Memo.TagType.allCases
+            }
+            return rawValues.compactMap { Memo.TagType(rawValue: $0) }
+        }
+    }
+    
+    private func saveTagOrder(_ order: [Memo.TagType]) {
+        let rawValues = order.map { $0.rawValue }
+        if let data = try? JSONEncoder().encode(rawValues),
+           let string = String(data: data, encoding: .utf8) {
+            tagOrderData = string
+        }
+    }
 
     var body: some View {
-        VStack(spacing: 16) {
-            // 標題
-            HStack(alignment: .firstTextBaseline) {
-                Text(course.name.isEmpty ? "未命名課程" : course.name)
-                    .font(.title3.bold())
-                    .lineLimit(2)
-                Spacer()
-            }
+        ScrollView {
+            VStack(spacing: 16) {
+                // 標題
+                HStack(alignment: .firstTextBaseline) {
+                    Text(course.name.isEmpty ? "未命名課程" : course.name)
+                        .font(.title3.bold())
+                        .lineLimit(2)
+                    Spacer()
+                }
 
             // 資訊卡
             VStack(spacing: 10) {
@@ -620,108 +664,195 @@ struct CourseDetailSheet: View {
             // 相關任務列表
             let relatedMemos = getRelatedMemos()
             if !relatedMemos.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Image(systemName: "checklist")
-                            .font(.headline)
-                        Text("相關任務")
-                            .font(.headline)
-                        Spacer()
+                // 按類型分組
+                let groupedMemos = Dictionary(grouping: relatedMemos) { $0.tagType }
+                
+                // 排序標題和按鈕
+                HStack {
+                    Text("任務")
+                        .font(.headline)
+                    Spacer()
+                    Button {
+                        isEditingOrder = true
+                    } label: {
+                        HStack(spacing: 2) {
+                            Image(systemName: "arrow.up.arrow.down")
+                            Text("排序")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                     }
-                    
-                    // 按類型分組
-                    let groupedMemos = Dictionary(grouping: relatedMemos) { $0.tagType }
-                    let sortedTags = groupedMemos.keys.sorted { $0.rawValue < $1.rawValue }
-                    
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(sortedTags, id: \.self) { tagType in
-                            VStack(alignment: .leading, spacing: 6) {
-                                // 類型標題
-                                HStack(spacing: 4) {
-                                    Image(systemName: tagType.icon)
-                                        .font(.caption)
-                                        .foregroundStyle(tagType.color)
-                                    Text(tagType.rawValue)
-                                        .font(.subheadline.weight(.semibold))
-                                        .foregroundStyle(tagType.color)
-                                }
-                                .padding(.leading, 4)
+                }
+                .padding(.top, 4)
+                
+                // 按用戶排序的順序顯示
+                let orderedTags = tagOrder.filter { groupedMemos[$0] != nil }
+                
+                ForEach(orderedTags, id: \.self) { tagType in
+                    if let memos = groupedMemos[tagType] {
+                        // 每個標籤類型一個區塊
+                        VStack(alignment: .leading, spacing: 8) {
+                            // 標籤標題（直接顯示標籤名稱）
+                            HStack(spacing: 2) {
+                                Image(systemName: tagType.icon)
+                                    .font(.subheadline)
+                                Text(tagType.rawValue)
+                                    .font(.subheadline.weight(.semibold))
                                 
-                                // 該類型的任務
-                                if let memos = groupedMemos[tagType] {
-                                    VStack(spacing: 4) {
-                                        ForEach(memos) { memo in
-                                            HStack(alignment: .top, spacing: 8) {
-                                                Image(systemName: memo.status.icon)
-                                                    .font(.caption2)
-                                                    .foregroundStyle(memo.status.color)
-                                                    .frame(width: 16)
+                                Text("(\(memos.count))")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.leading, 4)
+                                
+                                Spacer()
+                            }
+                            .foregroundStyle(tagType.color)
+                            
+                            // 該類型的任務（可點擊）
+                            VStack(spacing: 6) {
+                                ForEach(memos) { memo in
+                                    Button {
+                                        selectedMemo = memo
+                                    } label: {
+                                        HStack(alignment: .top, spacing: 8) {
+                                            Image(systemName: memo.status.icon)
+                                                .font(.caption2)
+                                                .foregroundStyle(memo.status.color)
+                                                .frame(width: 16)
+                                            
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(memo.title)
+                                                    .font(.subheadline)
+                                                    .foregroundStyle(.primary)
+                                                    .lineLimit(2)
+                                                    .multilineTextAlignment(.leading)
                                                 
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(memo.title)
-                                                        .font(.subheadline)
-                                                        .foregroundStyle(.primary)
-                                                        .lineLimit(2)
-                                                    
-                                                    HStack(spacing: 6) {
-                                                        // 顯示時間
-                                                        if let dueAt = memo.dueAt {
-                                                            HStack(spacing: 2) {
-                                                                Image(systemName: "clock.badge.exclamationmark")
-                                                                    .font(.caption2)
-                                                                Text(formatShortDate(dueAt))
-                                                                    .font(.caption2)
-                                                            }
-                                                            .foregroundStyle(memo.isOverdue ? .red : .orange)
-                                                        } else if let planAt = memo.planAt {
-                                                            HStack(spacing: 2) {
-                                                                Image(systemName: "calendar")
-                                                                    .font(.caption2)
-                                                                Text(formatShortDate(planAt))
-                                                                    .font(.caption2)
-                                                            }
-                                                            .foregroundStyle(.blue)
-                                                        }
-                                                        
-                                                        // 狀態描述
-                                                        if let desc = memo.dueDateDescription {
-                                                            Text("• \(desc)")
+                                                HStack(spacing: 4) {
+                                                    // 顯示時間
+                                                    if let dueAt = memo.dueAt {
+                                                        HStack(spacing: 1) {
+                                                            Image(systemName: "clock.badge.exclamationmark")
                                                                 .font(.caption2)
-                                                                .foregroundStyle(memo.isOverdue ? .red : .secondary)
+                                                            Text(formatShortDate(dueAt))
+                                                                .font(.caption2)
                                                         }
+                                                        .foregroundStyle(memo.isOverdue ? .red : .orange)
+                                                    } else if let planAt = memo.planAt {
+                                                        HStack(spacing: 1) {
+                                                            Image(systemName: "calendar")
+                                                                .font(.caption2)
+                                                            Text(formatShortDate(planAt))
+                                                                .font(.caption2)
+                                                        }
+                                                        .foregroundStyle(.blue)
+                                                    }
+                                                    
+                                                    // 狀態描述
+                                                    if let desc = memo.dueDateDescription {
+                                                        Text("• \(desc)")
+                                                            .font(.caption2)
+                                                            .foregroundStyle(memo.isOverdue ? .red : .secondary)
                                                     }
                                                 }
-                                                
-                                                Spacer()
                                             }
-                                            .padding(.vertical, 6)
-                                            .padding(.horizontal, 8)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 6, style: .continuous)
-                                                    .fill(Color(.tertiarySystemBackground))
-                                            )
+                                            
+                                            Spacer()
+                                            
+                                            // 右箭頭提示可點擊
+                                            Image(systemName: "chevron.right")
+                                                .font(.caption2)
+                                                .foregroundStyle(.tertiary)
                                         }
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 10)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                                .fill(Color(.tertiarySystemBackground))
+                                        )
                                     }
+                                    .buttonStyle(.plain)
                                 }
                             }
                         }
+                        .padding(14)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .fill(Color(.secondarySystemBackground))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                .strokeBorder(.quaternary)
+                        )
                     }
                 }
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .strokeBorder(.quaternary)
-                )
             }
 
             Spacer(minLength: 0)
+            }
+            .padding(16)
+            .padding(.top, 16)
         }
-        .padding(16)
-        .padding(.top, 16)
+        .sheet(item: $selectedMemo) { memo in
+            MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)
+        }
+        .sheet(isPresented: $isEditingOrder) {
+            TagOrderEditSheet(currentOrder: tagOrder, onSave: saveTagOrder)
+        }
+    }
+    
+    // MARK: - 標籤排序編輯 Sheet
+    struct TagOrderEditSheet: View {
+        @Environment(\.dismiss) private var dismiss
+        @State private var editableOrder: [Memo.TagType]
+        let onSave: ([Memo.TagType]) -> Void
+        
+        init(currentOrder: [Memo.TagType], onSave: @escaping ([Memo.TagType]) -> Void) {
+            self._editableOrder = State(initialValue: currentOrder)
+            self.onSave = onSave
+        }
+        
+        var body: some View {
+            NavigationStack {
+                List {
+                    Section {
+                        ForEach(editableOrder, id: \.self) { tagType in
+                            HStack(spacing: 8) {
+                                Image(systemName: tagType.icon)
+                                    .foregroundStyle(tagType.color)
+                                    .frame(width: 24)
+                                Text(tagType.rawValue)
+                                    .foregroundStyle(.primary)
+                                Spacer()
+                            }
+                        }
+                        .onMove { from, to in
+                            editableOrder.move(fromOffsets: from, toOffset: to)
+                        }
+                    } header: {
+                        Text("拖拽調整標籤順序")
+                    } footer: {
+                        Text("順序會影響課程詳情中任務的顯示順序")
+                    }
+                }
+                .environment(\.editMode, .constant(.active))
+                .navigationTitle("標籤排序")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("取消") {
+                            dismiss()
+                        }
+                    }
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button("儲存") {
+                            onSave(editableOrder)
+                            dismiss()
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+        }
     }
 
     @ViewBuilder

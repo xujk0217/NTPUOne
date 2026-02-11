@@ -467,7 +467,10 @@ struct MemoRowView: View {
                     // 標籤和課程
                     HStack(spacing: 8) {
                         // 標籤
-                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                        HStack(spacing: 2) {
+                            Image(systemName: memo.tagType.icon)
+                            Text(memo.tagType.rawValue)
+                        }
                             .font(.caption)
                             .foregroundColor(memo.tagType.color)
                         

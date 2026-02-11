@@ -399,10 +399,12 @@ struct LinkView: View {
                         .lineLimit(1)
                     
                     HStack(spacing: 3) {
-                        Label(memo.tagType.rawValue, systemImage: memo.tagType.icon)
+                        HStack(spacing: 2) {
+                            Image(systemName: memo.tagType.icon)
+                            Text(memo.tagType.rawValue)
+                        }
                             .font(.caption2)
                             .foregroundStyle(memo.tagType.color)
-                            .labelStyle(.titleAndIcon)
                         
                         if let desc = memo.dueDateDescription {
                             Text("• \(desc)")
@@ -458,22 +460,34 @@ struct LinkView: View {
         let stats = getTodayMemoStats()
         HStack(spacing: 8) {
             if stats.overdue > 0 {
-                Label("\(stats.overdue) 逾期", systemImage: "exclamationmark.triangle.fill")
+                HStack(spacing: 2) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                    Text("\(stats.overdue) 逾期")
+                }
                     .font(.caption)
                     .foregroundStyle(.red)
             }
             if stats.planExpired > 0 {
-                Label("\(stats.planExpired) 計劃過期", systemImage: "calendar.badge.exclamationmark")
+                HStack(spacing: 2) {
+                    Image(systemName: "calendar.badge.exclamationmark")
+                    Text("\(stats.planExpired) 計劃過期")
+                }
                     .font(.caption)
                     .foregroundStyle(.purple)
             }
             if stats.today > 0 {
-                Label("\(stats.today) 今日待辦", systemImage: "clock")
+                HStack(spacing: 2) {
+                    Image(systemName: "clock")
+                    Text("\(stats.today) 今日待辦")
+                }
                     .font(.caption)
                     .foregroundStyle(.orange)
             }
             if stats.total > 0 && stats.overdue == 0 && stats.today == 0 && stats.planExpired == 0 {
-                Label("\(stats.total) 項進行中", systemImage: "list.bullet")
+                HStack(spacing: 2) {
+                    Image(systemName: "list.bullet")
+                    Text("\(stats.total) 項進行中")
+                }
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

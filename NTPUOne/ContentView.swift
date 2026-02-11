@@ -33,15 +33,16 @@ struct ContentView: View {
                 Text("Main")
             }.tag(0)
             
-            TimeTableView(memoManager: memoManager).tabItem {
-                Image(systemName: "list.bullet.clipboard")
-                Text("Timetable")
-            }.tag(1)
-            
             TodayView(memoManager: memoManager, courseData: courseData).tabItem {
                 Image(systemName: "note.text")
                 Text("Memo")
+            }.tag(1)
+            
+            TimeTableView(memoManager: memoManager).tabItem {
+                Image(systemName: "list.bullet.clipboard")
+                Text("Timetable")
             }.tag(2)
+            
             AboutView().tabItem {
                 Image(systemName: "info.circle")
                 Text("About")
