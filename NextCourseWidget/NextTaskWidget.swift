@@ -266,6 +266,7 @@ struct NextTaskWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: NextTaskProvider()) { entry in
             NextTaskWidgetView(entry: entry)
+                .widgetURL(URL(string: "ntpuone://memo")!)
         }
         .configurationDisplayName("Next Task Widget")
         .description("Shows the next upcoming task.")

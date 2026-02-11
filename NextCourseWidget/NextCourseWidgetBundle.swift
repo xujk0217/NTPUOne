@@ -10,6 +10,7 @@ import SwiftUI
 
 @main
 struct NextCourseWidgetBundle: WidgetBundle {
+    @WidgetBundleBuilder
     var body: some Widget {
         NextCourseWidget()
         CourseLargeWidget()

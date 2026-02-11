@@ -48,6 +48,24 @@ struct ContentView: View {
                 Text("About")
             }.tag(3)
         }
+        .onOpenURL { url in
+            handleDeepLink(url: url)
+        }
+    }
+    
+    private func handleDeepLink(url: URL) {
+        guard url.scheme == "ntpuone" else { return }
+        
+        switch url.host {
+        case "memo":
+            // 切換到 Memo 頁面
+            selectedTab = 1
+        case "timetable":
+            // 切換到 Timetable 頁面
+            selectedTab = 2
+        default:
+            break
+        }
     }
 }
 
