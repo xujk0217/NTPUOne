@@ -14,5 +14,6 @@ struct NextCourseWidgetBundle: WidgetBundle {
         NextCourseWidget()
         CourseLargeWidget()
         MemoWidget()
+        NextTaskWidget()
     }
 }

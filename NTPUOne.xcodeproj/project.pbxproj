@@ -112,6 +112,7 @@
 		3FB337982F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337942F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift */; };
 		3FB3379A2F3A428600D1E31C /* MemoDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337992F3A428600D1E31C /* MemoDetailSheet.swift */; };
 		3FB337B42F3C85FC00D1E31C /* MemoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */; };
+		3FB337B62F3CA9B200D1E31C /* NextTaskWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337B52F3CA9B200D1E31C /* NextTaskWidget.swift */; };
 		3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 3FDF35602C86946900952C69 /* SwiftSoup */; };
 		3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35622C86948F00952C69 /* CourseGet.swift */; };
 		3FDF35652C88A41600952C69 /* CourseYearManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35642C88A41600952C69 /* CourseYearManager.swift */; };
@@ -219,6 +220,7 @@
 		3FB337942F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MemoEntity+CoreDataProperties.swift"; sourceTree = "<group>"; };
 		3FB337992F3A428600D1E31C /* MemoDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoDetailSheet.swift; sourceTree = "<group>"; };
 		3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoWidget.swift; sourceTree = "<group>"; };
+		3FB337B52F3CA9B200D1E31C /* NextTaskWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextTaskWidget.swift; sourceTree = "<group>"; };
 		3FDF35622C86948F00952C69 /* CourseGet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGet.swift; sourceTree = "<group>"; };
 		3FDF35642C88A41600952C69 /* CourseYearManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseYearManager.swift; sourceTree = "<group>"; };
 		3FDF35662C8C82E200952C69 /* SchoolPostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolPostView.swift; sourceTree = "<group>"; };
@@ -316,6 +318,7 @@
 		3F8B9F8A2C759762007BF30B /* NextCourseWidget */ = {
 			isa = PBXGroup;
 			children = (
+				3FB337B52F3CA9B200D1E31C /* NextTaskWidget.swift */,
 				3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */,
 				3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */,
 				3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */,
@@ -654,6 +657,7 @@
 				3F8B9F8C2C759762007BF30B /* NextCourseWidgetBundle.swift in Sources */,
 				3FB337952F3A393000D1E31C /* MemoEntity+CoreDataClass.swift in Sources */,
 				3FB337962F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */,
+				3FB337B62F3CA9B200D1E31C /* NextTaskWidget.swift in Sources */,
 				3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */,
 				3FB337B42F3C85FC00D1E31C /* MemoWidget.swift in Sources */,
 				3F8B9F9B2C75B113007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */,
