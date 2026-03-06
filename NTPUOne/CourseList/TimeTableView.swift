@@ -101,7 +101,12 @@ struct TimeTableView: View {
                 }
             }
             .navigationTitle("Course Schedule")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar{
+                ToolbarItem(placement: .principal) {
+                    Text("Course Schedule")
+                        .font(.headline.bold())
+                }
                 ToolbarItem{
                     Button {
                         isShowingGetCourseSheet.toggle()

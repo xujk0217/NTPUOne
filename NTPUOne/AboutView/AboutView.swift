@@ -221,6 +221,13 @@ struct AboutView: View {
                 }
             }
             .navigationTitle("About")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    Text("About")
+                        .font(.headline.bold())
+                }
+            }
             .onAppear { preloadRewardedIfNeeded() }
             .navigationDestination(isPresented: $isReward) {
                 AddOrderView(rewardAd: rewardAd)
