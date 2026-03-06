@@ -36,10 +36,83 @@ struct AboutView: View {
     
     //admin
     @AppStorage("isAdmin") private var isAdmin: Bool = false
+
+    // 個人設定
+    @AppStorage("commentNickname") private var nickname: String = ""
+    @AppStorage("commentDeviceId") private var deviceId: String = ""
+    @State private var pendingNickname = ""
+    @State private var isEditingNickname = false
+    @State private var showUpdateOldAlert = false
+    @State private var isUpdatingComments = false
+    @FocusState private var nicknameFieldFocused: Bool
+    @StateObject private var commentUpdater = CommentManager()
     
     var body: some View {
         NavigationStack {
             List {
+                // 個人設定
+                Section {
+                    HStack {
+                        Image(systemName: "person.fill")
+                            .foregroundStyle(.orange)
+                        if isEditingNickname {
+                            TextField("暱稱", text: $pendingNickname)
+                                .focused($nicknameFieldFocused)
+                                .submitLabel(.done)
+                                .onSubmit { saveNickname() }
+                        } else {
+                            Text(nickname.isEmpty ? "尚未設定" : nickname)
+                                .foregroundStyle(nickname.isEmpty ? .secondary : .primary)
+                        }
+                        Spacer()
+                        if isUpdatingComments {
+                            ProgressView().scaleEffect(0.8)
+                        } else {
+                            Button {
+                                if isEditingNickname { saveNickname() }
+                                else {
+                                    pendingNickname = nickname
+                                    isEditingNickname = true
+                                    nicknameFieldFocused = true
+                                }
+                            } label: {
+                                Image(systemName: isEditingNickname ? "checkmark.circle.fill" : "pencil")
+                                    .foregroundStyle(.orange)
+                            }
+                        }
+                    }
+                    if !deviceId.isEmpty {
+                        Text("裝置識別碼：#\(deviceId.prefix(4).uppercased())")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text("個人設定")
+                } footer: {
+                    Text("暱稱用於留言及活動廣播，更改後可選擇是否同步更新舊留言")
+                }
+                .alert("更新舊留言？", isPresented: $showUpdateOldAlert) {
+                    Button("只更新新留言") {
+                        nickname = pendingNickname
+                        isEditingNickname = false
+                    }
+                    Button("同時更新舊留言") {
+                        let newName = pendingNickname
+                        nickname = newName
+                        isEditingNickname = false
+                        isUpdatingComments = true
+                        commentUpdater.updateAllComments(deviceId: deviceId, newName: newName) { _ in
+                            isUpdatingComments = false
+                        }
+                    }
+                    Button("取消", role: .cancel) {
+                        isEditingNickname = true
+                        nicknameFieldFocused = true
+                    }
+                } message: {
+                    Text("是否同時更新您過去在各餐廣的留言暱稱？")
+                }
+
                 if isAdmin {
                     Section{
                         NavigationLink{
@@ -166,9 +239,27 @@ struct AboutView: View {
             }
         }
         .onAppear {
+            if deviceId.isEmpty { deviceId = UUID().uuidString }
+            if nickname.isEmpty {
+                nickname = "使用者\(String(deviceId.prefix(4)).uppercased())"
+            }
             startTimer()
         }
     }
+    private func saveNickname() {
+        let newName = pendingNickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !newName.isEmpty, newName != nickname else {
+            isEditingNickname = false
+            return
+        }
+        if nickname.isEmpty {
+            nickname = newName
+            isEditingNickname = false
+        } else {
+            showUpdateOldAlert = true
+        }
+    }
+
     private func startTimer() {
         remainingTime = rewardWaitTime
         rewardAd.canShowAd = false

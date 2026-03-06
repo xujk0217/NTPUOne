@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct LunchView: View {
     @StateObject var fManager = FManager()
@@ -18,6 +19,27 @@ struct LunchView: View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
+                    // 地圖 Section
+                    if #available(iOS 17.0, *) {
+                        let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
+                        if !pins.isEmpty {
+                            Section("附近餐廣地圖") {
+                                Map(initialPosition: .camera(
+                                    MapCamera(
+                                        centerCoordinate: CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682),
+                                        distance: 2500
+                                    )
+                                )) {
+                                    ForEach(pins) { item in
+                                        Marker(item.store, coordinate: CLLocationCoordinate2D(latitude: item.lat, longitude: item.lng))
+                                    }
+                                }
+                                .frame(height: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            }
+                        }
+                    }
                     Section {
                         ForEach(fManager.Food!) { store in
                             if #available(iOS 17.0, *) {
@@ -88,6 +110,13 @@ struct StoreNavigationLink: View {
         NavigationLink(destination: dietView(store: store, currCollectName: collectionName)) {
             StoreRowView(store: store)
         }
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+        )
     }
 }
 
@@ -99,6 +128,13 @@ struct StoreNavigationLinkLegacy: View {
         NavigationLink(destination: noMapDietView(store: store, currCollectName: collectionName)) {
             StoreRowView(store: store)
         }
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+        )
     }
 }
 
@@ -106,30 +142,43 @@ struct StoreRowView: View {
     var store: FDetail
 
     var body: some View {
-        HStack {
-            HStack {
+        HStack(spacing: 12) {
+            // 星數徽章
+            VStack(spacing: 2) {
                 Text("\(Int(store.starNum))")
-                    .font(.title.bold())
+                    .font(.title2.bold())
+                    .foregroundStyle(.white)
                 Image(systemName: "star.fill")
+                    .font(.caption)
+                    .foregroundStyle(.white)
             }
-            Divider()
-            VStack(alignment: .leading) {
-                HStack {
-                    Text(store.store)
-                        .font(.headline)
-                    Spacer()
-                }
-                HStack(alignment: .top) {
-                    Image(systemName: "house")
-                    Text(": \(store.address)")
-                    Spacer()
+            .frame(width: 52)
+            .padding(.vertical, 10)
+            .background(.orange.gradient, in: RoundedRectangle(cornerRadius: 12))
+
+            // 資訊區
+            VStack(alignment: .leading, spacing: 4) {
+                Text(store.store)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                HStack(spacing: 4) {
+                    Image(systemName: "mappin.circle.fill")
+                        .foregroundStyle(.secondary)
+                        .font(.caption)
+                    Text(store.address)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
                 }
                 if !store.check {
-                    Text("未確認資料完整性")
-                        .foregroundStyle(Color.red)
+                    Label("未確認資料完整性", systemImage: "exclamationmark.circle.fill")
+                        .font(.caption)
+                        .foregroundStyle(.red)
                 }
             }
+            Spacer()
         }
+        .padding(.vertical, 4)
     }
 }
 

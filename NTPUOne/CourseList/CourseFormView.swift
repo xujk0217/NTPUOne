@@ -72,6 +72,13 @@ struct CourseFormView: View {
                                     Text(slot.rawValue).tag(slot)
                                 }
                             }
+                            .onChange(of: course.timeSlot) { newStart in
+                                if let si = Course.TimeSlot.allCases.firstIndex(of: newStart),
+                                   let ei = Course.TimeSlot.allCases.firstIndex(of: endTimeSlot),
+                                   ei < si {
+                                    endTimeSlot = newStart
+                                }
+                            }
                             
                             Picker("結束節數", selection: $endTimeSlot) {
                                 ForEach(filteredTimeSlots, id: \.self) { slot in
@@ -363,6 +370,13 @@ struct CourseGFormView: View {
                             Picker("開始節數", selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
+                                }
+                            }
+                            .onChange(of: course.timeSlot) { newStart in
+                                if let si = Course.TimeSlot.allCases.firstIndex(of: newStart),
+                                   let ei = Course.TimeSlot.allCases.firstIndex(of: endTimeSlot),
+                                   ei < si {
+                                    endTimeSlot = newStart
                                 }
                             }
                             

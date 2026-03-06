@@ -24,6 +24,14 @@ struct dietView: View {
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
 
+    // 留言
+    @StateObject private var commentManager = CommentManager()
+    @AppStorage("commentNickname") private var nickname: String = ""
+    @AppStorage("commentDeviceId") private var deviceId: String = ""
+    @State private var commentBody = ""
+    @State private var isSubmitting = false
+    @FocusState private var commentBodyFocused: Bool
+
     init(store: FDetail, currCollectName: String?) {
         self._store = State(initialValue: store)
         self.currCollectName = currCollectName
@@ -89,6 +97,102 @@ struct dietView: View {
                     Text("點擊進入地圖")
                 }
 
+                // 留言 Section
+                Section {
+                    if commentManager.isLoading {
+                        ProgressView().frame(maxWidth: .infinity)
+                            .listRowSeparator(.hidden)
+                    } else if commentManager.comments.isEmpty {
+                        Text("目前還沒有留言，來第一個吧！")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(commentManager.comments) { comment in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                                Text(comment.name)
+                                    .font(.caption.bold())
+                                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                                if !comment.deviceId.isEmpty {
+                                    Text("#\(comment.deviceId.prefix(4))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if comment.deviceId == deviceId {
+                                    Text("你")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                        .background(.orange.opacity(0.15))
+                                        .foregroundStyle(.orange)
+                                        .clipShape(Capsule())
+                                }
+                                Spacer()
+                                Text(comment.dateText)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(comment.body)
+                                .font(.body)
+                        }
+                        .padding(.vertical, 3)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if comment.deviceId == deviceId {
+                                Button(role: .destructive) {
+                                    if let coll = currCollectName, let cid = comment.id {
+                                        commentManager.deleteComment(collection: coll, storeId: store.id!, id: cid)
+                                    }
+                                } label: {
+                                    Label("刪除", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    if nickname.isEmpty {
+                        Label("請至 About 頁面設定暱稱才能留言", systemImage: "person.crop.circle.badge.exclamationmark")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .listRowSeparator(.hidden)
+                    }
+                    HStack(alignment: .bottom, spacing: 8) {
+                        TextField("留言...", text: $commentBody, axis: .vertical)
+                            .lineLimit(1...4)
+                            .focused($commentBodyFocused)
+                            .onSubmit { }
+                        Button {
+                            submitComment()
+                        } label: {
+                            Image(systemName: isSubmitting ? "clock" : "paperplane.fill")
+                                .foregroundStyle(
+                                    (commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                     || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                     || isSubmitting)
+                                    ? Color.secondary : Color.orange
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(
+                            commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isSubmitting
+                        )
+                    }
+                } header: {
+                    HStack {
+                        Text("留言（\(commentManager.comments.count)）")
+                        Spacer()
+                        if !nickname.isEmpty {
+                            Text(nickname)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
 //                // 廣告標記
 //                Section {
 //                    NativeAdBoxView(
@@ -107,6 +211,12 @@ struct dietView: View {
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
             .navigationTitle(store.store)
+            .onAppear {
+                if deviceId.isEmpty { deviceId = UUID().uuidString }
+                if let coll = currCollectName, let sid = store.id {
+                    commentManager.loadComments(collection: coll, storeId: sid)
+                }
+            }
             .onDisappear {
                 isStar = false
             }
@@ -172,6 +282,20 @@ struct dietView: View {
             }
         }
     }
+    func submitComment() {
+        guard let coll = currCollectName, let sid = store.id else { return }
+        let trimBody = commentBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimBody.isEmpty, !trimName.isEmpty else { return }
+        isSubmitting = true
+        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
+            isSubmitting = false
+            if success {
+                commentBody = ""
+                commentBodyFocused = false
+            }
+        }
+    }
 }
 
 
@@ -191,11 +315,19 @@ struct noMapDietView: View {
     let currCollectName: String?
     
     @State private var isStar = false
-    
+
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
-    
+
+    // 留言
+    @StateObject private var commentManager = CommentManager()
+    @AppStorage("commentNickname") private var nickname: String = ""
+    @AppStorage("commentDeviceId") private var deviceId: String = ""
+    @State private var commentBody = ""
+    @State private var isSubmitting = false
+    @FocusState private var commentBodyFocused: Bool
+
     var body: some View {
         NavigationStack {
             List {
@@ -265,6 +397,105 @@ struct noMapDietView: View {
                 } footer: {
                     Text("點擊進入地圖")
                 }
+
+                // 留言 Section
+                Section {
+                    if commentManager.isLoading {
+                        ProgressView().frame(maxWidth: .infinity)
+                            .listRowSeparator(.hidden)
+                    } else if commentManager.comments.isEmpty {
+                        Text("目前還沒有留言，來第一個吧！")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .listRowSeparator(.hidden)
+                    }
+                    ForEach(commentManager.comments) { comment in
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "person.fill")
+                                    .font(.caption2)
+                                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                                Text(comment.name)
+                                    .font(.caption.bold())
+                                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                                if !comment.deviceId.isEmpty {
+                                    Text("#\(comment.deviceId.prefix(4))")
+                                        .font(.caption2)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                if comment.deviceId == deviceId {
+                                    Text("你")
+                                        .font(.caption2.bold())
+                                        .padding(.horizontal, 5).padding(.vertical, 1)
+                                        .background(.orange.opacity(0.15))
+                                        .foregroundStyle(.orange)
+                                        .clipShape(Capsule())
+                                }
+                                Spacer()
+                                Text(comment.dateText)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Text(comment.body)
+                                .font(.body)
+                        }
+                        .padding(.vertical, 3)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                            if comment.deviceId == deviceId {
+                                Button(role: .destructive) {
+                                    if let coll = currCollectName,
+                                       let sid = store?.id,
+                                       let cid = comment.id {
+                                        commentManager.deleteComment(collection: coll, storeId: sid, id: cid)
+                                    }
+                                } label: {
+                                    Label("刪除", systemImage: "trash")
+                                }
+                            }
+                        }
+                    }
+                    if nickname.isEmpty {
+                        Label("請至 About 頁面設定暱稱才能留言", systemImage: "person.crop.circle.badge.exclamationmark")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                            .listRowSeparator(.hidden)
+                    }
+                    HStack(alignment: .bottom, spacing: 8) {
+                        TextField("留言...", text: $commentBody, axis: .vertical)
+                            .lineLimit(1...4)
+                            .focused($commentBodyFocused)
+                            .onSubmit { }
+                        Button {
+                            submitComment()
+                        } label: {
+                            Image(systemName: isSubmitting ? "clock" : "paperplane.fill")
+                                .foregroundStyle(
+                                    (commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                     || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                                     || isSubmitting)
+                                    ? Color.secondary : Color.orange
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(
+                            commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                            || isSubmitting
+                        )
+                    }
+                } header: {
+                    HStack {
+                        Text("留言（\(commentManager.comments.count)）")
+                        Spacer()
+                        if !nickname.isEmpty {
+                            Text(nickname)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
 //                // 廣告標記
 //                Section {
 //                    NativeAdBoxView(
@@ -283,6 +514,12 @@ struct noMapDietView: View {
 //                .background(.linearGradient(colors: [.white, .cyan], startPoint: .bottomLeading, endPoint: .topTrailing))
                 .background(Color.gray.opacity(0.1))
             .navigationTitle(store!.store)
+            .onAppear {
+                if deviceId.isEmpty { deviceId = UUID().uuidString }
+                if let coll = currCollectName, let sid = store?.id {
+                    commentManager.loadComments(collection: coll, storeId: sid)
+                }
+            }
             .onDisappear {
                 isStar = false
             }
@@ -332,6 +569,21 @@ extension noMapDietView{
                 }
                 
             }
+    }
+
+    func submitComment() {
+        guard let coll = currCollectName, let sid = store?.id else { return }
+        let trimBody = commentBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimBody.isEmpty, !trimName.isEmpty else { return }
+        isSubmitting = true
+        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
+            isSubmitting = false
+            if success {
+                commentBody = ""
+                commentBodyFocused = false
+            }
+        }
     }
     
 }

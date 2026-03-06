@@ -12,7 +12,7 @@ import FirebaseAuth
 import AppTrackingTransparency
 
 struct AddOrderView: View {
-    @State private var name: String = ""
+    @AppStorage("commentNickname") private var nickname: String = ""
     @State private var message: String = ""
     @State private var email: String = ""
     @State private var time: String = ""
@@ -37,7 +37,7 @@ struct AddOrderView: View {
     // 驗證：訊息與姓名必填
     private var isFormValid: Bool {
         !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     // 標籤轉存字串
@@ -99,8 +99,17 @@ struct AddOrderView: View {
                     }
 
                     Section {
-                        TextField("你的名字＊", text: $name)
-                            .textInputAutocapitalization(.words)
+                        HStack {
+                            Text("暱稱")
+                            Spacer()
+                            if nickname.isEmpty {
+                                Text("請至 About 頁面設定")
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Text(nickname)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
 
                         TextField("你的信箱（選填）", text: $email)
                             .keyboardType(.emailAddress)
@@ -113,7 +122,7 @@ struct AddOrderView: View {
                         Text("聯絡資訊")
                     } footer: {
                         if !isFormValid {
-                            Text("「公告內容」與「你的名字」為必填。")
+                            Text("「公告內容」與「暱稱」為必填。")
                         }
                         if firebaseFail {
                             Text("送出失敗，請稍後再試或確認網路連線。")
@@ -180,7 +189,7 @@ struct AddOrderView: View {
 
         let data: [String: Any] = [
             K.FStoreOr.messageField: message.trimmingCharacters(in: .whitespacesAndNewlines),
-            K.FStoreOr.nameField: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            K.FStoreOr.nameField: nickname.trimmingCharacters(in: .whitespacesAndNewlines),
             K.FStoreOr.timeField: time.trimmingCharacters(in: .whitespacesAndNewlines),
             K.FStoreOr.emailField: email.trimmingCharacters(in: .whitespacesAndNewlines),
             K.FStoreOr.urlField: url.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -195,8 +204,8 @@ struct AddOrderView: View {
                 firebaseFail = true
                 return
             }
-            // 清空表單並關閉
-            message = ""; name = ""; url = ""; email = ""; time = ""
+            // 清空表單並關閉（暱稱保留）
+            message = ""; url = ""; email = ""; time = ""
             isSuccessSend = true
             dismiss()
         }

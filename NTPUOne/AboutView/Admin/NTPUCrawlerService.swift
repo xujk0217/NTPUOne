@@ -27,7 +27,7 @@ struct CrawledBanner: Identifiable, Equatable {
     func toPendingOrder() -> PendingOrder {
         PendingOrder(
             message: "請更新至最新版本以查看新的公告類型",
-            name: "北大好夥伴",
+            name: altText,         // 公告標題作為作者
             url: fullURL,
             tag: "3",
             time: imageURL,        // time 存圖片網址

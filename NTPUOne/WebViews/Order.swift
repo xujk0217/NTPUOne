@@ -30,7 +30,7 @@ class OrderManager: ObservableObject {
                 if let snapshotDocuments = querySnapshot?.documents {
                     print("success get order")
                     var newOrders: [Order] = []
-                    eventN = 0; postN = 0; otherN = 0
+                    var ev = 0, po = 0, ot = 0
 
                     for doc in snapshotDocuments {
                         let data = doc.data()
@@ -64,17 +64,22 @@ class OrderManager: ObservableObject {
                         o.id = doc.documentID  // ✅ 設定 documentID
 
                         switch o.tag {
-                        case "1": eventN += 1
-                        case "2": postN  += 1
-                        default:  otherN += 1
+                        case "1": ev += 1
+                        case "2": po += 1
+                        default:  ot += 1
                         }
                         newOrders.append(o)
                     }
 
-                    print("event: \(eventN)")
-                    print("post: \(postN)")
-                    print("other: \(otherN)")
-                    DispatchQueue.main.async { self.order = newOrders }
+                    print("event: \(ev)")
+                    print("post: \(po)")
+                    print("other: \(ot)")
+                    DispatchQueue.main.async {
+                        self.eventN = ev
+                        self.postN  = po
+                        self.otherN = ot
+                        self.order  = newOrders
+                    }
                 }
             }
     }

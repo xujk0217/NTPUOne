@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 
 struct MSView: View {
     @StateObject var fManager = FManager()
@@ -18,6 +19,27 @@ struct MSView: View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
+                    // 地圖 Section
+                    if #available(iOS 17.0, *) {
+                        let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
+                        if !pins.isEmpty {
+                            Section("附近餐廣地圖") {
+                                Map(initialPosition: .camera(
+                                    MapCamera(
+                                        centerCoordinate: CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682),
+                                        distance: 2500
+                                    )
+                                )) {
+                                    ForEach(pins) { item in
+                                        Marker(item.store, coordinate: CLLocationCoordinate2D(latitude: item.lat, longitude: item.lng))
+                                    }
+                                }
+                                .frame(height: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            }
+                        }
+                    }
                     Section {
                         ForEach(fManager.Food!) { store in
                             if #available(iOS 17.0, *) {

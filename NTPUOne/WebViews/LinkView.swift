@@ -76,7 +76,11 @@ struct LinkView: View {
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
-    
+
+    // greeting
+    @AppStorage("commentNickname") private var nickname: String = ""
+    @State private var greetingText = ""
+
     // 初始化 MemoManager
     init(courseData: CourseData, memoManager: MemoManager) {
         self.courseData = courseData
@@ -84,7 +88,44 @@ struct LinkView: View {
     }
     
     // MARK: - 子視圖
-    
+
+    private func buildGreeting() -> String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        let station = weatherManager.weatherDatas?.records.Station.first
+        let weather = station?.WeatherElement.Weather ?? ""
+        let temp = Double(station?.WeatherElement.AirTemperature ?? "") ?? 20.0
+        let name = nickname.isEmpty ? "" : " \(nickname)"
+        let isRain = weather.contains("雨")
+        let isCold = temp < 14
+        let isHot = temp >= 33
+        let isWarm = !isRain && temp >= 20 && temp <= 27
+
+        var candidates: [String] = []
+
+        switch hour {
+        case 5..<9:  candidates += ["早安\(name)！新的一天開始了", "早安\(name)！今天也要加油～"]
+        case 9..<12: candidates += ["上午好\(name)！", "早安\(name)！上課加油～"]
+        case 12..<14: candidates += ["午安\(name)！記得吃午飯", "午安\(name)！"]
+        case 14..<18: candidates += ["下午好\(name)！", "下午好\(name)，撐一下就下課了！"]
+        case 18..<22: candidates += ["晚上好\(name)！辛苦了", "晚上好\(name)！"]
+        default:     candidates += ["夜深了\(name)，注意休息！", "凌晨了\(name)，早點睡～"]
+        }
+
+        if isRain { candidates += ["今天有雨\(name)，記得帶傘！", "外面有下雨，小心路滑\(name)！"] }
+        if isCold  { candidates += ["今天有點冷\(name)，多穿一件！", "氣溫 \(Int(temp))°C\(name)，保暖很重要！"] }
+        if isHot   { candidates += ["今天好熱\(name)，多喝水！", "氣溫 \(Int(temp))°C，記得防曬\(name)！"] }
+        if isWarm  { candidates += ["今天天氣不錯\(name)，出去走走？", "天氣舒適\(name)！"] }
+
+        candidates += [
+            "今天也要好好加油\(name)！",
+            "平安順利的一天\(name)！",
+            "記得三餐要吃飽\(name)！",
+            "保持笑容\(name)，好事即將到來！"
+        ]
+
+        return candidates.randomElement() ?? "歡迎回來\(name)！"
+    }
+
     // 天气 Toolbar 按钮
     @ViewBuilder
     private func weatherToolbarButton(station: Station) -> some View {
@@ -567,11 +608,31 @@ struct LinkView: View {
                     quickFeaturesSection
                 }
                 .navigationTitle("NTPU one")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .principal) {
+                        VStack(spacing: 1) {
+                            Text("NTPU one")
+                                .font(.headline.bold())
+                            if !greetingText.isEmpty {
+                                Text(greetingText)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
                 .onAppear {
                     nextCourseOnAppear = nextUpcomingCourse()
                     webManager.createData()
-                    // 每次顯示時重新加載備忘錄數據，確保任務列表是最新的
                     memoManager.loadMemosFromCoreData()
+                    greetingText = buildGreeting()
+                }
+                .onChange(of: weatherManager.weatherDatas?.records.Station.first?.WeatherElement.AirTemperature) { _ in
+                    greetingText = buildGreeting()
+                }
+                .onChange(of: nickname) { _ in
+                    greetingText = buildGreeting()
                 }
                 .sheet(isPresented: $showWebView) {
                     if let urlString = urlString {

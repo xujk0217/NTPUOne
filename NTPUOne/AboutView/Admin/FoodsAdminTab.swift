@@ -6,6 +6,7 @@
 //
 import FirebaseFirestore
 import SwiftUI
+import MapKit
 
 struct FoodsAdminTab: View {
     // 先宣告 enum，再使用
@@ -55,6 +56,24 @@ struct FoodsAdminTab: View {
                 f.loadF(whichDiet: newVal.rawValue)
             }
 
+            // 小地圖
+            if #available(iOS 17.0, *) {
+                let pins = (f.Food ?? []).filter { $0.lat != 0 && $0.lng != 0 }
+                if !pins.isEmpty {
+                    let center = pins.first.map {
+                        CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lng)
+                    } ?? CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682)
+                    Map(initialPosition: .camera(MapCamera(centerCoordinate: center, distance: 2500))) {
+                        ForEach(pins) { item in
+                            Marker(item.store, coordinate: CLLocationCoordinate2D(latitude: item.lat, longitude: item.lng))
+                        }
+                    }
+                    .frame(height: 200)
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
+                }
+            }
             List {
                 ForEach(filtered) { item in
                     VStack(alignment: .leading, spacing: 6) {
@@ -145,6 +164,20 @@ struct EditFoodSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // 地圖預覽
+                if #available(iOS 17.0, *) {
+                    let latD = Double(lat) ?? 24.9424
+                    let lngD = Double(lng) ?? 121.3682
+                    let coord = CLLocationCoordinate2D(latitude: latD, longitude: lngD)
+                    Section("餐廣位置") {
+                        Map(initialPosition: .camera(MapCamera(centerCoordinate: coord, distance: 600))) {
+                            Marker(store.isEmpty ? "餐廣" : store, coordinate: coord)
+                        }
+                        .frame(height: 160)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                        .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                    }
+                }
                 Section("基本") {
                     TextField("店名", text: $store)
                     TextField("營業時間", text: $time)

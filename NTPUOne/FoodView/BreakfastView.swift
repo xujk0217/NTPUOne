@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import MapKit
 import FirebaseFirestore
 
 struct BreakfastView: View {
@@ -18,84 +19,41 @@ struct BreakfastView: View {
         if let Food = fManager.Food {
             NavigationStack {
                 List {
-                    Section{
-                        ForEach(fManager.Food!) { store in
+                    // 地圖 Section
+                    if #available(iOS 17.0, *) {
+                        let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
+                        if !pins.isEmpty {
+                            Section("附近餐廣地圖") {
+                                Map(initialPosition: .camera(
+                                    MapCamera(
+                                        centerCoordinate: CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682),
+                                        distance: 2500
+                                    )
+                                )) {
+                                    ForEach(pins) { item in
+                                        Marker(item.store, coordinate: CLLocationCoordinate2D(latitude: item.lat, longitude: item.lng))
+                                    }
+                                }
+                                .frame(height: 200)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
+                                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            }
+                        }
+                    }
+                    Section {
+                        ForEach(Food) { store in
                             if #available(iOS 17.0, *) {
-                                NavigationLink(destination: dietView(store: store, currCollectName: K.FStoreF.collectionNameB)){
-                                    HStack {
-                                        HStack {
-                                            Text("\(Int(store.starNum))")
-                                                .font(.title.bold())
-                                            Image(systemName: "star.fill")
-                                        }
-                                        Divider()
-                                        VStack(alignment: .leading) {
-                                            HStack {
-                                                Text(store.store)
-                                                    .font(.headline)
-                                                Spacer()
-                                            }
-                                            HStack(alignment: .top) {
-                                                Image(systemName: "house")
-                                                Text(": \(store.address)")
-                                                Spacer()
-                                            }
-                                            if !store.check{
-                                                Text("未確認資料完整性")
-                                                    .foregroundStyle(Color.red)
-                                            }
-                                        }
-                                    }
-                                }
+                                StoreNavigationLink(store: store, collectionName: K.FStoreF.collectionNameB)
                             } else {
-                                // Fallback on earlier versions
-                                NavigationLink(destination: noMapDietView(store: store, currCollectName: K.FStoreF.collectionNameB)){
-                                    HStack {
-                                        HStack {
-                                            Text("\(Int(store.starNum))")
-                                                .font(.title.bold())
-                                            Image(systemName: "star.fill")
-                                        }
-                                        Divider()
-                                        VStack(alignment: .leading) {
-                                            HStack {
-                                                Text(store.store)
-                                                    .font(.headline)
-                                                Spacer()
-                                            }
-                                            HStack(alignment: .top) {
-                                                Image(systemName: "house")
-                                                Text(": \(store.address)")
-                                                Spacer()
-                                            }
-                                            if !store.check{
-                                                Text("未確認資料完整性")
-                                                    .foregroundStyle(Color.red)
-                                            }
-                                        }
-                                    }
-                                }
+                                StoreNavigationLinkLegacy(store: store, collectionName: K.FStoreF.collectionNameB)
                             }
                         }
                     } header: {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
                     }
-//                    // 廣告標記
-//                    Section {
-//                        NativeAdBoxView(
-//                            style: .compact(media: 120),
-//                            height: $adHeight
-//                        )
-//                        .frame(height: adHeight)
-//                        .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                        .listRowSeparator(.hidden)
-//                        .listRowBackground(Color.white)
-//                        .padding(.horizontal, 8)
-//                    } header: {
-//                        Text("廣告")
-//                    }
-                }.scrollContentBackground(.hidden)
-                    .background(Color.gray.opacity(0.1))
+                }
+                .scrollContentBackground(.hidden)
+                .background(Color.gray.opacity(0.1))
                 .navigationTitle("Breakfast")
                 .toolbar{
                     ToolbarItem(placement: .primaryAction, content: {
@@ -108,16 +66,15 @@ struct BreakfastView: View {
                     })
                 }
                 if !adFree.isAdFree{
-                    // 廣告標記
                     Section {
                         BannerAdView()
                             .frame(height: 50)
                     }
                 }
-                }.onAppear {
+            }.onAppear {
                 fManager.loadF(whichDiet: "B")
             }
-        }else{
+        } else {
             Text("Loading...")
                 .onAppear {
                     fManager.loadF(whichDiet: "B")

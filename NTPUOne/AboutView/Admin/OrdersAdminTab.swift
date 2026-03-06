@@ -37,9 +37,9 @@ struct OrdersAdminTab: View {
 
     enum TagFilter: String, CaseIterable, Identifiable {
         case all = "全部"
-        case event = "活動(1)"
-        case post  = "貼文(2)"
-        case other = "其他(3)"
+        case event = "活動"
+        case post  = "社團"
+        case other = "其他"
         var id: String { rawValue }
         var tagValue: String? {
             switch self {
@@ -112,9 +112,10 @@ struct OrdersAdminTab: View {
             // 篩選列
             HStack {
                 Picker("標籤", selection: $selectedTag) {
-                    ForEach(TagFilter.allCases) { t in
-                        Text(t.rawValue).tag(t)
-                    }
+                    Text("全部").tag(TagFilter.all)
+                    Text("活動(\(manager.eventN))").tag(TagFilter.event)
+                    Text("社團(\(manager.postN))").tag(TagFilter.post)
+                    Text("其他(\(manager.otherN))").tag(TagFilter.other)
                 }
                 .pickerStyle(.segmented)
             }
@@ -207,7 +208,7 @@ struct OrdersAdminTab: View {
                 }
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Text("活動\(manager.eventN) 貼文\(manager.postN) 其他\(manager.otherN)")
+                Text("活動\(manager.eventN) 社團\(manager.postN) 其他\(manager.otherN)")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
@@ -391,7 +392,7 @@ struct EditOrderSheet: View {
                 Section("標籤") {
                     Picker("Tag", selection: $tag) {
                         Text("活動 (1)").tag("1")
-                        Text("貼文 (2)").tag("2")
+                        Text("社團 (2)").tag("2")
                         Text("其他 (3)").tag("3")
                     }
                     .pickerStyle(.segmented)
@@ -449,6 +450,8 @@ struct CrawlerSheet: View {
     @State private var uploadingId: UUID?
     @State private var showUploadSuccess = false
     @State private var showUploadAll = false
+    @State private var showReplaceConfirm = false
+    @State private var isReplacing = false
     
     var body: some View {
         NavigationStack {
@@ -501,10 +504,11 @@ struct CrawlerSheet: View {
                     Spacer()
                 } else {
                     List {
-                        ForEach(crawlerService.pendingOrders) { pending in
+                        ForEach($crawlerService.pendingOrders) { $pending in
                             PendingOrderRow(
-                                pending: pending,
+                                pending: $pending,
                                 isUploading: uploadingId == pending.id,
+                                isDuplicate: isDuplicate(pending),
                                 onApprove: {
                                     uploadPendingOrder(pending)
                                 },
@@ -526,10 +530,19 @@ struct CrawlerSheet: View {
                 ToolbarItem(placement: .primaryAction) {
                     HStack(spacing: 12) {
                         if !crawlerService.pendingOrders.isEmpty {
-                            Button {
-                                showUploadAll = true
+                            Menu {
+                                Button {
+                                    showUploadAll = true
+                                } label: {
+                                    Label("全部上傳", systemImage: "arrow.up.circle.fill")
+                                }
+                                Button(role: .destructive) {
+                                    showReplaceConfirm = true
+                                } label: {
+                                    Label("替換舊資料並上傳", systemImage: "arrow.triangle.2.circlepath.circle.fill")
+                                }
                             } label: {
-                                Label("全部上傳", systemImage: "arrow.up.circle.fill")
+                                Image(systemName: "ellipsis.circle")
                             }
                         }
                         Button {
@@ -538,6 +551,20 @@ struct CrawlerSheet: View {
                             Label("刷新", systemImage: "arrow.triangle.2.circlepath")
                         }
                         .disabled(crawlerService.isLoading)
+                    }
+                }
+            }
+            .overlay {
+                if isReplacing {
+                    ZStack {
+                        Color.black.opacity(0.3).ignoresSafeArea()
+                        VStack(spacing: 12) {
+                            ProgressView()
+                            Text("正在替換資料...")
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(24)
+                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
                     }
                 }
             }
@@ -552,9 +579,26 @@ struct CrawlerSheet: View {
             } message: {
                 Text("將上傳 \(crawlerService.pendingOrders.count) 筆資料到 Firebase")
             }
+            .alert("替換輪播圖資料", isPresented: $showReplaceConfirm) {
+                Button("取消", role: .cancel) {}
+                Button("確定替換", role: .destructive) {
+                    Task { await replaceCrawlerOrders() }
+                }
+            } message: {
+                Text("將刪除資料庫中所有爬蟲輪播圖舊資料，並上傳目前抓到的 \(crawlerService.pendingOrders.count) 筆新資料。")
+            }
         }
     }
     
+    /// 檢查爬蟲項目是否已存在於資料庫（以圖片 URL 或公告連結比對）
+    private func isDuplicate(_ pending: PendingOrder) -> Bool {
+        guard let orders = orderManager.order else { return false }
+        return orders.contains { order in
+            (!pending.email.isEmpty && order.email == pending.email) ||
+            (!pending.url.isEmpty && order.url == pending.url)
+        }
+    }
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd HH:mm"
@@ -596,20 +640,82 @@ struct CrawlerSheet: View {
             }
         }
     }
+
+    /// 刪除資料庫中所有爬蟲輪播圖資料，再上傳目前的 pendingOrders
+    private func replaceCrawlerOrders() async {
+        await MainActor.run { isReplacing = true }
+
+        // 找出資料庫中「爬蟲」型資料（email == time 且含 cms-carrier）
+        let crawlerOrders = (orderManager.order ?? []).filter { order in
+            !order.email.isEmpty &&
+            order.email == order.time &&
+            order.email.contains("cms-carrier.ntpu.edu.tw")
+        }
+
+        // 逐一刪除
+        for order in crawlerOrders {
+            if let id = order.id {
+                orderManager.deleteOrder(docID: id)
+            }
+        }
+
+        // 等待一點時間讓 Firestore 同步（listener 會更新 orderManager.order）
+        try? await Task.sleep(nanoseconds: 1_500_000_000)
+
+        // 上傳新的爬蟲資料
+        let orders = crawlerService.pendingOrders
+        for pending in orders {
+            orderManager.uploadOrder(
+                message: pending.message,
+                name: pending.name,
+                url: pending.url,
+                tag: pending.tag,
+                time: pending.time,
+                email: pending.email
+            ) { success in
+                if success {
+                    crawlerService.removePendingOrder(pending)
+                }
+            }
+        }
+
+        await MainActor.run {
+            isReplacing = false
+            showUploadSuccess = true
+        }
+    }
 }
 
 // MARK: - 備取 Order 列表項
 private struct PendingOrderRow: View {
-    let pending: PendingOrder
+    @Binding var pending: PendingOrder
     let isUploading: Bool
+    let isDuplicate: Bool
     let onApprove: () -> Void
     let onReject: () -> Void
+
+    private let tagOptions: [(label: String, value: String)] = [
+        ("活動", "1"), ("社團", "2"), ("其他", "3")
+    ]
     
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
+            // 已存在標籤
+            if isDuplicate {
+                HStack(spacing: 4) {
+                    Image(systemName: "checkmark.circle.fill")
+                    Text("已存在於資料庫")
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
+                .background(.green, in: Capsule())
+            }
+
             // 圖片預覽
             if pending.isImageOrder {
-                AsyncImage(url: URL(string: pending.message)) { phase in
+                AsyncImage(url: URL(string: pending.email)) { phase in
                     switch phase {
                     case .empty:
                         RoundedRectangle(cornerRadius: 8)
@@ -648,6 +754,29 @@ private struct PendingOrderRow: View {
                     .foregroundStyle(.blue)
             }
             
+            // 標籤選擇
+            HStack(spacing: 8) {
+                Text("標籤")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                ForEach(tagOptions, id: \.value) { option in
+                    Button {
+                        pending.tag = option.value
+                    } label: {
+                        Text(option.label)
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(
+                                pending.tag == option.value ? Color.accentColor : Color(.systemGray5),
+                                in: Capsule()
+                            )
+                            .foregroundStyle(pending.tag == option.value ? .white : .primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
             // 操作按鈕
             HStack(spacing: 12) {
                 Spacer()
