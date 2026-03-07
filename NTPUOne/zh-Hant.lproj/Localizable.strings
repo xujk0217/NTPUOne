@@ -52,6 +52,12 @@
 "comments_count" = "留言（%d）";
 "upgrade_ios_for_map" = "升級至 IOS 17.0 以開啟地圖功能";
 "set_nickname_to_comment" = "請至 About 頁面設定暱稱才能留言";
+"comment_limit_reached" = "今日留言已達上限";
+"comment_limit_message" = "您今日的留言額度已用完。\n\n觀看廣告可獲得額外 3 則留言\n（今日剩餘 %d 次機會）";
+"comment_limit_all_used" = "您今日的留言額度已用完，且廣告觀看次數也已達上限。\n\n請明天再試！";
+"watch_ad" = "觀看廣告";
+"remaining_comments_today" = "今日剩餘 %d 則留言";
+"ad_not_ready" = "廣告正在載入中，請稍後再試";
 "nearby_restaurant_map" = "附近餐廣地圖";
 "meal_selection" = "餐別選擇";
 "winner_restaurant" = "🎉 中獎餐廳";

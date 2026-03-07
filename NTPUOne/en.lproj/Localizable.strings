@@ -52,6 +52,12 @@
 "comments_count" = "Comments (%d)";
 "upgrade_ios_for_map" = "Upgrade to iOS 17.0 to enable map feature";
 "set_nickname_to_comment" = "Please set nickname in About page to comment";
+"comment_limit_reached" = "Daily comment limit reached";
+"comment_limit_message" = "You've used all your comments for today.\n\nWatch an ad to get 3 more comments\n(%d opportunities left today)";
+"comment_limit_all_used" = "You've used all your comments for today, and have reached the ad viewing limit.\n\nPlease try again tomorrow!";
+"watch_ad" = "Watch Ad";
+"remaining_comments_today" = "%d comments left today";
+"ad_not_ready" = "Ad is loading, please try again later";
 "nearby_restaurant_map" = "Nearby Restaurant Map";
 "meal_selection" = "Meal Selection";
 "winner_restaurant" = "🎉 Winner Restaurant";
