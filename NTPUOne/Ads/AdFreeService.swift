@@ -44,6 +44,24 @@ final class AdFreeService: ObservableObject {
         adFreeUntilTs = expiry.timeIntervalSince1970
         refresh()
     }
+    
+    /// 累加指定小時數的去廣告時間
+    /// - Parameter hours: 要增加的小時數
+    func grantHours(_ hours: Double) {
+        let now = Date().timeIntervalSince1970
+        let currentExpiry = max(now, adFreeUntilTs)  // 若已過期則從現在開始
+        let additionalSeconds = hours * 3600
+        adFreeUntilTs = currentExpiry + additionalSeconds
+        refresh()
+        print("✅ 獲得 \(hours) 小時無廣告，到期時間：\(Date(timeIntervalSince1970: adFreeUntilTs))")
+    }
+    
+    /// 取得剩餘去廣告時間（小時）
+    func remainingHours() -> Double {
+        let now = Date().timeIntervalSince1970
+        let remaining = adFreeUntilTs - now
+        return max(0, remaining / 3600)
+    }
 
     func clear() {
         adFreeUntilTs = 0

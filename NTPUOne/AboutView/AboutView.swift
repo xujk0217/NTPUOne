@@ -86,6 +86,25 @@ struct AboutView: View {
                     }
                     .padding(.vertical, 4)
                     
+                    // 評論獎勵系統（放在暱稱下方）
+                    NavigationLink {
+                        CommentRewardInfoView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            BadgeTagView(badge: CommentBadgeManager.shared.getCurrentBadge(), compact: false)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "comment_reward_system"))
+                                    .foregroundStyle(.primary)
+                                Text(String(format: String(localized: "total_comments_format"), CommentBadgeManager.shared.totalComments))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            
+                            Spacer()
+                        }
+                    }
+                    
                     // 廣告設定
                     if !isAdmin {
                         if adFree.isAdFree {

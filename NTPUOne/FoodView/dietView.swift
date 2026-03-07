@@ -36,6 +36,15 @@ struct dietView: View {
     // 留言限制 Alert
     @State private var showCommentLimitAlert = false
     @State private var showAdNotReadyAlert = false
+    
+    // 評論獎勵 Toast
+    @State private var showRewardToast = false
+    @State private var rewardToastMessage = ""
+    @ObservedObject private var badgeManager = CommentBadgeManager.shared
+    
+    // 編輯留言
+    @State private var editingComment: StoreComment? = nil
+    @State private var editingBody: String = ""
 
     init(store: FDetail, currCollectName: String?) {
         self._store = State(initialValue: store)
@@ -146,6 +155,56 @@ struct dietView: View {
             .alert(String(localized: "ad_not_ready"), isPresented: $showAdNotReadyAlert) {
                 Button(String(localized: "ok"), role: .cancel) { }
             }
+            .sheet(item: $editingComment) { comment in
+                editCommentSheet(comment)
+            }
+        }
+    }
+    
+    // MARK: - 編輯留言 Sheet
+    private func editCommentSheet(_ comment: StoreComment) -> some View {
+        NavigationView {
+            VStack(spacing: 16) {
+                Text(store.store)
+                    .font(.headline)
+                
+                TextEditor(text: $editingBody)
+                    .frame(minHeight: 120)
+                    .padding(8)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(8)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(String(localized: "edit_comment"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "cancel")) {
+                        editingComment = nil
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "save")) {
+                        saveEditedComment(comment)
+                    }
+                    .disabled(editingBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+    
+    // MARK: - 儲存編輯後的留言
+    private func saveEditedComment(_ comment: StoreComment) {
+        let trimmed = editingBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let coll = currCollectName,
+              let sid = store.id,
+              let cid = comment.id else { return }
+        
+        commentManager.editComment(collection: coll, storeId: sid, id: cid, newBody: trimmed) { _ in
+            editingComment = nil
         }
     }
 
@@ -201,6 +260,10 @@ struct dietView: View {
                 Text(comment.name)
                     .font(.caption.bold())
                     .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                // 顯示徽章（自己的留言顯示當前徽章）
+                if comment.deviceId == deviceId {
+                    BadgeIconView(badge: badgeManager.getCurrentBadge(), showTitle: false)
+                }
                 if !comment.deviceId.isEmpty {
                     Text("#\(comment.deviceId.prefix(4))")
                         .font(.caption2)
@@ -232,6 +295,17 @@ struct dietView: View {
                 } label: {
                     Label(String(localized: "delete"), systemImage: "trash")
                 }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if comment.deviceId == deviceId {
+                Button {
+                    editingBody = comment.body
+                    editingComment = comment
+                } label: {
+                    Label(String(localized: "edit"), systemImage: "pencil")
+                }
+                .tint(.blue)
             }
         }
     }
@@ -339,9 +413,24 @@ struct dietView: View {
         commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
             isSubmitting = false
             if success {
-                commentLimit.recordComment()
+                let rewardedHours = commentLimit.recordComment()
                 commentBody = ""
                 commentBodyFocused = false
+                
+                // 顯示獎勵 Toast
+                if rewardedHours > 0 {
+                    rewardToastMessage = String(format: String(localized: "comment_reward_toast"), Int(rewardedHours))
+                } else {
+                    rewardToastMessage = String(localized: "comment_thank_you")
+                }
+                withAnimation(.spring(response: 0.4)) {
+                    showRewardToast = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation {
+                        showRewardToast = false
+                    }
+                }
             }
         }
     }
@@ -393,6 +482,15 @@ struct noMapDietView: View {
     // 留言限制 Alert
     @State private var showCommentLimitAlert = false
     @State private var showAdNotReadyAlert = false
+    
+    // 評論獎勵 Toast
+    @State private var showRewardToast = false
+    @State private var rewardToastMessage = ""
+    @ObservedObject private var badgeManager = CommentBadgeManager.shared
+    
+    // 編輯留言
+    @State private var editingComment: StoreComment? = nil
+    @State private var editingBody: String = ""
 
     var body: some View {
         NavigationStack {
@@ -508,7 +606,33 @@ struct noMapDietView: View {
             .alert(String(localized: "ad_not_ready"), isPresented: $showAdNotReadyAlert) {
                 Button(String(localized: "ok"), role: .cancel) { }
             }
+            .sheet(item: $editingComment) { comment in
+                noMapEditCommentSheet(comment)
+            }
+            .overlay(alignment: .top) {
+                if showRewardToast {
+                    noMapRewardToastView
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                        .zIndex(100)
+                }
+            }
         }
+    }
+    
+    private var noMapRewardToastView: some View {
+        HStack(spacing: 8) {
+            Text("🎁")
+            Text(rewardToastMessage)
+                .font(.subheadline.bold())
+            Text(badgeManager.getCurrentBadge().icon)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(.ultraThinMaterial)
+        .background(Color.orange.opacity(0.2))
+        .cornerRadius(20)
+        .shadow(radius: 4)
+        .padding(.top, 8)
     }
 }
 
@@ -565,9 +689,24 @@ extension noMapDietView{
         commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
             isSubmitting = false
             if success {
-                commentLimit.recordComment()
+                let rewardedHours = commentLimit.recordComment()
                 commentBody = ""
                 commentBodyFocused = false
+                
+                // 顯示獎勵 Toast
+                if rewardedHours > 0 {
+                    rewardToastMessage = String(format: String(localized: "comment_reward_toast"), Int(rewardedHours))
+                } else {
+                    rewardToastMessage = String(localized: "comment_thank_you")
+                }
+                withAnimation(.spring(response: 0.4)) {
+                    showRewardToast = true
+                }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+                    withAnimation {
+                        showRewardToast = false
+                    }
+                }
             }
         }
     }
@@ -628,6 +767,10 @@ extension noMapDietView{
                 Text(comment.name)
                     .font(.caption.bold())
                     .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
+                // 顯示徽章（自己的留言顯示當前徽章）
+                if comment.deviceId == deviceId {
+                    BadgeIconView(badge: badgeManager.getCurrentBadge(), showTitle: false)
+                }
                 if !comment.deviceId.isEmpty {
                     Text("#\(comment.deviceId.prefix(4))")
                         .font(.caption2)
@@ -661,6 +804,17 @@ extension noMapDietView{
                 } label: {
                     Label(String(localized: "delete"), systemImage: "trash")
                 }
+            }
+        }
+        .swipeActions(edge: .leading) {
+            if comment.deviceId == deviceId {
+                Button {
+                    editingBody = comment.body
+                    editingComment = comment
+                } label: {
+                    Label(String(localized: "edit"), systemImage: "pencil")
+                }
+                .tint(.blue)
             }
         }
     }
@@ -705,6 +859,53 @@ extension noMapDietView{
             Text(nickname)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+        }
+    }
+    
+    // MARK: - 編輯留言 Sheet
+    private func noMapEditCommentSheet(_ comment: StoreComment) -> some View {
+        NavigationView {
+            VStack(spacing: 16) {
+                Text(store?.store ?? "")
+                    .font(.headline)
+                
+                TextEditor(text: $editingBody)
+                    .frame(minHeight: 120)
+                    .padding(8)
+                    .background(Color(.secondarySystemBackground))
+                    .cornerRadius(8)
+                
+                Spacer()
+            }
+            .padding()
+            .navigationTitle(String(localized: "edit_comment"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "cancel")) {
+                        editingComment = nil
+                    }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(String(localized: "save")) {
+                        noMapSaveEditedComment(comment)
+                    }
+                    .disabled(editingBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
+        }
+    }
+    
+    // MARK: - 儲存編輯後的留言
+    private func noMapSaveEditedComment(_ comment: StoreComment) {
+        let trimmed = editingBody.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              let coll = currCollectName,
+              let sid = store?.id,
+              let cid = comment.id else { return }
+        
+        commentManager.editComment(collection: coll, storeId: sid, id: cid, newBody: trimmed) { _ in
+            editingComment = nil
         }
     }
     

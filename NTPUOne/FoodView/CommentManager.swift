@@ -97,13 +97,43 @@ class CommentManager: ObservableObject {
 
     // MARK: – 刪除
 
-    func deleteComment(collection: String, storeId: String, id: String) {
+    func deleteComment(collection: String, storeId: String, id: String, completion: ((Bool) -> Void)? = nil) {
         db.collection(collection)
             .document(storeId)
             .collection("comments")
             .document(id)
             .delete { error in
-                if let error { print("deleteComment failed: \(error)") }
+                DispatchQueue.main.async {
+                    if let error {
+                        print("deleteComment failed: \(error)")
+                        completion?(false)
+                    } else {
+                        completion?(true)
+                    }
+                }
+            }
+    }
+    
+    // MARK: – 編輯留言內容
+    
+    func editComment(collection: String, storeId: String, id: String, newBody: String, completion: ((Bool) -> Void)? = nil) {
+        guard !collection.isEmpty, !storeId.isEmpty, !id.isEmpty else {
+            completion?(false)
+            return
+        }
+        db.collection(collection)
+            .document(storeId)
+            .collection("comments")
+            .document(id)
+            .updateData(["body": newBody.trimmingCharacters(in: .whitespacesAndNewlines)]) { error in
+                DispatchQueue.main.async {
+                    if let error {
+                        print("editComment failed: \(error)")
+                        completion?(false)
+                    } else {
+                        completion?(true)
+                    }
+                }
             }
     }
 

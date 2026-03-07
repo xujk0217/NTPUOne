@@ -185,9 +185,9 @@
 "contact_me" = "聯絡我～";
 "update_new_comments_only" = "只更新新留言";
 "update_old_comments_too" = "同時更新舊留言";
-"no_banner_today" = "今天已無橫幅廣告";
-"watch_30s_no_banner" = "看 30 秒影片，今日關閉橫幅";
-"watch_ad_hint" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。";
+"no_banner_today" = "今天已無廣告";
+"watch_30s_no_banner" = "看 30 秒影片，今日關閉廣告";
+"watch_ad_hint" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示廣告。";
 
 // MARK: - Links & Web
 "connecting" = "連線中，請確認網路連線";
@@ -315,7 +315,7 @@
 "navigation_carousel_crawler" = "輪播圖爬蟲";
 
 // MARK: - Alerts
-"alert_close_banner" = "關閉今日橫幅廣告？";
+"alert_close_banner" = "關閉今日廣告？";
 "alert_video_not_ready" = "影片尚未就緒";
 "alert_confirm_delete_course" = "確認刪除課程";
 "alert_confirm_delete_all" = "確認刪除所有課程";
@@ -513,13 +513,13 @@
 "common_links" = "常用連結";
 "food_wheel" = "吃飯轉盤";
 "restaurant" = "餐廳";
-"no_banner_today" = "今天已無橫幅廣告";
-"no_banner_until_midnight" = "今天 23:59 前都不會顯示橫幅";
-"watch_video_disable_banner" = "看 30 秒影片，今日關閉橫幅";
-"after_watching_disable_banner" = "觀看完成後，今日關閉橫幅廣告";
-"disable_today_banner_title" = "關閉今日橫幅廣告？";
+"no_banner_today" = "今天已無廣告";
+"no_banner_until_midnight" = "今天 23:59 前都不會顯示廣告";
+"watch_video_disable_banner" = "看 30 秒影片，今日關閉廣告";
+"after_watching_disable_banner" = "觀看完成後，今日關閉廣告";
+"disable_today_banner_title" = "關閉今日廣告？";
 "start_watching" = "開始觀看";
-"disable_banner_message" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。";
+"disable_banner_message" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示廣告。";
 "video_not_ready" = "影片尚未就緒";
 "loading_ad_retry" = "正在載入廣告，請稍後再試。";
 "daily_view_limit_reached" = "今日觀看次數已達上限。";
@@ -802,3 +802,45 @@
 
 // MARK: - AboutView Reward
 "watch_30s_remaining %lld" = "觀看 30 秒影片（剩 %lld 次）";
+
+// MARK: - Comment Badge & Reward
+"badge_newbie" = "新手食客";
+"badge_explorer" = "美食探險家";
+"badge_senior" = "資深饋客";
+"badge_expert" = "美食達人";
+"badge_master" = "美食大師";
+"badge_developer" = "開發者";
+"total_comments_format" = "累積評論：%d 則";
+"comments_to_next_level" = "再 %d 則即可升級";
+"max_level_reached" = "已達最高等級！";
+"comment_reward_message" = "獲得 %d 小時無廣告！";
+"comment_reward_limit_reached" = "今日獎勵已達上限";
+"comment_reward_toast" = "獲得 %d 小時無廣告！";
+"comment_thank_you" = "感謝您的評論！";
+
+// MARK: - Comment Reward Info Page
+"comment_reward_system" = "評論獎勵系統";
+"my_badge" = "我的徽章";
+"badge_levels" = "徽章等級";
+"comment_rewards" = "評論獎勵";
+"today_status" = "今日狀態";
+"reward_per_comment" = "每則評論獎勵";
+"reward_per_comment_desc" = "發布評論可獲得 2 小時無廣告體驗";
+"daily_reward_limit" = "每日獎勵上限";
+"daily_reward_limit_desc" = "每日最多可獲得 6 小時無廣告時間";
+"badge_upgrade" = "徽章升級";
+"badge_upgrade_desc" = "累積評論解鎖更高等級的專屬徽章";
+"remaining_comments" = "剩餘留言";
+"remaining_reward_hours" = "可獲得時數";
+"ad_free_hours" = "無廣告時間";
+"badge_req_newbie" = "0-4 則評論";
+"badge_req_explorer" = "5-14 則評論";
+"badge_req_senior" = "15-39 則評論";
+"badge_req_expert" = "40-79 則評論";
+"badge_req_master" = "80+ 則評論";
+"badge_req_developer" = "開發者專屬";
+"my_comments" = "我的留言";
+"no_comments_yet_self" = "您還沒有留言！\n\n在首頁點擊【美食】，選擇早餐/午餐/晚餐/宵夜，\n點選餐廳後即可留下您的評論。";
+"edit_comment" = "編輯留言";
+"delete_comment_confirm_message" = "確定要刪除這則留言嗎？此操作無法復原。";
+"confirm_delete" = "確認刪除";

@@ -185,9 +185,9 @@
 "contact_me" = "Contact Me~";
 "update_new_comments_only" = "Update New Comments Only";
 "update_old_comments_too" = "Update Old Comments Too";
-"no_banner_today" = "No banner ads today";
-"watch_30s_no_banner" = "Watch 30s video, no banner today";
-"watch_ad_hint" = "After watching a ~30 second reward video, banner ads won't show today (until 23:59).";
+"no_banner_today" = "No ads today";
+"watch_30s_no_banner" = "Watch 30s video, no ads today";
+"watch_ad_hint" = "After watching a ~30 second reward video, ads won't show today (until 23:59).";
 
 // MARK: - Links & Web
 "connecting" = "Connecting, please check network connection";
@@ -315,7 +315,7 @@
 "navigation_carousel_crawler" = "Carousel Crawler";
 
 // MARK: - Alerts
-"alert_close_banner" = "Close today's banner ads?";
+"alert_close_banner" = "Close today's ads?";
 "alert_video_not_ready" = "Video not ready yet";
 "alert_confirm_delete_course" = "Confirm Delete Course";
 "alert_confirm_delete_all" = "Confirm Delete All Courses";
@@ -513,13 +513,13 @@
 "common_links" = "Common Links";
 "food_wheel" = "Food Wheel";
 "restaurant" = "Restaurant";
-"no_banner_today" = "No banner ads today";
-"no_banner_until_midnight" = "No banners until 23:59";
-"watch_video_disable_banner" = "Watch 30s video to disable banner";
-"after_watching_disable_banner" = "After watching, banner disabled today";
-"disable_today_banner_title" = "Disable today's banner?";
+"no_banner_today" = "No ads today";
+"no_banner_until_midnight" = "No ads until 23:59";
+"watch_video_disable_banner" = "Watch 30s video to disable ads";
+"after_watching_disable_banner" = "After watching, ads disabled today";
+"disable_today_banner_title" = "Disable today's ads?";
 "start_watching" = "Start Watching";
-"disable_banner_message" = "After watching a ~30 second reward video, banner ads will be disabled until 23:59 today.";
+"disable_banner_message" = "After watching a ~30 second reward video, ads will be disabled until 23:59 today.";
 "video_not_ready" = "Video not ready";
 "loading_ad_retry" = "Loading ad, please try again later.";
 "daily_view_limit_reached" = "Daily view limit reached.";
@@ -802,3 +802,45 @@
 
 // MARK: - AboutView Reward
 "watch_30s_remaining %lld" = "Watch 30s video (%lld remaining)";
+
+// MARK: - Comment Badge & Reward
+"badge_newbie" = "Newbie Foodie";
+"badge_explorer" = "Food Explorer";
+"badge_senior" = "Senior Foodie";
+"badge_expert" = "Food Expert";
+"badge_master" = "Food Master";
+"badge_developer" = "Developer";
+"total_comments_format" = "Total comments: %d";
+"comments_to_next_level" = "%d more to level up";
+"max_level_reached" = "Max level reached!";
+"comment_reward_message" = "Got %d hours ad-free!";
+"comment_reward_limit_reached" = "Daily reward limit reached";
+"comment_reward_toast" = "Got %d hours ad-free!";
+"comment_thank_you" = "Thanks for your comment!";
+
+// MARK: - Comment Reward Info Page
+"comment_reward_system" = "Comment Rewards";
+"my_badge" = "My Badge";
+"badge_levels" = "Badge Levels";
+"comment_rewards" = "Rewards";
+"today_status" = "Today's Status";
+"reward_per_comment" = "Per Comment Reward";
+"reward_per_comment_desc" = "Get 2 hours ad-free for each comment";
+"daily_reward_limit" = "Daily Limit";
+"daily_reward_limit_desc" = "Up to 6 hours ad-free time per day";
+"badge_upgrade" = "Badge Upgrade";
+"badge_upgrade_desc" = "Unlock higher badges with more comments";
+"remaining_comments" = "Comments Left";
+"remaining_reward_hours" = "Reward Hours";
+"ad_free_hours" = "Ad-Free Time";
+"badge_req_newbie" = "0-4 comments";
+"badge_req_explorer" = "5-14 comments";
+"badge_req_senior" = "15-39 comments";
+"badge_req_expert" = "40-79 comments";
+"badge_req_master" = "80+ comments";
+"badge_req_developer" = "Developer exclusive";
+"my_comments" = "My Comments";
+"no_comments_yet_self" = "No comments yet!\n\nGo to [Food] on the main page, choose Breakfast/Lunch/Dinner/Midnight Snack,\ntap a restaurant to leave your review.";
+"edit_comment" = "Edit Comment";
+"delete_comment_confirm_message" = "Are you sure you want to delete this comment? This action cannot be undone.";
+"confirm_delete" = "Confirm Delete";
