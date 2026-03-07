@@ -15,7 +15,7 @@ struct WebDetailView: View {
         VStack(spacing: 0) {
             WebView(urlString: url)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            BannerView()
+            BannerAdView()
                 .frame(height: 50)
                 .background(Color.clear)
         }

@@ -125,6 +125,15 @@ struct RandomFoodView: View {
                         Text("目前沒有餐廳，可到 Life 頁面新增")
                     }
                 }
+                
+                // Native 廣告 Section
+                if !adFree.isAdFree {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
             }
             .navigationTitle("吃飯轉盤")
             .onAppear {
@@ -140,13 +149,6 @@ struct RandomFoodView: View {
             }
             .alert("至少要保留一間餐廳參加抽籤", isPresented: $showAlert) {
                 Button("OK", role: .cancel) {}
-            }
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
-                }
             }
         }
     }

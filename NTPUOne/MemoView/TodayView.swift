@@ -71,12 +71,6 @@ struct TodayView: View {
             NavigationStack {
                 navigationContent
             }
-            
-            // 横幅广告
-            if !adFree.isAdFree {
-                BannerAdView()
-                    .frame(height: 50)
-            }
         }
         .onAppear {
             loadManualPlannedTodayOrder()
@@ -571,6 +565,16 @@ struct TodayView: View {
                         sectionHeaderLabel(title: "明天安排", color: .teal, count: plannedTomorrowTasks.count)
                     }
                 }
+                
+                // Native 廣告（任務數量超過 5 個時顯示）
+                let totalTodayTasksCount = overdueTasks.count + planExpiredTasks.count + todayTasks.count + plannedTomorrowTasks.count
+                if !adFree.isAdFree && totalTodayTasksCount > 5 {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -615,6 +619,15 @@ struct TodayView: View {
                     } header: {
                         sectionHeaderLabel(title: "4-7 天內", color: .purple, count: buckets.nextWeek.count)
                     }
+                }
+                
+                // Native 廣告（任務數量超過 5 個時顯示）
+                if !adFree.isAdFree && upcomingTasks.count > 5 {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
         }
@@ -754,6 +767,15 @@ struct TodayView: View {
                         }
                     }
                 }
+                
+                // Native 廣告（任務數量超過 5 個時顯示）
+                if !adFree.isAdFree && allTasks.count > 5 {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -789,6 +811,15 @@ struct TodayView: View {
                         }
                     }
                 }
+                
+                // Native 廣告（任務數量超過 5 個時顯示）
+                if !adFree.isAdFree && allTasks.count > 5 {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
             }
         }
         .listStyle(.insetGrouped)
@@ -822,6 +853,15 @@ struct TodayView: View {
                             }
                         }
                     }
+                }
+                
+                // Native 廣告（任務數量超過 5 個時顯示）
+                if !adFree.isAdFree && allTasks.count > 5 {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
         }

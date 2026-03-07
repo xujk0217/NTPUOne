@@ -77,3 +77,43 @@ struct SafariView: UIViewControllerRepresentable {
 
     func updateUIViewController(_ uiViewController: SFSafariViewController, context: Context) {}
 }
+
+// MARK: - 帶 Banner 廣告的 WebView（用於常用連結）
+struct WebViewWithBanner: View {
+    let urlString: String
+    let title: String
+    @EnvironmentObject var adFree: AdFreeService
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                WebView(urlString: urlString)
+                
+                // 底部 Banner 廣告
+                if !adFree.isAdFree {
+                    BannerAdView()
+                        .frame(height: 50)
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("關閉") {
+                        dismiss()
+                    }
+                }
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        if let url = URL(string: urlString) {
+                            UIApplication.shared.open(url)
+                        }
+                    } label: {
+                        Image(systemName: "safari")
+                    }
+                }
+            }
+        }
+    }
+}

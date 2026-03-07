@@ -61,15 +61,16 @@ struct bikeView: View {
                         }
                     }
                 }
-            }
-            .navigationTitle(Bike.sna.substring(from: 11))
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
+                // Native 廣告 Section
+                if !adFree.isAdFree {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
+            .navigationTitle(Bike.sna.substring(from: 11))
         }
     }
 }
@@ -136,14 +137,15 @@ struct noMapBikeView: View {
                         }
                     }
                 }
-            }.navigationTitle(Bike!.sna.substring(from: 11))
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
+                // Native 廣告 Section
+                if !adFree.isAdFree {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
-            }
+            }.navigationTitle(Bike!.sna.substring(from: 11))
         }
     }
 }

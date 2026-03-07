@@ -8,325 +8,503 @@
 import SwiftUI
 import GoogleMobileAds
 
-// 兩種版型：compact（左右排；左邊固定方形媒體），topMedia16x9（上媒體16:9，下文字）
-enum NativeAdStyle: Equatable {
-    case compact(media: CGFloat = 140)          // 建議 120~150
-    case topMedia16x9(minHeight: CGFloat = 160) // 高 = 寬*9/16，且 >= minHeight
-}
+// MARK: - Native 廣告載入器
 
-struct NativeAdBoxView: UIViewRepresentable {
-//     let adUnitID = "ca-app-pub-3940256099942544/3986624511" // 測試用
-    let adUnitID = "ca-app-pub-4105005748617921/9068538634"
-    let style: NativeAdStyle
-    @Binding var height: CGFloat
+/// 原生廣告載入狀態管理（ObservableObject，可多實例使用）
+final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegate, GADNativeAdDelegate {
+    @Published var nativeAd: GADNativeAd?
+    @Published var isLoading = false
+    @Published var loadFailed = false
 
-    func makeCoordinator() -> Coordinator { Coordinator(parent: self) }
+    // 正式 ID
+    private let adUnitID = "ca-app-pub-4105005748617921/9068538634"
+    // 測試 ID（開發時可切換）：
+    // private let adUnitID = "ca-app-pub-3940256099942544/3986624511"
 
-    func makeUIView(context: Context) -> NativeAdContainerView {
-        let container = NativeAdContainerView(style: style)
-        context.coordinator.container = container
-        context.coordinator.loadAd()
-        return container
-    }
+    private var adLoader: GADAdLoader?
+    private var retryCount = 0
+    private let maxRetry = 2
 
-    func updateUIView(_ uiView: NativeAdContainerView, context: Context) {
-        if uiView.style != style { uiView.rebuild(with: style) }
-    }
+    func loadAd() {
+        guard !isLoading else { return }
+        guard nativeAd == nil else { return }
 
-    // iOS 16+：用 SwiftUI 提供的目標寬度計高
-    func sizeThatFits(_ proposal: ProposedViewSize,
-                      uiView: NativeAdContainerView,
-                      context: Context) -> CGSize {
-        let targetWidth = proposal.width ?? UIScreen.main.bounds.width
-        let size = uiView.systemLayoutSizeFitting(
-            CGSize(width: targetWidth, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        )
-        DispatchQueue.main.async { self.height = size.height }
-        return size
-    }
+        isLoading = true
+        loadFailed = false
 
-    final class Coordinator: NSObject, GADNativeAdLoaderDelegate, GADNativeAdDelegate {
-        var parent: NativeAdBoxView
-        var adLoader: GADAdLoader!
-        weak var container: NativeAdContainerView?
-
-        init(parent: NativeAdBoxView) { self.parent = parent }
-
-        func loadAd() {
-            guard
-                let rootVC = UIApplication.shared.connectedScenes
-                    .compactMap({ $0 as? UIWindowScene })
-                    .first?.windows.first?.rootViewController
-            else { return }
-
-            adLoader = GADAdLoader(
-                adUnitID: parent.adUnitID,
-                rootViewController: rootVC,
-                adTypes: [.native],
-                options: nil
-            )
-            adLoader.delegate = self
-            adLoader.load(GADRequest())
+        // 取得 rootViewController
+        let rootVC = Self.findRootVC()
+        guard let rootVC else {
+            print("⚠️ NativeAdLoader: rootVC == nil，延遲 0.5s 重試")
+            isLoading = false
+            // rootVC 可能尚未就緒（例如 app launch 初期），稍後重試
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                self?.loadAd()
+            }
+            return
         }
 
-        func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
-            DispatchQueue.main.async {
-                guard let container = self.container else { return }
-                nativeAd.delegate = self
-                container.apply(ad: nativeAd)
+        let loader = GADAdLoader(
+            adUnitID: adUnitID,
+            rootViewController: rootVC,
+            adTypes: [.native],
+            options: nil
+        )
+        loader.delegate = self
+        self.adLoader = loader
+        loader.load(GADRequest())
+    }
 
-                // iOS 15 相容：在這裡也計一次高，避免沒走 sizeThatFits
-                let targetWidth = container.superview?.bounds.width
-                    ?? UIScreen.main.bounds.width - 32
-                let size = container.systemLayoutSizeFitting(
-                    CGSize(width: targetWidth,
-                           height: UIView.layoutFittingCompressedSize.height),
-                    withHorizontalFittingPriority: .required,
-                    verticalFittingPriority: .fittingSizeLevel
-                )
-                self.parent.height = size.height
+    // MARK: GADNativeAdLoaderDelegate
+    func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
+        nativeAd.delegate = self
+        DispatchQueue.main.async {
+            self.nativeAd = nativeAd
+            self.isLoading = false
+            self.retryCount = 0
+            print("✅ Native ad loaded: \(nativeAd.headline ?? "(no headline)")")
+        }
+    }
+
+    func adLoader(_ adLoader: GADAdLoader, didFailToReceiveAdWithError error: Error) {
+        print("❌ Native ad load failed: \(error.localizedDescription)")
+        DispatchQueue.main.async {
+            self.isLoading = false
+            self.loadFailed = true
+            guard self.retryCount < self.maxRetry else { return }
+            self.retryCount += 1
+            let delay = Double(self.retryCount) * 3.0
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                self?.nativeAd = nil
+                self?.loadAd()
             }
         }
+    }
 
-        func adLoader(_ adLoader: GADAdLoader, didFailToReceiveAdWithError error: Error) {
-            print("❌ Native ad failed: \(error.localizedDescription)")
-            DispatchQueue.main.async { self.parent.height = 0 }
+    // MARK: GADNativeAdDelegate
+    func nativeAdDidRecordImpression(_ nativeAd: GADNativeAd) {
+        print("📊 Native ad impression recorded")
+    }
+    func nativeAdDidRecordClick(_ nativeAd: GADNativeAd) {
+        print("👆 Native ad click recorded")
+    }
+
+    // MARK: Helper
+    private static func findRootVC() -> UIViewController? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap { $0.windows }
+            .first(where: { $0.isKeyWindow })?
+            .rootViewController
+    }
+}
+
+// MARK: - SwiftUI 入口：NativeAdSectionView
+
+/// 在 List / Section / TabView 中使用的原生廣告視圖
+/// - `.compact`：左圖右文，高度約 90pt，適合 List row
+/// - `.card`：上媒體下文字，高度約 220pt，適合獨立 Section
+/// - `showCardBackground`：是否顯示卡片背景（用於輪播器，與公告卡片一致）
+struct NativeAdSectionView: View {
+    enum Style {
+        case compact
+        case card
+    }
+
+    let style: Style
+    var showCardBackground: Bool = false
+    @StateObject private var loader = NativeAdLoader()
+
+    var body: some View {
+        let _ = print("🔍 NativeAdSectionView body called - style: \(style), nativeAd: \(loader.nativeAd != nil), isLoading: \(loader.isLoading), loadFailed: \(loader.loadFailed)")
+        
+        Group {
+            if let ad = loader.nativeAd {
+                let _ = print("✅ NativeAdSectionView: 顯示廣告 - \(ad.headline ?? "(no headline)")")
+                NativeAdUIViewWrapper(ad: ad, style: style)
+                    .frame(maxWidth: .infinity, minHeight: style == .compact ? 140 : 240)
+            } else {
+                // Loading / Failed / Initial 都顯示骨架佔位符
+                AdSkeletonView(style: style)
+                    .frame(maxWidth: .infinity, minHeight: style == .compact ? 140 : 240)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: style == .compact ? 140 : 240)
+        .background(
+            Group {
+                if showCardBackground {
+                    RoundedRectangle(cornerRadius: 18, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .stroke(Color(.separator), lineWidth: 0.5)
+                        }
+                        .shadow(color: .black.opacity(0.06), radius: 4, x: 0, y: 2)
+                } else {
+                    Color.clear
+                }
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: showCardBackground ? 18 : 0, style: .continuous))
+        .onAppear {
+            print("🔍 NativeAdSectionView onAppear - 開始載入廣告")
+            loader.loadAd()
         }
     }
 }
 
-// MARK: - 容器：負責 UI 建構 + 資產綁定
-final class NativeAdContainerView: UIView {
-    private(set) var adView = GADNativeAdView()
-    private var mediaView = GADMediaView()
-    private var headlineLabel = UILabel()
-    private var bodyLabel = UILabel()
-    private var ctaButton = UIButton(type: .system)
-    private var adChoicesView = GADAdChoicesView()
+// MARK: - UIViewRepresentable：正確的 GADNativeAdView 實現
+//
+// Google Mobile Ads 要求：
+// 1. 所有內容必須放在 GADNativeAdView 內
+// 2. headlineView、bodyView、mediaView、callToActionView 等屬性必須設定
+// 3. 最後設定 nativeAd 屬性，SDK 才會記錄曝光（impression）
 
-    private var contentStack: UIStackView?
-    private var mediaSizeConstraints: [NSLayoutConstraint] = []
-    private var mediaAspectConstraint: NSLayoutConstraint?
+struct NativeAdUIViewWrapper: UIViewRepresentable {
+    let ad: GADNativeAd
+    let style: NativeAdSectionView.Style
 
-    private(set) var style: NativeAdStyle
+    func makeUIView(context: Context) -> GADNativeAdView {
+        let nativeAdView = GADNativeAdView()
+        nativeAdView.backgroundColor = .clear
 
-    init(style: NativeAdStyle) {
-        self.style = style
-        super.init(frame: .zero)
-        translatesAutoresizingMaskIntoConstraints = false
-        buildSkeleton()
-        buildLayout(for: style)
-    }
-    required init?(coder: NSCoder) { fatalError() }
-
-    // 重新套用樣式（若需要動態切換）
-    func rebuild(with newStyle: NativeAdStyle) {
-        guard style != newStyle else { return }
-        style = newStyle
-        contentStack?.removeFromSuperview()
-        contentStack = nil
-        NSLayoutConstraint.deactivate(mediaSizeConstraints)
-        mediaSizeConstraints.removeAll()
-        mediaAspectConstraint?.isActive = false
-        mediaAspectConstraint = nil
-        buildLayout(for: newStyle)
-        setNeedsLayout()
-        layoutIfNeeded()
-    }
-
-    private func buildSkeleton() {
-        // adView 填滿容器
-        adView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(adView)
-        NSLayoutConstraint.activate([
-            adView.topAnchor.constraint(equalTo: topAnchor),
-            adView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            adView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            adView.bottomAnchor.constraint(equalTo: bottomAnchor)
-        ])
-
-        // 邊界裁切，避免極端狀況外溢
-        adView.clipsToBounds = true
-        clipsToBounds = true
-
-        // 媒體
-        mediaView.translatesAutoresizingMaskIntoConstraints = false
-        mediaView.isUserInteractionEnabled = true // 媒體需互動
-        adView.mediaView = mediaView
-        mediaView.setContentCompressionResistancePriority(.required, for: .horizontal)
-        mediaView.setContentHuggingPriority(.required, for: .horizontal)
-
-        // 標題
-        headlineLabel.font = .boldSystemFont(ofSize: 13)
-        headlineLabel.numberOfLines = 2
-        headlineLabel.lineBreakMode = .byCharWrapping
-//        headlineLabel.lineBreakMode = .byWordWrapping
-        headlineLabel.allowsDefaultTighteningForTruncation = true
-        headlineLabel.isUserInteractionEnabled = false
-        adView.headlineView = headlineLabel
-        // 水平可被壓縮，垂直撐開
-        headlineLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        headlineLabel.setContentHuggingPriority(.required, for: .vertical)
-
-        // 內文
-        bodyLabel.font = .systemFont(ofSize: 10)
-        bodyLabel.numberOfLines = 4
-        bodyLabel.lineBreakMode = .byCharWrapping // 長字/無空白也能斷行
-        bodyLabel.isUserInteractionEnabled = false
-        adView.bodyView = bodyLabel
-        bodyLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-        bodyLabel.setContentHuggingPriority(.required, for: .vertical)
-
-        // CTA
-        ctaButton.backgroundColor = .systemBlue
-        ctaButton.setTitleColor(.white, for: .normal)
-        ctaButton.titleLabel?.font = .boldSystemFont(ofSize: 12)
-        ctaButton.titleLabel?.numberOfLines = 1
-        ctaButton.titleLabel?.lineBreakMode = .byTruncatingTail
-        ctaButton.titleLabel?.adjustsFontSizeToFitWidth = true
-        ctaButton.titleLabel?.minimumScaleFactor = 0.6
-        ctaButton.layer.cornerRadius = 8
-        ctaButton.isUserInteractionEnabled = false // CTA 交給 SDK
-        adView.callToActionView = ctaButton
-        // ⚠️ 不要在這裡對 CTA 下寬度約束（此時 CTA 尚未在層級樹內）
-
-        // AdChoices（一定要 addSubview 再下 constraint）
-        adChoicesView.translatesAutoresizingMaskIntoConstraints = false
-        adChoicesView.isUserInteractionEnabled = false
-        adView.adChoicesView = adChoicesView
-        adView.addSubview(adChoicesView)
-        NSLayoutConstraint.activate([
-            adChoicesView.topAnchor.constraint(equalTo: adView.topAnchor, constant: 4),
-            adChoicesView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -4),
-        ])
-    }
-
-    private func buildLayout(for style: NativeAdStyle) {
         switch style {
-        case .compact(let media):
-            let hStack = UIStackView()
-            hStack.axis = .horizontal
-            hStack.spacing = 10
-            hStack.alignment = .top
-            hStack.translatesAutoresizingMaskIntoConstraints = false
-            adView.addSubview(hStack)
-            contentStack = hStack
-
-            // 左：固定方形 Media
-            hStack.addArrangedSubview(mediaView)
-            mediaSizeConstraints = [
-                mediaView.widthAnchor.constraint(equalToConstant: media),
-                mediaView.heightAnchor.constraint(equalToConstant: media)
-            ]
-            NSLayoutConstraint.activate(mediaSizeConstraints)
-
-            // 右：文字+CTA
-            let vStack = UIStackView()
-            vStack.axis = .vertical
-            vStack.spacing = 6
-            vStack.translatesAutoresizingMaskIntoConstraints = false
-            hStack.addArrangedSubview(vStack)
-
-            vStack.addArrangedSubview(headlineLabel)
-            vStack.addArrangedSubview(bodyLabel)
-            vStack.addArrangedSubview(ctaButton)
-
-            // 限制文字區最大寬度（最多佔整張卡片寬度的 72%）
-            let textMaxWidthRatio: CGFloat = 0.65
-            let textMaxWidthGuide = UILayoutGuide()
-            adView.addLayoutGuide(textMaxWidthGuide)
-            NSLayoutConstraint.activate([
-                textMaxWidthGuide.widthAnchor.constraint(equalTo: adView.widthAnchor, multiplier: textMaxWidthRatio),
-                vStack.widthAnchor.constraint(lessThanOrEqualTo: textMaxWidthGuide.widthAnchor)
-            ])
-
-            // CTA 尺寸與約束（此時 CTA 已在層級樹內，可以安全加）
-            ctaButton.heightAnchor.constraint(equalToConstant: 36).isActive = true
-            ctaButton.setContentCompressionResistancePriority(.required, for: .horizontal)
-            ctaButton.widthAnchor.constraint(lessThanOrEqualTo: vStack.widthAnchor).isActive = true
-
-            // 讓右側願意被壓縮（換行），左側保持固定寬
-            vStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            vStack.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-            NSLayoutConstraint.activate([
-                hStack.topAnchor.constraint(equalTo: adView.topAnchor, constant: 12),
-                hStack.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
-                hStack.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -12),
-                hStack.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -12),
-            ])
-
-
-        case .topMedia16x9(let minHeight):
-            let vStack = UIStackView()
-            vStack.axis = .vertical
-            vStack.spacing = 10
-            vStack.translatesAutoresizingMaskIntoConstraints = false
-            adView.addSubview(vStack)
-            contentStack = vStack
-
-            // 上：媒體 16:9 + 最小高度
-            vStack.addArrangedSubview(mediaView)
-            mediaAspectConstraint = mediaView.heightAnchor.constraint(
-                equalTo: mediaView.widthAnchor, multiplier: 9.0/16.0
-            )
-            mediaAspectConstraint?.isActive = true
-            mediaView.heightAnchor.constraint(greaterThanOrEqualToConstant: minHeight).isActive = true
-
-            // 下：文字+CTA
-            let textStack = UIStackView()
-            textStack.axis = .vertical
-            textStack.spacing = 6
-            textStack.translatesAutoresizingMaskIntoConstraints = false
-            vStack.addArrangedSubview(textStack)
-
-            textStack.addArrangedSubview(headlineLabel)
-            textStack.addArrangedSubview(bodyLabel)
-            textStack.addArrangedSubview(ctaButton)
-
-            // CTA 尺寸與約束（安全：CTA 已在 textStack 裡）
-            ctaButton.heightAnchor.constraint(equalToConstant: 36).isActive = true
-            ctaButton.setContentCompressionResistancePriority(.required, for: .horizontal)
-            ctaButton.widthAnchor.constraint(lessThanOrEqualTo: textStack.widthAnchor).isActive = true
-
-            // 保險：文字區允許水平壓縮
-            textStack.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
-            textStack.setContentHuggingPriority(.defaultLow, for: .horizontal)
-
-            NSLayoutConstraint.activate([
-                vStack.topAnchor.constraint(equalTo: adView.topAnchor, constant: 12),
-                vStack.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
-                vStack.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -12),
-                vStack.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -12),
-            ])
+        case .compact:
+            configureCompact(nativeAdView)
+        case .card:
+            configureCard(nativeAdView)
         }
+
+        return nativeAdView
     }
 
-    // 綁定廣告資產
-    func apply(ad: GADNativeAd) {
-        headlineLabel.text = ad.headline
+    func updateUIView(_ nativeAdView: GADNativeAdView, context: Context) {
+        // 更新文字內容
+        (nativeAdView.headlineView as? UILabel)?.text = ad.headline
+        (nativeAdView.bodyView as? UILabel)?.text = ad.body
+        (nativeAdView.advertiserView as? UILabel)?.text = ad.advertiser
 
-        if let body = ad.body, !body.isEmpty {
-            bodyLabel.text = body
-            bodyLabel.isHidden = false
-        } else {
-            bodyLabel.text = nil
-            bodyLabel.isHidden = true
+        if let ctaButton = nativeAdView.callToActionView as? UIButton {
+            ctaButton.setTitle(ad.callToAction, for: .normal)
+            ctaButton.isHidden = (ad.callToAction ?? "").isEmpty
         }
 
-        if let cta = ad.callToAction, !cta.isEmpty {
-            ctaButton.setTitle(cta, for: .normal)
-            ctaButton.isHidden = false
-        } else {
-            ctaButton.setTitle(nil, for: .normal)
-            ctaButton.isHidden = true
+        // 更新 icon
+        if let iconView = nativeAdView.iconView as? UIImageView {
+            iconView.image = ad.icon?.image
+            iconView.isHidden = (ad.icon == nil)
         }
 
-        adView.nativeAd = ad
-        ad.delegate = self
+        // 更新媒體
+        if let mediaView = nativeAdView.mediaView {
+            mediaView.mediaContent = ad.mediaContent
+        }
+
+        // 設定 ad badge
+        if let badgeLabel = nativeAdView.viewWithTag(999) as? UILabel {
+            badgeLabel.isHidden = false
+        }
+
+        // ⚠️ 最後設定 nativeAd — 這步讓 SDK 開始追蹤曝光和點擊
+        nativeAdView.nativeAd = ad
+    }
+
+    // MARK: - Compact 版型（左 icon/media + 右 文字）
+
+    private func configureCompact(_ adView: GADNativeAdView) {
+        // --- Ad badge ---
+        let badgeLabel = UILabel()
+        badgeLabel.tag = 999
+        badgeLabel.text = "廣告"
+        badgeLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        badgeLabel.textColor = .white
+        badgeLabel.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.85)
+        badgeLabel.textAlignment = .center
+        badgeLabel.layer.cornerRadius = 3
+        badgeLabel.clipsToBounds = true
+        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // --- Icon ---
+        let iconView = UIImageView()
+        iconView.contentMode = .scaleAspectFill
+        iconView.clipsToBounds = true
+        iconView.layer.cornerRadius = 8
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        adView.iconView = iconView
+
+        // --- Media (fallback if no icon) ---
+        let mediaView = GADMediaView()
+        mediaView.contentMode = .scaleAspectFill
+        mediaView.clipsToBounds = true
+        mediaView.layer.cornerRadius = 8
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        adView.mediaView = mediaView
+
+        // --- Headline ---
+        let headlineLabel = UILabel()
+        headlineLabel.font = .systemFont(ofSize: 14, weight: .bold)
+        headlineLabel.numberOfLines = 1
+        headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+        adView.headlineView = headlineLabel
+
+        // --- Body ---
+        let bodyLabel = UILabel()
+        bodyLabel.font = .systemFont(ofSize: 12)
+        bodyLabel.textColor = .secondaryLabel
+        bodyLabel.numberOfLines = 2
+        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+        adView.bodyView = bodyLabel
+
+        // --- CTA ---
+        let ctaButton = UIButton(type: .system)
+        ctaButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .bold)
+        ctaButton.setTitleColor(.systemBlue, for: .normal)
+        ctaButton.isUserInteractionEnabled = false // 由 GADNativeAdView 處理
+        ctaButton.contentHorizontalAlignment = .leading
+        ctaButton.translatesAutoresizingMaskIntoConstraints = false
+        adView.callToActionView = ctaButton
+
+        // --- Layout ---
+        // 左側容器：icon 在上，media 在下（二選一顯示）
+        let leftContainer = UIView()
+        leftContainer.translatesAutoresizingMaskIntoConstraints = false
+        leftContainer.addSubview(mediaView)
+        leftContainer.addSubview(iconView)
+
+        // 右側文字堆疊
+        let titleRow = UIStackView(arrangedSubviews: [badgeLabel, headlineLabel])
+        titleRow.axis = .horizontal
+        titleRow.spacing = 4
+        titleRow.alignment = .center
+
+        let textStack = UIStackView(arrangedSubviews: [titleRow, bodyLabel, ctaButton])
+        textStack.axis = .vertical
+        textStack.spacing = 3
+        textStack.translatesAutoresizingMaskIntoConstraints = false
+
+        adView.addSubview(leftContainer)
+        adView.addSubview(textStack)
+
+        NSLayoutConstraint.activate([
+            // 左側 120x120（Google 要求視頻廣告至少 120x120）
+            // 注意：增加頂部 padding 給 AdChoices icon 留空間
+            leftContainer.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
+            leftContainer.centerYAnchor.constraint(equalTo: adView.centerYAnchor, constant: 6),
+            leftContainer.widthAnchor.constraint(equalToConstant: 120),
+            leftContainer.heightAnchor.constraint(equalToConstant: 120),
+
+            iconView.topAnchor.constraint(equalTo: leftContainer.topAnchor),
+            iconView.leadingAnchor.constraint(equalTo: leftContainer.leadingAnchor),
+            iconView.trailingAnchor.constraint(equalTo: leftContainer.trailingAnchor),
+            iconView.bottomAnchor.constraint(equalTo: leftContainer.bottomAnchor),
+
+            mediaView.topAnchor.constraint(equalTo: leftContainer.topAnchor),
+            mediaView.leadingAnchor.constraint(equalTo: leftContainer.leadingAnchor),
+            mediaView.trailingAnchor.constraint(equalTo: leftContainer.trailingAnchor),
+            mediaView.bottomAnchor.constraint(equalTo: leftContainer.bottomAnchor),
+
+            // Badge 固定寬度
+            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 28),
+            badgeLabel.heightAnchor.constraint(equalToConstant: 16),
+
+            // 右側文字 - 增加右側 padding 給 AdChoices icon 留空間
+            textStack.leadingAnchor.constraint(equalTo: leftContainer.trailingAnchor, constant: 10),
+            textStack.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -28),
+            textStack.centerYAnchor.constraint(equalTo: adView.centerYAnchor, constant: 6),
+        ])
+    }
+
+    // MARK: - Card 版型（上 media + 下 文字 + CTA 按鈕）
+
+    private func configureCard(_ adView: GADNativeAdView) {
+        // --- Ad badge ---
+        let badgeLabel = UILabel()
+        badgeLabel.tag = 999
+        badgeLabel.text = "廣告"
+        badgeLabel.font = .systemFont(ofSize: 9, weight: .semibold)
+        badgeLabel.textColor = .white
+        badgeLabel.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.85)
+        badgeLabel.textAlignment = .center
+        badgeLabel.layer.cornerRadius = 3
+        badgeLabel.clipsToBounds = true
+        badgeLabel.translatesAutoresizingMaskIntoConstraints = false
+
+        // --- Media ---
+        let mediaView = GADMediaView()
+        mediaView.contentMode = .scaleAspectFill
+        mediaView.clipsToBounds = true
+        mediaView.layer.cornerRadius = 10
+        mediaView.translatesAutoresizingMaskIntoConstraints = false
+        adView.mediaView = mediaView
+
+        // --- Icon ---
+        let iconView = UIImageView()
+        iconView.contentMode = .scaleAspectFill
+        iconView.clipsToBounds = true
+        iconView.layer.cornerRadius = 4
+        iconView.translatesAutoresizingMaskIntoConstraints = false
+        adView.iconView = iconView
+
+        // --- Headline ---
+        let headlineLabel = UILabel()
+        headlineLabel.font = .systemFont(ofSize: 15, weight: .bold)
+        headlineLabel.numberOfLines = 1
+        headlineLabel.translatesAutoresizingMaskIntoConstraints = false
+        adView.headlineView = headlineLabel
+
+        // --- Body ---
+        let bodyLabel = UILabel()
+        bodyLabel.font = .systemFont(ofSize: 12)
+        bodyLabel.textColor = .secondaryLabel
+        bodyLabel.numberOfLines = 2
+        bodyLabel.translatesAutoresizingMaskIntoConstraints = false
+        adView.bodyView = bodyLabel
+
+        // --- Advertiser ---
+        let advLabel = UILabel()
+        advLabel.font = .systemFont(ofSize: 11)
+        advLabel.textColor = .tertiaryLabel
+        advLabel.numberOfLines = 1
+        advLabel.translatesAutoresizingMaskIntoConstraints = false
+        adView.advertiserView = advLabel
+
+        // --- CTA ---
+        let ctaButton = UIButton(type: .system)
+        ctaButton.titleLabel?.font = .systemFont(ofSize: 13, weight: .bold)
+        ctaButton.setTitleColor(.white, for: .normal)
+        ctaButton.backgroundColor = .systemBlue
+        ctaButton.layer.cornerRadius = 16
+        ctaButton.contentEdgeInsets = UIEdgeInsets(top: 6, left: 16, bottom: 6, right: 16)
+        ctaButton.isUserInteractionEnabled = false
+        ctaButton.translatesAutoresizingMaskIntoConstraints = false
+        adView.callToActionView = ctaButton
+
+        // --- Layout ---
+        adView.addSubview(mediaView)
+        adView.addSubview(badgeLabel)
+        adView.addSubview(iconView)
+        adView.addSubview(headlineLabel)
+        adView.addSubview(bodyLabel)
+        adView.addSubview(advLabel)
+        adView.addSubview(ctaButton)
+
+        NSLayoutConstraint.activate([
+            // 媒體區上方 - 增加上方和右側 padding 給 AdChoices icon 留空間
+            mediaView.topAnchor.constraint(equalTo: adView.topAnchor, constant: 20),
+            mediaView.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
+            mediaView.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -24),
+            mediaView.heightAnchor.constraint(equalToConstant: 110),
+
+            // Badge 在 media 左上角
+            badgeLabel.topAnchor.constraint(equalTo: mediaView.topAnchor, constant: 6),
+            badgeLabel.leadingAnchor.constraint(equalTo: mediaView.leadingAnchor, constant: 6),
+            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 28),
+            badgeLabel.heightAnchor.constraint(equalToConstant: 16),
+
+            // Icon (小圖) 在 media 下方左側
+            iconView.topAnchor.constraint(equalTo: mediaView.bottomAnchor, constant: 8),
+            iconView.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
+            iconView.widthAnchor.constraint(equalToConstant: 24),
+            iconView.heightAnchor.constraint(equalToConstant: 24),
+
+            // Headline 在 icon 右邊
+            headlineLabel.centerYAnchor.constraint(equalTo: iconView.centerYAnchor),
+            headlineLabel.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 6),
+            headlineLabel.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -24),
+
+            // Body
+            bodyLabel.topAnchor.constraint(equalTo: iconView.bottomAnchor, constant: 4),
+            bodyLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
+            bodyLabel.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -24),
+
+            // Advertiser
+            advLabel.topAnchor.constraint(equalTo: bodyLabel.bottomAnchor, constant: 2),
+            advLabel.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 12),
+
+            // CTA 按鈕右下
+            ctaButton.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -12),
+            ctaButton.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -8),
+            ctaButton.heightAnchor.constraint(equalToConstant: 32),
+        ])
     }
 }
 
-extension NativeAdContainerView: GADNativeAdDelegate {}
+// MARK: - 廣告骨架佔位符（Loading 狀態）
+
+/// 在廣告載入中或失敗時顯示的骨架視圖
+/// 用灰色條紋和 "ad" 文字重複排列，避免旋轉 loading
+struct AdSkeletonView: View {
+    let style: NativeAdSectionView.Style
+    
+    var body: some View {
+        GeometryReader { geo in
+            let rowHeight: CGFloat = style == .compact ? 24 : 28
+            let spacing: CGFloat = 8
+            let rows = Int((geo.size.height - 16) / (rowHeight + spacing))
+            
+            VStack(alignment: .leading, spacing: spacing) {
+                ForEach(0..<max(rows, 1), id: \.self) { index in
+                    skeletonRow(index: index, totalWidth: geo.size.width - 24, rowHeight: rowHeight)
+                }
+            }
+            .padding(12)
+        }
+        .background(Color.clear)
+    }
+    
+    @ViewBuilder
+    private func skeletonRow(index: Int, totalWidth: CGFloat, rowHeight: CGFloat) -> some View {
+        HStack(spacing: 6) {
+            // 根據行索引變化寬度，模擬不同長度的內容
+            let widths: [CGFloat] = [0.7, 0.5, 0.85, 0.6, 0.75]
+            let widthRatio = widths[index % widths.count]
+            
+            RoundedRectangle(cornerRadius: 4)
+                .fill(Color(.systemGray4))
+                .frame(width: totalWidth * widthRatio, height: rowHeight)
+            
+            Spacer()
+            
+            // 每隔幾行顯示 "ad" 標記
+            if index % 2 == 0 {
+                Text("ad")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(Color(.systemGray3))
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(Color(.systemGray4), lineWidth: 1)
+                    )
+            }
+        }
+    }
+}
+
+// MARK: - Banner 廣告骨架佔位符
+
+/// Banner 廣告載入時的骨架視圖
+struct BannerSkeletonView: View {
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<4, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 3)
+                    .fill(Color(.systemGray4))
+                    .frame(width: index == 0 ? 60 : (index == 3 ? 40 : 80), height: 20)
+            }
+            Spacer()
+            Text("ad")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(Color(.systemGray3))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(
+                    RoundedRectangle(cornerRadius: 2)
+                        .stroke(Color(.systemGray4), lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 12)
+        .frame(height: BannerAdView.adHeight)
+        .background(Color(.secondarySystemGroupedBackground))
+    }
+}

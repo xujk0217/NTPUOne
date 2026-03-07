@@ -41,34 +41,43 @@ struct BreakfastView: View {
                         }
                     }
                     Section {
-                        ForEach(Food) { store in
+                        ForEach(Array(Food.enumerated()), id: \.element.id) { index, store in
                             if #available(iOS 17.0, *) {
                                 StoreNavigationLink(store: store, collectionName: K.FStoreF.collectionNameB)
                             } else {
                                 StoreNavigationLinkLegacy(store: store, collectionName: K.FStoreF.collectionNameB)
                             }
+                            
+                            // 每 5 個餐廳後插入 Native 廣告
+                            if !adFree.isAdFree && (index + 1) % 5 == 0 && index < Food.count - 1 {
+                                NativeAdSectionView(style: .compact)
+                                    .frame(height: 140)
+                                    .listRowInsets(.init(top: 8, leading: 0, bottom: 8, trailing: 0))
+                            }
                         }
                     } header: {
                         Text("\(Image(systemName: "star.fill")) 是人氣數")
+                    }
+                    // 底部 Native 廣告 Section
+                    if !adFree.isAdFree {
+                        Section {
+                            NativeAdSectionView(style: .compact)
+                                .frame(height: 140)
+                        }
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                     }
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.gray.opacity(0.1))
                 .navigationTitle("Breakfast")
-                .toolbar{
-                    ToolbarItem(placement: .primaryAction, content: {
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             AddStoreView(currCollectName: K.FStoreF.collectionNameB)
                         } label: {
                             Image(systemName: "plus.circle.fill")
                                 .foregroundStyle(Color.blue)
                         }
-                    })
-                }
-                if !adFree.isAdFree{
-                    Section {
-                        BannerAdView()
-                            .frame(height: 50)
                     }
                 }
             }.onAppear {

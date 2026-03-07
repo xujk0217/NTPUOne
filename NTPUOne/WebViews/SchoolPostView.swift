@@ -12,15 +12,16 @@ struct SchoolPostView: View {
     
     @StateObject private var postManager = PostManager()
     @EnvironmentObject var adFree: AdFreeService
+    
     @State private var showSafariView = false
     private let safariURL = URL(string: "https://new.ntpu.edu.tw/news")!
 
     
     var body: some View {
         NavigationStack{
-            Section{
-                List(postManager.publications, id: \._id) { publication in
-                    if publication.title != ""{
+            List {
+                ForEach(postManager.publications, id: \._id) { publication in
+                    if publication.title != "" {
                         NavigationLink {
                             PostDetailView(publication: publication)
                         } label: {
@@ -33,30 +34,31 @@ struct SchoolPostView: View {
                         }
                     }
                 }
+                
+                // Native 廣告 Section
+                if !adFree.isAdFree {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
             }
             .onAppear {
                 postManager.fetchPublications()
             }
             .navigationTitle("學校公告")
-            .toolbar{
-                ToolbarItem{
+            .toolbar {
+                ToolbarItem {
                     Button {
                         showSafariView.toggle()
                     } label: {
                         Image(systemName: "link")
                     }
-
                 }
             }
             .sheet(isPresented: $showSafariView) {
                 SafariView(url: safariURL)
-            }
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
-                }
             }
         }
     }

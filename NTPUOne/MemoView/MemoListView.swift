@@ -10,6 +10,7 @@ import SwiftUI
 struct MemoListView: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
+    @EnvironmentObject var adFree: AdFreeService
     
     @State private var showAddMemo = false
     @State private var selectedMemo: Memo? = nil
@@ -294,6 +295,15 @@ struct MemoListView: View {
                     .tint(memo.status == .done ? .orange : .green)
                 }
             }
+            
+            // 任務數量超過 5 個時，在最後加上 Native 廣告
+            if !adFree.isAdFree && memoManager.filteredMemos.count > 5 {
+                Section {
+                    NativeAdSectionView(style: .compact)
+                        .frame(height: 140)
+                }
+                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+            }
         }
         .listStyle(.plain)
     }
@@ -366,6 +376,15 @@ struct MemoListView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+            }
+            
+            // 任務數量超過 5 個時，在最後加上 Native 廣告
+            if !adFree.isAdFree && memoManager.memos.count > 5 {
+                Section {
+                    NativeAdSectionView(style: .compact)
+                        .frame(height: 140)
+                }
+                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
             }
         }
         .listStyle(.insetGrouped)

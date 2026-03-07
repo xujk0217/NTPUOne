@@ -17,18 +17,10 @@ import Firebase
 
 struct AboutView: View {
     //about rewardAds
-    //準備RewardedAd使用
     @StateObject private var rewardAd = RewardedAd()
+    @ObservedObject private var rewardedManager = RewardedAdManager.shared
     @EnvironmentObject var adFree: AdFreeService
     @State private var isReward = false
-    
-    @State private var isLoading = false
-    private let helper = RewardedAdHelper()
-    
-    private let rewardedUnitID = "ca-app-pub-4105005748617921/1893622165"
-    
-    @State private var remainingTime = 0
-    private let rewardWaitTime = 5 // 等待时间
     
     // adview
     @State private var adHeight: CGFloat = 100
@@ -50,19 +42,29 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
-                // 個人設定
+                // MARK: - 帳號與偏好
                 Section {
+                    // 暱稱設定
                     HStack {
-                        Image(systemName: "person.fill")
+                        Image(systemName: "person.circle.fill")
+                            .font(.title2)
                             .foregroundStyle(.orange)
-                        if isEditingNickname {
-                            TextField("暱稱", text: $pendingNickname)
-                                .focused($nicknameFieldFocused)
-                                .submitLabel(.done)
-                                .onSubmit { saveNickname() }
-                        } else {
-                            Text(nickname.isEmpty ? "尚未設定" : nickname)
-                                .foregroundStyle(nickname.isEmpty ? .secondary : .primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if isEditingNickname {
+                                TextField("暱稱", text: $pendingNickname)
+                                    .focused($nicknameFieldFocused)
+                                    .submitLabel(.done)
+                                    .onSubmit { saveNickname() }
+                            } else {
+                                Text(nickname.isEmpty ? "尚未設定" : nickname)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(nickname.isEmpty ? .secondary : .primary)
+                            }
+                            if !deviceId.isEmpty {
+                                Text("ID: #\(deviceId.prefix(4).uppercased())")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                         Spacer()
                         if isUpdatingComments {
@@ -76,20 +78,57 @@ struct AboutView: View {
                                     nicknameFieldFocused = true
                                 }
                             } label: {
-                                Image(systemName: isEditingNickname ? "checkmark.circle.fill" : "pencil")
+                                Image(systemName: isEditingNickname ? "checkmark.circle.fill" : "pencil.circle")
+                                    .font(.title3)
                                     .foregroundStyle(.orange)
                             }
                         }
                     }
-                    if !deviceId.isEmpty {
-                        Text("裝置識別碼：#\(deviceId.prefix(4).uppercased())")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
+                    
+                    // 廣告設定
+                    if !isAdmin {
+                        if adFree.isAdFree {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundStyle(.green)
+                                Text("今日無橫幅廣告")
+                                    .foregroundStyle(.secondary)
+                                Spacer()
+                                Button("重置") {
+                                    adFree.clear()
+                                    rewardedManager.preload()
+                                }
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            }
+                        } else {
+                            Button {
+                                showRewarded()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "play.rectangle.fill")
+                                        .foregroundStyle(.blue)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("關閉今日橫幅廣告")
+                                            .foregroundStyle(.primary)
+                                        Text(rewardedManager.isLoading ? "載入中…" : "觀看 30 秒影片（剩 \(rewardedManager.remainingViews) 次）")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    Spacer()
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                            }
+                            .disabled(rewardedManager.isLoading || !rewardedManager.isReady)
+                        }
                     }
                 } header: {
-                    Text("個人設定")
+                    Label("帳號與偏好", systemImage: "gearshape.fill")
                 } footer: {
-                    Text("暱稱用於留言及活動廣播，更改後可選擇是否同步更新舊留言")
+                    Text("暱稱用於留言及活動廣播")
                 }
                 .alert("更新舊留言？", isPresented: $showUpdateOldAlert) {
                     Button("只更新新留言") {
@@ -112,136 +151,93 @@ struct AboutView: View {
                 } message: {
                     Text("是否同時更新您過去在各餐廣的留言暱稱？")
                 }
-
+                
+                // Admin 區塊
                 if isAdmin {
-                    Section{
-                        NavigationLink{
+                    Section {
+                        NavigationLink {
                             AdminConsoleView()
                         } label: {
-                            Text("Admin page")
-                        }
-                    } header: {
-                        Text("Admin")
-                    }
-                }else{
-                    Section(header: Text("消除廣告")) {
-                        if adFree.isAdFree {
-                            HStack {
-                                Image(systemName: "checkmark.seal.fill")
-                                Text("今天已無橫幅廣告")
-                                Spacer()
-                                Button(role: .destructive) {
-                                    adFree.clear()
-                                    preloadRewardedIfNeeded()
-                                } label: {
-                                    Text("重置（我想看廣告）")
-                                }
-                            }
-                        } else {
-                            Button {
-                                showRewarded()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "film.stack")
-                                    Text(isLoading ? "載入中…" : "看 30 秒影片，今日關閉橫幅廣告")
-                                }
-                            }
-                            .disabled(isLoading)
+                            Label("管理後台", systemImage: "shield.fill")
                         }
                     }
                 }
+
+                // MARK: - 互動
                 Section {
-                    VStack {
-                        Button {
-                            //                            let adShown = rewardAd.showAd {
-                            isReward = true
-                            //                            }
-                            //                            if !adShown {
-                            //                                print("Ad was not ready to be shown.")
-                            //                            }
-                        } label: {
-                            VStack {
-                                Text("新增活動廣播")
-                            }
+                    Button {
+                        isReward = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "megaphone.fill")
+                                .foregroundStyle(.purple)
+                            Text("新增活動廣播")
+                                .foregroundStyle(.primary)
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
                         }
-                        //                        .disabled(!rewardAd.canShowAd || !rewardAd.isEligibleForReward)
-                        //                            .onAppear {
-                        //                                self.rewardAd.load()
-                        //                                rewardAd.startTimer()
-                        //                            }
-                        //                            .onDisappear {
-                        //                                rewardAd.cancelTimer()
-                        //                            }
                     }
-                }  header: {
-                    Text("活動廣播")
-                } footer: {
-                    VStack(alignment: .leading) {
-                        //                        if !rewardAd.canShowAd {
-                        //                            Text("廣告載入中...")
-                        //                                .foregroundColor(.red)
-                        //                        } else if !rewardAd.isEligibleForReward {
-                        //                            Text("廣告載入中...（約5秒)")
-                        //                                .foregroundColor(.red)
-                        //                        }
-                    }
-                }
-                Section {
+                    
                     NavigationLink {
                         FeaturesView()
                             .navigationTitle("功能建議")
                     } label: {
-                        Text("Features suggestion")
+                        Label("功能建議", systemImage: "lightbulb.fill")
+                            .foregroundStyle(.primary)
                     }
+                    
                     NavigationLink {
                         ReportBugView()
                             .navigationTitle("回報錯誤")
                     } label: {
-                        Text("Report Bugs")
+                        Label("回報問題", systemImage: "ladybug.fill")
+                            .foregroundStyle(.primary)
                     }
                 } header: {
-                    Text("suggesstion & Report")
+                    Label("互動", systemImage: "bubble.left.and.bubble.right.fill")
                 } footer: {
-                    Text("歡迎回報～")
+                    Text("歡迎提供建議或回報問題")
                 }
+                
+                // MARK: - 關於
                 Section {
                     NavigationLink {
                         ContactMeView()
                     } label: {
-                        Text("Contact me")
+                        Label("聯繫開發者", systemImage: "envelope.fill")
+                            .foregroundStyle(.primary)
                     }
                     
                     NavigationLink {
                         PrivacyPolicyView()
                     } label: {
-                        Text("Privacy Policy")
+                        Label("隱私權政策", systemImage: "hand.raised.fill")
+                            .foregroundStyle(.primary)
                     }
                 } header: {
-                    Text("Me")
+                    Label("關於", systemImage: "info.circle.fill")
+                }
+                
+                // 原生廣告（放在最底部，不干擾功能流程）
+                if !adFree.isAdFree {
+                    Section {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                    }
+                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .navigationTitle("About")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .principal) {
-                    Text("About")
-                        .font(.headline.bold())
-                }
-            }
-            .onAppear { preloadRewardedIfNeeded() }
+            .navigationTitle("關於")
+            .navigationBarTitleDisplayMode(.large)
+            .onAppear { rewardedManager.preload() }
             .navigationDestination(isPresented: $isReward) {
                 AddOrderView(rewardAd: rewardAd)
             }
             .onChange(of: isReward) { newValue in
                 if !newValue {
-                    startTimer()
-                }
-            }
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
+                    rewardedManager.preload()
                 }
             }
         }
@@ -250,7 +246,6 @@ struct AboutView: View {
             if nickname.isEmpty {
                 nickname = "使用者\(String(deviceId.prefix(4)).uppercased())"
             }
-            startTimer()
         }
     }
     private func saveNickname() {
@@ -267,35 +262,11 @@ struct AboutView: View {
         }
     }
 
-    private func startTimer() {
-        remainingTime = rewardWaitTime
-        rewardAd.canShowAd = false
-        
-        Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
-            remainingTime -= 1
-            if remainingTime <= 0 {
-                rewardAd.canShowAd = true
-                timer.invalidate()
-            }
-        }
-    }
-    private func preloadRewardedIfNeeded() {
-        guard !adFree.isAdFree else { return }
-        isLoading = true
-        helper.load(adUnitID: rewardedUnitID) { _ in
-            DispatchQueue.main.async { self.isLoading = false }
-        }
-    }
-
     private func showRewarded() {
-        guard let root = UIApplication.shared.connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
-            .first else { return }
-
-        helper.present(from: root, onReward: {
+        rewardedManager.present {
             adFree.grantForTodayEnd()
-        }, onDismiss: {
-        })
+        } onDismiss: {
+        }
     }
 }
 

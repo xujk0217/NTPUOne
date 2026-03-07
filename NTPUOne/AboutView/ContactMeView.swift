@@ -131,11 +131,12 @@ struct ContactMeView: View {
             Button("OK", role: .cancel) {}
         }
         if !adFree.isAdFree{
-            // 廣告標記
+            // Native 廣告
             Section {
-                BannerAdView()
-                    .frame(height: 50)
+                NativeAdSectionView(style: .compact)
+                    .frame(height: 140)
             }
+            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
         }
     }
 }

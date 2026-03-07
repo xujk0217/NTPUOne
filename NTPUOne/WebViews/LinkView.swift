@@ -19,13 +19,10 @@ struct LinkView: View {
     @ObservedObject var webManager = WebManager()
     @StateObject private var orderManager = OrderManager()
     @EnvironmentObject var adFree: AdFreeService
-    @State private var isLoading = false
-    private let helper = RewardedAdHelper()
+    @ObservedObject private var rewardedAd = RewardedAdManager.shared
     @State private var showAdConfirm = false
     @State private var showNotReadyAlert = false
     @StateObject var weatherManager = WeatherManager()  // 新增 weather manager
-
-    private let rewardedUnitID = "ca-app-pub-4105005748617921/1893622165"
     
     @State private var urlString: String? = nil
     @State private var showWebView = false
@@ -606,6 +603,21 @@ struct LinkView: View {
                     nextCourseSection
                     todayTasksSection
                     quickFeaturesSection
+                    // Native 廣告 Section
+                    if !adFree.isAdFree {
+                        Section {
+                            NativeAdSectionView(style: .compact)
+                                .frame(height: 140)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(Color(.tertiarySystemBackground))
+                                        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
+                                }
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        }
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                        .listRowBackground(Color.clear)
+                    }
                 }
                 .navigationTitle("NTPU one")
                 .navigationBarTitleDisplayMode(.inline)
@@ -653,28 +665,11 @@ struct LinkView: View {
                 .sheet(isPresented: $showWeatherDetail) {
                     weatherDetailSheet
                 }
-                if !adFree.isAdFree{
-                    // 廣告標記
-                    Section {
-                        BannerAdView()
-                            .frame(height: 50)
-                    }
-                }
+                // 底部廣告已移除，改用 List 內 Native Ad
                 // 放在 NavigationStack 裡、List 後面（同一層）
                 NavigationLink(destination: SchoolPostView(), isActive: $goSchoolPosts) { EmptyView() }.hidden()
 
-                NavigationLink(destination:
-                    VStack{
-                        List {
-                            webSections
-                        }
-                       // 廣告標記
-                       if !adFree.isAdFree {
-                           Section { BannerAdView().frame(height: 50) }
-                       }
-                    }
-                    .navigationTitle("常用連結")
-                , isActive: $goLinks) { EmptyView() }.hidden()
+                NavigationLink(destination: CommonLinksView(), isActive: $goLinks) { EmptyView() }.hidden()
 
                 if #available(iOS 17.0, *) {
                     NavigationLink(
@@ -744,18 +739,18 @@ struct LinkView: View {
                             .help("今天 23:59 前都不會顯示橫幅")
                     } else {
                         Button {
-                            if !isLoading {
+                            if !rewardedAd.isLoading {
                                 showAdConfirm = true
                             }
                         } label: {
-                            if isLoading {
+                            if rewardedAd.isLoading {
                                 ProgressView()
                             } else {
                                 Label("看 30 秒影片，今日關閉橫幅", systemImage: "film.stack")
-                                    .labelStyle(.iconOnly) // 只顯示圖示；想顯示文字可拿掉
+                                    .labelStyle(.iconOnly)
                             }
                         }
-                        .disabled(isLoading)
+                        .disabled(rewardedAd.isLoading)
                         .help("觀看完成後，今日關閉橫幅廣告")
                     }
                 }
@@ -764,8 +759,7 @@ struct LinkView: View {
             .alert("關閉今日橫幅廣告？", isPresented: $showAdConfirm) {
                 Button("取消", role: .cancel) { }
                 Button("開始觀看") {
-                    if isLoading {
-                        // 若尚未預載好，給個提示（可省略）
+                    if rewardedAd.isLoading || !rewardedAd.isReady {
                         showNotReadyAlert = true
                     } else {
                         showRewarded()
@@ -777,7 +771,7 @@ struct LinkView: View {
             .alert("影片尚未就緒", isPresented: $showNotReadyAlert) {
                 Button("好", role: .cancel) { }
             } message: {
-                Text("正在載入廣告，請稍後再試。")
+                Text(rewardedAd.remainingViews > 0 ? "正在載入廣告，請稍後再試。" : "今日觀看次數已達上限。")
             }
         }
     }
@@ -1056,22 +1050,12 @@ struct LinkView: View {
 
     private func preloadRewardedIfNeeded() {
         guard !adFree.isAdFree else { return }
-        isLoading = true
-        helper.load(adUnitID: rewardedUnitID) { _ in
-            DispatchQueue.main.async { self.isLoading = false }
-        }
+        rewardedAd.preload()
     }
 
     private func showRewarded() {
-        guard let root = UIApplication.shared.connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow?.rootViewController })
-            .first else { return }
-
-        helper.present(from: root, onReward: {
-            adFree.grantForTodayEnd() // ✅ 觀看完成 → 今日關閉橫幅
-        }, onDismiss: {
-            // 若你允許再次觀看，可在關閉後預載下一支
-            // preloadRewardedIfNeeded()
+        rewardedAd.present(onReward: {
+            adFree.grantForTodayEnd()
         })
     }
     
@@ -1249,24 +1233,43 @@ struct LinkView: View {
     
     var DemoView: some View {
         let orders = orderManager.order ?? []
+        // 計算含 native ad 的總頁數（每 3 個廣播後插入 1 個 native ad）
+        let nativeAdInterval = 3
+        let nativeAdCount = orders.count >= nativeAdInterval ? orders.count / nativeAdInterval : 0
+        let totalPages = orders.count + nativeAdCount
 
         return TabView(selection: $startIndex) {
-            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
-                AnnouncementCard(
-                    message: item.message,
-                    author: "— \(item.name)",
-                    tag: item.tag,
-                    urlString: item.url,
-                    email: item.email,
-                    time: item.time
-                ) {
-                    handleURL(item.url)
+            ForEach(0..<totalPages, id: \.self) { pageIndex in
+                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
+                Group {
+                    if isNativeAdPage && !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact, showCardBackground: true)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                    } else {
+                        let orderIndex = pageIndex - nativeAdsBefore
+                        if orderIndex < orders.count {
+                            let item = orders[orderIndex]
+                            AnnouncementCard(
+                                message: item.message,
+                                author: "— \(item.name)",
+                                tag: item.tag,
+                                urlString: item.url,
+                                email: item.email,
+                                time: item.time
+                            ) {
+                                handleURL(item.url)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 140)
-                .padding(.horizontal, 8)
-                .tag(index)
+                .tag(pageIndex)
             }
         }
+        .id("DemoView-\(orders.count)")
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
         .simultaneousGesture(
@@ -1277,37 +1280,56 @@ struct LinkView: View {
         .onReceive(timer) { _ in
             guard !isDragging else { return }
             withAnimation {
-                if orders.count > 1 {
-                    startIndex = (startIndex + 1) % orders.count
+                if totalPages > 1 {
+                    startIndex = (startIndex + 1) % totalPages
                 }
             }
+        }
+        .onChange(of: orders.count) { _ in
+            startIndex = 0
         }
     }
 
     
     var DemoViewEvent: some View {
         let orders = orderManager.order ?? []
-        let tagged = orders.enumerated().filter { $0.element.tag == "1" }  // 活動
-        let total = tagged.count
+        let filtered = orders.filter { $0.tag == "1" }  // 活動
+        let nativeAdInterval = 3
+        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexE) {
-            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
-                AnnouncementCard(
-                    message: item.message,
-                    author: "— \(item.name)",
-                    tag: item.tag,
-                    urlString: item.url,
-                    email: item.email,
-                    time: item.time
-                ) {
-                    handleURL(item.url)
+            ForEach(0..<totalPages, id: \.self) { pageIndex in
+                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
+                Group {
+                    if isNativeAdPage && !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact, showCardBackground: true)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                    } else {
+                        let orderIndex = pageIndex - nativeAdsBefore
+                        if orderIndex < filtered.count {
+                            let item = filtered[orderIndex]
+                            AnnouncementCard(
+                                message: item.message,
+                                author: "— \(item.name)",
+                                tag: item.tag,
+                                urlString: item.url,
+                                email: item.email,
+                                time: item.time
+                            ) {
+                                handleURL(item.url)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 140)
-                .padding(.horizontal, 8)
-                .tag(index)
+                .tag(pageIndex)
             }
-
         }
+        .id("DemoViewEvent-\(filtered.count)")
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
         .simultaneousGesture(
@@ -1317,34 +1339,53 @@ struct LinkView: View {
         )
         .onReceive(timer) { _ in
             guard !isDragging else { return }
-            guard total > 1 else { return }
-            withAnimation { startIndexE = (startIndexE + 1) % total }
+            guard totalPages > 1 else { return }
+            withAnimation { startIndexE = (startIndexE + 1) % totalPages }
+        }
+        .onChange(of: filtered.count) { _ in
+            startIndexE = 0
         }
     }
 
     var DemoViewPost: some View {
         let orders = orderManager.order ?? []
-        let tagged = orders.enumerated().filter { $0.element.tag == "2" }  // 社團
-        let total = tagged.count
+        let filtered = orders.filter { $0.tag == "2" }  // 社團
+        let nativeAdInterval = 3
+        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexP) {
-            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
-                AnnouncementCard(
-                    message: item.message,
-                    author: "— \(item.name)",
-                    tag: item.tag,
-                    urlString: item.url,
-                    email: item.email,
-                    time: item.time
-                ) {
-                    handleURL(item.url)
+            ForEach(0..<totalPages, id: \.self) { pageIndex in
+                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
+                Group {
+                    if isNativeAdPage && !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact, showCardBackground: true)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                    } else {
+                        let orderIndex = pageIndex - nativeAdsBefore
+                        if orderIndex < filtered.count {
+                            let item = filtered[orderIndex]
+                            AnnouncementCard(
+                                message: item.message,
+                                author: "— \(item.name)",
+                                tag: item.tag,
+                                urlString: item.url,
+                                email: item.email,
+                                time: item.time
+                            ) {
+                                handleURL(item.url)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 140)
-                .padding(.horizontal, 8)
-                .tag(index)
+                .tag(pageIndex)
             }
-
         }
+        .id("DemoViewPost-\(filtered.count)")
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
         .simultaneousGesture(
@@ -1354,34 +1395,53 @@ struct LinkView: View {
         )
         .onReceive(timer) { _ in
             guard !isDragging else { return }
-            guard total > 1 else { return }
-            withAnimation { startIndexP = (startIndexP + 1) % total }
+            guard totalPages > 1 else { return }
+            withAnimation { startIndexP = (startIndexP + 1) % totalPages }
+        }
+        .onChange(of: filtered.count) { _ in
+            startIndexP = 0
         }
     }
 
     var DemoViewOther: some View {
         let orders = orderManager.order ?? []
-        let tagged = orders.enumerated().filter { $0.element.tag == "3" }  // 其他
-        let total = tagged.count
+        let filtered = orders.filter { $0.tag == "3" }  // 其他
+        let nativeAdInterval = 3
+        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexO) {
-            ForEach(Array(orders.enumerated()), id: \.offset) { index, item in
-                AnnouncementCard(
-                    message: item.message,
-                    author: "— \(item.name)",
-                    tag: item.tag,
-                    urlString: item.url,
-                    email: item.email,
-                    time: item.time
-                ) {
-                    handleURL(item.url)
+            ForEach(0..<totalPages, id: \.self) { pageIndex in
+                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
+                Group {
+                    if isNativeAdPage && !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact, showCardBackground: true)
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                    } else {
+                        let orderIndex = pageIndex - nativeAdsBefore
+                        if orderIndex < filtered.count {
+                            let item = filtered[orderIndex]
+                            AnnouncementCard(
+                                message: item.message,
+                                author: "— \(item.name)",
+                                tag: item.tag,
+                                urlString: item.url,
+                                email: item.email,
+                                time: item.time
+                            ) {
+                                handleURL(item.url)
+                            }
+                            .frame(maxWidth: .infinity, minHeight: 140)
+                            .padding(.horizontal, 8)
+                        }
+                    }
                 }
-                .frame(maxWidth: .infinity, minHeight: 140)
-                .padding(.horizontal, 8)
-                .tag(index)
+                .tag(pageIndex)
             }
-
         }
+        .id("DemoViewOther-\(filtered.count)")
         .tabViewStyle(.page(indexDisplayMode: .automatic))
         .frame(height: 160)
         .simultaneousGesture(
@@ -1391,8 +1451,11 @@ struct LinkView: View {
         )
         .onReceive(timer) { _ in
             guard !isDragging else { return }
-            guard total > 1 else { return }
-            withAnimation { startIndexO = (startIndexO + 1) % total }
+            guard totalPages > 1 else { return }
+            withAnimation { startIndexO = (startIndexO + 1) % totalPages }
+        }
+        .onChange(of: filtered.count) { _ in
+            startIndexO = 0
         }
     }
 

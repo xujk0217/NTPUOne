@@ -60,7 +60,19 @@ struct TimeTableView: View {
 //                    }
                     UnifiedCourseGridView(courseData: courseData, isEdit: $isEdit, includeSaturday: $isSaturday, includeNight: $includeNight, memoManager: memoManager)
 
-                    if isEdit{
+                    // Native 廣告
+                    if !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
+                            .background {
+                                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                    .fill(Color(.systemGray5))
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                            .padding(.horizontal)
+                    }
+
+                    if isEdit {
                         Button(role: .destructive) {
                             // 計算有連結課程的任務數量（courseLink 存的是課程 ID）
                             let allCourseIds = Set(courseData.courses.map { $0.id })
@@ -137,13 +149,6 @@ struct TimeTableView: View {
                 CourseGetView(courseData: courseData, isPresented: $isShowingGetCourseSheet)
                     .presentationDetents([.medium])
             })
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
-                }
-            }
         }
         .onAppear {
             // 每次顯示時重新加載備忘錄數據，確保點點是最新的

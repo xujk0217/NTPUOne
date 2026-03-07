@@ -96,30 +96,17 @@ struct TrafficView: View {
                             } footer: {
                                 Text("更新頻率：每5分鐘")
                             }
-//                            // 廣告標記
-//                            Section {
-//                                NativeAdBoxView(
-//                                    style: .compact(media: 120),
-//                                    height: $adHeight
-//                                )
-//                                .frame(height: adHeight)
-//                                .listRowInsets(.init(top: 12, leading: 0, bottom: 12, trailing: 0))
-//                                .listRowSeparator(.hidden)
-//                                .listRowBackground(Color.white)
-//                                .padding(.horizontal, 8)
-//                            } header: {
-//                                Text("廣告")
-//                            }
+                            // Native 廣告 Section
+                            if !adFree.isAdFree {
+                                Section {
+                                    NativeAdSectionView(style: .compact)
+                                        .frame(height: 140)
+                                }
+                                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                            }
                         }
                         .navigationTitle("Traffic")
                         .toolbarBackground(.hidden, for: .navigationBar)
-                    if !adFree.isAdFree{
-                        // 廣告標記
-                        Section {
-                            BannerAdView()
-                                .frame(height: 50)
-                        }
-                    }
                 } else {
                     VStack(spacing: 16) {
                         if let errorMessage = bikeManager.errorMessage {

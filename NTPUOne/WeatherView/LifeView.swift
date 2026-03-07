@@ -85,19 +85,19 @@ struct LifeView: View {
                             .padding(.horizontal)
                         }
 
+                        // Native 廣告
+                        if !adFree.isAdFree {
+                            NativeAdSectionView(style: .compact)
+                                .frame(height: 140)
+                                .padding(.horizontal)
+                        }
+
                         Spacer(minLength: 8)
                     }
 
                     }
                     .navigationTitle("PU Life")
                     .background(Color(.systemGroupedBackground))
-            }
-            if !adFree.isAdFree{
-                // 廣告標記
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
-                }
             }
         }.onAppear {
             weatherManager.fetchData()

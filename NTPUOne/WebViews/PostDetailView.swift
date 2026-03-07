@@ -28,47 +28,48 @@ struct PostDetailView: View {
     var publication: Publication
     let baseURL = "https://cms-carrier.ntpu.edu.tw"
     var body: some View {
-        ScrollView{
-            VStack(alignment: .leading, spacing: 16) {
-                // 圖片
-                if let imageUrl = publication.coverImage?.url, let url = URL(string: imageUrl) {
-                    AsyncImage(url: URL(string: baseURL + imageUrl)) { image in
-                        image
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    } placeholder: {
-                        ProgressView()
-                            .progressViewStyle(CircularProgressViewStyle())
+        VStack(spacing: 0) {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    // 圖片
+                    if let imageUrl = publication.coverImage?.url, let url = URL(string: imageUrl) {
+                        AsyncImage(url: URL(string: baseURL + imageUrl)) { image in
+                            image
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                        } placeholder: {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle())
+                        }
+                    }
+                    
+                    if let title = publication.title {
+                        Text(title)
+                            .font(.title)
+                            .bold()
+                    }
+                    if let content = publication.content {
+                        HTMLView(htmlString: content)
+                            .frame(height: 400)
+                    }
+                    
+                    // 文件附件
+                    if let files = publication.files {
+                        ForEach(files, id: \.url) { file in
+                            FileLinkView(urlString: baseURL+file.url, fileName: file.name)
+                        }
+                    }
+                    
+                    // Native 廣告（在 ScrollView 內）
+                    if !adFree.isAdFree {
+                        NativeAdSectionView(style: .compact)
+                            .frame(height: 140)
                     }
                 }
-                
-                if let title = publication.title {
-                    Text(title)
-                        .font(.title)
-                        .bold()
-                }
-                if let content = publication.content {
-//                    Text(content)
-//                        .font(.body)
-                    HTMLView(htmlString: content)
-                          .frame(height: 400)
-                }
-                
-                // 文件附件
-                if let files = publication.files {
-                    ForEach(files, id: \.url) { file in
-                        FileLinkView(urlString: baseURL+file.url, fileName: file.name)
-                    }
-                }
+                .padding()
             }
-            .padding()
         }
         .navigationTitle("公告內文")
-        if !adFree.isAdFree{
-            // 廣告標記
-            BannerAdView()
-                .frame(height: 50)
-        }
     }
 }
 

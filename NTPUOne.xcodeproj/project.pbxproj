@@ -114,6 +114,7 @@
 		3FB337B42F3C85FC00D1E31C /* MemoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */; };
 		3FB337B62F3CA9B200D1E31C /* NextTaskWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337B52F3CA9B200D1E31C /* NextTaskWidget.swift */; };
 		3FB337C12F4D000000D1E31C /* CommentManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337C02F4D000000D1E31C /* CommentManager.swift */; };
+		3FB338022F5BFF1200D1E31C /* CommonLinksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338012F5BFF1200D1E31C /* CommonLinksView.swift */; };
 		3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 3FDF35602C86946900952C69 /* SwiftSoup */; };
 		3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35622C86948F00952C69 /* CourseGet.swift */; };
 		3FDF35652C88A41600952C69 /* CourseYearManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35642C88A41600952C69 /* CourseYearManager.swift */; };
@@ -223,6 +224,7 @@
 		3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoWidget.swift; sourceTree = "<group>"; };
 		3FB337B52F3CA9B200D1E31C /* NextTaskWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextTaskWidget.swift; sourceTree = "<group>"; };
 		3FB337C02F4D000000D1E31C /* CommentManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentManager.swift; sourceTree = "<group>"; };
+		3FB338012F5BFF1200D1E31C /* CommonLinksView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommonLinksView.swift; sourceTree = "<group>"; };
 		3FDF35622C86948F00952C69 /* CourseGet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGet.swift; sourceTree = "<group>"; };
 		3FDF35642C88A41600952C69 /* CourseYearManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseYearManager.swift; sourceTree = "<group>"; };
 		3FDF35662C8C82E200952C69 /* SchoolPostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolPostView.swift; sourceTree = "<group>"; };
@@ -390,6 +392,7 @@
 		3F8F951B2C291690001A1697 /* WebViews */ = {
 			isa = PBXGroup;
 			children = (
+				3FB338012F5BFF1200D1E31C /* CommonLinksView.swift */,
 				3F59B81B2C670E8D00AFB700 /* LinkView.swift */,
 				3FDF35662C8C82E200952C69 /* SchoolPostView.swift */,
 				3FDF356A2C8D3FF800952C69 /* PostDetailView.swift */,
@@ -683,6 +686,7 @@
 				3FB337982F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
 				3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */,
+				3FB338022F5BFF1200D1E31C /* CommonLinksView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
