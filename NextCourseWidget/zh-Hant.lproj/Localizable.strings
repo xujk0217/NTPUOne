@@ -1,0 +1,67 @@
+/* Widget Localizable Strings - Traditional Chinese */
+
+// MARK: - NextTaskWidget
+"widget_next_task" = "下一個任務:";
+"widget_plan_time" = "計劃時間:";
+"widget_due_time" = "截止時間:";
+"widget_tag_type %@" = "類型： %@";
+"widget_priority %@" = "優先級： %@";
+"widget_priority_short %@" = "優先級: %@";
+"widget_no_task_hint" = "資料未刷新時，可點擊進App或連上網路試試";
+"widget_time_none" = "時間: 無";
+
+// MARK: - NextCourseWidget
+"widget_next_course" = "下一堂課:";
+"widget_start_time" = "開始時間:";
+"widget_start_time_short %@" = "開始時間: %@";
+"widget_professor %@" = "教授： %@";
+"widget_classroom %@" = "教室： %@";
+"widget_no_data_hint" = "資料未刷新時，可點擊進App或連上網路試試";
+
+// MARK: - MemoWidget Small
+"widget_today" = "今日";
+"widget_no_tasks_today" = "今天沒有任務";
+
+// MARK: - MemoWidget Medium
+"widget_my_tasks" = "我的任務";
+"widget_pending_count %lld" = "%lld 個待辦";
+"widget_great_no_tasks" = "太棒了！沒有待辦任務";
+
+// MARK: - MemoWidget Large
+"widget_task_overview" = "任務總覽";
+"widget_section_overdue" = "逾期";
+"widget_section_plan_overdue" = "計劃過期";
+"widget_section_today" = "今天";
+"widget_section_this_week" = "本週";
+"widget_section_others" = "其他任務";
+"widget_great" = "太棒了！";
+"widget_no_pending_tasks" = "沒有待辦任務";
+"widget_more_tasks %lld" = "還有 %lld 個任務未顯示...";
+
+// MARK: - MemoWidget Row
+"widget_already_overdue" = "已逾期";
+"widget_today_time %@" = "今天 %@";
+"widget_date_today" = "今天";
+"widget_date_tomorrow" = "明天";
+"widget_overdue_days %lld" = "逾期%lld天";
+"widget_plan_expired_days %lld" = "過期%lld天";
+"widget_days_left %lld" = "%lld天";
+
+// MARK: - MemoWidget Configuration
+"widget_task_list" = "任務清單";
+"widget_task_list_desc" = "顯示待辦任務和提醒事項";
+
+// MARK: - CourseLargeWidget
+"widget_day_mon" = "一";
+"widget_day_tue" = "二";
+"widget_day_wed" = "三";
+"widget_day_thu" = "四";
+"widget_day_fri" = "五";
+"widget_course_overview" = "課表總覽";
+"widget_course_overview_desc" = "顯示週一至週五課表";
+
+// MARK: - Tag Types (for display)
+"tag_type_other" = "其他";
+
+// MARK: - Priority (for display)
+"priority_normal" = "中";

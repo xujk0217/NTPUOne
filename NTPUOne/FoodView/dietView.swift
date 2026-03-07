@@ -46,12 +46,12 @@ struct dietView: View {
                 Section {
                     mapView
                 } header: {
-                    Text("餐廳位置")
+                    Text(String(localized: "restaurant_location"))
                 }
 
                 if !store.check {
                     Section {
-                        Text("未確認資料完整性")
+                        Text(String(localized: "data_not_verified"))
                             .font(.title3)
                             .foregroundStyle(.red)
                     }
@@ -68,7 +68,7 @@ struct dietView: View {
                                 .font(.title.bold())
                             Image(systemName: isStar ? "star.fill" : "star")
                             Divider()
-                            Text("覺得不錯的話，可點擊星星推薦給其他人")
+                            Text(String(localized: "recommend_hint"))
                         }
                     }
                 }
@@ -94,7 +94,7 @@ struct dietView: View {
                         openURL(store.url)
                     }
                 } footer: {
-                    Text("點擊進入地圖")
+                    Text(String(localized: "tap_to_open_map"))
                 }
 
                 // 留言 Section
@@ -103,7 +103,7 @@ struct dietView: View {
                         ProgressView().frame(maxWidth: .infinity)
                             .listRowSeparator(.hidden)
                     } else if commentManager.comments.isEmpty {
-                        Text("目前還沒有留言，來第一個吧！")
+                        Text(String(localized: "no_comments_yet"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -124,7 +124,7 @@ struct dietView: View {
                                         .foregroundStyle(.tertiary)
                                 }
                                 if comment.deviceId == deviceId {
-                                    Text("你")
+                                    Text(String(localized: "you"))
                                         .font(.caption2.bold())
                                         .padding(.horizontal, 5).padding(.vertical, 1)
                                         .background(.orange.opacity(0.15))
@@ -147,19 +147,19 @@ struct dietView: View {
                                         commentManager.deleteComment(collection: coll, storeId: store.id!, id: cid)
                                     }
                                 } label: {
-                                    Label("刪除", systemImage: "trash")
+                                    Label(String(localized: "delete"), systemImage: "trash")
                                 }
                             }
                         }
                     }
                     if nickname.isEmpty {
-                        Label("請至 About 頁面設定暱稱才能留言", systemImage: "person.crop.circle.badge.exclamationmark")
+                        Label(String(localized: "set_nickname_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
                             .font(.caption)
                             .foregroundStyle(.orange)
                             .listRowSeparator(.hidden)
                     }
                     HStack(alignment: .bottom, spacing: 8) {
-                        TextField("留言...", text: $commentBody, axis: .vertical)
+                        TextField(String(localized: "textfield_comment"), text: $commentBody, axis: .vertical)
                             .lineLimit(1...4)
                             .focused($commentBodyFocused)
                             .onSubmit { }
@@ -183,7 +183,7 @@ struct dietView: View {
                     }
                 } header: {
                     HStack {
-                        Text("留言（\(commentManager.comments.count)）")
+                        Text(String(format: String(localized: "comments_count"), commentManager.comments.count))
                         Spacer()
                         if !nickname.isEmpty {
                             Text(nickname)
@@ -318,13 +318,13 @@ struct noMapDietView: View {
         NavigationStack {
             List {
                 Section {
-                    Text("升級至 IOS 17.0 以開啟地圖功能")
+                    Text(String(localized: "upgrade_ios_for_map"))
                 } header: {
-                    Text("餐廳位置")
+                    Text(String(localized: "restaurant_location"))
                 }
                 if !store!.check {
                     Section{
-                        Text("未確認資料完整性")
+                        Text(String(localized: "data_not_verified"))
                             .font(.title3)
                             .foregroundStyle(Color.red)
                     }
@@ -345,7 +345,7 @@ struct noMapDietView: View {
                                     Image(systemName: "star")
                                 }
                                 Divider()
-                                Text("覺得不錯的話，可點擊星星推薦給其他人")
+                                Text(String(localized: "recommend_hint"))
                             }
                         }
                     }
@@ -381,7 +381,7 @@ struct noMapDietView: View {
                         openURL(store!.url)
                     }
                 } footer: {
-                    Text("點擊進入地圖")
+                    Text(String(localized: "tap_to_open_map"))
                 }
 
                 // 留言 Section
@@ -390,7 +390,7 @@ struct noMapDietView: View {
                         ProgressView().frame(maxWidth: .infinity)
                             .listRowSeparator(.hidden)
                     } else if commentManager.comments.isEmpty {
-                        Text("目前還沒有留言，來第一個吧！")
+                        Text(String(localized: "no_comments_yet"))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                             .frame(maxWidth: .infinity, alignment: .center)
@@ -411,7 +411,7 @@ struct noMapDietView: View {
                                         .foregroundStyle(.tertiary)
                                 }
                                 if comment.deviceId == deviceId {
-                                    Text("你")
+                                    Text(String(localized: "you"))
                                         .font(.caption2.bold())
                                         .padding(.horizontal, 5).padding(.vertical, 1)
                                         .background(.orange.opacity(0.15))
@@ -436,19 +436,19 @@ struct noMapDietView: View {
                                         commentManager.deleteComment(collection: coll, storeId: sid, id: cid)
                                     }
                                 } label: {
-                                    Label("刪除", systemImage: "trash")
+                                    Label(String(localized: "delete"), systemImage: "trash")
                                 }
                             }
                         }
                     }
                     if nickname.isEmpty {
-                        Label("請至 About 頁面設定暱稱才能留言", systemImage: "person.crop.circle.badge.exclamationmark")
+                        Label(String(localized: "set_nickname_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
                             .font(.caption)
                             .foregroundStyle(.orange)
                             .listRowSeparator(.hidden)
                     }
                     HStack(alignment: .bottom, spacing: 8) {
-                        TextField("留言...", text: $commentBody, axis: .vertical)
+                        TextField(String(localized: "textfield_comment"), text: $commentBody, axis: .vertical)
                             .lineLimit(1...4)
                             .focused($commentBodyFocused)
                             .onSubmit { }
@@ -472,7 +472,7 @@ struct noMapDietView: View {
                     }
                 } header: {
                     HStack {
-                        Text("留言（\(commentManager.comments.count)）")
+                        Text(String(format: String(localized: "comments_count"), commentManager.comments.count))
                         Spacer()
                         if !nickname.isEmpty {
                             Text(nickname)

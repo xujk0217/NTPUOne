@@ -59,11 +59,19 @@ struct TodayView: View {
     private let calendar = Calendar.current
     
     enum AllTasksGroupMode: String, CaseIterable, Identifiable {
-        case byCourse = "依課程"
-        case byPriority = "依重要程度"
-        case byTag = "依類型"
+        case byCourse
+        case byPriority
+        case byTag
         
         var id: String { rawValue }
+        
+        var displayName: String {
+            switch self {
+            case .byCourse: return String(localized: "by_course")
+            case .byPriority: return String(localized: "by_priority")
+            case .byTag: return String(localized: "by_tag")
+            }
+        }
     }
     
     var body: some View {
@@ -119,7 +127,7 @@ struct TodayView: View {
 
     private var navigationContent: some View {
         mainStack
-            .navigationTitle("備忘錄")
+            .navigationTitle(String(localized: "memo"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 toolbarContent
@@ -176,7 +184,7 @@ struct TodayView: View {
                             memoManager.applyFiltersAndSort()
                         } label: {
                             HStack {
-                                Text(option.rawValue)
+                                Text(option.displayName)
                                 if memoManager.sortBy == option {
                                     Image(systemName: "checkmark")
                                 }
@@ -191,7 +199,7 @@ struct TodayView: View {
                         showScheduledSheet = true
                         loadScheduledMemos()
                     } label: {
-                        Label("列出排程通知", systemImage: "list.bullet")
+                        Label(String(localized: "list_scheduled_notifications_label"), systemImage: "list.bullet")
                     }
                 } label: {
                     Image(systemName: "arrow.up.arrow.down.circle")
@@ -200,7 +208,7 @@ struct TodayView: View {
                 // 篩選選單
                 Menu {
                     // 狀態篩選區塊
-                    Section("狀態篩選") {
+                    Section(String(localized: "status_filter")) {
                         Button {
                             if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
                                 memoManager.filterIncompleteOnly = false
@@ -211,7 +219,7 @@ struct TodayView: View {
                             memoManager.applyFiltersAndSort()
                         } label: {
                             HStack {
-                                Text("未完成")
+                                Text(String(localized: "incomplete"))
                                 if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
                                     Image(systemName: "checkmark")
                                 }
@@ -239,7 +247,7 @@ struct TodayView: View {
                     }
                     
                     // 類型篩選區塊（多選）
-                    Section("類型篩選（可多選）") {
+                    Section(String(localized: "type_filter_multi")) {
                         ForEach(Memo.TagType.allCases, id: \.self) { tagType in
                             Button {
                                 if memoManager.filterTagTypes.contains(tagType) {
@@ -250,7 +258,7 @@ struct TodayView: View {
                                 memoManager.applyFiltersAndSort()
                             } label: {
                                 HStack {
-                                    Text(tagType.rawValue)
+                                    Text(tagType.displayName)
                                     if memoManager.filterTagTypes.contains(tagType) {
                                         Image(systemName: "checkmark")
                                     }
@@ -260,13 +268,13 @@ struct TodayView: View {
                     }
                     
                     // 其他篩選
-                    Section("其他") {
+                    Section(String(localized: "other_filter_section")) {
                         Button {
                             memoManager.showOverdueOnly.toggle()
                             memoManager.applyFiltersAndSort()
                         } label: {
                             HStack {
-                                Text("僅顯示逾期")
+                                Text(String(localized: "show_overdue_only"))
                                 if memoManager.showOverdueOnly {
                                     Image(systemName: "checkmark")
                                 }
@@ -285,7 +293,7 @@ struct TodayView: View {
                                 memoManager.filterTagTypes.removeAll()
                                 memoManager.applyFiltersAndSort()
                             } label: {
-                                Label("清除所有篩選", systemImage: "xmark.circle")
+                                Label(String(localized: "clear_all_filters_label"), systemImage: "xmark.circle")
                             }
                         }
                     }
@@ -323,7 +331,7 @@ struct TodayView: View {
                     Text("\(todayTasks.count)")
                         .font(.title3.bold())
                         .foregroundColor(.blue)
-                    Text("今日")
+                    Text(String(localized: "today"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -332,7 +340,7 @@ struct TodayView: View {
                     Text("\(overdueTasks.count)")
                         .font(.title3.bold())
                         .foregroundColor(overdueTasks.isEmpty ? .gray : .red)
-                    Text("逾期")
+                    Text(String(localized: "overdue"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -341,7 +349,7 @@ struct TodayView: View {
                     Text("\(activeMemos.count)")
                         .font(.title3.bold())
                         .foregroundColor(.orange)
-                    Text("總計")
+                    Text(String(localized: "total"))
                         .font(.caption2)
                         .foregroundColor(.secondary)
                 }
@@ -354,13 +362,13 @@ struct TodayView: View {
     // MARK: - Tab 選擇器
     private var tabPicker: some View {
         HStack(spacing: 0) {
-            TabButton(title: "需處理", count: todayTasks.count + overdueTasks.count, isSelected: selectedTab == 0) {
+            TabButton(title: String(localized: "needs_attention"), count: todayTasks.count + overdueTasks.count, isSelected: selectedTab == 0) {
                 selectedTab = 0
             }
-            TabButton(title: "即將到期", count: upcomingTasks.count, isSelected: selectedTab == 1) {
+            TabButton(title: String(localized: "upcoming"), count: upcomingTasks.count, isSelected: selectedTab == 1) {
                 selectedTab = 1
             }
-            TabButton(title: "所有任務", count: allTasks.count, isSelected: selectedTab == 2) {
+            TabButton(title: String(localized: "all_tasks"), count: allTasks.count, isSelected: selectedTab == 2) {
                 selectedTab = 2
             }
         }
@@ -373,7 +381,7 @@ struct TodayView: View {
             HStack(spacing: 8) {
                 // 狀態篩選
                 FilterChipView(
-                    title: "未完成",
+                    title: String(localized: "incomplete"),
                     isSelected: memoManager.filterStatus == nil && memoManager.filterIncompleteOnly,
                     color: .gray
                 ) {
@@ -448,7 +456,7 @@ struct TodayView: View {
                 // 標籤類型篩選
                 ForEach(Memo.TagType.allCases) { tag in
                     FilterChipView(
-                        title: tag.rawValue,
+                        title: tag.displayName,
                         isSelected: memoManager.filterTagTypes.contains(tag),
                         color: tag.color
                     ) {
@@ -481,13 +489,13 @@ struct TodayView: View {
                         ForEach(overdueTasks) { memo in
                             memoRowWithSwipe(memo: memo)
                                 .contextMenu {
-                                    Button("加入今日安排") {
+                                    Button(String(localized: "add_to_today")) {
                                         moveOverdueToToday(memo)
                                     }
                                 }
                         }
                     } header: {
-                        sectionHeaderLabel(title: "逾期", color: .red, count: overdueTasks.count)
+                        sectionHeaderLabel(title: String(localized: "overdue"), color: .red, count: overdueTasks.count)
                     }
                 }
 
@@ -497,13 +505,13 @@ struct TodayView: View {
                         ForEach(planExpiredTasks) { memo in
                             memoRowWithSwipe(memo: memo)
                                 .contextMenu {
-                                    Button("加入今日安排") {
+                                    Button(String(localized: "add_to_today")) {
                                         moveMemoToPlannedToday(memo.id, insertAt: nil, markSnoozed: true)
                                     }
                                 }
                         }
                     } header: {
-                        sectionHeaderLabel(title: "計劃過期", color: .purple, count: planExpiredTasks.count)
+                        sectionHeaderLabel(title: String(localized: "plan_expired"), color: .purple, count: planExpiredTasks.count)
                     }
                 }
                 
@@ -515,7 +523,7 @@ struct TodayView: View {
                             memoRowWithSwipe(memo: memo)
                         }
                     } header: {
-                        sectionHeaderLabel(title: "今日到期", color: .orange, count: dueTodayTasks.count)
+                        sectionHeaderLabel(title: String(localized: "due_today"), color: .orange, count: dueTodayTasks.count)
                     }
                 }
                 
@@ -533,15 +541,15 @@ struct TodayView: View {
                         }
                     } header: {
                         HStack {
-                            sectionHeaderLabel(title: "今日安排", color: .blue, count: plannedTodayTasksOrdered.count)
+                            sectionHeaderLabel(title: String(localized: "today_plan"), color: .blue, count: plannedTodayTasksOrdered.count)
                             if isManualOrderingTodayPlan {
-                                Text("安排順序")
+                                Text(String(localized: "arrange_order"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
                             Spacer()
                             if !plannedTodayTasksOrdered.isEmpty {
-                                Button(isManualOrderingTodayPlan ? "完成" : "安排順序") {
+                                Button(isManualOrderingTodayPlan ? String(localized: "done") : String(localized: "arrange_order")) {
                                     toggleManualOrderingTodayPlan()
                                 }
                                 .font(.caption)
@@ -556,13 +564,13 @@ struct TodayView: View {
                         ForEach(plannedTomorrowTasks) { memo in
                             memoRowWithSwipe(memo: memo)
                                 .contextMenu {
-                                    Button("加入今日安排") {
+                                    Button(String(localized: "add_to_today")) {
                                         moveMemoToPlannedToday(memo.id, insertAt: nil, markSnoozed: false)
                                     }
                                 }
                         }
                     } header: {
-                        sectionHeaderLabel(title: "明天安排", color: .teal, count: plannedTomorrowTasks.count)
+                        sectionHeaderLabel(title: String(localized: "tomorrow_plan"), color: .teal, count: plannedTomorrowTasks.count)
                     }
                 }
                 
@@ -597,7 +605,7 @@ struct TodayView: View {
                             memoRowWithSwipe(memo: memo)
                         }
                     } header: {
-                        sectionHeaderLabel(title: "明天到期", color: .orange, count: buckets.tomorrow.count)
+                        sectionHeaderLabel(title: String(localized: "due_tomorrow"), color: .orange, count: buckets.tomorrow.count)
                     }
                 }
                 
@@ -607,7 +615,7 @@ struct TodayView: View {
                             memoRowWithSwipe(memo: memo)
                         }
                     } header: {
-                        sectionHeaderLabel(title: "2-3 天內", color: .blue, count: buckets.nextThreeDays.count)
+                        sectionHeaderLabel(title: String(localized: "within_2_3_days"), color: .blue, count: buckets.nextThreeDays.count)
                     }
                 }
                 
@@ -617,7 +625,7 @@ struct TodayView: View {
                             memoRowWithSwipe(memo: memo)
                         }
                     } header: {
-                        sectionHeaderLabel(title: "4-7 天內", color: .purple, count: buckets.nextWeek.count)
+                        sectionHeaderLabel(title: String(localized: "within_4_7_days"), color: .purple, count: buckets.nextWeek.count)
                     }
                 }
                 
@@ -680,9 +688,9 @@ struct TodayView: View {
     }
     
     private var allTasksGroupPicker: some View {
-        Picker("分塊方式", selection: $allTasksGroupMode) {
+        Picker(String(localized: "grouping_method"), selection: $allTasksGroupMode) {
             ForEach(AllTasksGroupMode.allCases) { mode in
-                Text(mode.rawValue).tag(mode)
+                Text(mode.displayName).tag(mode)
             }
         }
         .pickerStyle(.segmented)
@@ -710,7 +718,7 @@ struct TodayView: View {
                             Circle()
                                 .fill(Color.gray)
                                 .frame(width: 10, height: 10)
-                            Text("一般待辦")
+                            Text(String(localized: "general_tasks"))
                                 .font(.subheadline.weight(.semibold))
                             Spacer()
                             Text("\(memosWithoutCourse.count)")
@@ -844,7 +852,7 @@ struct TodayView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: tag.icon)
                                     .foregroundColor(tag.color)
-                                Text(tag.rawValue)
+                                Text(tag.displayName)
                                     .font(.subheadline.weight(.semibold))
                                 Spacer()
                                 Text("\(memos.count)")
@@ -883,7 +891,7 @@ struct TodayView: View {
                         memoRowWithSwipe(memo: memo)
                     }
                 } header: {
-                    sectionHeaderLabel(title: "已完成", color: .green, count: completedMemos.count)
+                    sectionHeaderLabel(title: String(localized: "completed"), color: .green, count: completedMemos.count)
                 }
             }
         }
@@ -896,10 +904,10 @@ struct TodayView: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 48))
                 .foregroundColor(.green.opacity(0.6))
-            Text("太棒了！沒有待辦事項")
+            Text(String(localized: "great_no_tasks"))
                 .font(.headline)
                 .foregroundColor(.secondary)
-            Text("點擊右上角新增任務")
+            Text(String(localized: "tap_add_task"))
                 .font(.caption)
                 .foregroundColor(.secondary.opacity(0.7))
         }
@@ -912,7 +920,7 @@ struct TodayView: View {
             Image(systemName: "calendar.badge.checkmark")
                 .font(.system(size: 48))
                 .foregroundColor(.blue.opacity(0.6))
-            Text("未來 7 天沒有待辦事項")
+            Text(String(localized: "no_tasks_next_7_days"))
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
@@ -925,10 +933,10 @@ struct TodayView: View {
             Image(systemName: "bed.double")
                 .font(.system(size: 48))
                 .foregroundColor(.purple.opacity(0.6))
-            Text("今天沒有課程")
+            Text(String(localized: "no_class_today"))
                 .font(.headline)
                 .foregroundColor(.secondary)
-            Text("好好休息吧～")
+            Text(String(localized: "have_a_good_rest"))
                 .font(.caption)
                 .foregroundColor(.secondary.opacity(0.7))
         }
@@ -941,7 +949,7 @@ struct TodayView: View {
             Image(systemName: "tray")
                 .font(.system(size: 48))
                 .foregroundColor(.gray.opacity(0.6))
-            Text("沒有任務")
+            Text(String(localized: "no_tasks"))
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
@@ -954,7 +962,7 @@ struct TodayView: View {
             Image(systemName: "checkmark.circle")
                 .font(.system(size: 48))
                 .foregroundColor(.green.opacity(0.6))
-            Text("尚無已完成的備忘錄")
+            Text(String(localized: "no_completed_memos"))
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
@@ -1001,7 +1009,7 @@ struct TodayView: View {
                 HStack(spacing: 8) {
                     HStack(spacing: 2) {
                         Image(systemName: memo.tagType.icon)
-                        Text(memo.tagType.rawValue)
+                        Text(memo.tagType.displayName)
                     }
                         .font(.caption2)
                         .foregroundColor(memo.tagType.color)
@@ -1033,13 +1041,13 @@ struct TodayView: View {
             Button(role: .destructive) {
                 memoManager.deleteMemo(memo)
             } label: {
-                Label("刪除", systemImage: "trash")
+                Label(String(localized: "delete"), systemImage: "trash")
             }
             
             Button {
                 editingMemo = memo
             } label: {
-                Label("編輯", systemImage: "pencil")
+                Label(String(localized: "edit"), systemImage: "pencil")
             }
             .tint(.blue)
         }
@@ -1048,9 +1056,9 @@ struct TodayView: View {
                 memoManager.toggleCompletion(memo)
             } label: {
                 if memo.status == .done {
-                    Label("取消完成", systemImage: "arrow.uturn.backward")
+                    Label(String(localized: "undo_complete"), systemImage: "arrow.uturn.backward")
                 } else {
-                    Label("完成", systemImage: "checkmark")
+                    Label(String(localized: "complete"), systemImage: "checkmark")
                 }
             }
             .tint(memo.status == .done ? .orange : .green)
@@ -1232,13 +1240,13 @@ struct TodayView: View {
     
     private func weekdayToString(_ weekday: Int) -> String {
         switch weekday {
-        case 1: return "日"
-        case 2: return "一"
-        case 3: return "二"
-        case 4: return "三"
-        case 5: return "四"
-        case 6: return "五"
-        case 7: return "六"
+        case 1: return "Sunday"
+        case 2: return "Monday"
+        case 3: return "Tuesday"
+        case 4: return "Wednesday"
+        case 5: return "Thursday"
+        case 6: return "Friday"
+        case 7: return "Saturday"
         default: return ""
         }
     }
@@ -1494,7 +1502,7 @@ struct ScheduledNotificationsSheet: View {
         NavigationStack {
             Group {
                 if isLoading {
-                    ProgressView("載入中…")
+                    ProgressView(String(localized: "loading"))
                         .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if items.isEmpty {
                     emptyView
@@ -1507,10 +1515,10 @@ struct ScheduledNotificationsSheet: View {
                     .listStyle(.insetGrouped)
                 }
             }
-            .navigationTitle("排程通知")
+            .navigationTitle(String(localized: "navigation_scheduled_notifications"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("完成") { dismiss() }
+                    Button(String(localized: "done")) { dismiss() }
                 }
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -1533,7 +1541,7 @@ struct ScheduledNotificationsSheet: View {
             Image(systemName: "bell.slash")
                 .font(.system(size: 48))
                 .foregroundColor(.secondary.opacity(0.6))
-            Text("沒有排程中的通知")
+            Text(String(localized: "no_scheduled_notifications"))
                 .font(.headline)
                 .foregroundColor(.secondary)
         }
@@ -1548,7 +1556,7 @@ struct ScheduledNotificationsSheet: View {
                 Text(item.memo.title)
                     .font(.headline)
                 Spacer()
-                Text("\(item.count) 個提醒")
+                Text(String(localized: "reminders_count \(item.count)"))
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -1556,7 +1564,7 @@ struct ScheduledNotificationsSheet: View {
             HStack(spacing: 8) {
                 HStack(spacing: 2) {
                     Image(systemName: item.memo.tagType.icon)
-                    Text(item.memo.tagType.rawValue)
+                    Text(item.memo.tagType.displayName)
                 }
                     .font(.caption)
                     .foregroundColor(item.memo.tagType.color)
@@ -1573,7 +1581,7 @@ struct ScheduledNotificationsSheet: View {
                 }
             }
             
-            Text("下次提醒：\(formatDate(item.nextTrigger))")
+            Text(String(localized: "next_reminder", defaultValue: "Next reminder: \(formatDate(item.nextTrigger))"))
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
@@ -1622,11 +1630,11 @@ struct StatusPickerSheet: View {
                         .lineLimit(2)
                 }
             }
-            .navigationTitle("更新狀態")
+            .navigationTitle(String(localized: "navigation_update_status"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") { dismiss() }
+                    Button(String(localized: "cancel")) { dismiss() }
                 }
             }
         }
@@ -1733,7 +1741,7 @@ struct TodayMemoCard: View {
                     HStack(spacing: 8) {
                         HStack(spacing: 2) {
                             Image(systemName: memo.tagType.icon)
-                            Text(memo.tagType.rawValue)
+                            Text(memo.tagType.displayName)
                         }
                             .font(.caption2)
                             .foregroundColor(memo.tagType.color)
@@ -1880,7 +1888,7 @@ struct TodayCourseCard: View {
                                 Spacer()
                                 
                                 if memo.isOverdue {
-                                    Text("逾期")
+                                    Text(String(localized: "overdue"))
                                         .font(.caption2)
                                         .foregroundColor(.red)
                                 }
@@ -2036,7 +2044,7 @@ struct CourseMemoRow: View {
                         // 標籤類型
                         HStack(spacing: 2) {
                             Image(systemName: memo.tagType.icon)
-                            Text(memo.tagType.rawValue)
+                            Text(memo.tagType.displayName)
                         }
                             .font(.caption2)
                             .foregroundColor(memo.tagType.color)
@@ -2050,7 +2058,7 @@ struct CourseMemoRow: View {
                         
                         // 逾期提示
                         if memo.isOverdue {
-                            Text("逾期")
+                            Text(String(localized: "overdue"))
                                 .font(.caption2.weight(.medium))
                                 .foregroundColor(.red)
                         }

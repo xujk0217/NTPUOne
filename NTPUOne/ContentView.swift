@@ -35,17 +35,17 @@ struct ContentView: View {
             
             TodayView(memoManager: memoManager, courseData: courseData).tabItem {
                 Image(systemName: "note.text")
-                Text("Memo")
+                Text(String(localized: "memo"))
             }.tag(1)
             
             TimeTableView(memoManager: memoManager).tabItem {
                 Image(systemName: "list.bullet.clipboard")
-                Text("Timetable")
+                Text(String(localized: "timetable"))
             }.tag(2)
             
             AboutView().tabItem {
                 Image(systemName: "info.circle")
-                Text("About")
+                Text(String(localized: "about"))
             }.tag(3)
         }
         .onOpenURL { url in

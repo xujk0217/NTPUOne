@@ -80,7 +80,7 @@ struct SpinningWheelView: View {
                     spinWheel()
                 }
             }) {
-                Text(hasSpun ? "重置" :"開始轉盤")
+                Text(hasSpun ? String(localized: "reset") : String(localized: "start_spin"))
                     .bold()
                     .padding()
                     .frame(maxWidth: .infinity)

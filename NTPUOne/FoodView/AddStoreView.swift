@@ -46,30 +46,30 @@ struct AddStoreView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("商家名稱＊", text: $store)
+                    TextField(String(localized: "store_name_required"), text: $store)
                         .textInputAutocapitalization(.words)
                         .autocorrectionDisabled()
 
-                    TextField("Google Maps 網址＊", text: $url)
+                    TextField(String(localized: "google_maps_url_required"), text: $url)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
 
-                    TextField("營業時間（例：11:00–12:30）＊", text: $time)
+                    TextField(String(localized: "business_hours_placeholder"), text: $time)
                         .textInputAutocapitalization(.never)
 
-                    TextField("電話（選填）", text: $phone)
+                    TextField(String(localized: "phone_optional"), text: $phone)
                         .keyboardType(.phonePad)
 
-                    TextField("地址＊", text: $address)
+                    TextField(String(localized: "address_required"), text: $address)
                 } header:{
-                    Text("基本資訊")
+                    Text(String(localized: "basic_info"))
                 }footer: {
                     if !isFormValid {
-                        Text("帶有「＊」為必填欄位。")
+                        Text(String(localized: "required_fields_hint"))
                     }
                     if firebaseFail {
-                        Text("送出失敗，請確認必填內容或稍後再試。")
+                        Text(String(localized: "submit_failed_hint"))
                             .foregroundStyle(.red)
                     }
                 }
@@ -81,7 +81,7 @@ struct AddStoreView: View {
                         if isSubmitting {
                             ProgressView()
                         } else {
-                            Text("送出")
+                            Text(String(localized: "submit"))
                                 .font(.headline)
                         }
                     }
@@ -90,8 +90,8 @@ struct AddStoreView: View {
                 }
                 .listRowBackground(Color.clear)
             }
-            .navigationTitle("新增店家")
-            .alert("上傳成功", isPresented: $isSuccessSend) {
+            .navigationTitle(String(localized: "add_store"))
+            .alert(String(localized: "upload_success"), isPresented: $isSuccessSend) {
                 Button("OK") { isSuccessSend = false }
             }
             // 廣告標記

@@ -47,7 +47,7 @@ struct SchoolPostView: View {
             .onAppear {
                 postManager.fetchPublications()
             }
-            .navigationTitle("學校公告")
+            .navigationTitle(String(localized: "school_announcements"))
             .toolbar {
                 ToolbarItem {
                     Button {

@@ -56,15 +56,15 @@ struct MemoFormView: View {
         NavigationStack {
             Form {
                 // 基本資訊
-                Section("基本資訊") {
-                    TextField("標題", text: $title)
+                Section(String(localized: "basic_section")) {
+                    TextField(String(localized: "textfield_title"), text: $title)
                     
                     TextEditor(text: $content)
                         .frame(minHeight: 80)
                         .overlay(
                             Group {
                                 if content.isEmpty {
-                                    Text("備註內容（選填）")
+                                    Text(String(localized: "note_optional"))
                                         .foregroundColor(.gray.opacity(0.5))
                                         .padding(.leading, 4)
                                         .padding(.top, 8)
@@ -78,7 +78,7 @@ struct MemoFormView: View {
                 Section {
                     // 標籤類型
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("標籤類型")
+                        Text(String(localized: "tag_type"))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -91,7 +91,7 @@ struct MemoFormView: View {
                                         HStack(spacing: 4) {
                                             Image(systemName: tag.icon)
                                                 .font(.caption)
-                                            Text(tag.rawValue)
+                                            Text(tag.displayName)
                                                 .font(.caption)
                                         }
                                         .padding(.horizontal, 12)
@@ -113,7 +113,7 @@ struct MemoFormView: View {
                     
                     // 優先級
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("優先級")
+                        Text(String(localized: "priority"))
                             .font(.subheadline)
                             .foregroundColor(.secondary)
                         
@@ -125,7 +125,7 @@ struct MemoFormView: View {
                                     HStack(spacing: 6) {
                                         Image(systemName: p.icon)
                                             .font(.subheadline)
-                                        Text(p.rawValue)
+                                        Text(p.displayName)
                                             .font(.subheadline)
                                     }
                                     .frame(maxWidth: .infinity)
@@ -144,13 +144,13 @@ struct MemoFormView: View {
                     }
                     .listRowInsets(EdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16))
                 } header: {
-                    Text("分類")
+                    Text(String(localized: "category_section"))
                 }
                 
                 // 連結課程
-                Section("連結課程") {
-                    Picker("選擇課程", selection: $selectedCourseId) {
-                        Text("不連結課程")
+                Section(String(localized: "link_course_section")) {
+                    Picker(String(localized: "picker_select_course"), selection: $selectedCourseId) {
+                        Text(String(localized: "no_course_link"))
                             .tag(nil as String?)
                         
                         ForEach(uniqueCourses, id: \.name) { course in
@@ -161,22 +161,22 @@ struct MemoFormView: View {
                 }
                 
                 // 時間設定
-                Section("時間設定") {
-                    Toggle("設定計劃時間", isOn: $hasPlanDate)
+                Section(String(localized: "time_settings_section")) {
+                    Toggle(String(localized: "toggle_set_plan_time"), isOn: $hasPlanDate)
                     
                     if hasPlanDate {
                         DatePicker(
-                            "計劃時間",
+                            String(localized: "plan_time_label"),
                             selection: $planDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
                     }
                     
-                    Toggle("設定截止時間", isOn: $hasDueDate)
+                    Toggle(String(localized: "toggle_set_due_time"), isOn: $hasDueDate)
                     
                     if hasDueDate {
                         DatePicker(
-                            "截止時間",
+                            String(localized: "due_time_label"),
                             selection: $dueDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
@@ -185,8 +185,8 @@ struct MemoFormView: View {
                 
                 // 狀態設定（編輯模式）
                 if isEditing {
-                    Section("狀態") {
-                        Picker("目前狀態", selection: $status) {
+                    Section(String(localized: "status_section")) {
+                        Picker(String(localized: "picker_current_status"), selection: $status) {
                             ForEach(Memo.MemoStatus.allCases) { s in
                                 HStack {
                                     Image(systemName: s.icon)
@@ -211,7 +211,7 @@ struct MemoFormView: View {
                     ForEach(reminderRules) { rule in
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(rule.kind.rawValue)
+                                Text(rule.kind.displayName)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                                 Text(formatDate(rule.triggerAt))
@@ -247,12 +247,12 @@ struct MemoFormView: View {
                         if oneDayBefore > Date() {
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text("自動")
+                                    Text(String(localized: "auto"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text(formatDate(oneDayBefore))
                                         .font(.subheadline)
-                                    Text("距離截止時間還有 1 天")
+                                    Text(String(localized: "1_day_before_due"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
@@ -270,12 +270,12 @@ struct MemoFormView: View {
                         if thirtyMinsBefore > Date() {
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text("自動")
+                                    Text(String(localized: "auto"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text(formatDate(thirtyMinsBefore))
                                         .font(.subheadline)
-                                    Text("距離截止時間還有 30 分鐘")
+                                    Text(String(localized: "30_min_before_due"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
@@ -291,10 +291,10 @@ struct MemoFormView: View {
                         // 顯示已禁用的自動提醒
                         HStack {
                             VStack(alignment: .leading) {
-                                Text("自動（已禁用）")
+                                Text(String(localized: "auto_disabled"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text("截止前 30 分鐘")
+                                Text(String(localized: "30_min_before_deadline"))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
@@ -312,12 +312,12 @@ struct MemoFormView: View {
                         if planDate > Date() {
                             HStack {
                                 VStack(alignment: .leading) {
-                                    Text("自動")
+                                    Text(String(localized: "auto"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     Text(formatDate(planDate))
                                         .font(.subheadline)
-                                    Text("計劃時間到了，該開始處理了")
+                                    Text(String(localized: "plan_time_start"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
@@ -333,10 +333,10 @@ struct MemoFormView: View {
                         // 顯示已禁用的自動提醒
                         HStack {
                             VStack(alignment: .leading) {
-                                Text("自動（已禁用）")
+                                Text(String(localized: "auto_disabled"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
-                                Text("計劃時間")
+                                Text(String(localized: "plan_time"))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                             }
@@ -352,12 +352,12 @@ struct MemoFormView: View {
                     Button {
                         showAddReminder = true
                     } label: {
-                        Label("新增提醒", systemImage: "bell.badge.plus")
+                        Label(String(localized: "add_reminder"), systemImage: "bell.badge.plus")
                     }
                 } header: {
-                    Text("提醒設定")
+                    Text(String(localized: "reminder_settings"))
                 } footer: {
-                    Text("提醒會在指定時間推送通知")
+                    Text(String(localized: "reminder_push_hint"))
                 }
                 
                 // 刪除按鈕（編輯模式）
@@ -371,24 +371,24 @@ struct MemoFormView: View {
                         } label: {
                             HStack {
                                 Spacer()
-                                Text("刪除備忘錄")
+                                Text(String(localized: "delete_memo"))
                                 Spacer()
                             }
                         }
                     }
                 }
             }
-            .navigationTitle(isEditing ? "編輯備忘錄" : "新增備忘錄")
+            .navigationTitle(isEditing ? String(localized: "edit") : String(localized: "add_memo"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(String(localized: "cancel")) {
                         dismiss()
                     }
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("儲存") {
+                    Button(String(localized: "save")) {
                         saveMemo()
                     }
                     .disabled(title.trimmingCharacters(in: .whitespaces).isEmpty)
@@ -512,65 +512,67 @@ struct AddReminderSheet: View {
     @State private var beforeDueMinutes: Int = 30
     @State private var repeatType: ReminderRule.RepeatType = .none
     
-    private let beforeOptions = [
-        (15, "15 分鐘前"),
-        (30, "30 分鐘前"),
-        (60, "1 小時前"),
-        (120, "2 小時前"),
-        (1440, "1 天前"),
-        (2880, "2 天前")
-    ]
+    private let beforeOptions: [(Int, String)] = {
+        return [
+            (15, String(localized: "15_min_before")),
+            (30, String(localized: "30_min_before")),
+            (60, String(localized: "1_hour_before")),
+            (120, String(localized: "2_hours_before")),
+            (1440, String(localized: "1_day_before")),
+            (2880, String(localized: "2_days_before"))
+        ]
+    }()
     
     var body: some View {
         NavigationStack {
             Form {
-                Section("提醒類型") {
-                    Picker("類型", selection: $kind) {
+                Section(String(localized: "reminder_type_section")) {
+                    Picker(String(localized: "picker_type"), selection: $kind) {
                         if dueDate != nil {
-                            Text("截止前").tag(ReminderRule.ReminderKind.beforeDue)
+                            Text(String(localized: "before_due_option")).tag(ReminderRule.ReminderKind.beforeDue)
                         }
                         if planDate != nil {
-                            Text("計劃時間").tag(ReminderRule.ReminderKind.atPlan)
+                            Text(String(localized: "at_plan_option")).tag(ReminderRule.ReminderKind.atPlan)
                         }
-                        Text("自訂時間").tag(ReminderRule.ReminderKind.custom)
+                        Text(String(localized: "custom_time_option")).tag(ReminderRule.ReminderKind.custom)
                     }
                     .pickerStyle(.segmented)
                 }
                 
-                Section("提醒時間") {
+                Section(String(localized: "reminder_time_section")) {
                     switch kind {
                     case .beforeDue:
                         if let dueDate = dueDate {
-                            Picker("提前時間", selection: $beforeDueMinutes) {
+                            Picker(String(localized: "advance_time"), selection: $beforeDueMinutes) {
                                 ForEach(beforeOptions, id: \.0) { minutes, label in
                                     Text(label).tag(minutes)
                                 }
                             }
                             
-                            Text("將在 \(formatDate(calculateBeforeDueDate(dueDate))) 提醒")
+                            Text(String(localized: "will_remind_at_format", defaultValue: "Will remind at \(formatDate(calculateBeforeDueDate(dueDate)))"))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
                         
                     case .atPlan:
                         if let planDate = planDate {
-                            Text("將在 \(formatDate(planDate)) 提醒")
+                            Text(String(localized: "will_remind_at_format", defaultValue: "Will remind at \(formatDate(planDate))"))
                                 .foregroundColor(.secondary)
                         }
                         
                     case .custom:
                         DatePicker(
-                            "提醒時間",
+                            String(localized: "reminder_time"),
                             selection: $customDate,
                             displayedComponents: [.date, .hourAndMinute]
                         )
                     }
                 }
                 
-                Section("重複設定") {
-                    Picker("重複", selection: $repeatType) {
+                Section(String(localized: "repeat_settings_section")) {
+                    Picker(String(localized: "picker_repeat"), selection: $repeatType) {
                         ForEach(ReminderRule.RepeatType.allCases) { type in
-                            Text(type.rawValue).tag(type)
+                            Text(type.displayName).tag(type)
                         }
                     }
                     
@@ -581,17 +583,17 @@ struct AddReminderSheet: View {
                     }
                 }
             }
-            .navigationTitle("新增提醒")
+            .navigationTitle(String(localized: "navigation_add_reminder"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button(String(localized: "cancel")) {
                         dismiss()
                     }
                 }
                 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("新增") {
+                    Button(String(localized: "add")) {
                         addReminder()
                     }
                 }
@@ -609,15 +611,14 @@ struct AddReminderSheet: View {
             return ""
         case .daily:
             formatter.dateFormat = "HH:mm"
-            return "每天 \(formatter.string(from: triggerAt)) 提醒"
+            return String(localized: "daily_at \(formatter.string(from: triggerAt))")
         case .weekly:
             formatter.dateFormat = "EEEE HH:mm"
-            formatter.locale = Locale(identifier: "zh_TW")
-            return "每週\(formatter.string(from: triggerAt)) 提醒"
+            return String(localized: "weekly_at \(formatter.string(from: triggerAt))")
         case .monthly:
             let day = Calendar.current.component(.day, from: triggerAt)
             formatter.dateFormat = "HH:mm"
-            return "每月 \(day) 日 \(formatter.string(from: triggerAt)) 提醒"
+            return String(localized: "monthly_at \(day) \(formatter.string(from: triggerAt))")
         }
     }
     

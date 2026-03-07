@@ -1,0 +1,67 @@
+/* Widget Localizable Strings - English */
+
+// MARK: - NextTaskWidget
+"widget_next_task" = "Next Task:";
+"widget_plan_time" = "Plan Time:";
+"widget_due_time" = "Due Time:";
+"widget_tag_type %@" = "Type: %@";
+"widget_priority %@" = "Priority: %@";
+"widget_priority_short %@" = "Priority: %@";
+"widget_no_task_hint" = "If data not refreshed, try opening the app or check network";
+"widget_time_none" = "Time: None";
+
+// MARK: - NextCourseWidget
+"widget_next_course" = "Next Course:";
+"widget_start_time" = "Start Time:";
+"widget_start_time_short %@" = "Start: %@";
+"widget_professor %@" = "Prof: %@";
+"widget_classroom %@" = "Room: %@";
+"widget_no_data_hint" = "If data not refreshed, try opening the app or check network";
+
+// MARK: - MemoWidget Small
+"widget_today" = "Today";
+"widget_no_tasks_today" = "No tasks today";
+
+// MARK: - MemoWidget Medium
+"widget_my_tasks" = "My Tasks";
+"widget_pending_count %lld" = "%lld pending";
+"widget_great_no_tasks" = "Great! No pending tasks";
+
+// MARK: - MemoWidget Large
+"widget_task_overview" = "Task Overview";
+"widget_section_overdue" = "Overdue";
+"widget_section_plan_overdue" = "Plan Expired";
+"widget_section_today" = "Today";
+"widget_section_this_week" = "This Week";
+"widget_section_others" = "Other Tasks";
+"widget_great" = "Awesome!";
+"widget_no_pending_tasks" = "No pending tasks";
+"widget_more_tasks %lld" = "%lld more tasks not shown...";
+
+// MARK: - MemoWidget Row
+"widget_already_overdue" = "Overdue";
+"widget_today_time %@" = "Today %@";
+"widget_date_today" = "Today";
+"widget_date_tomorrow" = "Tomorrow";
+"widget_overdue_days %lld" = "%lld days overdue";
+"widget_plan_expired_days %lld" = "%lld days past plan";
+"widget_days_left %lld" = "%lld days";
+
+// MARK: - MemoWidget Configuration
+"widget_task_list" = "Task List";
+"widget_task_list_desc" = "Shows pending tasks and reminders";
+
+// MARK: - CourseLargeWidget
+"widget_day_mon" = "Mon";
+"widget_day_tue" = "Tue";
+"widget_day_wed" = "Wed";
+"widget_day_thu" = "Thu";
+"widget_day_fri" = "Fri";
+"widget_course_overview" = "Course Schedule";
+"widget_course_overview_desc" = "Shows Mon-Fri schedule";
+
+// MARK: - Tag Types (for display)
+"tag_type_other" = "Other";
+
+// MARK: - Priority (for display)
+"priority_normal" = "Normal";

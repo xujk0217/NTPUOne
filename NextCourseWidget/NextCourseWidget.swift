@@ -175,21 +175,21 @@ struct NextCourseWidgetEntryView : View {
             if let course = entry.course {
                 HStack{
                     VStack(alignment: .leading){
-                        Text("下一堂課:")
+                        Text(String(localized: "widget_next_course", bundle: .main))
                             .font(.caption.bold())
                         Text(course.name ?? "Unknown")
                             .font(.subheadline.bold())
                             .foregroundStyle(Color.blue)
                             .padding(.bottom, 3)
-                        Text("開始時間:")
+                        Text(String(localized: "widget_start_time", bundle: .main))
                             .font(.caption.bold())
                         Text(course.startTime ?? "Unknown")
                             .foregroundStyle(Color.red)
                             .font(.subheadline.bold())
                             .padding(.bottom, 3)
-                        Text("教授： \(course.teacher ?? "Unknown")")
+                        Text(String(localized: "widget_professor \(course.teacher ?? "Unknown")", bundle: .main))
                             .font(.caption.bold())
-                        Text("教室： \(course.location ?? "Unknown")")
+                        Text(String(localized: "widget_classroom \(course.location ?? "Unknown")", bundle: .main))
                             .font(.caption.bold())
                     }
                     .padding(.vertical)
@@ -198,7 +198,7 @@ struct NextCourseWidgetEntryView : View {
             } else {
                 Text("No upcoming course")
                     .font(.subheadline.bold())
-                Text("資料未刷新時，可點擊進App或連上網路試試")
+                Text(String(localized: "widget_no_data_hint", bundle: .main))
                     .font(.caption2)
                     .padding()
                     .foregroundStyle(Color.gray)
@@ -214,21 +214,21 @@ struct NextCourseAccessoryRectangularView: View {
         HStack {
             VStack(alignment: .leading) {
                 if let course = entry.course {
-                    Text("下一堂課:")
+                    Text(String(localized: "widget_next_course", bundle: .main))
                         .font(.body)
                     Text(course.name ?? "Unknown")
                         .font(.body.bold())
                         .lineLimit(1)
-                    Text("開始時間: \(course.startTime ?? "Unknown")")
+                    Text(String(localized: "widget_start_time_short \(course.startTime ?? "Unknown")", bundle: .main))
                         .font(.body)
                         .foregroundColor(.secondary)
                 } else {
-                    Text("下一堂課:")
+                    Text(String(localized: "widget_next_course", bundle: .main))
                         .font(.body)
                     Text("No upcoming course")
                         .font(.body.bold())
                         .lineLimit(1)
-                    Text("時間: 無")
+                    Text(String(localized: "widget_time_none", bundle: .main))
                         .font(.body)
                 }
             }

@@ -82,11 +82,11 @@ struct TimeTableView: View {
                             }.count
                             showDeleteAllAlert = true
                         } label: {
-                            Label("刪除所有課程", systemImage: "trash")
+                            Label(String(localized: "delete_all_courses"), systemImage: "trash")
                                 .padding()
                         }
-                        .alert("確認刪除所有課程", isPresented: $showDeleteAllAlert) {
-                            Button("刪除", role: .destructive) {
+                        .alert(String(localized: "alert_confirm_delete_all"), isPresented: $showDeleteAllAlert) {
+                            Button(String(localized: "delete"), role: .destructive) {
                                 // 先刪除所有有連結課程的任務（courseLink 存的是課程 ID）
                                 let allCourseIds = Set(courseData.courses.map { $0.id })
                                 let memosToDelete = memoManager.memos.filter { memo in
@@ -101,12 +101,12 @@ struct TimeTableView: View {
                                 // 刷新備忘錄數據
                                 memoManager.loadMemosFromCoreData()
                             }
-                            Button("取消", role: .cancel) { }
+                            Button(String(localized: "cancel"), role: .cancel) { }
                         } message: {
                             if totalMemoCount > 0 {
-                                Text("刪除所有課程後，將同時刪除 \(totalMemoCount) 個連結到課程的任務。此操作無法復原。")
+                                Text(String(format: NSLocalizedString("delete_all_courses_with_memos", comment: ""), totalMemoCount))
                             } else {
-                                Text("確定要刪除所有課程嗎？此操作無法復原。")
+                                Text(String(localized: "delete_all_courses_confirm"))
                             }
                         }
                     }

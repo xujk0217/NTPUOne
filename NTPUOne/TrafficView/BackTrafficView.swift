@@ -33,11 +33,11 @@ struct BackTrafficView: View {
                 if let bikeDatas = bikeManager.bikeDatas {
                         List {
                             Section{
-                                Text("升級至 IOS 17.0 以開啟地圖功能")
+                                Text(String(localized: "upgrade_ios_for_map"))
                             } header: {
-                                Text("腳踏車地圖")
+                                Text(String(localized: "bike_map"))
                             } footer: {
-                                Text("名稱：站名-(腳踏車數/總數)")
+                                Text(String(localized: "bike_station_format"))
                             }
                             Section {
                                 DisclosureGroup("Ubike in NTPU", isExpanded: $isExpanded) {
@@ -76,7 +76,7 @@ struct BackTrafficView: View {
                                     }
                                 }
                             } footer: {
-                                Text("更新頻率：每5分鐘")
+                                Text(String(localized: "update_every_5_min"))
                             }
                         }
                         .navigationTitle("Traffic")
@@ -91,7 +91,7 @@ struct BackTrafficView: View {
                     }
                 } else {
                     VStack {
-                        Text("Loading...")
+                        Text(String(localized: "loading"))
                         ProgressView()
                             .onAppear {
                                 bikeManager.fetchData()

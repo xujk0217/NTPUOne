@@ -215,7 +215,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         // --- Ad badge ---
         let badgeLabel = UILabel()
         badgeLabel.tag = 999
-        badgeLabel.text = "廣告"
+        badgeLabel.text = NSLocalizedString("ad_label", comment: "廣告標籤")
         badgeLabel.font = .systemFont(ofSize: 9, weight: .semibold)
         badgeLabel.textColor = .white
         badgeLabel.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.85)
@@ -316,7 +316,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         // --- Ad badge ---
         let badgeLabel = UILabel()
         badgeLabel.tag = 999
-        badgeLabel.text = "廣告"
+        badgeLabel.text = NSLocalizedString("ad_label", comment: "廣告標籤")
         badgeLabel.font = .systemFont(ofSize: 9, weight: .semibold)
         badgeLabel.textColor = .white
         badgeLabel.backgroundColor = UIColor.systemOrange.withAlphaComponent(0.85)

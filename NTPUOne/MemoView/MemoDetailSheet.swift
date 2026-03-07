@@ -56,10 +56,10 @@ struct MemoDetailSheet: View {
                 }
                 
                 // 時間資訊
-                Section("時間") {
+                Section(String(localized: "time_section")) {
                     if let planAt = memo.planAt {
                         HStack {
-                            Label("計劃時間", systemImage: "calendar")
+                            Label(String(localized: "plan_time_label"), systemImage: "calendar")
                             Spacer()
                             Text(formatDate(planAt))
                                 .foregroundColor(.secondary)
@@ -68,7 +68,7 @@ struct MemoDetailSheet: View {
                     
                     if let dueAt = memo.dueAt {
                         HStack {
-                            Label("截止時間", systemImage: "clock.badge.exclamationmark")
+                            Label(String(localized: "due_time_label"), systemImage: "clock.badge.exclamationmark")
                             Spacer()
                             Text(formatDate(dueAt))
                                 .foregroundColor(memo.isOverdue ? .red : .secondary)
@@ -79,14 +79,14 @@ struct MemoDetailSheet: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.red)
-                            Text(memo.dueDateDescription ?? "已逾期")
+                            Text(memo.dueDateDescription ?? String(localized: "already_overdue"))
                                 .foregroundColor(.red)
                         }
                     }
                 }
                 
                 // 狀態設定
-                Section("狀態") {
+                Section(String(localized: "status_section")) {
                     ForEach(Memo.MemoStatus.allCases) { status in
                         Button {
                             updateStatus(to: status)
@@ -107,7 +107,7 @@ struct MemoDetailSheet: View {
                 }
                 
                 // 提醒設定
-                Section("提醒") {
+                Section(String(localized: "reminder_section")) {
                     // 過濾已過期的非重複提醒
                     let activeRules = memo.reminderRules.filter { rule in
                         rule.repeatType != .none || rule.triggerAt > Date()
@@ -121,7 +121,7 @@ struct MemoDetailSheet: View {
                     
                     // 顯示現有提醒
                     if activeRules.isEmpty && !showAutoDueReminder && !showAutoPlanReminder && !memo.disableAutoDueReminder && !memo.disableAutoPlanReminder {
-                        Text("尚未設定提醒")
+                        Text(String(localized: "reminder_not_set"))
                             .foregroundColor(.secondary)
                     } else {
                         // 用戶自訂提醒
@@ -133,13 +133,13 @@ struct MemoDetailSheet: View {
                                     Text(formatDate(rule.triggerAt))
                                         .font(.subheadline)
                                     if rule.repeatType != .none {
-                                        Text(rule.repeatType.rawValue)
+                                        Text(rule.repeatType.displayName)
                                             .font(.caption2)
                                             .foregroundColor(.orange)
                                     }
                                 }
                                 Spacer()
-                                Text(rule.kind.rawValue)
+                                Text(rule.kind.displayName)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -156,12 +156,12 @@ struct MemoDetailSheet: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(formatDate(oneDayBefore))
                                             .font(.subheadline)
-                                        Text("距離截止時間還有 1 天")
+                                        Text(String(localized: "1_day_before_due"))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
                                     Spacer()
-                                    Text("自動")
+                                    Text(String(localized: "auto"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -176,12 +176,12 @@ struct MemoDetailSheet: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(formatDate(thirtyMinsBefore))
                                             .font(.subheadline)
-                                        Text("距離截止時間還有 30 分鐘")
+                                        Text(String(localized: "30_min_before_due"))
                                             .font(.caption2)
                                             .foregroundColor(.secondary)
                                     }
                                     Spacer()
-                                    Text("自動")
+                                    Text(String(localized: "auto"))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -192,15 +192,15 @@ struct MemoDetailSheet: View {
                                 Image(systemName: "bell.slash")
                                     .foregroundColor(.gray)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("截止前 30 分鐘")
+                                    Text(String(localized: "30_min_before_deadline"))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
-                                    Text("已禁用")
+                                    Text(String(localized: "disabled"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Text("自動")
+                                Text(String(localized: "auto"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -214,12 +214,12 @@ struct MemoDetailSheet: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(formatDate(planAt))
                                         .font(.subheadline)
-                                    Text("計劃時間到了，該開始處理了")
+                                    Text(String(localized: "plan_time_start"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Text("自動")
+                                Text(String(localized: "auto"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -229,15 +229,15 @@ struct MemoDetailSheet: View {
                                 Image(systemName: "bell.slash")
                                     .foregroundColor(.gray)
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text("計劃時間")
+                                    Text(String(localized: "plan_time"))
                                         .font(.subheadline)
                                         .foregroundColor(.secondary)
-                                    Text("已禁用")
+                                    Text(String(localized: "disabled"))
                                         .font(.caption2)
                                         .foregroundColor(.secondary)
                                 }
                                 Spacer()
-                                Text("自動")
+                                Text(String(localized: "auto"))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -245,7 +245,7 @@ struct MemoDetailSheet: View {
                     }
                     
                     // 提示
-                    Text("如需修改提醒，請點擊下方編輯")
+                    Text(String(localized: "edit_reminder_hint"))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
@@ -255,15 +255,15 @@ struct MemoDetailSheet: View {
                     Button {
                         showEditSheet = true
                     } label: {
-                        Label("編輯詳細資料", systemImage: "pencil")
+                        Label(String(localized: "edit_details"), systemImage: "pencil")
                     }
                 }
             }
-            .navigationTitle("備忘錄詳情")
+            .navigationTitle(String(localized: "navigation_memo_detail"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成") {
+                    Button(String(localized: "done")) {
                         dismiss()
                     }
                 }

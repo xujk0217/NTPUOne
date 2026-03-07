@@ -422,16 +422,16 @@ struct CourseFormSheet: View {
                 }, courseData: courseData)
             }
         }
-        .alert("確認刪除課程", isPresented: $showDeleteAlert) {
-            Button("刪除", role: .destructive) {
+        .alert(String(localized: "alert_confirm_delete_course"), isPresented: $showDeleteAlert) {
+            Button(String(localized: "delete"), role: .destructive) {
                 performDelete()
             }
-            Button("取消", role: .cancel) {}
+            Button(String(localized: "cancel"), role: .cancel) {}
         } message: {
             if isLastCourseWithName && relatedMemoCount > 0 {
-                Text("這是最後一個「\(selectedCourse.name)」課程，刪除後將同時刪除 \(relatedMemoCount) 個相關任務。此操作無法復原。")
+                Text(String(localized: "delete_last_course_with_memos \(selectedCourse.name) \(relatedMemoCount)"))
             } else {
-                Text("確定要刪除這個課程嗎？此操作無法復原。")
+                Text(String(localized: "delete_course_confirm"))
             }
         }
     }
@@ -508,7 +508,7 @@ struct LunchButtonView: View {
             HStack(spacing: 10) {
                 Image(systemName: "takeoutbag.and.cup.and.straw.fill")
                     .imageScale(.medium)
-                Text("午餐時間").font(.subheadline.weight(.semibold))
+                Text(String(localized: "lunch_time")).font(.subheadline.weight(.semibold))
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
@@ -536,7 +536,7 @@ struct DinnerButtonView: View {
             HStack(spacing: 10) {
                 Image(systemName: "fork.knife")
                     .imageScale(.medium)
-                Text("晚餐時間").font(.subheadline.weight(.semibold))
+                Text(String(localized: "dinner_time")).font(.subheadline.weight(.semibold))
                 Spacer()
                 Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
             }
@@ -585,7 +585,7 @@ private struct AddCourseTile: View {
             VStack(spacing: 6) {
                 Image(systemName: "plus")
                     .font(.headline)
-                Text("新增").font(.caption2)
+                Text(String(localized: "add")).font(.caption2)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .padding(8)
@@ -637,7 +637,7 @@ struct CourseDetailSheet: View {
             VStack(spacing: 16) {
                 // 標題
                 HStack(alignment: .firstTextBaseline) {
-                    Text(course.name.isEmpty ? "未命名課程" : course.name)
+                    Text(course.name.isEmpty ? String(localized: "unnamed_course") : course.name)
                         .font(.title3.bold())
                         .lineLimit(2)
                     Spacer()
@@ -645,11 +645,11 @@ struct CourseDetailSheet: View {
 
             // 資訊卡
             VStack(spacing: 10) {
-                infoRow(icon: "person.fill", title: "教授",  value: course.teacher.isEmpty ? "—" : "\(course.teacher) 教授")
-                infoRow(icon: "calendar",   title: "時間",  value: "\(course.day), \(course.startTime.rawValue)")
-                infoRow(icon: "mappin.and.ellipse", title: "地點",  value: course.location.isEmpty ? "—" : course.location)
+                infoRow(icon: "person.fill", title: String(localized: "professor"),  value: course.teacher.isEmpty ? "—" : "\(course.teacher)")
+                infoRow(icon: "calendar",   title: String(localized: "time"),  value: "\(course.day), \(course.startTime.rawValue)")
+                infoRow(icon: "mappin.and.ellipse", title: String(localized: "location"),  value: course.location.isEmpty ? "—" : course.location)
                 infoRow(icon: course.isNotification ? "bell.fill" : "bell.slash.fill",
-                        title: "通知", value: course.isNotification ? "開啟" : "關閉")
+                        title: String(localized: "notification"), value: course.isNotification ? String(localized: "on") : String(localized: "off"))
             }
             .padding(14)
             .background(
@@ -669,7 +669,7 @@ struct CourseDetailSheet: View {
                 
                 // 排序標題和按鈕
                 HStack {
-                    Text("任務")
+                    Text(String(localized: "tasks"))
                         .font(.headline)
                     Spacer()
                     Button {
@@ -677,7 +677,7 @@ struct CourseDetailSheet: View {
                     } label: {
                         HStack(spacing: 2) {
                             Image(systemName: "arrow.up.arrow.down")
-                            Text("排序")
+                            Text(String(localized: "sort"))
                         }
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -696,7 +696,7 @@ struct CourseDetailSheet: View {
                             HStack(spacing: 2) {
                                 Image(systemName: tagType.icon)
                                     .font(.subheadline)
-                                Text(tagType.rawValue)
+                                Text(tagType.displayName)
                                     .font(.subheadline.weight(.semibold))
                                 
                                 Text("(\(memos.count))")
@@ -820,7 +820,7 @@ struct CourseDetailSheet: View {
                                 Image(systemName: tagType.icon)
                                     .foregroundStyle(tagType.color)
                                     .frame(width: 24)
-                                Text(tagType.rawValue)
+                                Text(tagType.displayName)
                                     .foregroundStyle(.primary)
                                 Spacer()
                             }
@@ -829,22 +829,22 @@ struct CourseDetailSheet: View {
                             editableOrder.move(fromOffsets: from, toOffset: to)
                         }
                     } header: {
-                        Text("拖拽調整標籤順序")
+                        Text(String(localized: "drag_to_reorder"))
                     } footer: {
-                        Text("順序會影響課程詳情中任務的顯示順序")
+                        Text(String(localized: "order_affects_display"))
                     }
                 }
                 .environment(\.editMode, .constant(.active))
-                .navigationTitle("標籤排序")
+                .navigationTitle(String(localized: "navigation_tag_order"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button("取消") {
+                        Button(String(localized: "cancel")) {
                             dismiss()
                         }
                     }
                     ToolbarItem(placement: .confirmationAction) {
-                        Button("儲存") {
+                        Button(String(localized: "save")) {
                             onSave(editableOrder)
                             dismiss()
                         }
@@ -891,7 +891,7 @@ struct CourseDetailSheet: View {
         // 如果是明天，顯示「明天 HH:mm」
         if calendar.isDateInTomorrow(date) {
             formatter.dateFormat = "HH:mm"
-            return "明天 " + formatter.string(from: date)
+            return String(localized: "tomorrow") + " " + formatter.string(from: date)
         }
         
         // 如果是本週內，顯示星期幾和時間

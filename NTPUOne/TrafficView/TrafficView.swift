@@ -52,9 +52,9 @@ struct TrafficView: View {
                                 }
                                 .frame(height: 300)
                             } header: {
-                                Text("腳踏車地圖")
+                                Text(String(localized: "bike_map"))
                             } footer: {
-                                Text("名稱：站名-(腳踏車數/總數)")
+                                Text(String(localized: "bike_station_format"))
                             }
                             
                             Section {
@@ -94,7 +94,7 @@ struct TrafficView: View {
                                     }
                                 }
                             } footer: {
-                                Text("更新頻率：每5分鐘")
+                                Text(String(localized: "update_every_5_min"))
                             }
                             // Native 廣告 Section
                             if !adFree.isAdFree {
@@ -116,7 +116,7 @@ struct TrafficView: View {
                                     .font(.system(size: 50))
                                     .foregroundColor(.orange)
                                 
-                                Text("無法載入 Ubike 資料")
+                                Text(String(localized: "ubike_load_error"))
                                     .font(.headline)
                                 
                                 Text(errorMessage)
@@ -125,7 +125,7 @@ struct TrafficView: View {
                                     .multilineTextAlignment(.center)
                                     .padding(.horizontal)
                                 
-                                Button("重新載入") {
+                                Button(String(localized: "reload")) {
                                     bikeManager.errorMessage = nil
                                     bikeManager.fetchData()
                                 }
@@ -135,7 +135,7 @@ struct TrafficView: View {
                             .padding()
                         } else {
                             // 显示 loading
-                            Text("Loading...")
+                            Text(String(localized: "loading"))
                             ProgressView()
                                 .onAppear {
                                     bikeManager.fetchData()

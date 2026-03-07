@@ -321,11 +321,11 @@ extension CourseData {
     // 调度通知的方法
     func scheduleNotification(for course: Course) {
         let content = UNMutableNotificationContent()
-        let location = course.location.isEmpty ? "未填寫" : course.location
-        let teacher = course.teacher.isEmpty ? "未填寫" : course.teacher
+        let location = course.location.isEmpty ? String(localized: "not_filled") : course.location
+        let teacher = course.teacher.isEmpty ? String(localized: "not_filled") : course.teacher
         content.title = "📚 \(course.name)"
-        content.subtitle = "上課提醒"
-        content.body = "時間：\(course.day) \(course.startTime.rawValue)\n地點：\(location)\n老師：\(teacher)"
+        content.subtitle = String(localized: "class_reminder")
+        content.body = String(localized: "notification_class_body \(course.day) \(course.startTime.rawValue) \(location) \(teacher)")
         content.sound = .default
         
         // 创建触发器

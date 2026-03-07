@@ -132,7 +132,7 @@ struct NextTaskWidgetEntryView: View {
             if let task = entry.task {
                 HStack{
                     VStack(alignment: .leading){
-                        Text("下一個任務:")
+                        Text(String(localized: "widget_next_task", bundle: .main))
                             .font(.caption.bold())
                         Text(task.title ?? "Unknown")
                             .font(.subheadline.bold())
@@ -140,14 +140,14 @@ struct NextTaskWidgetEntryView: View {
                             .padding(.bottom, 3)
                         
                         if let planAt = task.planAt {
-                            Text("計劃時間:")
+                            Text(String(localized: "widget_plan_time", bundle: .main))
                                 .font(.caption.bold())
                             Text(formatDateTime(planAt))
                                 .foregroundStyle(Color.red)
                                 .font(.subheadline.bold())
                                 .padding(.bottom, 3)
                         } else if let dueAt = task.dueAt {
-                            Text("截止時間:")
+                            Text(String(localized: "widget_due_time", bundle: .main))
                                 .font(.caption.bold())
                             Text(formatDateTime(dueAt))
                                 .foregroundStyle(Color.red)
@@ -155,9 +155,9 @@ struct NextTaskWidgetEntryView: View {
                                 .padding(.bottom, 3)
                         }
                         
-                        Text("類型： \(task.tagType ?? "其他")")
+                        Text(String(localized: "widget_tag_type \(task.tagType ?? String(localized: "tag_type_other", bundle: .main))", bundle: .main))
                             .font(.caption.bold())
-                        Text("優先級： \(task.priority ?? "中")")
+                        Text(String(localized: "widget_priority \(task.priority ?? String(localized: "priority_normal", bundle: .main))", bundle: .main))
                             .font(.caption.bold())
                     }
                     .padding(.vertical)
@@ -166,7 +166,7 @@ struct NextTaskWidgetEntryView: View {
             } else {
                 Text("No upcoming task")
                     .font(.subheadline.bold())
-                Text("資料未刷新時，可點擊進App或連上網路試試")
+                Text(String(localized: "widget_no_task_hint", bundle: .main))
                     .font(.caption2)
                     .padding()
                     .foregroundStyle(Color.gray)
@@ -188,7 +188,7 @@ struct NextTaskAccessoryRectangularView: View {
         HStack {
             VStack(alignment: .leading) {
                 if let task = entry.task {
-                    Text("下一個任務:")
+                    Text(String(localized: "widget_next_task", bundle: .main))
                         .font(.body)
                     Text(task.title ?? "Unknown")
                         .font(.body.bold())
@@ -203,17 +203,17 @@ struct NextTaskAccessoryRectangularView: View {
                             .font(.body)
                             .foregroundColor(.secondary)
                     } else {
-                        Text("優先級: \(task.priority ?? "中")")
+                        Text(String(localized: "widget_priority_short \(task.priority ?? String(localized: "priority_normal", bundle: .main))", bundle: .main))
                             .font(.body)
                             .foregroundColor(.secondary)
                     }
                 } else {
-                    Text("下一個任務:")
+                    Text(String(localized: "widget_next_task", bundle: .main))
                         .font(.body)
                     Text("No upcoming task")
                         .font(.body.bold())
                         .lineLimit(1)
-                    Text("時間: 無")
+                    Text(String(localized: "widget_time_none", bundle: .main))
                         .font(.body)
                 }
             }

@@ -49,26 +49,26 @@ struct Memo: Identifiable, Equatable {
         let calendar = Calendar.current
         
         if status == .done {
-            return "已完成"
+            return String(localized: "status_done")
         }
         
         if dueAt < now {
             let components = calendar.dateComponents([.day, .hour], from: dueAt, to: now)
             if let days = components.day, days > 0 {
-                return "逾期 \(days) 天"
+                return String(localized: "overdue_days \(days)")
             } else if let hours = components.hour, hours > 0 {
-                return "逾期 \(hours) 小時"
+                return String(localized: "overdue_hours \(hours)")
             } else {
-                return "剛剛逾期"
+                return String(localized: "just_overdue")
             }
         } else {
             let components = calendar.dateComponents([.day, .hour], from: now, to: dueAt)
             if let days = components.day, days > 0 {
-                return "還剩 \(days) 天"
+                return String(localized: "days_remaining \(days)")
             } else if let hours = components.hour, hours > 0 {
-                return "還剩 \(hours) 小時"
+                return String(localized: "hours_remaining \(hours)")
             } else {
-                return "即將到期"
+                return String(localized: "about_to_expire")
             }
         }
     }
@@ -84,6 +84,17 @@ struct Memo: Identifiable, Equatable {
         case other = "其他"
         
         var id: String { self.rawValue }
+        
+        var displayName: String {
+            switch self {
+            case .activity: return String(localized: "tag_type_activity")
+            case .homework: return String(localized: "tag_type_homework")
+            case .exam: return String(localized: "tag_type_exam")
+            case .meeting: return String(localized: "tag_type_meeting")
+            case .reminder: return String(localized: "tag_type_reminder")
+            case .other: return String(localized: "tag_type_other")
+            }
+        }
         
         var icon: String {
             switch self {
@@ -118,10 +129,10 @@ struct Memo: Identifiable, Equatable {
         
         var displayName: String {
             switch self {
-            case .todo: return "未開始"
-            case .doing: return "進行中"
-            case .done: return "已完成"
-            case .snoozed: return "已延後"
+            case .todo: return String(localized: "status_not_started")
+            case .doing: return String(localized: "status_doing")
+            case .done: return String(localized: "status_done")
+            case .snoozed: return String(localized: "status_snoozed")
             }
         }
         
@@ -161,9 +172,9 @@ struct Memo: Identifiable, Equatable {
         
         var displayName: String {
             switch self {
-            case .low: return "一般"
-            case .medium: return "重要"
-            case .high: return "緊急"
+            case .low: return String(localized: "priority_normal")
+            case .medium: return String(localized: "priority_important")
+            case .high: return String(localized: "priority_urgent")
             }
         }
         
@@ -199,6 +210,14 @@ struct ReminderRule: Identifiable, Equatable, Codable {
         case custom = "自訂"
         
         var id: String { self.rawValue }
+        
+        var displayName: String {
+            switch self {
+            case .beforeDue: return String(localized: "reminder_before_due")
+            case .atPlan: return String(localized: "reminder_at_plan")
+            case .custom: return String(localized: "reminder_custom")
+            }
+        }
     }
     
     enum RepeatType: String, CaseIterable, Identifiable, Codable {
@@ -208,6 +227,15 @@ struct ReminderRule: Identifiable, Equatable, Codable {
         case monthly = "每月"
         
         var id: String { self.rawValue }
+        
+        var displayName: String {
+            switch self {
+            case .none: return String(localized: "repeat_none")
+            case .daily: return String(localized: "repeat_daily")
+            case .weekly: return String(localized: "repeat_weekly")
+            case .monthly: return String(localized: "repeat_monthly")
+            }
+        }
     }
     
     init(id: String = UUID().uuidString, triggerAt: Date, enabled: Bool = true, kind: ReminderKind = .custom, repeatType: RepeatType = .none) {

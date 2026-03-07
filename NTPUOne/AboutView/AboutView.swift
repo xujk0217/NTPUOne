@@ -51,12 +51,12 @@ struct AboutView: View {
                             .foregroundStyle(.orange)
                         VStack(alignment: .leading, spacing: 2) {
                             if isEditingNickname {
-                                TextField("暱稱", text: $pendingNickname)
+                                TextField(String(localized: "nickname"), text: $pendingNickname)
                                     .focused($nicknameFieldFocused)
                                     .submitLabel(.done)
                                     .onSubmit { saveNickname() }
                             } else {
-                                Text(nickname.isEmpty ? "尚未設定" : nickname)
+                                Text(nickname.isEmpty ? String(localized: "nickname") : nickname)
                                     .font(.body.weight(.medium))
                                     .foregroundStyle(nickname.isEmpty ? .secondary : .primary)
                             }
@@ -92,10 +92,10 @@ struct AboutView: View {
                             HStack {
                                 Image(systemName: "checkmark.seal.fill")
                                     .foregroundStyle(.green)
-                                Text("今日無橫幅廣告")
+                                Text(String(localized: "no_banner_today"))
                                     .foregroundStyle(.secondary)
                                 Spacer()
-                                Button("重置") {
+                                Button(String(localized: "reset")) {
                                     adFree.clear()
                                     rewardedManager.preload()
                                 }
@@ -110,9 +110,9 @@ struct AboutView: View {
                                     Image(systemName: "play.rectangle.fill")
                                         .foregroundStyle(.blue)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        Text("關閉今日橫幅廣告")
+                                        Text(String(localized: "watch_30s_no_banner"))
                                             .foregroundStyle(.primary)
-                                        Text(rewardedManager.isLoading ? "載入中…" : "觀看 30 秒影片（剩 \(rewardedManager.remainingViews) 次）")
+                                        Text(rewardedManager.isLoading ? String(localized: "loading") : String(localized: "watch_30s_remaining \(rewardedManager.remainingViews)"))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -126,16 +126,16 @@ struct AboutView: View {
                         }
                     }
                 } header: {
-                    Label("帳號與偏好", systemImage: "gearshape.fill")
+                    Label(String(localized: "account_and_preferences"), systemImage: "gearshape.fill")
                 } footer: {
-                    Text("暱稱用於留言及活動廣播")
+                    Text(String(localized: "nickname"))
                 }
-                .alert("更新舊留言？", isPresented: $showUpdateOldAlert) {
-                    Button("只更新新留言") {
+                .alert(String(localized: "alert_update_old_comments"), isPresented: $showUpdateOldAlert) {
+                    Button(String(localized: "update_new_comments_only")) {
                         nickname = pendingNickname
                         isEditingNickname = false
                     }
-                    Button("同時更新舊留言") {
+                    Button(String(localized: "update_old_comments_too")) {
                         let newName = pendingNickname
                         nickname = newName
                         isEditingNickname = false
@@ -144,12 +144,12 @@ struct AboutView: View {
                             isUpdatingComments = false
                         }
                     }
-                    Button("取消", role: .cancel) {
+                    Button(String(localized: "cancel"), role: .cancel) {
                         isEditingNickname = true
                         nicknameFieldFocused = true
                     }
                 } message: {
-                    Text("是否同時更新您過去在各餐廣的留言暱稱？")
+                    Text(String(localized: "alert_update_old_comments"))
                 }
                 
                 // Admin 區塊
@@ -158,7 +158,7 @@ struct AboutView: View {
                         NavigationLink {
                             AdminConsoleView()
                         } label: {
-                            Label("管理後台", systemImage: "shield.fill")
+                            Label(String(localized: "admin_console"), systemImage: "shield.fill")
                         }
                     }
                 }
@@ -171,7 +171,7 @@ struct AboutView: View {
                         HStack {
                             Image(systemName: "megaphone.fill")
                                 .foregroundStyle(.purple)
-                            Text("新增活動廣播")
+                            Text(String(localized: "navigation_add_announcement"))
                                 .foregroundStyle(.primary)
                             Spacer()
                             Image(systemName: "chevron.right")
@@ -182,23 +182,23 @@ struct AboutView: View {
                     
                     NavigationLink {
                         FeaturesView()
-                            .navigationTitle("功能建議")
+                            .navigationTitle(String(localized: "feature_suggestion"))
                     } label: {
-                        Label("功能建議", systemImage: "lightbulb.fill")
+                        Label(String(localized: "feature_suggestion"), systemImage: "lightbulb.fill")
                             .foregroundStyle(.primary)
                     }
                     
                     NavigationLink {
                         ReportBugView()
-                            .navigationTitle("回報錯誤")
+                            .navigationTitle(String(localized: "report_bug"))
                     } label: {
-                        Label("回報問題", systemImage: "ladybug.fill")
+                        Label(String(localized: "report_bug"), systemImage: "ladybug.fill")
                             .foregroundStyle(.primary)
                     }
                 } header: {
-                    Label("互動", systemImage: "bubble.left.and.bubble.right.fill")
+                    Label(String(localized: "interaction"), systemImage: "bubble.left.and.bubble.right.fill")
                 } footer: {
-                    Text("歡迎提供建議或回報問題")
+                    Text(String(localized: "feature_suggestion"))
                 }
                 
                 // MARK: - 關於
@@ -206,18 +206,18 @@ struct AboutView: View {
                     NavigationLink {
                         ContactMeView()
                     } label: {
-                        Label("聯繫開發者", systemImage: "envelope.fill")
+                        Label(String(localized: "contact_developer"), systemImage: "envelope.fill")
                             .foregroundStyle(.primary)
                     }
                     
                     NavigationLink {
                         PrivacyPolicyView()
                     } label: {
-                        Label("隱私權政策", systemImage: "hand.raised.fill")
+                        Label(String(localized: "privacy_policy"), systemImage: "hand.raised.fill")
                             .foregroundStyle(.primary)
                     }
                 } header: {
-                    Label("關於", systemImage: "info.circle.fill")
+                    Label(String(localized: "about"), systemImage: "info.circle.fill")
                 }
                 
                 // 原生廣告（放在最底部，不干擾功能流程）
@@ -229,7 +229,7 @@ struct AboutView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .navigationTitle("關於")
+            .navigationTitle(String(localized: "about"))
             .navigationBarTitleDisplayMode(.large)
             .onAppear { rewardedManager.preload() }
             .navigationDestination(isPresented: $isReward) {

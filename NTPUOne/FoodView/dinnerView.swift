@@ -21,7 +21,7 @@ struct dinnerView: View {
                     if #available(iOS 17.0, *) {
                         let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
                         if !pins.isEmpty {
-                            Section("附近餐廣地圖") {
+                            Section(String(localized: "nearby_restaurant_map")) {
                                 Map(initialPosition: .camera(
                                     MapCamera(
                                         centerCoordinate: CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682),
@@ -159,7 +159,7 @@ struct StoreRowViewL: View {
                         .lineLimit(1)
                 }
                 if !store!.check {
-                    Label("未確認資料完整性", systemImage: "exclamationmark.circle.fill")
+                    Label(String(localized: "data_not_verified"), systemImage: "exclamationmark.circle.fill")
                         .font(.caption)
                         .foregroundStyle(.red)
                 }

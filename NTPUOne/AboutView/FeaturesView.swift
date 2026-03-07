@@ -35,16 +35,16 @@ struct FeaturesView: View {
         NavigationStack {
             ZStack {
                 Form {
-                    Section("功能名稱＊") {
-                        TextField("例如：課表分享、課程提醒…", text: $issue)
+                    Section(String(localized: "feature_name_required")) {
+                        TextField(String(localized: "feature_name_placeholder"), text: $issue)
                             .textInputAutocapitalization(.sentences)
                             .autocorrectionDisabled(false)
                     }
 
-                    Section("功能詳情＊") {
+                    Section(String(localized: "feature_detail_required")) {
                         // 你的 AutoSizingTF；高度限制 160，輸入多時可捲動
                         AutoSizingTF(
-                            hint: "具體如何表現（情境、按鈕位置、流程…）",
+                            hint: String(localized: "feature_detail_placeholder"),
                             text: $detail,
                             containerHeight: $containHeight,
                             onEnd: { hideKeyboard() }
@@ -53,18 +53,18 @@ struct FeaturesView: View {
                     }
 
                     Section {
-                        TextField("你的信箱（選填）", text: $email)
+                        TextField(String(localized: "email_optional_placeholder"), text: $email)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     } header: {
-                      Text("聯絡方式（選填）")
+                      Text(String(localized: "contact_method_optional"))
                     } footer: {
                         if !isFormValid {
-                            Text("「功能名稱」與「功能詳情」為必填。")
+                            Text(String(localized: "feature_form_required_hint"))
                         }
                         if firebaseFail {
-                            Text("送出失敗，請稍後再試或確認網路連線。")
+                            Text(String(localized: "submit_failed_hint"))
                                 .foregroundStyle(.red)
                         }
                     }
@@ -76,7 +76,7 @@ struct FeaturesView: View {
                             if isSubmitting {
                                 ProgressView()
                             } else {
-                                Text("送出")
+                                Text(String(localized: "submit"))
                                     .font(.headline)
                             }
                         }
@@ -86,14 +86,14 @@ struct FeaturesView: View {
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("功能回報")
+            .navigationTitle(String(localized: "feature_request_title"))
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") { hideKeyboard() }
+                    Button(String(localized: "done")) { hideKeyboard() }
                 }
             }
-            .alert("上傳成功", isPresented: $isSuccessSend) {
+            .alert(String(localized: "upload_success"), isPresented: $isSuccessSend) {
                 Button("OK") { isSuccessSend = false }
             }
             // 廣告標記

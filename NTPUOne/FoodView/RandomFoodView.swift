@@ -23,7 +23,12 @@ struct RandomFoodView: View {
     
 
     let dietKeys = ["B", "L", "D", "M"]
-    let dietOptions = ["B": "早餐", "L": "午餐", "D": "晚餐", "M": "宵夜"]
+    var dietOptions: [String: String] {
+        ["B": String(localized: "breakfast"),
+         "L": String(localized: "lunch"),
+         "D": String(localized: "dinner"),
+         "M": String(localized: "late_night_snack")]
+    }
 
     var body: some View {
         NavigationStack {
@@ -31,7 +36,7 @@ struct RandomFoodView: View {
                 
                 // MARK: - 餐別選擇區
                 Section {
-                    Picker("選擇餐別", selection: $whichDiet) {
+                    Picker(String(localized: "picker_select_meal"), selection: $whichDiet) {
                         ForEach(dietKeys, id: \.self) { key in
                             Text(dietOptions[key] ?? "").tag(key)
                         }
@@ -44,7 +49,7 @@ struct RandomFoodView: View {
                     }
 
                 } header: {
-                    Text("餐別選擇")
+                    Text(String(localized: "meal_selection"))
                 }
                 // MARK: - 結果顯示區（中獎）
                 Section {
@@ -59,7 +64,7 @@ struct RandomFoodView: View {
                             },
                             label: {
                                 VStack(spacing: 8) {
-                                    Text("🎉 中獎餐廳")
+                                    Text(String(localized: "winner_restaurant"))
                                         .font(.title3.bold())
                                         .padding(3)
                                     Divider()
@@ -69,14 +74,14 @@ struct RandomFoodView: View {
                         )
                     } else {
                         VStack{
-                            Text("點擊下方輪盤按鈕即可抽獎")
+                            Text(String(localized: "tap_wheel_to_spin"))
                                 .font(.headline)
                         }
                         .padding()
                         .cornerRadius(12)
                     }
                 } header: {
-                    Text("推薦結果")
+                    Text(String(localized: "recommendation_result"))
                 }
                 
                 // MARK: - 轉盤轉動區
@@ -90,13 +95,13 @@ struct RandomFoodView: View {
                             selectedRestaurant = selected
                         }
                     } header: {
-                        Text("轉盤")
+                        Text(String(localized: "spinner"))
                     }
                 }
 
                 // MARK: - 顯示清單
-                Section(header: Text("餐廳列表"),
-                        footer: Text("勾選你想要參加抽籤的餐廳\n可到 Life 頁面新增餐廳")) {
+                Section(header: Text(String(localized: "restaurant_list")),
+                        footer: Text(String(localized: "restaurant_list_footer"))) {
                     if let foodList = fManager.Food {
                         ForEach(foodList, id: \.id) { r in
                             Toggle(isOn: Binding<Bool>(
@@ -110,7 +115,7 @@ struct RandomFoodView: View {
                                             selectedIDs.remove(id)
                                         } else {
                                             showAlert = true
-                                            print("至少要保留一間餐廳")
+                                            print("at least keep one restaurant")
                                         }
                                     }
                                 }
@@ -122,7 +127,7 @@ struct RandomFoodView: View {
                             }
                         }
                     } else {
-                        Text("目前沒有餐廳，可到 Life 頁面新增")
+                        Text(String(localized: "no_restaurant_hint"))
                     }
                 }
                 
@@ -135,7 +140,7 @@ struct RandomFoodView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .navigationTitle("吃飯轉盤")
+            .navigationTitle(String(localized: "navigation_food_wheel"))
             .onAppear {
                 fManager.loadF(whichDiet: whichDiet)
                 if let list = fManager.Food {
@@ -147,8 +152,8 @@ struct RandomFoodView: View {
                     selectedIDs = Set(list.compactMap { $0.id })
                 }
             }
-            .alert("至少要保留一間餐廳參加抽籤", isPresented: $showAlert) {
-                Button("OK", role: .cancel) {}
+            .alert(String(localized: "alert_keep_one_restaurant"), isPresented: $showAlert) {
+                Button(String(localized: "ok"), role: .cancel) {}
             }
         }
     }

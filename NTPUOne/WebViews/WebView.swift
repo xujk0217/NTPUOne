@@ -100,7 +100,7 @@ struct WebViewWithBanner: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("關閉") {
+                    Button(String(localized: "close")) {
                         dismiss()
                     }
                 }

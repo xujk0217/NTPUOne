@@ -1,0 +1,798 @@
+/* 
+  Localizable.strings (English)
+  NTPUOne
+*/
+
+// MARK: - Ads
+"ad_label" = "Ad";
+
+// MARK: - General
+"loading" = "Loading...";
+"error" = "Error";
+"cancel" = "Cancel";
+"confirm" = "Confirm";
+"save" = "Save";
+"delete" = "Delete";
+"edit" = "Edit";
+"done" = "Done";
+"ok" = "OK";
+"close" = "Close";
+"submit" = "Submit";
+"add" = "Add";
+"refresh" = "Refresh";
+"retry" = "Retry";
+"reset" = "Reset";
+"reload" = "Reload";
+"ignore" = "Ignore";
+"upload" = "Upload";
+"complete" = "Complete";
+"start_watching" = "Start Watching";
+"open_link" = "Open Link";
+"copy_link" = "Copy Link";
+
+// MARK: - Tab Bar
+"course" = "Course";
+"food" = "Food";
+"traffic" = "Traffic";
+"weather" = "Weather";
+"about" = "About";
+
+// MARK: - Food View
+"breakfast" = "Breakfast";
+"lunch" = "Lunch";
+"dinner" = "Dinner";
+"late_night_snack" = "Late Night Snack";
+"random_food" = "Random Food";
+"restaurant_location" = "Restaurant Location";
+"data_not_verified" = "Data integrity not verified";
+"recommend_hint" = "If you like it, tap the star to recommend it to others";
+"tap_to_open_map" = "Tap to open map";
+"no_comments_yet" = "No comments yet, be the first!";
+"you" = "You";
+"comments_count" = "Comments (%d)";
+"upgrade_ios_for_map" = "Upgrade to iOS 17.0 to enable map feature";
+"set_nickname_to_comment" = "Please set nickname in About page to comment";
+"nearby_restaurant_map" = "Nearby Restaurant Map";
+"meal_selection" = "Meal Selection";
+"winner_restaurant" = "🎉 Winner Restaurant";
+"tap_wheel_to_spin" = "Tap the wheel button below to spin";
+"recommendation_result" = "Recommendation Result";
+"wheel" = "Wheel";
+"restaurant_list" = "Restaurant List";
+"restaurant_list_footer" = "Check the restaurants you want to include in the draw\nGo to Life page to add restaurants";
+"no_restaurant_hint" = "No restaurants yet, go to Life page to add";
+
+// MARK: - Course
+"my_courses" = "My Courses";
+"add_course" = "Add Course";
+"timetable" = "Timetable";
+"delete_all_courses" = "Delete All Courses";
+"delete_all_courses_with_memos" = "Deleting all courses will also delete %d linked tasks. This cannot be undone.";
+"delete_all_courses_confirm" = "Are you sure you want to delete all courses? This cannot be undone.";
+"delete_last_course_with_memos" = "This is the last \"%@\" course, deleting it will also delete %d related tasks. This cannot be undone.";
+"delete_course_confirm" = "Are you sure you want to delete this course? This cannot be undone.";
+"lunch_time" = "Lunch Time";
+"dinner_time" = "Dinner Time";
+"class_notification" = "Class Notification";
+"enable_notification_hint" = "Remember to enable notifications in Settings";
+"multi_period_hint" = "If the course spans multiple periods, fill in all details or edit each period later";
+"enter_course_number" = "Enter course number:";
+"course_search" = "Course Search";
+"skip_if_not_needed" = "Press Skip if you don't need to add by course number";
+"search_error" = "Error occurred, possibly too many results or wrong format. Please enter a more specific number";
+"course_number_label" = "Course Number: %@";
+"course_name_label" = "Course Name: %@";
+"instructor_label" = "Instructor: %@";
+"class_time_label" = "Class Time: %@";
+"classroom_location" = "Classroom Location: %@";
+"no_course_searched" = "No course searched.";
+"search_results_hint" = "Search Results (Select a course then press Next)";
+"verify_info_hint" = "Course info may be incorrect, please verify after pressing Next";
+
+// MARK: - Memo
+"memo" = "Memo";
+"add_memo" = "Add Memo";
+"today" = "Today";
+"incomplete" = "Incomplete";
+"show_overdue_only" = "Show overdue only";
+"overdue" = "Overdue";
+"total" = "Total";
+"completed" = "Completed";
+"arrange_order" = "Arrange Order";
+"general_tasks" = "General Tasks";
+"great_no_tasks" = "Great! No tasks to do";
+"tap_add_task" = "Tap the top right corner to add a task";
+"no_tasks_next_7_days" = "No tasks in the next 7 days";
+"no_class_today" = "No classes today";
+"have_a_good_rest" = "Have a good rest~";
+"no_tasks" = "No tasks";
+"no_completed_memos" = "No completed memos yet";
+"no_scheduled_notifications" = "No scheduled notifications";
+"reminders_count" = "%d reminders";
+"next_reminder" = "Next reminder: %@";
+"reminder_not_set" = "Reminder not set";
+"1_day_before_due" = "1 day before deadline";
+"auto" = "Auto";
+"30_min_before_due" = "30 minutes before deadline";
+"30_min_before_deadline" = "30 minutes before deadline";
+"disabled" = "Disabled";
+"plan_time_start" = "Plan time is up, time to start working";
+"plan_time" = "Plan Time";
+"edit_reminder_hint" = "To edit reminders, tap Edit below";
+"all_list" = "All List";
+"by_course" = "By Course";
+"no_memos" = "No memos";
+"tap_add_memo" = "Tap + in the top right to add";
+"uncategorized" = "Uncategorized";
+"note_optional" = "Notes (optional)";
+"tag_type" = "Tag Type";
+"priority" = "Priority";
+"category" = "Category";
+"no_course_link" = "No course link";
+"auto_disabled" = "Auto (Disabled)";
+"reminder_settings" = "Reminder Settings";
+"reminder_push_hint" = "Reminders will push notifications at the specified time";
+"delete_memo" = "Delete Memo";
+"before_due" = "Before Due";
+"custom_time" = "Custom Time";
+"will_remind_at" = "Will remind at %@";
+"list_scheduled_notifications" = "List Scheduled Notifications";
+"clear_all_filters" = "Clear All Filters";
+"undo_complete" = "Undo Complete";
+"add_to_today" = "Add to Today's Schedule";
+"plan_time_label" = "Plan Time";
+"due_time_label" = "Due Time";
+"edit_details" = "Edit Details";
+"add_reminder" = "Add Reminder";
+"already_overdue" = "Already overdue";
+"plan_overdue_days" = "Overdue by %d days";
+"tasks" = "Tasks";
+"sort" = "Sort";
+"drag_to_reorder" = "Drag to reorder tags";
+"order_affects_display" = "Order affects task display order in course details";
+
+// MARK: - Traffic
+"bike_map" = "Bike Map";
+"bike_station_format" = "Format: Station-(Bikes/Total)";
+"update_every_5_min" = "Update frequency: Every 5 minutes";
+"ubike_load_error" = "Unable to load Ubike data";
+
+// MARK: - Weather
+"ntpu_what_to_eat" = "NTPU - What to eat today?";
+"now" = "Now";
+"highest" = "Highest";
+"lowest" = "Lowest";
+"high_low_temp" = "High %@ Low %@";
+"update_time" = "Updated %@";
+
+// MARK: - About
+"account_and_preferences" = "Account & Preferences";
+"admin_console" = "Admin Console";
+"feature_suggestion" = "Feature Suggestion";
+"report_bug" = "Report Bug";
+"interaction" = "Interaction";
+"contact_developer" = "Contact Developer";
+"privacy_policy" = "Privacy Policy";
+"nickname" = "Nickname";
+"set_in_about" = "Please set in About page";
+"contact_info" = "Contact Info";
+"contact_me" = "Contact Me~";
+"update_new_comments_only" = "Update New Comments Only";
+"update_old_comments_too" = "Update Old Comments Too";
+"no_banner_today" = "No banner ads today";
+"watch_30s_no_banner" = "Watch 30s video, no banner today";
+"watch_ad_hint" = "After watching a ~30 second reward video, banner ads won't show today (until 23:59).";
+
+// MARK: - Links & Web
+"connecting" = "Connecting, please check network connection";
+"select_course_hint" = "Please use a computer for course selection, URL not found";
+"graduate_school_hint" = "Some graduate schools are not abbreviated, contact me if needed";
+"minutes_left" = "%d min left";
+"no_more_classes_today" = "No more classes today";
+"rest_well" = "Rest well~";
+"no_tasks_today" = "No tasks for today";
+"today_tasks" = "Today's Tasks";
+"n_overdue" = "%d overdue";
+"n_plan_expired" = "%d plan expired";
+"n_today_tasks" = "%d today's tasks";
+"n_in_progress" = "%d in progress";
+"no_pending_items" = "No pending items";
+"go_to_host" = "Go to · %@";
+"activity_tab" = "Activity";
+"club_tab" = "Club";
+"other_tab" = "Other";
+"add_announcement_hint" = "To add activity broadcasts, go to About page";
+
+// MARK: - Widgets
+"next_task" = "Next Task:";
+"task_plan_time" = "Plan Time:";
+"task_due_time" = "Due Time:";
+"task_type" = "Type: %@";
+"task_priority" = "Priority: %@";
+"widget_refresh_hint" = "If data not refreshed, try opening the app or connecting to network";
+"time_none" = "Time: None";
+"next_course" = "Next Course:";
+"start_time" = "Start Time:";
+"professor" = "Professor: %@";
+"classroom" = "Classroom: %@";
+"no_tasks_today_widget" = "No tasks today";
+"my_tasks" = "My Tasks";
+"tasks_count" = "%d tasks";
+"great_no_tasks_widget" = "Great! No pending tasks";
+"task_overview" = "Task Overview";
+"great" = "Great!";
+"no_pending_tasks" = "No pending tasks";
+"more_tasks_not_shown" = "%d more tasks not shown...";
+"widget_course_overview" = "Course Overview";
+"widget_show_weekly" = "Shows Mon-Fri timetable";
+"widget_task_list" = "Task List";
+"widget_show_tasks" = "Shows pending tasks and reminders";
+
+// MARK: - Admin
+"submission_management" = "Submission Management";
+"restaurant_management" = "Restaurant Management";
+"bug_report_management" = "Bug Report Management";
+"feature_report_management" = "Feature Report Management";
+"crawler" = "Crawler";
+"upload_all" = "Upload All";
+"replace_and_upload" = "Replace Old Data and Upload";
+"crawling_ntpu" = "Crawling NTPU website...";
+"delete_restaurant" = "Delete this restaurant";
+"delete_irreversible" = "Deletion cannot be undone.";
+"confirm_replace" = "Confirm Replace";
+
+// MARK: - Forms
+"basic_info" = "Basic Info";
+"required_field_hint" = "Fields marked with \"*\" are required.";
+"submit_failed" = "Submit failed, please check required fields or try again later.";
+"contact_optional" = "Contact (optional)";
+"required_fields_hint" = "\"Issue Found\" and \"Issue Details\" are required.";
+"submit_failed_network" = "Submit failed, please try again later or check network connection.";
+"enter_announcement" = "Enter announcement";
+"note_length" = "Note length and key points";
+"n_characters" = "%d characters";
+"tag_mismatch_warning" = "Content may be removed if tag doesn't match.";
+
+// MARK: - Section Headers
+"status_filter" = "Status Filter";
+"type_filter_multi" = "Type Filter (Multi-select)";
+"other_section" = "Other";
+"time_section" = "Time";
+"status_section" = "Status";
+"reminder_section" = "Reminders";
+"link_course_section" = "Link Course";
+"time_settings_section" = "Time Settings";
+"reminder_type_section" = "Reminder Type";
+"reminder_time_section" = "Reminder Time";
+"repeat_settings_section" = "Repeat Settings";
+"next_course_section" = "Next Course";
+"quick_actions_section" = "Quick Actions";
+"issue_found_section" = "Issue Found*";
+"issue_details_section" = "Issue Details*";
+"announcement_content_section" = "Announcement Content*";
+"related_info_section" = "Related Info";
+"category_section" = "Category";
+"feature_name_section" = "Feature Name*";
+"feature_details_section" = "Feature Details*";
+"data_management_section" = "Data Management";
+"name_header" = "Name";
+"social_section" = "Social";
+"restaurant_location_section" = "Restaurant Location";
+"basic_section" = "Basic";
+"coordinates_section" = "Coordinates / Rating";
+"submission_list_section" = "Submission List";
+"doc_id_section" = "Document ID / Created At";
+"content_section" = "Content";
+"contact_and_link_section" = "Contact & Link";
+"tag_section" = "Tag";
+
+// MARK: - Navigation Titles
+"navigation_memo" = "Memo";
+"navigation_scheduled_notifications" = "Scheduled Notifications";
+"navigation_update_status" = "Update Status";
+"navigation_memo_detail" = "Memo Details";
+"navigation_add_reminder" = "Add Reminder";
+"navigation_common_links" = "Common Links";
+"navigation_weather_detail" = "Weather Details";
+"navigation_select_meal" = "Select Meal";
+"navigation_school_posts" = "School Announcements";
+"navigation_post_content" = "Announcement Content";
+"navigation_food_wheel" = "Food Wheel";
+"navigation_tag_order" = "Tag Order";
+"navigation_add_store" = "Add Store";
+"navigation_course_search" = "Course Search";
+"navigation_add_announcement" = "Add Announcement";
+"navigation_feature_report" = "Feature Report";
+"navigation_report_issue" = "Report Issue";
+"navigation_edit_restaurant" = "Edit Restaurant";
+"navigation_edit_submission" = "Edit Submission";
+"navigation_carousel_crawler" = "Carousel Crawler";
+
+// MARK: - Alerts
+"alert_close_banner" = "Close today's banner ads?";
+"alert_video_not_ready" = "Video not ready yet";
+"alert_confirm_delete_course" = "Confirm Delete Course";
+"alert_confirm_delete_all" = "Confirm Delete All Courses";
+"alert_upload_success" = "Upload Successful";
+"alert_keep_one_restaurant" = "At least one restaurant must participate in the draw";
+"alert_enter_admin_password" = "Enter Admin Password";
+"alert_wrong_password" = "Wrong Password";
+"alert_update_old_comments" = "Update old comments?";
+"alert_confirm_delete" = "Are you sure you want to delete?";
+"alert_confirm_upload_all" = "Are you sure you want to upload all?";
+"alert_replace_carousel" = "Replace Carousel Data";
+
+// MARK: - Pickers
+"picker_grouping_method" = "Grouping Method";
+"picker_select_course" = "Select Course";
+"picker_current_status" = "Current Status";
+"picker_type" = "Type";
+"picker_advance_time" = "Advance Time";
+"picker_repeat" = "Repeat";
+"picker_select_meal" = "Select Meal";
+"picker_select_tag" = "Select Tag";
+"picker_meal" = "Meal";
+"picker_start_period" = "Start Period";
+"picker_end_period" = "End Period";
+"picker_period" = "Period";
+"picker_tag" = "Tag";
+"picker_select_year" = "Select Year";
+"picker_select_semester" = "Select Semester";
+
+// MARK: - Toggles
+"toggle_class_notification" = "Enable Class Notification";
+"toggle_set_plan_time" = "Set Plan Time";
+"toggle_set_due_time" = "Set Due Time";
+"toggle_verified" = "Verified";
+
+// MARK: - TextFields
+"textfield_comment" = "Comment...";
+"textfield_title" = "Title";
+"textfield_store_name" = "Store Name*";
+"textfield_google_maps_url" = "Google Maps URL*";
+"textfield_business_hours" = "Business Hours (e.g., 11:00–12:30)*";
+"textfield_phone_optional" = "Phone (optional)";
+"textfield_address" = "Address*";
+"textfield_related_url" = "Related URL (optional)";
+"textfield_email_optional" = "Your Email (optional)";
+"textfield_display_time" = "Display Time (e.g., until 10/15 or one week)";
+"textfield_issue_example" = "e.g., Timetable loading failed, ad height error...";
+"textfield_feature_example" = "e.g., Timetable sharing, course reminders...";
+"textfield_course_number_hint" = "e.g., U4001 or partial number";
+"searchable_name_content" = "Search name / content / email / id";
+"searchable_store_address" = "Search store / address / hours";
+"searchable_message_name" = "Search message/name/URL";
+"textfield_store_name_admin" = "Store Name";
+"textfield_business_hours_admin" = "Business Hours";
+"textfield_url" = "URL";
+"textfield_address_admin" = "Address";
+"textfield_phone" = "Phone";
+"textfield_latitude" = "Latitude";
+"textfield_longitude" = "Longitude";
+"textfield_rating" = "Rating (any value)";
+"textfield_message" = "Message";
+"textfield_name" = "Name";
+"textfield_time_custom" = "Time (custom display string)";
+
+// MARK: - Contact
+"copy_account" = "Copy Account";
+"copy_email" = "Copy Email";
+"logout_admin" = "Logout Admin";
+
+// MARK: - Enum Values (Status)
+"enum_status_todo" = "Not Started";
+"enum_status_doing" = "In Progress";
+"enum_status_done" = "Completed";
+"enum_status_snoozed" = "Snoozed";
+"enum_status_display_todo" = "Not Started";
+
+// MARK: - Enum Values (Priority)
+"enum_priority_low" = "Low";
+"enum_priority_medium" = "Medium";
+"enum_priority_high" = "High";
+"enum_priority_display_low" = "Normal";
+"enum_priority_display_medium" = "Important";
+"enum_priority_display_high" = "Urgent";
+
+// MARK: - Enum Values (Tag Types)
+"enum_tag_activity" = "Activity";
+"enum_tag_homework" = "Homework";
+"enum_tag_exam" = "Exam";
+"enum_tag_meeting" = "Meeting";
+"enum_tag_reminder" = "Reminder";
+"enum_tag_other" = "Other";
+
+// MARK: - Enum Values (Reminder)
+"enum_reminder_before_due" = "Before Due";
+"enum_reminder_at_plan" = "At Plan Time";
+"enum_reminder_custom" = "Custom";
+
+// MARK: - Enum Values (Repeat)
+"enum_repeat_none" = "No Repeat";
+"enum_repeat_daily" = "Daily";
+"enum_repeat_weekly" = "Weekly";
+"enum_repeat_monthly" = "Monthly";
+
+// MARK: - Due Description
+"due_description_done" = "Completed";
+"due_description_overdue_days" = "Overdue %d days";
+"due_description_overdue_hours" = "Overdue %d hours";
+"due_description_just_overdue" = "Just overdue";
+"due_description_days_left" = "%d days left";
+"due_description_hours_left" = "%d hours left";
+"due_description_due_soon" = "Due soon";
+
+// MARK: - Sort Options
+"sort_due_date" = "Due Date";
+"sort_priority" = "Priority";
+"sort_created_date" = "Created Date";
+"sort_name" = "Name";
+
+// MARK: - TodayView Sections
+"today_plan" = "Today's Plan";
+"tomorrow_plan" = "Tomorrow's Plan";
+"plan_expired" = "Plan Expired";
+"due_today" = "Due Today";
+"due_tomorrow" = "Due Tomorrow";
+
+// MARK: - TodayView Tabs & Labels
+"needs_attention" = "Needs Attention";
+"upcoming" = "Upcoming";
+"all_tasks" = "All Tasks";
+"grouping_method" = "Grouping Method";
+"by_course" = "By Course";
+"by_priority" = "By Priority";
+"by_tag" = "By Tag";
+"list_scheduled_notifications_label" = "List Scheduled Notifications";
+"clear_all_filters_label" = "Clear All Filters";
+"other_filter_section" = "Other";
+"within_2_3_days" = "Within 2-3 Days";
+"within_4_7_days" = "Within 4-7 Days";
+
+// MARK: - AddReminderSheet
+"before_due_option" = "Before Due";
+"at_plan_option" = "At Plan Time";
+"custom_time_option" = "Custom Time";
+"advance_time" = "Advance Time";
+"will_remind_at_format" = "Will remind at %@";
+"reminder_time" = "Reminder Time";
+"15_min_before" = "15 minutes before";
+"30_min_before" = "30 minutes before";
+"1_hour_before" = "1 hour before";
+"2_hours_before" = "2 hours before";
+"1_day_before" = "1 day before";
+"2_days_before" = "2 days before";
+"daily_at" = "Daily at %@ reminder";
+"weekly_at" = "Every %@ reminder";
+"monthly_at" = "Monthly day %d at %@ reminder";
+
+// MARK: - CourseGridView / Course Detail
+"unnamed_course" = "Unnamed Course";
+"professor" = "Professor";
+"time" = "Time";
+"location" = "Location";
+"notification" = "Notification";
+"on" = "On";
+"off" = "Off";
+
+// MARK: - CourseFormView
+"enable_course_notification" = "Enable Course Notification";
+"course_notification" = "Course Notification";
+"remember_enable_notification_in_settings" = "Remember to enable notifications in Settings";
+"start_period" = "Start Period";
+"end_period" = "End Period";
+"period" = "Period";
+"course_multiple_period_tip" = "If course spans multiple periods, fill in complete info, otherwise you'll need to edit each period separately after creation";
+
+// MARK: - LinkView
+"weather_detail" = "Weather Detail";
+"close" = "Close";
+"high_low_temp %@ %@" = "H %@ L %@";
+"next_course" = "Next Course";
+"minutes_remaining %lld" = "%lld min left";
+"no_more_courses_today" = "No more courses today";
+"take_a_rest" = "Take a rest~";
+"no_today_tasks" = "No tasks for today";
+"status_todo" = "To Do";
+"status_doing" = "In Progress";
+"status_done" = "Done";
+"today_tasks" = "Today's Tasks";
+"overdue_count %lld" = "%lld overdue";
+"plan_expired_count %lld" = "%lld plan expired";
+"today_tasks_count %lld" = "%lld today";
+"in_progress_count %lld" = "%lld in progress";
+"no_tasks" = "No tasks";
+"quick_features" = "Quick Features";
+"school_announcements" = "Announcements";
+"common_links" = "Common Links";
+"food_wheel" = "Food Wheel";
+"restaurant" = "Restaurant";
+"no_banner_today" = "No banner ads today";
+"no_banner_until_midnight" = "No banners until 23:59";
+"watch_video_disable_banner" = "Watch 30s video to disable banner";
+"after_watching_disable_banner" = "After watching, banner disabled today";
+"disable_today_banner_title" = "Disable today's banner?";
+"start_watching" = "Start Watching";
+"disable_banner_message" = "After watching a ~30 second reward video, banner ads will be disabled until 23:59 today.";
+"video_not_ready" = "Video not ready";
+"loading_ad_retry" = "Loading ad, please try again later.";
+"daily_view_limit_reached" = "Daily view limit reached.";
+"choose_meal" = "Choose Meal";
+"midnight_snack" = "Midnight Snack";
+"tag_activity" = "Activity";
+"tag_club" = "Club";
+"tag_other" = "Other";
+"tag_announcement" = "Announcement";
+"add_broadcast_hint" = "To add activity broadcast, go to About page";
+"connecting_check_network" = "Connecting, please check network";
+"department_websites" = "Department Websites";
+"course_selection_desktop_hint" = "Please use desktop for course selection, I can't find the URL";
+"graduate_abbreviation_hint" = "I don't know some graduate program abbreviations, contact me if needed";
+"go_to_host %@" = "Go to · %@";
+"open_link" = "Open Link";
+"copy_link" = "Copy Link";
+"highest" = "High";
+"lowest" = "Low";
+"wind_speed" = "Wind";
+"humidity" = "Humidity";
+"update_time" = "Updated";
+
+// MARK: - LinkView Greetings
+"rain_keyword" = "rain";
+"greeting_morning_1 %@" = "Good morning%@! A new day begins";
+"greeting_morning_2 %@" = "Good morning%@! Let's do our best today~";
+"greeting_late_morning_1 %@" = "Good morning%@!";
+"greeting_late_morning_2 %@" = "Good morning%@! Good luck in class~";
+"greeting_noon_1 %@" = "Good noon%@! Remember to eat lunch";
+"greeting_noon_2 %@" = "Good noon%@!";
+"greeting_afternoon_1 %@" = "Good afternoon%@!";
+"greeting_afternoon_2 %@" = "Good afternoon%@, hang in there, class ends soon!";
+"greeting_evening_1 %@" = "Good evening%@! Great job today";
+"greeting_evening_2 %@" = "Good evening%@!";
+"greeting_night_1 %@" = "It's late%@, get some rest!";
+"greeting_night_2 %@" = "It's early morning%@, sleep early~";
+"greeting_rain_1 %@" = "Rainy day%@, bring an umbrella!";
+"greeting_rain_2 %@" = "It's raining%@, watch your step!";
+"greeting_cold_1 %@" = "A bit cold today%@, wear more!";
+"greeting_cold_2 %lld %@" = "%lld°C%@, stay warm!";
+"greeting_hot_1 %@" = "So hot today%@, drink water!";
+"greeting_hot_2 %lld %@" = "%lld°C%@, don't forget sunscreen!";
+"greeting_warm_1 %@" = "Nice weather today%@, go for a walk?";
+"greeting_warm_2 %@" = "Comfortable weather%@!";
+"greeting_general_1 %@" = "Let's do our best today%@!";
+"greeting_general_2 %@" = "Have a safe day%@!";
+"greeting_general_3 %@" = "Remember to eat well%@!";
+"greeting_general_4 %@" = "Keep smiling%@, good things are coming!";
+"greeting_welcome %@" = "Welcome back%@!";
+
+// MARK: - MemoData Enums
+"overdue_days %lld" = "%lld days overdue";
+"overdue_hours %lld" = "%lld hours overdue";
+"just_overdue" = "Just overdue";
+"days_remaining %lld" = "%lld days left";
+"hours_remaining %lld" = "%lld hours left";
+"about_to_expire" = "About to expire";
+"tag_type_activity" = "Activity";
+"tag_type_homework" = "Homework";
+"tag_type_exam" = "Exam";
+"tag_type_meeting" = "Meeting";
+"tag_type_reminder" = "Reminder";
+"tag_type_other" = "Other";
+"status_not_started" = "Not Started";
+"status_snoozed" = "Snoozed";
+"priority_normal" = "Normal";
+"priority_important" = "Important";
+"priority_urgent" = "Urgent";
+"reminder_before_due" = "Before Due";
+"reminder_at_plan" = "At Plan Time";
+"reminder_custom" = "Custom";
+"repeat_none" = "No Repeat";
+"repeat_daily" = "Daily";
+"repeat_weekly" = "Weekly";
+"repeat_monthly" = "Monthly";
+
+// MARK: - MemoManager
+"sort_due_date" = "Due Date";
+"sort_priority" = "Priority";
+"sort_created_at" = "Created";
+"sort_updated_at" = "Updated";
+"notification_due_1day" = "1 day until due";
+"notification_due_30min" = "30 minutes until due";
+"notification_plan_time" = "Plan time reached, time to start!";
+"notification_due_at %@" = "Due %@";
+"notification_plan_at %@" = "Plan %@";
+"notification_tap_for_details" = "Tap for details";
+"notification_subtitle %@ %@" = "Tag: %@ · Priority: %@";
+
+// MARK: - SpinningWheelView
+"reset" = "Reset";
+"start_spin" = "Spin the Wheel";
+
+// MARK: - AddStoreView
+"store_name_required" = "Store Name*";
+"google_maps_url_required" = "Google Maps URL*";
+"business_hours_placeholder" = "Hours (e.g. 11:00–12:30)*";
+"phone_optional" = "Phone (optional)";
+"address_required" = "Address*";
+"basic_info" = "Basic Info";
+"required_fields_hint" = "Fields marked with * are required.";
+"submit_failed_hint" = "Submit failed. Check required fields or try later.";
+"submit" = "Submit";
+"add_store" = "Add Store";
+"upload_success" = "Upload Successful";
+
+// MARK: - RandomFoodView
+"spinner" = "Spinner";
+"restaurant_list" = "Restaurant List";
+"restaurant_list_footer" = "Check restaurants to include in spin\nVisit Life page to add restaurants";
+
+// MARK: - WebData
+"web_main_site" = "Main Site";
+"web_student" = "Student";
+"web_student_info" = "Student Info System";
+"web_lms" = "LMS 3.0";
+"web_course" = "Courses";
+"web_course_search" = "Course Search";
+"web_course_review" = "Course Reviews";
+"web_past_exam" = "Past Exams";
+"web_departments" = "Departments";
+"web_law_college" = "College of Law";
+"web_business_college" = "College of Business";
+"web_public_affairs_college" = "College of Public Affairs";
+"web_social_science_college" = "College of Social Sciences";
+"web_humanities_college" = "College of Humanities";
+"web_eecs_college" = "College of EECS";
+"web_law_dept" = "Law Dept.";
+"web_ba_dept" = "Business Admin.";
+"web_finance_dept" = "Finance Dept.";
+"web_accounting_dept" = "Accounting Dept.";
+"web_statistics_dept" = "Statistics Dept.";
+"web_leisure_dept" = "Leisure Sports";
+"web_pa_dept" = "Public Admin.";
+"web_pf_dept" = "Public Finance";
+"web_realestate_dept" = "Real Estate";
+"web_econ_dept" = "Economics Dept.";
+"web_sociology_dept" = "Sociology Dept.";
+"web_sw_dept" = "Social Work";
+"web_chinese_dept" = "Chinese Dept.";
+"web_foreign_lang_dept" = "Foreign Languages";
+"web_history_dept" = "History Dept.";
+"web_csie_dept" = "CSIE Dept.";
+"web_csie_unofficial" = "CSIE (Unofficial)";
+"web_ee_dept" = "EE Dept.";
+"web_comm_dept" = "Comm. Eng.";
+"web_mis_grad" = "MIS Graduate";
+"web_ib_grad" = "IB Graduate";
+"web_urban_grad" = "Urban Planning";
+"web_crim_grad" = "Criminology";
+"web_calendar" = "Calendar";
+"web_student_union" = "Student Union";
+"web_su_linktree" = "SU Linktree";
+"web_vote_site" = "Voting Site";
+"web_others" = "Others";
+"web_clubs" = "Clubs";
+"web_campus_directory" = "Campus Directory";
+"web_suggestion" = "Suggestions";
+"web_library_login" = "Library Login";
+"web_leave_system" = "Leave System";
+
+// MARK: - Widget Strings
+"widget_next_task" = "Next Task:";
+"widget_plan_time" = "Plan Time:";
+"widget_due_time" = "Due Time:";
+"widget_tag_type %@" = "Type: %@";
+"widget_priority %@" = "Priority: %@";
+"widget_priority_short %@" = "Priority: %@";
+"widget_no_task_hint" = "If data not refreshed, try opening the app or check network";
+"widget_time_none" = "Time: None";
+"widget_next_course" = "Next Course:";
+"widget_start_time" = "Start Time:";
+"widget_start_time_short %@" = "Start: %@";
+"widget_professor %@" = "Prof: %@";
+"widget_classroom %@" = "Room: %@";
+"widget_no_data_hint" = "If data not refreshed, try opening the app or check network";
+"widget_today" = "Today";
+"widget_no_tasks_today" = "No tasks today";
+"widget_my_tasks" = "My Tasks";
+"widget_pending_count %lld" = "%lld pending";
+"widget_great_no_tasks" = "Great! No pending tasks";
+"widget_task_overview" = "Task Overview";
+"widget_section_overdue" = "Overdue";
+"widget_section_plan_overdue" = "Plan Expired";
+"widget_section_today" = "Today";
+"widget_section_this_week" = "This Week";
+"widget_section_others" = "Other Tasks";
+"widget_great" = "Awesome!";
+"widget_no_pending_tasks" = "No pending tasks";
+"widget_more_tasks %lld" = "%lld more tasks not shown...";
+"widget_already_overdue" = "Overdue";
+"widget_today_time %@" = "Today %@";
+"widget_date_today" = "Today";
+"widget_date_tomorrow" = "Tomorrow";
+"widget_overdue_days %lld" = "%lld days overdue";
+"widget_plan_expired_days %lld" = "%lld days past plan";
+"widget_days_left %lld" = "%lld days";
+"widget_task_list" = "Task List";
+"widget_task_list_desc" = "Shows pending tasks and reminders";
+"widget_day_mon" = "Mon";
+"widget_day_tue" = "Tue";
+"widget_day_wed" = "Wed";
+"widget_day_thu" = "Thu";
+"widget_day_fri" = "Fri";
+"widget_course_overview" = "Course Schedule";
+"widget_course_overview_desc" = "Shows Mon-Fri schedule";
+
+// MARK: - New Form Keys (ReportBugView, FeaturesView, AddOrderView)
+"issue_found_required" = "Issue Found*";
+"issue_found_placeholder" = "e.g., Timetable loading failed, ad height error...";
+"issue_detail_required" = "Issue Details*";
+"issue_detail_placeholder" = "Specific steps or how to reproduce (path, button, error message...)";
+"email_optional_placeholder" = "Your email (optional)";
+"contact_method_optional" = "Contact Method (optional)";
+"issue_form_required_hint" = "\"Issue Found\" and \"Issue Details\" are required.";
+"report_bug_title" = "Report Bug";
+"feature_name_required" = "Feature Name*";
+"feature_name_placeholder" = "e.g., Timetable sharing, course reminders...";
+"feature_detail_required" = "Feature Details*";
+"feature_detail_placeholder" = "Specific behavior (scenario, button position, flow...)";
+"feature_form_required_hint" = "\"Feature Name\" and \"Feature Details\" are required.";
+"feature_request_title" = "Feature Request";
+
+// MARK: - CourseGet Keys
+"enter_course_code" = "Enter course code:";
+"course_code_placeholder" = "e.g., U4001 or partial number";
+"searching" = "Searching...";
+"search_course" = "Search Course";
+"skip_if_no_course_code" = "Press Skip if not adding by course code";
+"no_course_found" = "No course found";
+"search_error_hint" = "Error occurred, possibly too many results or wrong format. Please enter a more specific code";
+"course_code_label %@" = "Course Code: %@";
+"course_name_label %@" = "Course Name: %@";
+"course_teacher_label %@" = "Instructor: %@";
+"course_time_label %@" = "Class Time: %@";
+"course_location_label %@" = "Classroom: %@";
+"no_course_queried" = "No course searched.";
+"search_result_header" = "Search Results (Select then press Next)";
+"course_info_may_error" = "Course info may be incorrect, please verify after pressing Next";
+
+// MARK: - AddOrderView Keys
+"announcement_content_required" = "Announcement Content*";
+"note_length_focus" = "Note length and key points";
+"char_count %lld" = "%lld characters";
+"related_info" = "Related Info";
+"related_url_optional" = "Related URL (optional)";
+"select_tag" = "Select Tag";
+"set_in_about_page" = "Please set in About page";
+"display_time_placeholder" = "Display time (e.g., until 10/15 or one week)";
+"announcement_form_required_hint" = "\"Announcement Content\" and \"Nickname\" are required.";
+"add_announcement_title" = "Add Announcement";
+"tag_event" = "Event";
+"you_are_admin" = "✅ You are now admin";
+
+// MARK: - CourseGet
+"select_year" = "Select Year";
+"select_semester" = "Select Semester";
+
+// MARK: - CourseData Notification
+"not_filled" = "Not filled";
+"class_reminder" = "Class Reminder";
+"notification_class_body %@ %@ %@ %@" = "Time: %@ %@\nLocation: %@\nTeacher: %@";
+
+// MARK: - ContactMeView
+"enter_admin_password" = "Enter Admin Password";
+"password" = "Password";
+"wrong_password" = "Wrong Password";
+
+// MARK: - LifeView
+"high_temp %@" = "H %@";
+"low_temp %@" = "L %@";
+"update_time_label %@" = "Updated %@";
+
+// MARK: - CourseGridView
+"tomorrow" = "Tomorrow";
+
+// MARK: - PostDetailView
+"post_content_title" = "Announcement Content";
+
+// MARK: - AboutView Reward
+"watch_30s_remaining %lld" = "Watch 30s video (%lld remaining)";

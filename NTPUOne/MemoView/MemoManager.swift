@@ -29,6 +29,15 @@ class MemoManager: ObservableObject {
         case priority = "優先級"
         case createdAt = "建立時間"
         case updatedAt = "更新時間"
+        
+        var displayName: String {
+            switch self {
+            case .dueDate: return String(localized: "sort_due_date")
+            case .priority: return String(localized: "sort_priority")
+            case .createdAt: return String(localized: "sort_created_at")
+            case .updatedAt: return String(localized: "sort_updated_at")
+            }
+        }
     }
     
     init(context: NSManagedObjectContext? = nil) {
@@ -490,7 +499,7 @@ class MemoManager: ObservableObject {
                         identifier: "memo_\(memo.id)_auto_due_1day",
                         memo: memo,
                         triggerDate: oneDayBefore,
-                        bodyOverride: "距離截止時間還有 1 天"
+                        bodyOverride: String(localized: "notification_due_1day")
                     )
                 }
                 
@@ -501,7 +510,7 @@ class MemoManager: ObservableObject {
                         identifier: "memo_\(memo.id)_auto_due_30min",
                         memo: memo,
                         triggerDate: thirtyMinsBefore,
-                        bodyOverride: "距離截止時間還有 30 分鐘"
+                        bodyOverride: String(localized: "notification_due_30min")
                     )
                 }
             }
@@ -518,7 +527,7 @@ class MemoManager: ObservableObject {
                     identifier: "memo_\(memo.id)_auto_plan",
                     memo: memo,
                     triggerDate: planAt,
-                    bodyOverride: "計劃時間到了，該開始處理了"
+                    bodyOverride: String(localized: "notification_plan_time")
                 )
             }
         }
@@ -534,10 +543,10 @@ class MemoManager: ObservableObject {
     private func memoNotificationDetail(for memo: Memo) -> String {
         var parts: [String] = []
         if let dueAt = memo.dueAt {
-            parts.append("截止 \(formatNotificationDate(dueAt))")
+            parts.append(String(localized: "notification_due_at \(formatNotificationDate(dueAt))"))
         }
         if let planAt = memo.planAt {
-            parts.append("計劃 \(formatNotificationDate(planAt))")
+            parts.append(String(localized: "notification_plan_at \(formatNotificationDate(planAt))"))
         }
         return parts.joined(separator: " · ")
     }
@@ -561,7 +570,7 @@ class MemoManager: ObservableObject {
         case (nil, false):
             return detail
         case (nil, true):
-            return "點擊查看詳情"
+            return String(localized: "notification_tap_for_details")
         }
     }
     
@@ -574,7 +583,7 @@ class MemoManager: ObservableObject {
     ) {
         let content = UNMutableNotificationContent()
         content.title = "📝 \(memo.title)"
-        content.subtitle = "標籤：\(memo.tagType.rawValue) · 優先：\(memo.priority.displayName)"
+        content.subtitle = String(localized: "notification_subtitle \(memo.tagType.displayName) \(memo.priority.displayName)")
         content.body = buildMemoNotificationBody(for: memo, bodyOverride: bodyOverride)
         content.sound = .default
         content.userInfo = ["memoId": memo.id]

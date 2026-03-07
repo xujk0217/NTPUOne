@@ -251,45 +251,45 @@ struct CourseGetView: View {
                     Section{
                         HStack{
                             // 使用 Picker 选择年份
-                            Picker("選擇年份", selection: $viewModel.courseYear) {
+                            Picker(String(localized: "select_year"), selection: $viewModel.courseYear) {
                                 ForEach(years, id: \.self) { year in
                                     Text("\(year)")
                                 }
                             }
-                            Picker("選擇學期", selection: $viewModel.courseSemester) {
+                            Picker(String(localized: "select_semester"), selection: $viewModel.courseSemester) {
                                 ForEach(semesters, id: \.self) { semester in
                                     Text("\(semester)")
                                 }
                             }
                         }
                         HStack{
-                            Text("輸入課程編號:")
-                            TextField("如:U4001或只打部分數字", text: $viewModel.courseno)
+                            Text(String(localized: "enter_course_code"))
+                            TextField(String(localized: "course_code_placeholder"), text: $viewModel.courseno)
                         }
                         Button(action: { viewModel.fetchCourses() }) {
                             HStack(spacing: 8) {
                                 if viewModel.isLoading {
                                     ProgressView().scaleEffect(0.9)
                                 }
-                                Text(viewModel.isLoading ? "搜尋中…" : "查詢課程")
+                                Text(viewModel.isLoading ? String(localized: "searching") : String(localized: "search_course"))
                                     .fontWeight(.semibold)
                             }
                         }
                         .disabled(viewModel.isLoading)
 
                     } header: {
-                        Text("課程查詢")
+                        Text(String(localized: "course_search"))
                     } footer: {
-                        Text("如不需用課程編號新增，按 Skip")
+                        Text(String(localized: "skip_if_no_course_code"))
                     }
                     
                     Section{
                         if let errorMessage = viewModel.errorMessage {
                             if errorMessage == "沒有找到課程"{
-                                Text(errorMessage)
+                                Text(String(localized: "no_course_found"))
                                     .foregroundColor(.red)
                             }else {
-                                Text("發生錯誤，可能因搜尋數量太多或輸入格式不對，請輸入更具體的編號")
+                                Text(String(localized: "search_error_hint"))
                                     .foregroundColor(.red)
                             }
                         } else if !viewModel.courses.isEmpty {
@@ -301,11 +301,11 @@ struct CourseGetView: View {
                                 } label: {
                                     HStack{
                                         VStack(alignment: .leading) {
-                                            Text("課程編號: \(course.courseno)")
-                                            Text("課程名稱: \(course.courseName)")
-                                            Text("授課教師: \(course.teacher)")
-                                            Text("上課時間: \(course.time)")
-                                            Text("教室位置: \(course.location)")
+                                            Text(String(localized: "course_code_label \(course.courseno)"))
+                                            Text(String(localized: "course_name_label \(course.courseName)"))
+                                            Text(String(localized: "course_teacher_label \(course.teacher)"))
+                                            Text(String(localized: "course_time_label \(course.time)"))
+                                            Text(String(localized: "course_location_label \(course.location)"))
                                         }
                                         Spacer()
                                         Image(systemName: SelectCourseNo == course.courseno ? "circle.circle" : "circle")
@@ -316,13 +316,13 @@ struct CourseGetView: View {
                                 }
                             }
                         } else {
-                            Text("未查詢課程。")
+                            Text(String(localized: "no_course_queried"))
                                 .foregroundColor(.gray)
                         }
                     } header: {
-                        Text("搜尋結果（點選課程後按Next）")
+                        Text(String(localized: "search_result_header"))
                     } footer: {
-                        Text("課程資訊可能錯誤，按Next後請再檢查一遍")
+                        Text(String(localized: "course_info_may_error"))
                     }
                 }
             }
@@ -368,7 +368,7 @@ struct CourseGetView: View {
             .onAppear {
                 courseYearManager.loadYear()
         }
-            .navigationTitle("課程查詢")
+            .navigationTitle(String(localized: "course_search"))
         }
     }
     

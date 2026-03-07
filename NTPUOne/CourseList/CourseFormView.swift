@@ -53,11 +53,11 @@ struct CourseFormView: View {
                         Text("Teacher")
                     }
                     Section{
-                        Toggle("開啟上課通知", isOn: $course.isNotification)
+                        Toggle(String(localized: "enable_course_notification"), isOn: $course.isNotification)
                     } header: {
-                        Text("上課通知")
+                        Text(String(localized: "course_notification"))
                     } footer: {
-                        Text("記得到設定開啟通知")
+                        Text(String(localized: "remember_enable_notification_in_settings"))
                     }
                     Section {
                         Picker("Day", selection: $course.day) {
@@ -67,7 +67,7 @@ struct CourseFormView: View {
                         }
                         
                         if isNewCourse {
-                            Picker("開始節數", selection: $course.timeSlot) {
+                            Picker(String(localized: "start_period"), selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
@@ -80,13 +80,13 @@ struct CourseFormView: View {
                                 }
                             }
                             
-                            Picker("結束節數", selection: $endTimeSlot) {
+                            Picker(String(localized: "end_period"), selection: $endTimeSlot) {
                                 ForEach(filteredTimeSlots, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
                             }
                         } else {
-                            Picker("節數", selection: $course.timeSlot) {
+                            Picker(String(localized: "period"), selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
@@ -96,7 +96,7 @@ struct CourseFormView: View {
                         Text("Time")
                     } footer: {
                         if isNewCourse {
-                            Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
+                            Text(String(localized: "course_multiple_period_tip"))
                         }
                     }
                 }
@@ -353,11 +353,11 @@ struct CourseGFormView: View {
                         Text("Teacher")
                     }
                     Section{
-                        Toggle("開啟上課通知", isOn: $course.isNotification)
+                        Toggle(String(localized: "enable_course_notification"), isOn: $course.isNotification)
                     } header: {
-                        Text("上課通知")
+                        Text(String(localized: "course_notification"))
                     } footer: {
-                        Text("記得到設定開啟通知")
+                        Text(String(localized: "remember_enable_notification_in_settings"))
                     }
                     Section {
                         Picker("Day", selection: $course.day) {
@@ -367,7 +367,7 @@ struct CourseGFormView: View {
                         }
                         
                         if isNewCourse {
-                            Picker("開始節數", selection: $course.timeSlot) {
+                            Picker(String(localized: "start_period"), selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
@@ -380,13 +380,13 @@ struct CourseGFormView: View {
                                 }
                             }
                             
-                            Picker("結束節數", selection: $endTimeSlot) {
+                            Picker(String(localized: "end_period"), selection: $endTimeSlot) {
                                 ForEach(filteredTimeSlots, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
                             }
                         } else {
-                            Picker("節數", selection: $course.timeSlot) {
+                            Picker(String(localized: "period"), selection: $course.timeSlot) {
                                 ForEach(Course.TimeSlot.allCases, id: \.self) { slot in
                                     Text(slot.rawValue).tag(slot)
                                 }
@@ -396,7 +396,7 @@ struct CourseGFormView: View {
                         Text("Time")
                     } footer: {
                         if isNewCourse {
-                            Text("如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改")
+                            Text(String(localized: "course_multiple_period_tip"))
                         }
                     }
 //                    // 廣告標記

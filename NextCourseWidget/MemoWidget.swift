@@ -199,7 +199,7 @@ struct MemoSmallWidgetView: View {
                 Image(systemName: "calendar.badge.clock")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.blue)
-                Text("今日")
+                Text(String(localized: "widget_today", bundle: .main))
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
                 
@@ -242,7 +242,7 @@ struct MemoSmallWidgetView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 28))
                         .foregroundColor(.green)
-                    Text("今天沒有任務")
+                    Text(String(localized: "widget_no_tasks_today", bundle: .main))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -373,10 +373,10 @@ struct MemoMediumWidgetView: View {
                 Image(systemName: "checklist")
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.blue)
-                Text("我的任務")
+                Text(String(localized: "widget_my_tasks", bundle: .main))
                     .font(.system(size: 14, weight: .bold))
                 Spacer()
-                Text("\(entry.memos.count) 個待辦")
+                Text(String(localized: "widget_pending_count \(entry.memos.count)", bundle: .main))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
@@ -393,7 +393,7 @@ struct MemoMediumWidgetView: View {
                     Image(systemName: "checkmark.circle")
                         .font(.system(size: 28))
                         .foregroundColor(.green)
-                    Text("太棒了！沒有待辦任務")
+                    Text(String(localized: "widget_great_no_tasks", bundle: .main))
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -458,15 +458,15 @@ struct MemoMediumWidgetView: View {
         let now = Date()
         
         if calendar.isDateInToday(date) {
-            return "今天"
+            return String(localized: "widget_date_today", bundle: .main)
         } else if calendar.isDateInTomorrow(date) {
-            return "明天"
+            return String(localized: "widget_date_tomorrow", bundle: .main)
         } else if date < now {
             let days = calendar.dateComponents([.day], from: date, to: now).day ?? 0
-            return "逾期\(days)天"
+            return String(localized: "widget_overdue_days \(days)", bundle: .main)
         } else {
             let days = calendar.dateComponents([.day], from: now, to: date).day ?? 0
-            return "\(days)天"
+            return String(localized: "widget_days_left \(days)", bundle: .main)
         }
     }
 }
@@ -585,11 +585,11 @@ struct MemoLargeWidgetView: View {
         }
         
         // 按優先級添加：逾期 > 計劃過期 > 今天 > 本週 > 其他
-        tryAddSection(name: "逾期", memos: overdue, color: .red)
-        tryAddSection(name: "計劃過期", memos: planOverdue, color: .orange)
-        tryAddSection(name: "今天", memos: today, color: .blue)
-        tryAddSection(name: "本週", memos: thisWeek, color: .green)
-        tryAddSection(name: "其他任務", memos: others, color: .gray)
+        tryAddSection(name: String(localized: "widget_section_overdue", bundle: .main), memos: overdue, color: .red)
+        tryAddSection(name: String(localized: "widget_section_plan_overdue", bundle: .main), memos: planOverdue, color: .orange)
+        tryAddSection(name: String(localized: "widget_section_today", bundle: .main), memos: today, color: .blue)
+        tryAddSection(name: String(localized: "widget_section_this_week", bundle: .main), memos: thisWeek, color: .green)
+        tryAddSection(name: String(localized: "widget_section_others", bundle: .main), memos: others, color: .gray)
         
         return result
     }
@@ -602,7 +602,7 @@ struct MemoLargeWidgetView: View {
                     Image(systemName: "checklist")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(.blue)
-                    Text("任務總覽")
+                    Text(String(localized: "widget_task_overview", bundle: .main))
                         .font(.system(size: 15, weight: .bold))
                     Spacer()
                     
@@ -619,7 +619,7 @@ struct MemoLargeWidgetView: View {
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.orange)
                         }
-                        Label("\(entry.memos.count) 個待辦", systemImage: "circle")
+                        Label(String(localized: "widget_pending_count \(entry.memos.count)", bundle: .main), systemImage: "circle")
                             .font(.system(size: 11))
                             .foregroundColor(.secondary)
                     }
@@ -639,9 +639,9 @@ struct MemoLargeWidgetView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.system(size: 48))
                             .foregroundColor(.green)
-                        Text("太棒了！")
+                        Text(String(localized: "widget_great", bundle: .main))
                             .font(.system(size: 16, weight: .bold))
-                        Text("沒有待辦任務")
+                        Text(String(localized: "widget_no_pending_tasks", bundle: .main))
                             .font(.system(size: 13))
                             .foregroundColor(.secondary)
                         Spacer()
@@ -667,7 +667,7 @@ struct MemoLargeWidgetView: View {
                         if entry.memos.count > totalDisplayed {
                             HStack {
                                 Spacer()
-                                Text("還有 \(entry.memos.count - totalDisplayed) 個任務未顯示...")
+                                Text(String(localized: "widget_more_tasks \(entry.memos.count - totalDisplayed)", bundle: .main))
                                     .font(.system(size: 10, weight: .medium))
                                     .foregroundColor(.secondary)
                                 Spacer()
@@ -760,7 +760,7 @@ struct MemoRowView: View {
                         .foregroundColor(isOverdue(dueAt) ? .red : .secondary)
                     
                     if isOverdue(dueAt) {
-                        Text("已逾期")
+                        Text(String(localized: "widget_already_overdue", bundle: .main))
                             .font(.system(size: 9))
                             .foregroundColor(.red)
                     }
@@ -780,9 +780,9 @@ struct MemoRowView: View {
         if calendar.isDateInToday(date) {
             let formatter = DateFormatter()
             formatter.dateFormat = "HH:mm"
-            return "今天 " + formatter.string(from: date)
+            return String(localized: "widget_today_time \(formatter.string(from: date))", bundle: .main)
         } else if calendar.isDateInTomorrow(date) {
-            return "明天"
+            return String(localized: "widget_date_tomorrow", bundle: .main)
         } else {
             let formatter = DateFormatter()
             formatter.dateFormat = "M/d"
@@ -832,7 +832,7 @@ struct MemoCompactRowView: View {
                                 .fill((isOverdue(dueAt) ? Color.red : Color.orange).opacity(0.15))
                         )
                 } else if let planAt = memo.planAt, isPlanOverdue(planAt) {
-                    Text("過期\(planOverdueDays(planAt))天")
+                    Text(String(localized: "widget_plan_expired_days \(planOverdueDays(planAt))", bundle: .main))
                         .font(.system(size: 8, weight: .medium))
                         .foregroundColor(.orange)
                         .padding(.horizontal, 3)
@@ -884,15 +884,15 @@ struct MemoCompactRowView: View {
         let now = Date()
         
         if calendar.isDateInToday(date) {
-            return "今天"
+            return String(localized: "widget_date_today", bundle: .main)
         } else if calendar.isDateInTomorrow(date) {
-            return "明天"
+            return String(localized: "widget_date_tomorrow", bundle: .main)
         } else if date < now {
             let days = calendar.dateComponents([.day], from: date, to: now).day ?? 0
-            return "過期\(days)天"
+            return String(localized: "widget_plan_expired_days \(days)", bundle: .main)
         } else {
             let days = calendar.dateComponents([.day], from: now, to: date).day ?? 0
-            return "\(days)天"
+            return String(localized: "widget_days_left \(days)", bundle: .main)
         }
     }
 }
@@ -942,8 +942,8 @@ struct MemoWidget: Widget {
                     .background(Color(.systemBackground))
             }
         }
-        .configurationDisplayName("任務清單")
-        .description("顯示待辦任務和提醒事項")
+        .configurationDisplayName(String(localized: "widget_task_list", bundle: .main))
+        .description(String(localized: "widget_task_list_desc", bundle: .main))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
     }
 }

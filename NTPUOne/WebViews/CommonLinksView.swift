@@ -30,7 +30,7 @@ struct CommonLinksView: View {
                                             .onAppear(perform: webManager.createData)
                                     }
                                 } footer: {
-                                    Text("連線中，請確認網路連線")
+                                    Text(String(localized: "connecting_check_network"))
                                 }
                             }
                         } else {
@@ -58,14 +58,14 @@ struct CommonLinksView: View {
                 }
             }
         }
-        .navigationTitle("常用連結")
+        .navigationTitle(String(localized: "common_links"))
         .onAppear {
             webManager.createData()
         }
     }
     
     private func disclosureGroup(for webs: WebsArray) -> some View {
-        DisclosureGroup("系網們") {
+        DisclosureGroup(String(localized: "department_websites")) {
             ForEach(webs.webs) { web in
                 webLinkButton(for: web)
             }
@@ -143,9 +143,9 @@ struct CommonLinksView: View {
     private func footerText(for id: Int) -> some View {
         Group {
             if id == 2 {
-                Text("選課請以電腦選課，因為我找不到網址")
+                Text(String(localized: "course_selection_desktop_hint"))
             } else if id == 3 {
-                Text("有些研究所我不會簡寫，如需要請聯絡我")
+                Text(String(localized: "graduate_abbreviation_hint"))
             }
         }
     }

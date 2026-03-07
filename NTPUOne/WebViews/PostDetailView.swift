@@ -69,7 +69,7 @@ struct PostDetailView: View {
                 .padding()
             }
         }
-        .navigationTitle("公告內文")
+        .navigationTitle(String(localized: "post_content_title"))
     }
 }
 

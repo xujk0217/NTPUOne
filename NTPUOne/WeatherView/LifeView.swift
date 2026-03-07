@@ -39,7 +39,7 @@ struct LifeView: View {
                                 HStack {
                                     Spacer()
                                     VStack(spacing: 8) {
-                                        Text("Loading…")
+                                        Text(String(localized: "loading"))
                                             .font(.headline)
                                             .foregroundStyle(.secondary)
                                             .onAppear { weatherManager.fetchData() }
@@ -60,7 +60,7 @@ struct LifeView: View {
 
                         // 交通
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Traffic")
+                            Text(String(localized: "traffic"))
                                 .font(.title3.weight(.semibold))
                                 .padding(.horizontal)
 
@@ -72,15 +72,15 @@ struct LifeView: View {
 
                         // 今天吃什麼
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("NTPU - 今天吃什麼？")
+                            Text(String(localized: "ntpu_what_to_eat"))
                                 .font(.title3.weight(.semibold))
                                 .padding(.horizontal)
 
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                GridCard(icon: "cup.and.saucer.fill", title: "早餐", iconTint: .orange) { BreakfastView() }
-                                GridCard(icon: "carrot.fill",        title: "午餐",  iconTint: .green)  { LunchView() }
-                                GridCard(icon: "wineglass.fill",     title: "晚餐",  iconTint: .purple) { dinnerView() }
-                                GridCard(icon: "moon.stars.fill",    title: "宵夜",  iconTint: .indigo) { MSView() }
+                                GridCard(icon: "cup.and.saucer.fill", title: String(localized: "breakfast"), iconTint: .orange) { BreakfastView() }
+                                GridCard(icon: "carrot.fill",        title: String(localized: "lunch"),  iconTint: .green)  { LunchView() }
+                                GridCard(icon: "wineglass.fill",     title: String(localized: "dinner"),  iconTint: .purple) { dinnerView() }
+                                GridCard(icon: "moon.stars.fill",    title: String(localized: "late_night_snack"),  iconTint: .indigo) { MSView() }
                             }
                             .padding(.horizontal)
                         }
@@ -246,7 +246,7 @@ extension LifeView{
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text(safeTemp(currentTemperature))
                                 .font(.system(size: 34, weight: .bold, design: .rounded))
-                            Text("現在")
+                            Text(String(localized: "now"))
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
@@ -258,8 +258,8 @@ extension LifeView{
                 // 指標膠囊列
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        StatChip(icon: "thermometer.sun.fill", text: "高 \(safeTemp(maxTemperature))", chipColor: .orange)
-                        StatChip(icon: "thermometer.snowflake", text: "低 \(safeTemp(minTemperature))", chipColor: .blue)
+                        StatChip(icon: "thermometer.sun.fill", text: String(localized: "high_temp \(safeTemp(maxTemperature))"), chipColor: .orange)
+                        StatChip(icon: "thermometer.snowflake", text: String(localized: "low_temp \(safeTemp(minTemperature))"), chipColor: .blue)
                         Spacer()
                     }
                     HStack(spacing: 8) {
@@ -267,7 +267,7 @@ extension LifeView{
                         StatChip(icon: "humidity", text: safeHumidity(humidity), chipColor: .indigo)
                         Spacer()
                         if let time = shortTimeString(getTime) {
-                            Label("更新 \(time)", systemImage: "clock")
+                            Label(String(localized: "update_time_label \(time)"), systemImage: "clock")
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                         }

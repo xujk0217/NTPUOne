@@ -24,6 +24,14 @@ struct AddOrderView: View {
     enum Tags: String, CaseIterable, Identifiable {
         case 社團, 活動, 其他
         var id: Self { self }
+        
+        var displayName: String {
+            switch self {
+            case .社團: return String(localized: "tag_club")
+            case .活動: return String(localized: "tag_event")
+            case .其他: return String(localized: "tag_other")
+            }
+        }
     }
     @State private var tag: Tags = .其他
 
@@ -53,13 +61,13 @@ struct AddOrderView: View {
         NavigationStack {
             ZStack {
                 Form {
-                    Section("公告內容＊") {
+                    Section(String(localized: "announcement_content_required")) {
                         TextEditor(text: $message)
                             .frame(minHeight: 120)
                             .overlay {
                                 if message.isEmpty {
                                     VStack{
-                                        Text("輸入公告事項")
+                                        Text(String(localized: "enter_announcement"))
                                             .foregroundStyle(.secondary)
                                             .padding(.top, 8)
                                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -68,42 +76,42 @@ struct AddOrderView: View {
                                 }
                             }
                         HStack {
-                            Text("注意長度與重點")
+                            Text(String(localized: "note_length_focus"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Spacer()
-                            Text("\(message.count) 字")
+                            Text(String(localized: "char_count \\(message.count)"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
 
-                    Section("相關資訊") {
-                        TextField("相關網址（選填）", text: $url)
+                    Section(String(localized: "related_info")) {
+                        TextField(String(localized: "related_url_optional"), text: $url)
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     }
 
-                    Section("分類") {
-                        Picker("選擇標籤", selection: $tag) {
+                    Section(String(localized: "category")) {
+                        Picker(String(localized: "select_tag"), selection: $tag) {
                             ForEach(Tags.allCases) { t in
-                                Text(t.rawValue).tag(t)
+                                Text(t.displayName).tag(t)
                             }
                         }
                         .pickerStyle(.segmented)
 
-                        Text("若標籤與內容不符，可能會被移除。")
+                        Text(String(localized: "tag_mismatch_warning"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
 
                     Section {
                         HStack {
-                            Text("暱稱")
+                            Text(String(localized: "nickname"))
                             Spacer()
                             if nickname.isEmpty {
-                                Text("請至 About 頁面設定")
+                                Text(String(localized: "set_in_about_page"))
                                     .foregroundStyle(.secondary)
                             } else {
                                 Text(nickname)
@@ -111,21 +119,21 @@ struct AddOrderView: View {
                             }
                         }
 
-                        TextField("你的信箱（選填）", text: $email)
+                        TextField(String(localized: "email_optional_placeholder"), text: $email)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
 
-                        TextField("展示時間（例如：至 10/15 或一週）", text: $time)
+                        TextField(String(localized: "display_time_placeholder"), text: $time)
                             .textInputAutocapitalization(.never)
                     } header: {
-                        Text("聯絡資訊")
+                        Text(String(localized: "contact_info"))
                     } footer: {
                         if !isFormValid {
-                            Text("「公告內容」與「暱稱」為必填。")
+                            Text(String(localized: "announcement_form_required_hint"))
                         }
                         if firebaseFail {
-                            Text("送出失敗，請稍後再試或確認網路連線。")
+                            Text(String(localized: "submit_failed_hint"))
                                 .foregroundStyle(.red)
                         }
                     }
@@ -137,7 +145,7 @@ struct AddOrderView: View {
                             if isSubmitting {
                                 ProgressView()
                             } else {
-                                Text("送出")
+                                Text(String(localized: "submit"))
                                     .font(.headline)
                             }
                         }
@@ -147,24 +155,24 @@ struct AddOrderView: View {
                         NavigationLink {
                             ContactMeView()
                         } label: {
-                            Label("聯絡我～", systemImage: "message")
+                            Label(String(localized: "contact_me"), systemImage: "message")
                                 .bold()
                         }
                     }
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("新增公告")
+            .navigationTitle(String(localized: "add_announcement_title"))
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") {
+                    Button(String(localized: "done")) {
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
                                                         to: nil, from: nil, for: nil)
                     }
                 }
             }
-            .alert("上傳成功", isPresented: $isSuccessSend) {
+            .alert(String(localized: "upload_success"), isPresented: $isSuccessSend) {
                 Button("OK") { isSuccessSend = false }
             }
             // 廣告標記

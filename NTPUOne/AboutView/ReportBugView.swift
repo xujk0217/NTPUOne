@@ -37,15 +37,15 @@ struct ReportBugView: View {
             ZStack {
 
                 Form {
-                    Section("發現問題＊") {
-                        TextField("例如：課表載入失敗、廣告高度錯誤…", text: $issue)
+                    Section(String(localized: "issue_found_required")) {
+                        TextField(String(localized: "issue_found_placeholder"), text: $issue)
                             .textInputAutocapitalization(.sentences)
                             .autocorrectionDisabled(false)
                     }
 
-                    Section("問題詳情＊") {
+                    Section(String(localized: "issue_detail_required")) {
                         AutoSizingTF(
-                            hint: "具體過程或如何重現（路徑、按鈕、錯誤訊息…）",
+                            hint: String(localized: "issue_detail_placeholder"),
                             text: $detail,
                             containerHeight: $containHeight,
                             onEnd: { hideKeyboard() }
@@ -54,18 +54,18 @@ struct ReportBugView: View {
                     }
 
                     Section {
-                        TextField("你的信箱（選填）", text: $email)
+                        TextField(String(localized: "email_optional_placeholder"), text: $email)
                             .keyboardType(.emailAddress)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
                     } header: {
-                      Text("聯絡方式（選填）")
+                      Text(String(localized: "contact_method_optional"))
                     } footer: {
                         if !isFormValid {
-                            Text("「發現問題」與「問題詳情」為必填。")
+                            Text(String(localized: "issue_form_required_hint"))
                         }
                         if firebaseFail {
-                            Text("送出失敗，請稍後再試或確認網路連線。")
+                            Text(String(localized: "submit_failed_hint"))
                                 .foregroundStyle(.red)
                         }
                     }
@@ -77,7 +77,7 @@ struct ReportBugView: View {
                             if isSubmitting {
                                 ProgressView()
                             } else {
-                                Text("送出")
+                                Text(String(localized: "submit"))
                                     .font(.headline)
                             }
                         }
@@ -87,14 +87,14 @@ struct ReportBugView: View {
                     .listRowBackground(Color.clear)
                 }
             }
-            .navigationTitle("回報問題")
+            .navigationTitle(String(localized: "report_bug_title"))
             .toolbar {
                 ToolbarItemGroup(placement: .keyboard) {
                     Spacer()
-                    Button("完成") { hideKeyboard() }
+                    Button(String(localized: "done")) { hideKeyboard() }
                 }
             }
-            .alert("上傳成功", isPresented: $isSuccessSend) {
+            .alert(String(localized: "upload_success"), isPresented: $isSuccessSend) {
                 Button("OK") { isSuccessSend = false }
             }
             // 廣告標記

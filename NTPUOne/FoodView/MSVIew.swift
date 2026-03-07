@@ -23,7 +23,7 @@ struct MSView: View {
                     if #available(iOS 17.0, *) {
                         let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
                         if !pins.isEmpty {
-                            Section("附近餐廣地圖") {
+                            Section(String(localized: "nearby_restaurant_map")) {
                                 Map(initialPosition: .camera(
                                     MapCamera(
                                         centerCoordinate: CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682),

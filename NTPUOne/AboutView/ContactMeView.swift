@@ -48,7 +48,7 @@ struct ContactMeView: View {
                     Spacer()
                 }
                 .padding(.vertical, 4)
-            } header: { Text("名字") }
+            } header: { Text(String(localized: "name_header")) }
             .onTapGesture {
                 tapCount += 1
                 if tapCount >= 15 {
@@ -58,7 +58,7 @@ struct ContactMeView: View {
             }
             
             // Social
-            Section("社群") {
+            Section(String(localized: "social_section")) {
                 ContactLinkRow(
                     icon: "camera.aperture",
                     tint: .pink,
@@ -69,7 +69,7 @@ struct ContactMeView: View {
                     }
                 )
                 .contextMenu {
-                    Button("複製帳號", systemImage: "doc.on.doc") {
+                    Button(String(localized: "copy_account"), systemImage: "doc.on.doc") {
                         UIPasteboard.general.string = "ntpuone_jk"
                     }
                 }
@@ -87,7 +87,7 @@ struct ContactMeView: View {
                     }
                 )
                 .contextMenu {
-                    Button("複製 Email", systemImage: "doc.on.doc") {
+                    Button(String(localized: "copy_email"), systemImage: "doc.on.doc") {
                         UIPasteboard.general.string = "kevin16021777@gmail.com"
                     }
                 }
@@ -95,10 +95,10 @@ struct ContactMeView: View {
             if isAdmin {
                 Section("Admin"){
                     VStack(spacing: 15) {
-                        Text("✅ 你現在是管理員")
+                        Text(String(localized: "you_are_admin"))
                             .foregroundColor(.green)
 
-                        Button("登出管理員") {
+                        Button(String(localized: "logout_admin")) {
                             isAdmin = false
                         }
                         .foregroundColor(.red)
@@ -110,10 +110,10 @@ struct ContactMeView: View {
         .navigationTitle("Contact")
         .navigationBarTitleDisplayMode(.inline)
         .tint(.blue)
-        .alert("輸入管理員密碼", isPresented: $showPasswordPrompt) {
-            SecureField("密碼", text: $passwordInput)
+        .alert(String(localized: "enter_admin_password"), isPresented: $showPasswordPrompt) {
+            SecureField(String(localized: "password"), text: $passwordInput)
 
-            Button("確認") {
+            Button(String(localized: "confirm")) {
                 if passwordInput == correctPassword {
                     isAdmin = true   // ✅ 登入成功
                     adFree.refresh()
@@ -123,11 +123,11 @@ struct ContactMeView: View {
                 passwordInput = ""
             }
 
-            Button("取消", role: .cancel) {
+            Button(String(localized: "cancel"), role: .cancel) {
                 passwordInput = ""
             }
         }
-        .alert("密碼錯誤", isPresented: $showWrongPasswordAlert) {
+        .alert(String(localized: "wrong_password"), isPresented: $showWrongPasswordAlert) {
             Button("OK", role: .cancel) {}
         }
         if !adFree.isAdFree{

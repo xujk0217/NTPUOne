@@ -92,7 +92,7 @@ struct LinkView: View {
         let weather = station?.WeatherElement.Weather ?? ""
         let temp = Double(station?.WeatherElement.AirTemperature ?? "") ?? 20.0
         let name = nickname.isEmpty ? "" : " \(nickname)"
-        let isRain = weather.contains("雨")
+        let isRain = weather.contains(String(localized: "rain_keyword"))
         let isCold = temp < 14
         let isHot = temp >= 33
         let isWarm = !isRain && temp >= 20 && temp <= 27
@@ -100,27 +100,27 @@ struct LinkView: View {
         var candidates: [String] = []
 
         switch hour {
-        case 5..<9:  candidates += ["早安\(name)！新的一天開始了", "早安\(name)！今天也要加油～"]
-        case 9..<12: candidates += ["上午好\(name)！", "早安\(name)！上課加油～"]
-        case 12..<14: candidates += ["午安\(name)！記得吃午飯", "午安\(name)！"]
-        case 14..<18: candidates += ["下午好\(name)！", "下午好\(name)，撐一下就下課了！"]
-        case 18..<22: candidates += ["晚上好\(name)！辛苦了", "晚上好\(name)！"]
-        default:     candidates += ["夜深了\(name)，注意休息！", "凌晨了\(name)，早點睡～"]
+        case 5..<9:  candidates += [String(localized: "greeting_morning_1 \(name)"), String(localized: "greeting_morning_2 \(name)")]
+        case 9..<12: candidates += [String(localized: "greeting_late_morning_1 \(name)"), String(localized: "greeting_late_morning_2 \(name)")]
+        case 12..<14: candidates += [String(localized: "greeting_noon_1 \(name)"), String(localized: "greeting_noon_2 \(name)")]
+        case 14..<18: candidates += [String(localized: "greeting_afternoon_1 \(name)"), String(localized: "greeting_afternoon_2 \(name)")]
+        case 18..<22: candidates += [String(localized: "greeting_evening_1 \(name)"), String(localized: "greeting_evening_2 \(name)")]
+        default:     candidates += [String(localized: "greeting_night_1 \(name)"), String(localized: "greeting_night_2 \(name)")]
         }
 
-        if isRain { candidates += ["今天有雨\(name)，記得帶傘！", "外面有下雨，小心路滑\(name)！"] }
-        if isCold  { candidates += ["今天有點冷\(name)，多穿一件！", "氣溫 \(Int(temp))°C\(name)，保暖很重要！"] }
-        if isHot   { candidates += ["今天好熱\(name)，多喝水！", "氣溫 \(Int(temp))°C，記得防曬\(name)！"] }
-        if isWarm  { candidates += ["今天天氣不錯\(name)，出去走走？", "天氣舒適\(name)！"] }
+        if isRain { candidates += [String(localized: "greeting_rain_1 \(name)"), String(localized: "greeting_rain_2 \(name)")] }
+        if isCold  { candidates += [String(localized: "greeting_cold_1 \(name)"), String(localized: "greeting_cold_2 \(Int(temp)) \(name)")] }
+        if isHot   { candidates += [String(localized: "greeting_hot_1 \(name)"), String(localized: "greeting_hot_2 \(Int(temp)) \(name)")] }
+        if isWarm  { candidates += [String(localized: "greeting_warm_1 \(name)"), String(localized: "greeting_warm_2 \(name)")] }
 
         candidates += [
-            "今天也要好好加油\(name)！",
-            "平安順利的一天\(name)！",
-            "記得三餐要吃飽\(name)！",
-            "保持笑容\(name)，好事即將到來！"
+            String(localized: "greeting_general_1 \(name)"),
+            String(localized: "greeting_general_2 \(name)"),
+            String(localized: "greeting_general_3 \(name)"),
+            String(localized: "greeting_general_4 \(name)")
         ]
 
-        return candidates.randomElement() ?? "歡迎回來\(name)！"
+        return candidates.randomElement() ?? String(localized: "greeting_welcome \(name)")
     }
 
     // 天气 Toolbar 按钮
@@ -152,11 +152,11 @@ struct LinkView: View {
            let station = weatherData.records.Station.first {
             NavigationStack {
                 WeatherDetailView(station: station)
-                    .navigationTitle("天氣詳情")
+                    .navigationTitle(String(localized: "weather_detail"))
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
                         ToolbarItem(placement: .cancellationAction) {
-                            Button("關閉") {
+                            Button(String(localized: "close")) {
                                 showWeatherDetail = false
                             }
                         }
@@ -216,7 +216,7 @@ struct LinkView: View {
                         .font(.title2.weight(.bold))
                         .foregroundStyle(.primary)
                     
-                    Text("高\(safeTemp(maxTemp)) 低\(safeTemp(minTemp))")
+                    Text(String(localized: "high_low_temp \(safeTemp(maxTemp)) \(safeTemp(minTemp))"))
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                 }
@@ -233,7 +233,7 @@ struct LinkView: View {
     
     @ViewBuilder
     private var nextCourseSection: some View {
-        Section("下一堂課") {
+        Section(String(localized: "next_course")) {
             if let c = nextCourseOnAppear {
                 nextCourseCard(course: c)
             } else {
@@ -304,7 +304,7 @@ struct LinkView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let m = minutesUntilStart(of: course) {
-                    Text("還有 \(m-5) 分")
+                    Text(String(localized: "minutes_remaining \(m-5)"))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 2)
@@ -336,9 +336,9 @@ struct LinkView: View {
             Image(systemName: "checkmark.circle")
                 .font(.title2)
             VStack(alignment: .leading, spacing: 2) {
-                Text("今日已沒有課程")
+                Text(String(localized: "no_more_courses_today"))
                     .font(.headline)
-                Text("好好休息～")
+                Text(String(localized: "take_a_rest"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -384,7 +384,7 @@ struct LinkView: View {
     private var todayTasksList: some View {
         let todayMemos = getTodayMemos()
         if todayMemos.isEmpty {
-            Text("沒有今日待辦事項")
+            Text(String(localized: "no_today_tasks"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .padding(.vertical, 8)
@@ -406,10 +406,10 @@ struct LinkView: View {
     
     private func nextStatusName(_ currentStatus: Memo.MemoStatus) -> String {
         switch currentStatus {
-        case .todo: return "進行中"
-        case .doing: return "已完成"
-        case .done: return "待辦"
-        case .snoozed: return "進行中"
+        case .todo: return String(localized: "status_doing")
+        case .doing: return String(localized: "status_done")
+        case .done: return String(localized: "status_todo")
+        case .snoozed: return String(localized: "status_doing")
         }
     }
     
@@ -439,7 +439,7 @@ struct LinkView: View {
                     HStack(spacing: 3) {
                         HStack(spacing: 2) {
                             Image(systemName: memo.tagType.icon)
-                            Text(memo.tagType.rawValue)
+                            Text(memo.tagType.displayName)
                         }
                             .font(.caption2)
                             .foregroundStyle(memo.tagType.color)
@@ -474,7 +474,7 @@ struct LinkView: View {
             }
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("今日待辦")
+                Text(String(localized: "today_tasks"))
                     .font(.headline)
                 
                 todayTasksStatsView
@@ -500,7 +500,7 @@ struct LinkView: View {
             if stats.overdue > 0 {
                 HStack(spacing: 2) {
                     Image(systemName: "exclamationmark.triangle.fill")
-                    Text("\(stats.overdue) 逾期")
+                    Text(String(localized: "overdue_count \(stats.overdue)"))
                 }
                     .font(.caption)
                     .foregroundStyle(.red)
@@ -508,7 +508,7 @@ struct LinkView: View {
             if stats.planExpired > 0 {
                 HStack(spacing: 2) {
                     Image(systemName: "calendar.badge.exclamationmark")
-                    Text("\(stats.planExpired) 計劃過期")
+                    Text(String(localized: "plan_expired_count \(stats.planExpired)"))
                 }
                     .font(.caption)
                     .foregroundStyle(.purple)
@@ -516,7 +516,7 @@ struct LinkView: View {
             if stats.today > 0 {
                 HStack(spacing: 2) {
                     Image(systemName: "clock")
-                    Text("\(stats.today) 今日待辦")
+                    Text(String(localized: "today_tasks_count \(stats.today)"))
                 }
                     .font(.caption)
                     .foregroundStyle(.orange)
@@ -524,13 +524,13 @@ struct LinkView: View {
             if stats.total > 0 && stats.overdue == 0 && stats.today == 0 && stats.planExpired == 0 {
                 HStack(spacing: 2) {
                     Image(systemName: "list.bullet")
-                    Text("\(stats.total) 項進行中")
+                    Text(String(localized: "in_progress_count \(stats.total)"))
                 }
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             if stats.total == 0 {
-                Text("沒有待辦事項")
+                Text(String(localized: "no_tasks"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -560,21 +560,21 @@ struct LinkView: View {
     
     @ViewBuilder
     private var quickFeaturesSection: some View {
-        Section("功能快捷") {
+        Section(String(localized: "quick_features")) {
             LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
                 Button { goSchoolPosts = true } label: {
-                    featureCard(icon: "text.bubble.fill", title: "學校公告", iconColor: .blue)
+                    featureCard(icon: "text.bubble.fill", title: String(localized: "school_announcements"), iconColor: .blue)
                 }
                 .buttonStyle(.plain).contentShape(Rectangle())
 
                 Button { goLinks = true } label: {
-                    featureCard(icon: "macwindow", title: "常用連結", iconColor: .green)
+                    featureCard(icon: "macwindow", title: String(localized: "common_links"), iconColor: .green)
                 }
                 .buttonStyle(.plain).contentShape(Rectangle())
 
                 if #available(iOS 17.0, *) {
                     Button { goRandomFood = true } label: {
-                        featureCard(icon: "chart.pie.fill", title: "吃飯轉盤", iconColor: .orange)
+                        featureCard(icon: "chart.pie.fill", title: String(localized: "food_wheel"), iconColor: .orange)
                     }
                     .buttonStyle(.plain).contentShape(Rectangle())
                 }
@@ -585,7 +585,7 @@ struct LinkView: View {
                 .buttonStyle(.plain).contentShape(Rectangle())
                 
                 Button { showFoodMenu = true } label: {
-                    featureCard(icon: "fork.knife", title: "餐廳", iconColor: .red)
+                    featureCard(icon: "fork.knife", title: String(localized: "restaurant"), iconColor: .red)
                 }
                 .buttonStyle(.plain).contentShape(Rectangle())
             }
@@ -733,10 +733,10 @@ struct LinkView: View {
                 // 右上角按鈕
                 ToolbarItem(placement: toolbarPlacementTrailing) {
                     if adFree.isAdFree {
-                        Label("今天已無橫幅廣告", systemImage: "checkmark.seal.fill")
+                        Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal.fill")
                             .labelStyle(.iconOnly)
                             .foregroundStyle(.green)
-                            .help("今天 23:59 前都不會顯示橫幅")
+                            .help(String(localized: "no_banner_until_midnight"))
                     } else {
                         Button {
                             if !rewardedAd.isLoading {
@@ -746,19 +746,19 @@ struct LinkView: View {
                             if rewardedAd.isLoading {
                                 ProgressView()
                             } else {
-                                Label("看 30 秒影片，今日關閉橫幅", systemImage: "film.stack")
+                                Label(String(localized: "watch_video_disable_banner"), systemImage: "film.stack")
                                     .labelStyle(.iconOnly)
                             }
                         }
                         .disabled(rewardedAd.isLoading)
-                        .help("觀看完成後，今日關閉橫幅廣告")
+                        .help(String(localized: "after_watching_disable_banner"))
                     }
                 }
             }
             .onAppear { preloadRewardedIfNeeded() }
-            .alert("關閉今日橫幅廣告？", isPresented: $showAdConfirm) {
-                Button("取消", role: .cancel) { }
-                Button("開始觀看") {
+            .alert(String(localized: "disable_today_banner_title"), isPresented: $showAdConfirm) {
+                Button(String(localized: "cancel"), role: .cancel) { }
+                Button(String(localized: "start_watching")) {
                     if rewardedAd.isLoading || !rewardedAd.isReady {
                         showNotReadyAlert = true
                     } else {
@@ -766,12 +766,12 @@ struct LinkView: View {
                     }
                 }
             } message: {
-                Text("觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。")
+                Text(String(localized: "disable_banner_message"))
             }
-            .alert("影片尚未就緒", isPresented: $showNotReadyAlert) {
-                Button("好", role: .cancel) { }
+            .alert(String(localized: "video_not_ready"), isPresented: $showNotReadyAlert) {
+                Button(String(localized: "ok"), role: .cancel) { }
             } message: {
-                Text(rewardedAd.remainingViews > 0 ? "正在載入廣告，請稍後再試。" : "今日觀看次數已達上限。")
+                Text(rewardedAd.remainingViews > 0 ? String(localized: "loading_ad_retry") : String(localized: "daily_view_limit_reached"))
             }
         }
     }
@@ -912,7 +912,7 @@ struct LinkView: View {
                 HStack(spacing: 8) {
                     Text(safeTemp(currentTemp))
                         .font(.title3.weight(.bold))
-                    Text("高\(safeTemp(maxTemp)) 低\(safeTemp(minTemp))")
+                    Text(String(localized: "high_low_temp \(safeTemp(maxTemp)) \(safeTemp(minTemp))"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -941,7 +941,7 @@ struct LinkView: View {
                             .font(.title2)
                             .foregroundStyle(.orange)
                             .frame(width: 40)
-                        Text("早餐")
+                        Text(String(localized: "breakfast"))
                             .font(.headline)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -959,7 +959,7 @@ struct LinkView: View {
                             .font(.title2)
                             .foregroundStyle(.green)
                             .frame(width: 40)
-                        Text("午餐")
+                        Text(String(localized: "lunch"))
                             .font(.headline)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -977,7 +977,7 @@ struct LinkView: View {
                             .font(.title2)
                             .foregroundStyle(.purple)
                             .frame(width: 40)
-                        Text("晚餐")
+                        Text(String(localized: "dinner"))
                             .font(.headline)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -995,7 +995,7 @@ struct LinkView: View {
                             .font(.title2)
                             .foregroundStyle(.indigo)
                             .frame(width: 40)
-                        Text("宵夜")
+                        Text(String(localized: "midnight_snack"))
                             .font(.headline)
                         Spacer()
                         Image(systemName: "chevron.right")
@@ -1004,11 +1004,11 @@ struct LinkView: View {
                     }
                 }
             }
-            .navigationTitle("選擇餐點")
+            .navigationTitle(String(localized: "choose_meal"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("關閉") {
+                    Button(String(localized: "close")) {
                         showFoodMenu = false
                     }
                 }
@@ -1080,9 +1080,9 @@ struct LinkView: View {
                     HStack {
                         Picker("", selection: $selectDemo) {
                             Text("All").tag(0)
-                            Text("活動").tag(1)
-                            Text("社團").tag(2)
-                            Text("其他").tag(3)
+                            Text(String(localized: "tag_activity")).tag(1)
+                            Text(String(localized: "tag_club")).tag(2)
+                            Text(String(localized: "tag_other")).tag(3)
                         }
                         .pickerStyle(.segmented)
                         .labelsHidden()
@@ -1090,7 +1090,7 @@ struct LinkView: View {
                     }
                 } footer: {
                     VStack {
-                        Text("如需新增活動廣播，請至 about 頁面新增")
+                        Text(String(localized: "add_broadcast_hint"))
                             .foregroundStyle(.secondary)
                             .padding(.bottom)
                     }
@@ -1103,7 +1103,7 @@ struct LinkView: View {
                             .onAppear(perform: orderManager.loadOrder)
                     }
                 } footer: {
-                    Text("連線中，請確認網路連線")
+                    Text(String(localized: "connecting_check_network"))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -1126,7 +1126,7 @@ struct LinkView: View {
                                     .onAppear(perform: webManager.createData)
                             }
                         } footer: {
-                            Text("連線中，請確認網路連線")
+                            Text(String(localized: "connecting_check_network"))
                         }
                     }
                 } else {
@@ -1137,7 +1137,7 @@ struct LinkView: View {
     }
     
     private func disclosureGroup(for webs: WebsArray) -> some View {
-        DisclosureGroup("系網們") {
+        DisclosureGroup(String(localized: "department_websites")) {
             ForEach(webs.webs) { web in
                 webLinkButton(for: web)
             }
@@ -1224,9 +1224,9 @@ struct LinkView: View {
     func footerText(for id: Int) -> some View {
         Group {
             if id == 2 {
-                Text("選課請以電腦選課，因為我找不到網址")
+                Text(String(localized: "course_selection_desktop_hint"))
             } else if id == 3 {
-                Text("有些研究所我不會簡寫，如需要請聯絡我")
+                Text(String(localized: "graduate_abbreviation_hint"))
             }
         }
     }
@@ -1527,10 +1527,10 @@ import UIKit // UIPasteboard 複製連結
 // 分類→標題+顏色
 func tagInfo(_ tag: String) -> (title: String, color: Color) {
     switch tag {
-    case "1": return ("活動", .blue)
-    case "2": return ("社團", .green)
-    case "3": return ("其他", .orange)
-    default:  return ("公告", .gray)
+    case "1": return (String(localized: "tag_activity"), .blue)
+    case "2": return (String(localized: "tag_club"), .green)
+    case "3": return (String(localized: "tag_other"), .orange)
+    default:  return (String(localized: "tag_announcement"), .gray)
     }
 }
 
@@ -1557,7 +1557,7 @@ struct TagChip: View {
 struct LinkChip: View {
     let host: String
     var body: some View {
-        Label("前往 · \(host)", systemImage: "arrow.up.right.square")
+        Label(String(localized: "go_to_host \(host)"), systemImage: "arrow.up.right.square")
             .font(.caption2.weight(.semibold))
             .padding(.horizontal, 10).padding(.vertical, 6)
             .foregroundStyle(.tint)
@@ -1623,8 +1623,8 @@ struct AnnouncementCard: View {
         .opacity(hasURL ? 1 : 0.9)
         .contextMenu {
             if hasURL, let urlStr = urlString {
-                Button("開啟連結", systemImage: "arrow.up.right.square") { onTap() }
-                Button("複製連結", systemImage: "doc.on.doc") {
+                Button(String(localized: "open_link"), systemImage: "arrow.up.right.square") { onTap() }
+                Button(String(localized: "copy_link"), systemImage: "doc.on.doc") {
                     UIPasteboard.general.string = urlStr
                 }
             }
@@ -1679,7 +1679,7 @@ struct AnnouncementCard: View {
                     Spacer()
 
                     if hasURL, let h = host(from: urlString!) {
-                        Label("前往 · \(h)", systemImage: "arrow.up.right.square")
+                        Label(String(localized: "go_to_host \(h)"), systemImage: "arrow.up.right.square")
                             .font(.caption2.weight(.semibold))
                             .padding(.horizontal, 10).padding(.vertical, 6)
                             .foregroundStyle(.white)
@@ -1778,7 +1778,7 @@ struct WeatherDetailView: View {
                     // 高低温
                     HStack(spacing: 20) {
                         VStack {
-                            Text("最高")
+                            Text(String(localized: "highest"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text(safeTemp(maxTemp))
@@ -1790,7 +1790,7 @@ struct WeatherDetailView: View {
                             .frame(height: 40)
                         
                         VStack {
-                            Text("最低")
+                            Text(String(localized: "lowest"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text(safeTemp(minTemp))
@@ -1803,11 +1803,11 @@ struct WeatherDetailView: View {
                 
                 // 详细信息卡片
                 VStack(spacing: 12) {
-                    weatherInfoRow(icon: "wind", title: "風速", value: safeWind(windSpeed))
+                    weatherInfoRow(icon: "wind", title: String(localized: "wind_speed"), value: safeWind(windSpeed))
                     Divider()
-                    weatherInfoRow(icon: "humidity", title: "濕度", value: safeHumidity(humidity))
+                    weatherInfoRow(icon: "humidity", title: String(localized: "humidity"), value: safeHumidity(humidity))
                     Divider()
-                    weatherInfoRow(icon: "clock", title: "更新時間", value: shortTimeString(time))
+                    weatherInfoRow(icon: "clock", title: String(localized: "update_time"), value: shortTimeString(time))
                 }
                 .padding(16)
                 .background {

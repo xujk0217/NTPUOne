@@ -101,7 +101,7 @@ struct CourseLargeView: View {
     let entry: CourseLargeProvider.Entry
 
     let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
-    let daysChinese = ["一", "二", "三", "四", "五"]
+    let daysChinese = [String(localized: "widget_day_mon", bundle: .main), String(localized: "widget_day_tue", bundle: .main), String(localized: "widget_day_wed", bundle: .main), String(localized: "widget_day_thu", bundle: .main), String(localized: "widget_day_fri", bundle: .main)]
     
     // 根據是否有晚上課程動態調整顯示的時段
     var displayedTimeSlots: [Course.TimeSlot] {
@@ -368,8 +368,8 @@ struct CourseLargeWidget: Widget {
                     .background(Color(.systemBackground))
             }
         }
-        .configurationDisplayName("課表總覽")
-        .description("顯示週一至週五課表")
+        .configurationDisplayName(String(localized: "widget_course_overview", bundle: .main))
+        .description(String(localized: "widget_course_overview_desc", bundle: .main))
         .supportedFamilies([.systemLarge])
     }
 }

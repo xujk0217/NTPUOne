@@ -42,7 +42,7 @@ struct MemoListView: View {
                     }
                 }
             }
-            .navigationTitle("備忘錄")
+            .navigationTitle(String(localized: "navigation_memo"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
@@ -61,7 +61,7 @@ struct MemoListView: View {
                                 viewMode = .all
                             } label: {
                                 HStack {
-                                    Text("全部列表")
+                                    Text(String(localized: "all_list"))
                                     if viewMode == .all {
                                         Image(systemName: "checkmark")
                                     }
@@ -71,7 +71,7 @@ struct MemoListView: View {
                                 viewMode = .byCourse
                             } label: {
                                 HStack {
-                                    Text("依課程分類")
+                                    Text(String(localized: "by_course"))
                                     if viewMode == .byCourse {
                                         Image(systemName: "checkmark")
                                     }
@@ -89,7 +89,7 @@ struct MemoListView: View {
                                     memoManager.applyFiltersAndSort()
                                 } label: {
                                     HStack {
-                                        Text(option.rawValue)
+                                        Text(option.displayName)
                                         if memoManager.sortBy == option {
                                             Image(systemName: "checkmark")
                                         }
@@ -103,7 +103,7 @@ struct MemoListView: View {
                         // 新增：篩選選單
                         Menu {
                             // 狀態篩選區塊
-                            Section("狀態篩選") {
+                            Section(String(localized: "status_filter")) {
                                 Button {
                                     if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
                                         memoManager.filterIncompleteOnly = false
@@ -114,7 +114,7 @@ struct MemoListView: View {
                                     memoManager.applyFiltersAndSort()
                                 } label: {
                                     HStack {
-                                        Text("未完成")
+                                        Text(String(localized: "incomplete"))
                                         if memoManager.filterStatus == nil && memoManager.filterIncompleteOnly {
                                             Image(systemName: "checkmark")
                                         }
@@ -142,7 +142,7 @@ struct MemoListView: View {
                             }
                             
                             // 類型篩選區塊（多選）
-                            Section("類型篩選（可多選）") {
+                            Section(String(localized: "type_filter_multi")) {
                                 ForEach(Memo.TagType.allCases, id: \.self) { tagType in
                                     Button {
                                         if memoManager.filterTagTypes.contains(tagType) {
@@ -153,7 +153,7 @@ struct MemoListView: View {
                                         memoManager.applyFiltersAndSort()
                                     } label: {
                                         HStack {
-                                            Label(tagType.rawValue, systemImage: tagType.icon)
+                                            Label(tagType.displayName, systemImage: tagType.icon)
                                                 .foregroundColor(tagType.color)
                                             Spacer()
                                             if memoManager.filterTagTypes.contains(tagType) {
@@ -166,13 +166,13 @@ struct MemoListView: View {
                             }
                             
                             // 其他篩選
-                            Section("其他") {
+                            Section(String(localized: "other_section")) {
                                 Button {
                                     memoManager.showOverdueOnly.toggle()
                                     memoManager.applyFiltersAndSort()
                                 } label: {
                                     HStack {
-                                        Text("僅顯示逾期")
+                                        Text(String(localized: "show_overdue_only"))
                                         if memoManager.showOverdueOnly {
                                             Image(systemName: "checkmark")
                                         }
@@ -191,7 +191,7 @@ struct MemoListView: View {
                                         memoManager.filterTagTypes.removeAll()
                                         memoManager.applyFiltersAndSort()
                                     } label: {
-                                        Label("清除所有篩選", systemImage: "xmark.circle")
+                                        Label(String(localized: "clear_all_filters"), systemImage: "xmark.circle")
                                     }
                                 }
                             }
@@ -230,10 +230,10 @@ struct MemoListView: View {
         let stats = memoManager.statistics()
         
         return HStack(spacing: 12) {
-            StatCard(title: "總計", value: "\(stats.total)", color: .blue, icon: "list.bullet")
-            StatCard(title: "已完成", value: "\(stats.completed)", color: .green, icon: "checkmark.circle")
-            StatCard(title: "逾期", value: "\(stats.overdue)", color: .red, icon: "exclamationmark.triangle")
-            StatCard(title: "今日", value: "\(stats.todayDue)", color: .orange, icon: "calendar")
+            StatCard(title: String(localized: "total"), value: "\(stats.total)", color: .blue, icon: "list.bullet")
+            StatCard(title: String(localized: "completed"), value: "\(stats.completed)", color: .green, icon: "checkmark.circle")
+            StatCard(title: String(localized: "overdue"), value: "\(stats.overdue)", color: .red, icon: "exclamationmark.triangle")
+            StatCard(title: String(localized: "today"), value: "\(stats.todayDue)", color: .orange, icon: "calendar")
         }
         .padding()
     }
@@ -245,10 +245,10 @@ struct MemoListView: View {
             Image(systemName: "note.text")
                 .font(.system(size: 60))
                 .foregroundColor(.gray.opacity(0.5))
-            Text("沒有備忘錄")
+            Text(String(localized: "no_memos"))
                 .font(.headline)
                 .foregroundColor(.gray)
-            Text("點擊右上角 + 新增")
+            Text(String(localized: "tap_add_memo"))
                 .font(.subheadline)
                 .foregroundColor(.gray.opacity(0.7))
             Spacer()
@@ -273,13 +273,13 @@ struct MemoListView: View {
                     Button(role: .destructive) {
                         memoManager.deleteMemo(memo)
                     } label: {
-                        Label("刪除", systemImage: "trash")
+                        Label(String(localized: "delete"), systemImage: "trash")
                     }
                     
                     Button {
                         selectedMemo = memo
                     } label: {
-                        Label("編輯", systemImage: "pencil")
+                        Label(String(localized: "edit"), systemImage: "pencil")
                     }
                     .tint(.blue)
                 }
@@ -288,7 +288,7 @@ struct MemoListView: View {
                         memoManager.toggleCompletion(memo)
                     } label: {
                         Label(
-                            memo.status == .done ? "取消完成" : "完成",
+                            memo.status == .done ? String(localized: "undo_complete") : String(localized: "complete"),
                             systemImage: memo.status == .done ? "arrow.uturn.backward" : "checkmark"
                         )
                     }
@@ -322,7 +322,7 @@ struct MemoListView: View {
                     HStack {
                         Image(systemName: "tray")
                             .foregroundColor(.gray)
-                        Text("未分類")
+                        Text(String(localized: "uncategorized"))
                             .font(.subheadline.weight(.semibold))
                         Spacer()
                         Text("\(unlinkedMemos.count)")
@@ -368,7 +368,7 @@ struct MemoListView: View {
                     HStack {
                         Image(systemName: "checkmark.circle.fill")
                             .foregroundColor(.green)
-                        Text("已完成")
+                        Text(String(localized: "completed"))
                             .font(.subheadline.weight(.semibold))
                         Spacer()
                         Text("\(completedMemos.count)")
@@ -420,13 +420,13 @@ struct MemoListView: View {
             Button(role: .destructive) {
                 memoManager.deleteMemo(memo)
             } label: {
-                Label("刪除", systemImage: "trash")
+                Label(String(localized: "delete"), systemImage: "trash")
             }
             
             Button {
                 selectedMemo = memo
             } label: {
-                Label("編輯", systemImage: "pencil")
+                Label(String(localized: "edit"), systemImage: "pencil")
             }
             .tint(.blue)
         }
@@ -435,7 +435,7 @@ struct MemoListView: View {
                 memoManager.toggleCompletion(memo)
             } label: {
                 Label(
-                    memo.status == .done ? "取消完成" : "完成",
+                    memo.status == .done ? String(localized: "undo_complete") : String(localized: "complete"),
                     systemImage: memo.status == .done ? "arrow.uturn.backward" : "checkmark"
                 )
             }
@@ -488,7 +488,7 @@ struct MemoRowView: View {
                         // 標籤
                         HStack(spacing: 2) {
                             Image(systemName: memo.tagType.icon)
-                            Text(memo.tagType.rawValue)
+                            Text(memo.tagType.displayName)
                         }
                             .font(.caption)
                             .foregroundColor(memo.tagType.color)

@@ -1,0 +1,798 @@
+/* 
+  Localizable.strings (繁體中文)
+  NTPUOne
+*/
+
+// MARK: - Ads
+"ad_label" = "廣告";
+
+// MARK: - General
+"loading" = "載入中…";
+"error" = "錯誤";
+"cancel" = "取消";
+"confirm" = "確認";
+"save" = "儲存";
+"delete" = "刪除";
+"edit" = "編輯";
+"done" = "完成";
+"ok" = "好";
+"close" = "關閉";
+"submit" = "送出";
+"add" = "新增";
+"refresh" = "刷新";
+"retry" = "重試";
+"reset" = "重置";
+"reload" = "重新載入";
+"ignore" = "忽略";
+"upload" = "上傳";
+"complete" = "完成";
+"start_watching" = "開始觀看";
+"open_link" = "開啟連結";
+"copy_link" = "複製連結";
+
+// MARK: - Tab Bar
+"course" = "課程";
+"food" = "美食";
+"traffic" = "交通";
+"weather" = "天氣";
+"about" = "關於";
+
+// MARK: - Food View
+"breakfast" = "早餐";
+"lunch" = "午餐";
+"dinner" = "晚餐";
+"late_night_snack" = "宵夜";
+"random_food" = "隨機美食";
+"restaurant_location" = "餐廳位置";
+"data_not_verified" = "未確認資料完整性";
+"recommend_hint" = "覺得不錯的話，可點擊星星推薦給其他人";
+"tap_to_open_map" = "點擊進入地圖";
+"no_comments_yet" = "目前還沒有留言，來第一個吧！";
+"you" = "你";
+"comments_count" = "留言（%d）";
+"upgrade_ios_for_map" = "升級至 IOS 17.0 以開啟地圖功能";
+"set_nickname_to_comment" = "請至 About 頁面設定暱稱才能留言";
+"nearby_restaurant_map" = "附近餐廣地圖";
+"meal_selection" = "餐別選擇";
+"winner_restaurant" = "🎉 中獎餐廳";
+"tap_wheel_to_spin" = "點擊下方輪盤按鈕即可抽獎";
+"recommendation_result" = "推薦結果";
+"wheel" = "轉盤";
+"restaurant_list" = "餐廳列表";
+"restaurant_list_footer" = "勾選你想要參加抽籤的餐廳\n可到 Life 頁面新增餐廳";
+"no_restaurant_hint" = "目前沒有餐廳，可到 Life 頁面新增";
+
+// MARK: - Course
+"my_courses" = "我的課表";
+"add_course" = "新增課程";
+"timetable" = "課表";
+"delete_all_courses" = "刪除所有課程";
+"delete_all_courses_with_memos" = "刪除所有課程後，將同時刪除 %d 個連結到課程的任務。此操作無法復原。";
+"delete_all_courses_confirm" = "確定要刪除所有課程嗎？此操作無法復原。";
+"delete_last_course_with_memos" = "這是最後一個「%@」課程，刪除後將同時刪除 %d 個相關任務。此操作無法復原。";
+"delete_course_confirm" = "確定要刪除這個課程嗎？此操作無法復原。";
+"lunch_time" = "午餐時間";
+"dinner_time" = "晚餐時間";
+"class_notification" = "上課通知";
+"enable_notification_hint" = "記得到設定開啟通知";
+"multi_period_hint" = "如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改";
+"enter_course_number" = "輸入課程編號:";
+"course_search" = "課程查詢";
+"skip_if_not_needed" = "如不需用課程編號新增，按 Skip";
+"search_error" = "發生錯誤，可能因搜尋數量太多或輸入格式不對，請輸入更具體的編號";
+"course_number_label" = "課程編號: %@";
+"course_name_label" = "課程名稱: %@";
+"instructor_label" = "授課教師: %@";
+"class_time_label" = "上課時間: %@";
+"classroom_location" = "教室位置: %@";
+"no_course_searched" = "未查詢課程。";
+"search_results_hint" = "搜尋結果（點選課程後按Next）";
+"verify_info_hint" = "課程資訊可能錯誤，按Next後請再檢查一遍";
+
+// MARK: - Memo
+"memo" = "備忘錄";
+"add_memo" = "新增備忘";
+"today" = "今日";
+"incomplete" = "未完成";
+"show_overdue_only" = "僅顯示逾期";
+"overdue" = "逾期";
+"total" = "總計";
+"completed" = "已完成";
+"arrange_order" = "安排順序";
+"general_tasks" = "一般待辦";
+"great_no_tasks" = "太棒了！沒有待辦事項";
+"tap_add_task" = "點擊右上角新增任務";
+"no_tasks_next_7_days" = "未來 7 天沒有待辦事項";
+"no_class_today" = "今天沒有課程";
+"have_a_good_rest" = "好好休息吧～";
+"no_tasks" = "沒有任務";
+"no_completed_memos" = "尚無已完成的備忘錄";
+"no_scheduled_notifications" = "沒有排程中的通知";
+"reminders_count" = "%d 個提醒";
+"next_reminder" = "下次提醒：%@";
+"reminder_not_set" = "尚未設定提醒";
+"1_day_before_due" = "距離截止時間還有 1 天";
+"auto" = "自動";
+"30_min_before_due" = "距離截止時間還有 30 分鐘";
+"30_min_before_deadline" = "截止前 30 分鐘";
+"disabled" = "已禁用";
+"plan_time_start" = "計劃時間到了，該開始處理了";
+"plan_time" = "計劃時間";
+"edit_reminder_hint" = "如需修改提醒，請點擊下方編輯";
+"all_list" = "全部列表";
+"by_course" = "依課程分類";
+"no_memos" = "沒有備忘錄";
+"tap_add_memo" = "點擊右上角 + 新增";
+"uncategorized" = "未分類";
+"note_optional" = "備註內容（選填）";
+"tag_type" = "標籤類型";
+"priority" = "優先級";
+"category" = "分類";
+"no_course_link" = "不連結課程";
+"auto_disabled" = "自動（已禁用）";
+"reminder_settings" = "提醒設定";
+"reminder_push_hint" = "提醒會在指定時間推送通知";
+"delete_memo" = "刪除備忘錄";
+"before_due" = "截止前";
+"custom_time" = "自訂時間";
+"will_remind_at" = "將在 %@ 提醒";
+"list_scheduled_notifications" = "列出排程通知";
+"clear_all_filters" = "清除所有篩選";
+"undo_complete" = "取消完成";
+"add_to_today" = "加入今日安排";
+"plan_time_label" = "計劃時間";
+"due_time_label" = "截止時間";
+"edit_details" = "編輯詳細資料";
+"add_reminder" = "新增提醒";
+"already_overdue" = "已逾期";
+"plan_overdue_days" = "過期%d天";
+"tasks" = "任務";
+"sort" = "排序";
+"drag_to_reorder" = "拖拽調整標籤順序";
+"order_affects_display" = "順序會影響課程詳情中任務的顯示順序";
+
+// MARK: - Traffic
+"bike_map" = "腳踏車地圖";
+"bike_station_format" = "名稱：站名-(腳踏車數/總數)";
+"update_every_5_min" = "更新頻率：每5分鐘";
+"ubike_load_error" = "無法載入 Ubike 資料";
+
+// MARK: - Weather
+"ntpu_what_to_eat" = "NTPU - 今天吃什麼？";
+"now" = "現在";
+"highest" = "最高";
+"lowest" = "最低";
+"high_low_temp" = "高%@ 低%@";
+"update_time" = "更新 %@";
+
+// MARK: - About
+"account_and_preferences" = "帳號與偏好";
+"admin_console" = "管理後台";
+"feature_suggestion" = "功能建議";
+"report_bug" = "回報問題";
+"interaction" = "互動";
+"contact_developer" = "聯繫開發者";
+"privacy_policy" = "隱私權政策";
+"nickname" = "暱稱";
+"set_in_about" = "請至 About 頁面設定";
+"contact_info" = "聯絡資訊";
+"contact_me" = "聯絡我～";
+"update_new_comments_only" = "只更新新留言";
+"update_old_comments_too" = "同時更新舊留言";
+"no_banner_today" = "今天已無橫幅廣告";
+"watch_30s_no_banner" = "看 30 秒影片，今日關閉橫幅";
+"watch_ad_hint" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。";
+
+// MARK: - Links & Web
+"connecting" = "連線中，請確認網路連線";
+"select_course_hint" = "選課請以電腦選課，因為我找不到網址";
+"graduate_school_hint" = "有些研究所我不會簡寫，如需要請聯絡我";
+"minutes_left" = "還有 %d 分";
+"no_more_classes_today" = "今日已沒有課程";
+"rest_well" = "好好休息～";
+"no_tasks_today" = "沒有今日待辦事項";
+"today_tasks" = "今日待辦";
+"n_overdue" = "%d 逾期";
+"n_plan_expired" = "%d 計劃過期";
+"n_today_tasks" = "%d 今日待辦";
+"n_in_progress" = "%d 項進行中";
+"no_pending_items" = "沒有待辦事項";
+"go_to_host" = "前往 · %@";
+"activity_tab" = "活動";
+"club_tab" = "社團";
+"other_tab" = "其他";
+"add_announcement_hint" = "如需新增活動廣播，請至 about 頁面新增";
+
+// MARK: - Widgets
+"next_task" = "下一個任務:";
+"task_plan_time" = "計劃時間:";
+"task_due_time" = "截止時間:";
+"task_type" = "類型： %@";
+"task_priority" = "優先級： %@";
+"widget_refresh_hint" = "資料未刷新時，可點擊進App或連上網路試試";
+"time_none" = "時間: 無";
+"next_course" = "下一堂課:";
+"start_time" = "開始時間:";
+"professor" = "教授： %@";
+"classroom" = "教室： %@";
+"no_tasks_today_widget" = "今天沒有任務";
+"my_tasks" = "我的任務";
+"tasks_count" = "%d 個待辦";
+"great_no_tasks_widget" = "太棒了！沒有待辦任務";
+"task_overview" = "任務總覽";
+"great" = "太棒了！";
+"no_pending_tasks" = "沒有待辦任務";
+"more_tasks_not_shown" = "還有 %d 個任務未顯示...";
+"widget_course_overview" = "課表總覽";
+"widget_show_weekly" = "顯示週一至週五課表";
+"widget_task_list" = "任務清單";
+"widget_show_tasks" = "顯示待辦任務和提醒事項";
+
+// MARK: - Admin
+"submission_management" = "投稿管理";
+"restaurant_management" = "餐廳管理";
+"bug_report_management" = "問題回報管理";
+"feature_report_management" = "功能回報管理";
+"crawler" = "爬蟲";
+"upload_all" = "全部上傳";
+"replace_and_upload" = "替換舊資料並上傳";
+"crawling_ntpu" = "正在爬取 NTPU 網站...";
+"delete_restaurant" = "刪除這間餐廳";
+"delete_irreversible" = "刪除後無法復原。";
+"confirm_replace" = "確定替換";
+
+// MARK: - Forms
+"basic_info" = "基本資訊";
+"required_field_hint" = "帶有「＊」為必填欄位。";
+"submit_failed" = "送出失敗，請確認必填內容或稍後再試。";
+"contact_optional" = "聯絡方式（選填）";
+"required_fields_hint" = "「發現問題」與「問題詳情」為必填。";
+"submit_failed_network" = "送出失敗，請稍後再試或確認網路連線。";
+"enter_announcement" = "輸入公告事項";
+"note_length" = "注意長度與重點";
+"n_characters" = "%d 字";
+"tag_mismatch_warning" = "若標籤與內容不符，可能會被移除。";
+
+// MARK: - Section Headers
+"status_filter" = "狀態篩選";
+"type_filter_multi" = "類型篩選（可多選）";
+"other_section" = "其他";
+"time_section" = "時間";
+"status_section" = "狀態";
+"reminder_section" = "提醒";
+"link_course_section" = "連結課程";
+"time_settings_section" = "時間設定";
+"reminder_type_section" = "提醒類型";
+"reminder_time_section" = "提醒時間";
+"repeat_settings_section" = "重複設定";
+"next_course_section" = "下一堂課";
+"quick_actions_section" = "功能快捷";
+"issue_found_section" = "發現問題＊";
+"issue_details_section" = "問題詳情＊";
+"announcement_content_section" = "公告內容＊";
+"related_info_section" = "相關資訊";
+"category_section" = "分類";
+"feature_name_section" = "功能名稱＊";
+"feature_details_section" = "功能詳情＊";
+"data_management_section" = "資料管理";
+"name_header" = "名字";
+"social_section" = "社群";
+"restaurant_location_section" = "餐廣位置";
+"basic_section" = "基本";
+"coordinates_section" = "座標 / 星數";
+"submission_list_section" = "投稿列表";
+"doc_id_section" = "文件 ID / 建立時間";
+"content_section" = "內容";
+"contact_and_link_section" = "聯絡與連結";
+"tag_section" = "標籤";
+
+// MARK: - Navigation Titles
+"navigation_memo" = "備忘錄";
+"navigation_scheduled_notifications" = "排程通知";
+"navigation_update_status" = "更新狀態";
+"navigation_memo_detail" = "備忘錄詳情";
+"navigation_add_reminder" = "新增提醒";
+"navigation_common_links" = "常用連結";
+"navigation_weather_detail" = "天氣詳情";
+"navigation_select_meal" = "選擇餐點";
+"navigation_school_posts" = "學校公告";
+"navigation_post_content" = "公告內文";
+"navigation_food_wheel" = "吃飯轉盤";
+"navigation_tag_order" = "標籤排序";
+"navigation_add_store" = "新增店家";
+"navigation_course_search" = "課程查詢";
+"navigation_add_announcement" = "新增公告";
+"navigation_feature_report" = "功能回報";
+"navigation_report_issue" = "回報問題";
+"navigation_edit_restaurant" = "編輯餐廳";
+"navigation_edit_submission" = "編輯投稿";
+"navigation_carousel_crawler" = "輪播圖爬蟲";
+
+// MARK: - Alerts
+"alert_close_banner" = "關閉今日橫幅廣告？";
+"alert_video_not_ready" = "影片尚未就緒";
+"alert_confirm_delete_course" = "確認刪除課程";
+"alert_confirm_delete_all" = "確認刪除所有課程";
+"alert_upload_success" = "上傳成功";
+"alert_keep_one_restaurant" = "至少要保留一間餐廳參加抽籤";
+"alert_enter_admin_password" = "輸入管理員密碼";
+"alert_wrong_password" = "密碼錯誤";
+"alert_update_old_comments" = "更新舊留言？";
+"alert_confirm_delete" = "確定要刪除嗎？";
+"alert_confirm_upload_all" = "確定要全部上傳嗎？";
+"alert_replace_carousel" = "替換輪播圖資料";
+
+// MARK: - Pickers
+"picker_grouping_method" = "分塊方式";
+"picker_select_course" = "選擇課程";
+"picker_current_status" = "目前狀態";
+"picker_type" = "類型";
+"picker_advance_time" = "提前時間";
+"picker_repeat" = "重複";
+"picker_select_meal" = "選擇餐別";
+"picker_select_tag" = "選擇標籤";
+"picker_meal" = "餐別";
+"picker_start_period" = "開始節數";
+"picker_end_period" = "結束節數";
+"picker_period" = "節數";
+"picker_tag" = "標籤";
+"picker_select_year" = "選擇年份";
+"picker_select_semester" = "選擇學期";
+
+// MARK: - Toggles
+"toggle_class_notification" = "開啟上課通知";
+"toggle_set_plan_time" = "設定計劃時間";
+"toggle_set_due_time" = "設定截止時間";
+"toggle_verified" = "已審核";
+
+// MARK: - TextFields
+"textfield_comment" = "留言...";
+"textfield_title" = "標題";
+"textfield_store_name" = "商家名稱＊";
+"textfield_google_maps_url" = "Google Maps 網址＊";
+"textfield_business_hours" = "營業時間（例：11:00–12:30）＊";
+"textfield_phone_optional" = "電話（選填）";
+"textfield_address" = "地址＊";
+"textfield_related_url" = "相關網址（選填）";
+"textfield_email_optional" = "你的信箱（選填）";
+"textfield_display_time" = "展示時間（例如：至 10/15 或一週）";
+"textfield_issue_example" = "例如：課表載入失敗、廣告高度錯誤…";
+"textfield_feature_example" = "例如：課表分享、課程提醒…";
+"textfield_course_number_hint" = "如:U4001或只打部分數字";
+"searchable_name_content" = "搜尋名稱 / 內容 / email / id";
+"searchable_store_address" = "搜尋店名 / 地址 / 營業時間";
+"searchable_message_name" = "搜尋訊息/名稱/URL";
+"textfield_store_name_admin" = "店名";
+"textfield_business_hours_admin" = "營業時間";
+"textfield_url" = "網址";
+"textfield_address_admin" = "地址";
+"textfield_phone" = "電話";
+"textfield_latitude" = "緯度";
+"textfield_longitude" = "經度";
+"textfield_rating" = "星數（可輸入任意數值）";
+"textfield_message" = "訊息";
+"textfield_name" = "名稱";
+"textfield_time_custom" = "時間（自訂顯示字串）";
+
+// MARK: - Contact
+"copy_account" = "複製帳號";
+"copy_email" = "複製 Email";
+"logout_admin" = "登出管理員";
+
+// MARK: - Enum Values (Status)
+"enum_status_todo" = "未完成";
+"enum_status_doing" = "進行中";
+"enum_status_done" = "已完成";
+"enum_status_snoozed" = "已延後";
+"enum_status_display_todo" = "未開始";
+
+// MARK: - Enum Values (Priority)
+"enum_priority_low" = "低";
+"enum_priority_medium" = "中";
+"enum_priority_high" = "高";
+"enum_priority_display_low" = "一般";
+"enum_priority_display_medium" = "重要";
+"enum_priority_display_high" = "緊急";
+
+// MARK: - Enum Values (Tag Types)
+"enum_tag_activity" = "活動";
+"enum_tag_homework" = "作業";
+"enum_tag_exam" = "考試";
+"enum_tag_meeting" = "會議";
+"enum_tag_reminder" = "提醒";
+"enum_tag_other" = "其他";
+
+// MARK: - Enum Values (Reminder)
+"enum_reminder_before_due" = "截止前";
+"enum_reminder_at_plan" = "計劃時間";
+"enum_reminder_custom" = "自訂";
+
+// MARK: - Enum Values (Repeat)
+"enum_repeat_none" = "不重複";
+"enum_repeat_daily" = "每天";
+"enum_repeat_weekly" = "每週";
+"enum_repeat_monthly" = "每月";
+
+// MARK: - Due Description
+"due_description_done" = "已完成";
+"due_description_overdue_days" = "逾期 %d 天";
+"due_description_overdue_hours" = "逾期 %d 小時";
+"due_description_just_overdue" = "剛剛逾期";
+"due_description_days_left" = "還剩 %d 天";
+"due_description_hours_left" = "還剩 %d 小時";
+"due_description_due_soon" = "即將到期";
+
+// MARK: - Sort Options
+"sort_due_date" = "截止時間";
+"sort_priority" = "優先級";
+"sort_created_date" = "建立時間";
+"sort_name" = "名稱";
+
+// MARK: - TodayView Sections
+"today_plan" = "今日安排";
+"tomorrow_plan" = "明天安排";
+"plan_expired" = "計劃過期";
+"due_today" = "今日到期";
+"due_tomorrow" = "明天到期";
+
+// MARK: - TodayView Tabs & Labels
+"needs_attention" = "需處理";
+"upcoming" = "即將到期";
+"all_tasks" = "所有任務";
+"grouping_method" = "分塊方式";
+"by_course" = "依課程";
+"by_priority" = "依重要程度";
+"by_tag" = "依類型";
+"list_scheduled_notifications_label" = "列出排程通知";
+"clear_all_filters_label" = "清除所有篩選";
+"other_filter_section" = "其他";
+"within_2_3_days" = "2-3 天內";
+"within_4_7_days" = "4-7 天內";
+
+// MARK: - AddReminderSheet
+"before_due_option" = "截止前";
+"at_plan_option" = "計劃時間";
+"custom_time_option" = "自訂時間";
+"advance_time" = "提前時間";
+"will_remind_at_format" = "將在 %@ 提醒";
+"reminder_time" = "提醒時間";
+"15_min_before" = "15 分鐘前";
+"30_min_before" = "30 分鐘前";
+"1_hour_before" = "1 小時前";
+"2_hours_before" = "2 小時前";
+"1_day_before" = "1 天前";
+"2_days_before" = "2 天前";
+"daily_at" = "每天 %@ 提醒";
+"weekly_at" = "每週%@ 提醒";
+"monthly_at" = "每月 %d 日 %@ 提醒";
+
+// MARK: - CourseGridView / Course Detail
+"unnamed_course" = "未命名課程";
+"professor" = "教授";
+"time" = "時間";
+"location" = "地點";
+"notification" = "通知";
+"on" = "開";
+"off" = "關";
+
+// MARK: - CourseFormView
+"enable_course_notification" = "開啟上課通知";
+"course_notification" = "上課通知";
+"remember_enable_notification_in_settings" = "記得到設定開啟通知";
+"start_period" = "開始節數";
+"end_period" = "結束節數";
+"period" = "節數";
+"course_multiple_period_tip" = "如課程節數大於一，建議資料填寫完整，否則創建後需一節一節更改";
+
+// MARK: - LinkView
+"weather_detail" = "天氣詳情";
+"close" = "關閉";
+"high_low_temp %@ %@" = "高%@ 低%@";
+"next_course" = "下一堂課";
+"minutes_remaining %lld" = "還有 %lld 分";
+"no_more_courses_today" = "今日已沒有課程";
+"take_a_rest" = "好好休息～";
+"no_today_tasks" = "沒有今日待辦事項";
+"status_todo" = "待辦";
+"status_doing" = "進行中";
+"status_done" = "已完成";
+"today_tasks" = "今日待辦";
+"overdue_count %lld" = "%lld 逾期";
+"plan_expired_count %lld" = "%lld 計劃過期";
+"today_tasks_count %lld" = "%lld 今日待辦";
+"in_progress_count %lld" = "%lld 項進行中";
+"no_tasks" = "沒有待辦事項";
+"quick_features" = "功能快捷";
+"school_announcements" = "學校公告";
+"common_links" = "常用連結";
+"food_wheel" = "吃飯轉盤";
+"restaurant" = "餐廳";
+"no_banner_today" = "今天已無橫幅廣告";
+"no_banner_until_midnight" = "今天 23:59 前都不會顯示橫幅";
+"watch_video_disable_banner" = "看 30 秒影片，今日關閉橫幅";
+"after_watching_disable_banner" = "觀看完成後，今日關閉橫幅廣告";
+"disable_today_banner_title" = "關閉今日橫幅廣告？";
+"start_watching" = "開始觀看";
+"disable_banner_message" = "觀看一支約 30 秒的獎勵影片後，今天（到 23:59）將不再顯示橫幅廣告。";
+"video_not_ready" = "影片尚未就緒";
+"loading_ad_retry" = "正在載入廣告，請稍後再試。";
+"daily_view_limit_reached" = "今日觀看次數已達上限。";
+"choose_meal" = "選擇餐點";
+"midnight_snack" = "宵夜";
+"tag_activity" = "活動";
+"tag_club" = "社團";
+"tag_other" = "其他";
+"tag_announcement" = "公告";
+"add_broadcast_hint" = "如需新增活動廣播，請至 about 頁面新增";
+"connecting_check_network" = "連線中，請確認網路連線";
+"department_websites" = "系網們";
+"course_selection_desktop_hint" = "選課請以電腦選課，因為我找不到網址";
+"graduate_abbreviation_hint" = "有些研究所我不會簡寫，如需要請聯絡我";
+"go_to_host %@" = "前往 · %@";
+"open_link" = "開啟連結";
+"copy_link" = "複製連結";
+"highest" = "最高";
+"lowest" = "最低";
+"wind_speed" = "風速";
+"humidity" = "濕度";
+"update_time" = "更新時間";
+
+// MARK: - LinkView Greetings
+"rain_keyword" = "雨";
+"greeting_morning_1 %@" = "早安%@！新的一天開始了";
+"greeting_morning_2 %@" = "早安%@！今天也要加油～";
+"greeting_late_morning_1 %@" = "上午好%@！";
+"greeting_late_morning_2 %@" = "早安%@！上課加油～";
+"greeting_noon_1 %@" = "午安%@！記得吃午飯";
+"greeting_noon_2 %@" = "午安%@！";
+"greeting_afternoon_1 %@" = "下午好%@！";
+"greeting_afternoon_2 %@" = "下午好%@，撐一下就下課了！";
+"greeting_evening_1 %@" = "晚上好%@！辛苦了";
+"greeting_evening_2 %@" = "晚上好%@！";
+"greeting_night_1 %@" = "夜深了%@，注意休息！";
+"greeting_night_2 %@" = "凌晨了%@，早點睡～";
+"greeting_rain_1 %@" = "今天有雨%@，記得帶傘！";
+"greeting_rain_2 %@" = "外面有下雨，小心路滑%@！";
+"greeting_cold_1 %@" = "今天有點冷%@，多穿一件！";
+"greeting_cold_2 %lld %@" = "氣溫 %lld°C%@，保暖很重要！";
+"greeting_hot_1 %@" = "今天好熱%@，多喝水！";
+"greeting_hot_2 %lld %@" = "氣溫 %lld°C%@，記得防曬！";
+"greeting_warm_1 %@" = "今天天氣不錯%@，出去走走？";
+"greeting_warm_2 %@" = "天氣舒適%@！";
+"greeting_general_1 %@" = "今天也要好好加油%@！";
+"greeting_general_2 %@" = "平安順利的一天%@！";
+"greeting_general_3 %@" = "記得三餐要吃飽%@！";
+"greeting_general_4 %@" = "保持笑容%@，好事即將到來！";
+"greeting_welcome %@" = "歡迎回來%@！";
+
+// MARK: - MemoData Enums
+"overdue_days %lld" = "逾期 %lld 天";
+"overdue_hours %lld" = "逾期 %lld 小時";
+"just_overdue" = "剛剛逾期";
+"days_remaining %lld" = "還剩 %lld 天";
+"hours_remaining %lld" = "還剩 %lld 小時";
+"about_to_expire" = "即將到期";
+"tag_type_activity" = "活動";
+"tag_type_homework" = "作業";
+"tag_type_exam" = "考試";
+"tag_type_meeting" = "會議";
+"tag_type_reminder" = "提醒";
+"tag_type_other" = "其他";
+"status_not_started" = "未開始";
+"status_snoozed" = "已延後";
+"priority_normal" = "一般";
+"priority_important" = "重要";
+"priority_urgent" = "緊急";
+"reminder_before_due" = "截止前";
+"reminder_at_plan" = "計劃時間";
+"reminder_custom" = "自訂";
+"repeat_none" = "不重複";
+"repeat_daily" = "每天";
+"repeat_weekly" = "每週";
+"repeat_monthly" = "每月";
+
+// MARK: - MemoManager
+"sort_due_date" = "截止時間";
+"sort_priority" = "優先級";
+"sort_created_at" = "建立時間";
+"sort_updated_at" = "更新時間";
+"notification_due_1day" = "距離截止時間還有 1 天";
+"notification_due_30min" = "距離截止時間還有 30 分鐘";
+"notification_plan_time" = "計劃時間到了，該開始處理了";
+"notification_due_at %@" = "截止 %@";
+"notification_plan_at %@" = "計劃 %@";
+"notification_tap_for_details" = "點擊查看詳情";
+"notification_subtitle %@ %@" = "標籤：%@ · 優先：%@";
+
+// MARK: - SpinningWheelView
+"reset" = "重置";
+"start_spin" = "開始轉盤";
+
+// MARK: - AddStoreView
+"store_name_required" = "商家名稱＊";
+"google_maps_url_required" = "Google Maps 網址＊";
+"business_hours_placeholder" = "營業時間（例：11:00–12:30）＊";
+"phone_optional" = "電話（選填）";
+"address_required" = "地址＊";
+"basic_info" = "基本資訊";
+"required_fields_hint" = "帶有「＊」為必填欄位。";
+"submit_failed_hint" = "送出失敗，請確認必填內容或稍後再試。";
+"submit" = "送出";
+"add_store" = "新增店家";
+"upload_success" = "上傳成功";
+
+// MARK: - RandomFoodView
+"spinner" = "轉盤";
+"restaurant_list" = "餐廳列表";
+"restaurant_list_footer" = "勾選你想要參加抽籤的餐廳\n可到 Life 頁面新增餐廳";
+
+// MARK: - WebData
+"web_main_site" = "主網站";
+"web_student" = "學生";
+"web_student_info" = "學生資訊系統";
+"web_lms" = "數位學院 3.0";
+"web_course" = "課程";
+"web_course_search" = "課程查詢";
+"web_course_review" = "課程評價";
+"web_past_exam" = "考古系系網";
+"web_departments" = "系網";
+"web_law_college" = "法律學院";
+"web_business_college" = "商學院";
+"web_public_affairs_college" = "公共事務學院";
+"web_social_science_college" = "社會科學學院";
+"web_humanities_college" = "人文學院";
+"web_eecs_college" = "電機資訊學院";
+"web_law_dept" = "法律系";
+"web_ba_dept" = "企管系";
+"web_finance_dept" = "金融系";
+"web_accounting_dept" = "會計系";
+"web_statistics_dept" = "統計系";
+"web_leisure_dept" = "休運系";
+"web_pa_dept" = "公行系";
+"web_pf_dept" = "財政系";
+"web_realestate_dept" = "不動產系";
+"web_econ_dept" = "經濟系";
+"web_sociology_dept" = "社會系";
+"web_sw_dept" = "社工系";
+"web_chinese_dept" = "中文系";
+"web_foreign_lang_dept" = "應外系";
+"web_history_dept" = "歷史系";
+"web_csie_dept" = "資工系";
+"web_csie_unofficial" = "資工系（偽）";
+"web_ee_dept" = "電機系";
+"web_comm_dept" = "通訊系";
+"web_mis_grad" = "資管研";
+"web_ib_grad" = "國企研";
+"web_urban_grad" = "都計研";
+"web_crim_grad" = "犯罪研";
+"web_calendar" = "行事曆";
+"web_student_union" = "學生會";
+"web_su_linktree" = "學生會 linktree";
+"web_vote_site" = "投票網站";
+"web_others" = "其他";
+"web_clubs" = "社團";
+"web_campus_directory" = "校園聯絡簿";
+"web_suggestion" = "校務建言";
+"web_library_login" = "圖書館登入";
+"web_leave_system" = "請假系統";
+
+// MARK: - Widget Strings
+"widget_next_task" = "下一個任務:";
+"widget_plan_time" = "計劃時間:";
+"widget_due_time" = "截止時間:";
+"widget_tag_type %@" = "類型： %@";
+"widget_priority %@" = "優先級： %@";
+"widget_priority_short %@" = "優先級: %@";
+"widget_no_task_hint" = "資料未刷新時，可點擊進App或連上網路試試";
+"widget_time_none" = "時間: 無";
+"widget_next_course" = "下一堂課:";
+"widget_start_time" = "開始時間:";
+"widget_start_time_short %@" = "開始時間: %@";
+"widget_professor %@" = "教授： %@";
+"widget_classroom %@" = "教室： %@";
+"widget_no_data_hint" = "資料未刷新時，可點擊進App或連上網路試試";
+"widget_today" = "今日";
+"widget_no_tasks_today" = "今天沒有任務";
+"widget_my_tasks" = "我的任務";
+"widget_pending_count %lld" = "%lld 個待辦";
+"widget_great_no_tasks" = "太棒了！沒有待辦任務";
+"widget_task_overview" = "任務總覽";
+"widget_section_overdue" = "逾期";
+"widget_section_plan_overdue" = "計劃過期";
+"widget_section_today" = "今天";
+"widget_section_this_week" = "本週";
+"widget_section_others" = "其他任務";
+"widget_great" = "太棒了！";
+"widget_no_pending_tasks" = "沒有待辦任務";
+"widget_more_tasks %lld" = "還有 %lld 個任務未顯示...";
+"widget_already_overdue" = "已逾期";
+"widget_today_time %@" = "今天 %@";
+"widget_date_today" = "今天";
+"widget_date_tomorrow" = "明天";
+"widget_overdue_days %lld" = "逾期%lld天";
+"widget_plan_expired_days %lld" = "過期%lld天";
+"widget_days_left %lld" = "%lld天";
+"widget_task_list" = "任務清單";
+"widget_task_list_desc" = "顯示待辦任務和提醒事項";
+"widget_day_mon" = "一";
+"widget_day_tue" = "二";
+"widget_day_wed" = "三";
+"widget_day_thu" = "四";
+"widget_day_fri" = "五";
+"widget_course_overview" = "課表總覽";
+"widget_course_overview_desc" = "顯示週一至週五課表";
+
+// MARK: - New Form Keys (ReportBugView, FeaturesView, AddOrderView)
+"issue_found_required" = "發現問題＊";
+"issue_found_placeholder" = "例如：課表載入失敗、廣告高度錯誤…";
+"issue_detail_required" = "問題詳情＊";
+"issue_detail_placeholder" = "具體過程或如何重現（路徑、按鈕、錯誤訊息…）";
+"email_optional_placeholder" = "你的信箱（選填）";
+"contact_method_optional" = "聯絡方式（選填）";
+"issue_form_required_hint" = "「發現問題」與「問題詳情」為必填。";
+"report_bug_title" = "回報問題";
+"feature_name_required" = "功能名稱＊";
+"feature_name_placeholder" = "例如：課表分享、課程提醒…";
+"feature_detail_required" = "功能詳情＊";
+"feature_detail_placeholder" = "具體如何表現（情境、按鈕位置、流程…）";
+"feature_form_required_hint" = "「功能名稱」與「功能詳情」為必填。";
+"feature_request_title" = "功能回報";
+
+// MARK: - CourseGet Keys
+"enter_course_code" = "輸入課程編號:";
+"course_code_placeholder" = "如:U4001或只打部分數字";
+"searching" = "搜尋中…";
+"search_course" = "查詢課程";
+"skip_if_no_course_code" = "如不需用課程編號新增，按 Skip";
+"no_course_found" = "沒有找到課程";
+"search_error_hint" = "發生錯誤，可能因搜尋數量太多或輸入格式不對，請輸入更具體的編號";
+"course_code_label %@" = "課程編號: %@";
+"course_name_label %@" = "課程名稱: %@";
+"course_teacher_label %@" = "授課教師: %@";
+"course_time_label %@" = "上課時間: %@";
+"course_location_label %@" = "教室位置: %@";
+"no_course_queried" = "未查詢課程。";
+"search_result_header" = "搜尋結果（點選課程後按Next）";
+"course_info_may_error" = "課程資訊可能錯誤，按Next後請再檢查一遍";
+
+// MARK: - AddOrderView Keys
+"announcement_content_required" = "公告內容＊";
+"note_length_focus" = "注意長度與重點";
+"char_count %lld" = "%lld 字";
+"related_info" = "相關資訊";
+"related_url_optional" = "相關網址（選填）";
+"select_tag" = "選擇標籤";
+"set_in_about_page" = "請至 About 頁面設定";
+"display_time_placeholder" = "展示時間（例如：至 10/15 或一週）";
+"announcement_form_required_hint" = "「公告內容」與「暱稱」為必填。";
+"add_announcement_title" = "新增公告";
+"tag_event" = "活動";
+"you_are_admin" = "✅ 你現在是管理員";
+
+// MARK: - CourseGet
+"select_year" = "選擇年份";
+"select_semester" = "選擇學期";
+
+// MARK: - CourseData Notification
+"not_filled" = "未填寫";
+"class_reminder" = "上課提醒";
+"notification_class_body %@ %@ %@ %@" = "時間：%@ %@\n地點：%@\n老師：%@";
+
+// MARK: - ContactMeView
+"enter_admin_password" = "輸入管理員密碼";
+"password" = "密碼";
+"wrong_password" = "密碼錯誤";
+
+// MARK: - LifeView
+"high_temp %@" = "高 %@";
+"low_temp %@" = "低 %@";
+"update_time_label %@" = "更新 %@";
+
+// MARK: - CourseGridView
+"tomorrow" = "明天";
+
+// MARK: - PostDetailView
+"post_content_title" = "公告內文";
+
+// MARK: - AboutView Reward
+"watch_30s_remaining %lld" = "觀看 30 秒影片（剩 %lld 次）";
