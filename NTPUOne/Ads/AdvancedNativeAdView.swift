@@ -271,15 +271,11 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         leftContainer.addSubview(mediaView)
         leftContainer.addSubview(iconView)
 
-        // 右側文字堆疊
-        let titleRow = UIStackView(arrangedSubviews: [badgeLabel, headlineLabel])
-        titleRow.axis = .horizontal
-        titleRow.spacing = 4
-        titleRow.alignment = .center
-
-        let textStack = UIStackView(arrangedSubviews: [titleRow, bodyLabel, ctaButton])
+        // 右側文字堆疊（廣告標籤獨立一行，標題在下一行）
+        let textStack = UIStackView(arrangedSubviews: [badgeLabel, headlineLabel, bodyLabel, ctaButton])
         textStack.axis = .vertical
         textStack.spacing = 3
+        textStack.alignment = .leading
         textStack.translatesAutoresizingMaskIntoConstraints = false
 
         adView.addSubview(leftContainer)
@@ -304,7 +300,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
             mediaView.bottomAnchor.constraint(equalTo: leftContainer.bottomAnchor),
 
             // Badge 固定寬度
-            badgeLabel.widthAnchor.constraint(greaterThanOrEqualToConstant: 28),
+            badgeLabel.widthAnchor.constraint(equalToConstant: 32),
             badgeLabel.heightAnchor.constraint(equalToConstant: 16),
 
             // 右側文字 - 增加右側 padding 給 AdChoices icon 留空間
