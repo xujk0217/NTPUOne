@@ -6,21 +6,29 @@
 //
 
 import SwiftUI
+import BackgroundTasks
 import CoreData
 import FirebaseAnalytics
 import FirebaseCore
 import Firebase
 import FirebaseInAppMessagingInternal
+import FirebaseMessaging
+import FirebaseFirestore
+import FirebaseAuth
 import GoogleMobileAds
 import UserNotifications
 import Network
 import WidgetKit
 import FirebaseAppCheck
+import GoogleSignIn
 import StoreKit
 
 
-class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate {
+class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate, MessagingDelegate {
     var window: UIWindow?
+    private static var communityNotificationRefreshTaskIdentifier: String {
+        "\(Bundle.main.bundleIdentifier ?? "com.xujk.NTPUOne").communityNotificationRefresh"
+    }
     
     lazy var persistentContainer: NSPersistentCloudKitContainer = {
         let container = NSPersistentCloudKitContainer(name: "CourseModel")
@@ -73,17 +81,159 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
         GADMobileAds.sharedInstance().start(completionHandler: nil)
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
-        // Request notification authorization and set the delegate
-        requestNotificationAuthorization()
         WidgetCenter.shared.reloadAllTimelines()
         UNUserNotificationCenter.current().delegate = self
-                
+        Messaging.messaging().delegate = self
+        Self.registerCommunityNotificationRefreshTask()
+        Self.scheduleCommunityNotificationRefresh()
+        Messaging.messaging().token { token, error in
+            if let error {
+                print("❌ FCM token fetch failed: \(error.localizedDescription)")
+            } else if let token {
+                Self.persistCommunityFCMToken(token)
+            }
+        }
+
         return true
+    }
+
+    func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {
+        if GIDSignIn.sharedInstance.handle(url) {
+            return true
+        }
+
+        if Auth.auth().canHandle(url) {
+            return true
+        }
+
+        return false
     }
             
     // 当应用程序处于前台时收到通知
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         completionHandler([.banner, .sound, .list])
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        Messaging.messaging().apnsToken = deviceToken
+        Messaging.messaging().token { token, error in
+            if let error {
+                print("❌ FCM token refresh after APNs registration failed: \(error.localizedDescription)")
+            } else if let token {
+                Self.persistCommunityFCMToken(token)
+            }
+        }
+    }
+
+    func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
+        guard let fcmToken else { return }
+        Self.persistCommunityFCMToken(fcmToken)
+    }
+
+    static func requestCommunityNotificationRegistration() {
+        UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
+            if let error {
+                print("❌ Community notification permission failed: \(error.localizedDescription)")
+                return
+            }
+
+            guard granted else {
+                print("⚠️ Community notification permission denied")
+                return
+            }
+
+            DispatchQueue.main.async {
+                UIApplication.shared.registerForRemoteNotifications()
+                Messaging.messaging().token { token, error in
+                    if let error {
+                        print("❌ FCM token fetch after permission failed: \(error.localizedDescription)")
+                    } else if let token {
+                        persistCommunityFCMToken(token)
+                    }
+                }
+            }
+        }
+    }
+
+    static func scheduleCommunityNotificationRefresh() {
+        let request = BGAppRefreshTaskRequest(identifier: communityNotificationRefreshTaskIdentifier)
+        request.earliestBeginDate = Date(timeIntervalSinceNow: 15 * 60)
+
+        do {
+            try BGTaskScheduler.shared.submit(request)
+        } catch {
+            print("❌ Community notification refresh schedule failed: \(error.localizedDescription)")
+        }
+    }
+
+    private static func registerCommunityNotificationRefreshTask() {
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: communityNotificationRefreshTaskIdentifier, using: nil) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            handleCommunityNotificationRefreshTask(refreshTask)
+        }
+    }
+
+    private static func handleCommunityNotificationRefreshTask(_ task: BGAppRefreshTask) {
+        scheduleCommunityNotificationRefresh()
+
+        var didComplete = false
+        task.expirationHandler = {
+            DispatchQueue.main.async {
+                guard !didComplete else { return }
+                didComplete = true
+                task.setTaskCompleted(success: false)
+            }
+        }
+
+        CommunityNotificationFallbackService.shared.refresh(source: "background") { success in
+            guard !didComplete else { return }
+            didComplete = true
+            task.setTaskCompleted(success: success)
+        }
+    }
+
+    private static func persistCommunityFCMToken(_ token: String) {
+        let defaults = UserDefaults.standard
+        let key = "commentDeviceId"
+        let deviceId: String
+        if let existing = defaults.string(forKey: key), !existing.isEmpty {
+            deviceId = existing
+        } else {
+            let generated = UUID().uuidString
+            defaults.set(generated, forKey: key)
+            deviceId = generated
+        }
+
+        let deviceSecret = ensureCommunityDeviceSecret()
+        var payload: [String: Any] = [
+            "deviceId": deviceId,
+            "deviceSecret": deviceSecret,
+            "fcmToken": token,
+            "platform": "ios",
+            "updatedAt": FieldValue.serverTimestamp()
+        ]
+        if let user = Auth.auth().currentUser {
+            payload["ownerUid"] = user.uid
+            payload["ownerEmail"] = user.email ?? ""
+        }
+
+        Firestore.firestore().collection("communityDeviceTokens").document(deviceSecret).setData(payload, merge: true) { error in
+            if let error {
+                print("❌ Failed to save community FCM token: \(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func ensureCommunityDeviceSecret() -> String {
+        let defaults = UserDefaults.standard
+        let key = "communityDeviceSecret"
+        if let existing = defaults.string(forKey: key), !existing.isEmpty { return existing }
+        let generated = UUID().uuidString
+        defaults.set(generated, forKey: key)
+        return generated
     }
 
 
@@ -112,19 +262,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         monitor.start(queue: queue)
     }
-    private func requestNotificationAuthorization() {
-            let center = UNUserNotificationCenter.current()
-            center.requestAuthorization(options: [.alert, .sound, .badge]) { granted, error in
-                if granted {
-                    print("Notification permission granted.")
-                } else {
-                    print("Notification permission denied.")
-                }
-                if let error = error {
-                    print("Error requesting notification authorization: \(error.localizedDescription)")
-                }
-            }
-        }
 }
 
 class MyAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
@@ -182,7 +319,7 @@ class PersistenceController {
         let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
         let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
         
-        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
+        let storeDescription = storeURL.map(NSPersistentStoreDescription.init(url:)) ?? NSPersistentStoreDescription()
         storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
 
         container.persistentStoreDescriptions = [storeDescription]
@@ -218,6 +355,9 @@ struct NTPUOneApp: App {
             if phase == .active {
                 adFree.refresh()   // 回到前景時刷新到期狀態
                 WidgetCenter.shared.reloadAllTimelines()  // 刷新所有 Widget
+                CommunityNotificationFallbackService.shared.refresh(source: "foreground")
+            } else if phase == .background {
+                AppDelegate.scheduleCommunityNotificationRefresh()
             }
         }
     }

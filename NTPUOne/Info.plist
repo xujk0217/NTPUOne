@@ -4,6 +4,10 @@
 <dict>
 	<key>App Delegate Proxy</key>
 	<true/>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER).communityNotificationRefresh</string>
+	</array>
 	<key>CFBundleDocumentTypes</key>
 	<array>
 		<dict>
@@ -27,6 +31,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array>
 				<string>ntpuone</string>
+			</array>
+		</dict>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>Firebase GoogleAuth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.537457713010-dod0dh4doocir3vh52ebff1fve225bnq</string>
 			</array>
 		</dict>
 	</array>
@@ -268,6 +280,7 @@
 	</array>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>remote-notification</string>
 	</array>
 </dict>
