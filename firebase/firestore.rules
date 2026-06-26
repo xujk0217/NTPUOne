@@ -1,0 +1,108 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function hasAuth() {
+      return request.auth != null;
+    }
+
+    function isAuthOwner(uid) {
+      return hasAuth() && uid is string && uid == request.auth.uid;
+    }
+
+    function isValidCommunityString(value) {
+      return value is string && value.size() > 0;
+    }
+
+    function docMatchesDeviceSecret(docId, payload) {
+      return payload is map
+        && isValidCommunityString(payload.deviceId)
+        && isValidCommunityString(payload.deviceSecret)
+        && payload.deviceSecret == docId;
+    }
+
+    function canWriteSecretDocument(deviceSecret) {
+      return isAuthOwner(request.resource.data.ownerUid) || docMatchesDeviceSecret(deviceSecret, request.resource.data);
+    }
+
+    function canUpdateSecretDocument(deviceSecret) {
+      return isAuthOwner(resource.data.ownerUid)
+        || docMatchesDeviceSecret(deviceSecret, request.resource.data) && resource.data.deviceSecret == deviceSecret;
+    }
+
+    function canDeleteSecretDocument() {
+      return isAuthOwner(resource.data.ownerUid);
+    }
+
+    function isReplyCountOnlyUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+        && request.resource.data.replyCount is int
+        && (
+          (
+            resource.data.keys().hasAny(['replyCount'])
+            && resource.data.replyCount is int
+            && request.resource.data.replyCount == resource.data.replyCount + 1
+          )
+          || (
+            !resource.data.keys().hasAny(['replyCount'])
+            && request.resource.data.replyCount == 1
+          )
+        );
+    }
+
+    match /communityProfiles/{deviceSecret} {
+      allow read: if false;
+      allow create: if canWriteSecretDocument(deviceSecret);
+      allow update: if canUpdateSecretDocument(deviceSecret);
+      allow delete: if canDeleteSecretDocument();
+    }
+
+    match /communityDeviceTokens/{deviceSecret} {
+      allow read: if false;
+      allow create: if canWriteSecretDocument(deviceSecret);
+      allow update: if canUpdateSecretDocument(deviceSecret);
+      allow delete: if canDeleteSecretDocument();
+    }
+
+    match /communityCategorySubscriptions/{category}/devices/{deviceSecret} {
+      allow read: if false;
+      allow create: if isValidCommunityString(request.resource.data.deviceId)
+        && request.resource.data.deviceSecret == deviceSecret;
+      allow update: if request.resource.data.deviceSecret == deviceSecret
+        && resource.data.deviceSecret == deviceSecret;
+      allow delete: if isAuthOwner(resource.data.ownerUid);
+    }
+
+    match /communityTopicSubscriptions/{topicId}/devices/{deviceSecret} {
+      allow read: if false;
+      allow create: if isValidCommunityString(request.resource.data.deviceId)
+        && request.resource.data.deviceSecret == deviceSecret;
+      allow update: if request.resource.data.deviceSecret == deviceSecret
+        && resource.data.deviceSecret == deviceSecret;
+      allow delete: if isAuthOwner(resource.data.ownerUid);
+    }
+
+    match /communityContentOwners/{deviceSecret} {
+      allow read, write: if false;
+
+      match /{document=**} {
+        allow read, write: if false;
+      }
+    }
+
+    match /communityTopics/{topicId} {
+      allow read: if true;
+
+      allow create: if false;
+
+      allow update: if isReplyCountOnlyUpdate();
+    }
+
+    match /communityTopics/{topicId}/replies/{replyId} {
+      allow read: if true;
+      allow create: if false;
+      allow update: if false;
+      allow delete: if false;
+    }
+  }
+}
