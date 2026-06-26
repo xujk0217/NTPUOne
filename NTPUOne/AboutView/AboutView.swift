@@ -14,6 +14,7 @@ import GoogleMobileAds
 import AppTrackingTransparency
 import MapKit
 import Firebase
+import UserNotifications
 
 struct AboutView: View {
     //about rewardAds
@@ -28,65 +29,52 @@ struct AboutView: View {
     
     //admin
     @AppStorage("isAdmin") private var isAdmin: Bool = false
+    @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
 
     // 個人設定
     @AppStorage("commentNickname") private var nickname: String = ""
     @AppStorage("commentDeviceId") private var deviceId: String = ""
-    @State private var pendingNickname = ""
-    @State private var isEditingNickname = false
-    @State private var showUpdateOldAlert = false
-    @State private var isUpdatingComments = false
-    @FocusState private var nicknameFieldFocused: Bool
-    @StateObject private var commentUpdater = CommentManager()
+    @StateObject private var communityProfileManager = CommunityProfileManager()
+    @State private var showOnboarding = false
     
     var body: some View {
         NavigationStack {
             List {
                 // MARK: - 帳號與偏好
                 Section {
-                    // 暱稱設定
-                    HStack {
-                        Image(systemName: "person.circle.fill")
-                            .font(.title2)
-                            .foregroundStyle(.orange)
-                        VStack(alignment: .leading, spacing: 2) {
-                            if isEditingNickname {
-                                TextField(String(localized: "nickname"), text: $pendingNickname)
-                                    .focused($nicknameFieldFocused)
-                                    .submitLabel(.done)
-                                    .onSubmit { saveNickname() }
-                            } else {
-                                Text(nickname.isEmpty ? String(localized: "nickname") : nickname)
-                                    .font(.body.weight(.medium))
-                                    .foregroundStyle(nickname.isEmpty ? .secondary : .primary)
-                            }
-                            if !deviceId.isEmpty {
-                                Text("ID: #\(deviceId.prefix(4).uppercased())")
+                    NavigationLink {
+                        CommunityProfileView(profileManager: communityProfileManager)
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "person.text.rectangle.fill")
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "community_profile_title"))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "community_profile_subtitle"))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
                         }
-                        Spacer()
-                        if isUpdatingComments {
-                            ProgressView().scaleEffect(0.8)
-                        } else {
-                            Button {
-                                if isEditingNickname { saveNickname() }
-                                else {
-                                    pendingNickname = nickname
-                                    isEditingNickname = true
-                                    nicknameFieldFocused = true
-                                }
-                            } label: {
-                                Image(systemName: isEditingNickname ? "checkmark.circle.fill" : "pencil.circle")
-                                    .font(.title3)
-                                    .foregroundStyle(.orange)
+                    }
+
+                    NavigationLink {
+                        CommunityMyContentView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "tray.full.fill")
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "community_my_content_title"))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "community_my_content_subtitle"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                             }
                         }
                     }
-                    .padding(.vertical, 4)
-                    
-                    // 評論獎勵系統（放在暱稱下方）
+
+                    // 評論獎勵系統（放在交流身份下方）
                     NavigationLink {
                         CommentRewardInfoView()
                     } label: {
@@ -104,7 +92,42 @@ struct AboutView: View {
                             Spacer()
                         }
                     }
-                    
+
+                    NavigationLink {
+                        PrivacyDataControlsView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "lock.shield.fill")
+                                .foregroundStyle(.green)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "privacy_data_controls"))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "privacy_data_controls_subtitle"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Button {
+                        hasCompletedFirstRunOnboarding = false
+                        showOnboarding = true
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "sparkles.rectangle.stack.fill")
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(String(localized: "show_onboarding_again"))
+                                    .foregroundStyle(.primary)
+                                Text(String(localized: "show_onboarding_again_subtitle"))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                        }
+                    }
+                    .accessibilityLabel(String(localized: "show_onboarding_again_accessibility"))
+
                     // 廣告設定
                     if !isAdmin {
                         if adFree.isAdFree {
@@ -131,7 +154,7 @@ struct AboutView: View {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(String(localized: "watch_30s_no_banner"))
                                             .foregroundStyle(.primary)
-                                        Text(rewardedManager.isLoading ? String(localized: "loading") : String(localized: "watch_30s_remaining \(rewardedManager.remainingViews)"))
+                                        Text(rewardedManager.isLoading ? String(localized: "loading") : String(format: String(localized: "watch_30s_remaining %lld"), rewardedManager.remainingViews))
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
                                     }
@@ -147,28 +170,7 @@ struct AboutView: View {
                 } header: {
                     Label(String(localized: "account_and_preferences"), systemImage: "gearshape.fill")
                 } footer: {
-                    Text(String(localized: "nickname"))
-                }
-                .alert(String(localized: "alert_update_old_comments"), isPresented: $showUpdateOldAlert) {
-                    Button(String(localized: "update_new_comments_only")) {
-                        nickname = pendingNickname
-                        isEditingNickname = false
-                    }
-                    Button(String(localized: "update_old_comments_too")) {
-                        let newName = pendingNickname
-                        nickname = newName
-                        isEditingNickname = false
-                        isUpdatingComments = true
-                        commentUpdater.updateAllComments(deviceId: deviceId, newName: newName) { _ in
-                            isUpdatingComments = false
-                        }
-                    }
-                    Button(String(localized: "cancel"), role: .cancel) {
-                        isEditingNickname = true
-                        nicknameFieldFocused = true
-                    }
-                } message: {
-                    Text(String(localized: "alert_update_old_comments"))
+                    Text(String(localized: "my_center_account_footer"))
                 }
                 
                 // Admin 區塊
@@ -197,6 +199,13 @@ struct AboutView: View {
                                 .font(.caption)
                                 .foregroundStyle(.tertiary)
                         }
+                    }
+
+                    NavigationLink {
+                        NewStudentChecklistView()
+                    } label: {
+                        Label(String(localized: "new_student_checklist_title"), systemImage: "checklist.checked")
+                            .foregroundStyle(.primary)
                     }
                     
                     NavigationLink {
@@ -236,7 +245,7 @@ struct AboutView: View {
                             .foregroundStyle(.primary)
                     }
                 } header: {
-                    Label(String(localized: "about"), systemImage: "info.circle.fill")
+                    Label(String(localized: "my"), systemImage: "person.crop.circle.fill")
                 }
                 
                 // 原生廣告（放在最底部，不干擾功能流程）
@@ -248,9 +257,16 @@ struct AboutView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .navigationTitle(String(localized: "about"))
+            .navigationTitle(String(localized: "my"))
             .navigationBarTitleDisplayMode(.large)
             .onAppear { rewardedManager.preload() }
+            .fullScreenCover(isPresented: $showOnboarding) {
+                FirstRunOnboardingView {
+                    hasCompletedFirstRunOnboarding = true
+                    showOnboarding = false
+                }
+                .interactiveDismissDisabled()
+            }
             .navigationDestination(isPresented: $isReward) {
                 AddOrderView(rewardAd: rewardAd)
             }
@@ -263,30 +279,161 @@ struct AboutView: View {
         .onAppear {
             if deviceId.isEmpty { deviceId = UUID().uuidString }
             if nickname.isEmpty {
-                nickname = "使用者\(String(deviceId.prefix(4)).uppercased())"
+                nickname = String(format: String(localized: "community_default_user_format"), String(deviceId.prefix(4)).uppercased())
             }
         }
     }
-    private func saveNickname() {
-        let newName = pendingNickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !newName.isEmpty, newName != nickname else {
-            isEditingNickname = false
-            return
-        }
-        if nickname.isEmpty {
-            nickname = newName
-            isEditingNickname = false
-        } else {
-            showUpdateOldAlert = true
-        }
-    }
-
     private func showRewarded() {
         rewardedManager.present {
             adFree.grantForTodayEnd()
         } onDismiss: {
         }
     }
+}
+
+struct PrivacyDataControlsView: View {
+    @AppStorage("communityDeviceSecret") private var deviceSecret: String = ""
+    @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
+
+    @State private var showLocalResetConfirmation = false
+    @State private var showRemoteDeleteConfirmation = false
+    @State private var isDeletingRemoteData = false
+    @State private var statusMessage: String?
+
+    private let communityFunctions = CommunityContentFunctionsService()
+
+    var body: some View {
+        Form {
+            Section {
+                Label(String(localized: "privacy_data_controls_intro"), systemImage: "lock.shield.fill")
+                    .foregroundStyle(.primary)
+                Text(String(localized: "privacy_data_controls_intro_detail"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    showLocalResetConfirmation = true
+                } label: {
+                    Label(String(localized: "reset_local_privacy_data"), systemImage: "trash.fill")
+                }
+                .accessibilityLabel(String(localized: "reset_local_privacy_data_accessibility"))
+            } header: {
+                Text(String(localized: "local_data"))
+            } footer: {
+                Text(String(localized: "reset_local_privacy_data_footer"))
+            }
+
+            Section {
+                Button(role: .destructive) {
+                    showRemoteDeleteConfirmation = true
+                } label: {
+                    if isDeletingRemoteData {
+                        HStack {
+                            ProgressView()
+                            Text(String(localized: "remote_delete_in_progress"))
+                        }
+                    } else {
+                        Label(String(localized: "request_remote_device_cleanup"), systemImage: "icloud.slash.fill")
+                    }
+                }
+                .disabled(isDeletingRemoteData || deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .accessibilityLabel(String(localized: "request_remote_device_cleanup_accessibility"))
+            } header: {
+                Text(String(localized: "remote_private_data"))
+            } footer: {
+                Text(deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "remote_cleanup_no_device_secret") : String(localized: "remote_cleanup_footer"))
+            }
+
+            if let statusMessage {
+                Section {
+                    Text(statusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .navigationTitle(String(localized: "privacy_data_controls"))
+        .navigationBarTitleDisplayMode(.inline)
+        .alert(String(localized: "reset_local_privacy_data_confirm_title"), isPresented: $showLocalResetConfirmation) {
+            Button(String(localized: "cancel"), role: .cancel) { }
+            Button(String(localized: "reset_local_privacy_data_confirm_button"), role: .destructive) {
+                resetLocalData()
+            }
+        } message: {
+            Text(String(localized: "reset_local_privacy_data_confirm_message"))
+        }
+        .alert(String(localized: "remote_cleanup_confirm_title"), isPresented: $showRemoteDeleteConfirmation) {
+            Button(String(localized: "cancel"), role: .cancel) { }
+            Button(String(localized: "remote_cleanup_confirm_button"), role: .destructive) {
+                requestRemoteCleanup()
+            }
+        } message: {
+            Text(String(localized: "remote_cleanup_confirm_message"))
+        }
+    }
+
+    private func resetLocalData() {
+        let defaults = UserDefaults.standard
+        Self.localResetKeys.forEach { defaults.removeObject(forKey: $0) }
+        hasCompletedFirstRunOnboarding = false
+        removePendingCommunityNotifications()
+        statusMessage = String(localized: "local_privacy_data_reset_done")
+    }
+
+    private func requestRemoteCleanup() {
+        let currentDeviceSecret = deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !currentDeviceSecret.isEmpty else {
+            statusMessage = String(localized: "remote_cleanup_no_device_secret")
+            return
+        }
+
+        isDeletingRemoteData = true
+        statusMessage = nil
+        communityFunctions.deleteCommunityDeviceData(deviceSecret: currentDeviceSecret) { error in
+            DispatchQueue.main.async {
+                isDeletingRemoteData = false
+                if let error {
+                    statusMessage = String(format: String(localized: "remote_cleanup_failed_format"), error.localizedDescription)
+                } else {
+                    statusMessage = String(localized: "remote_cleanup_requested_done")
+                }
+            }
+        }
+    }
+
+    private func removePendingCommunityNotifications() {
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let identifiers = requests
+                .map(\.identifier)
+                .filter { $0.hasPrefix("community.topic.") || $0.hasPrefix("community.reply.") }
+            guard !identifiers.isEmpty else { return }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
+    }
+
+    private static let localResetKeys = [
+        "hasCompletedFirstRunOnboarding",
+        "commentNickname",
+        "commentDeviceId",
+        "communityDeviceSecret",
+        "communitySchoolEmail",
+        "communityDepartment",
+        "communityEntryYear",
+        "communityShowDepartment",
+        "communityShowYear",
+        "communityShowBadge",
+        "communityOwnerUid",
+        "communityOwnerEmail",
+        "communityCategorySubscriptions",
+        "communityTopicSubscriptions",
+        "communityNotificationLastRefreshAt",
+        "communityNotificationCategoryBaselines",
+        "communityNotificationTopicBaselines",
+        "communityNotificationSeenTopicIDs",
+        "communityNotificationSeenReplyIDsByTopic"
+    ]
 }
 
 #Preview {
