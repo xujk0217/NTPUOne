@@ -9,6 +9,7 @@ import Foundation
 import CoreData
 import UserNotifications
 import SwiftUI
+import WidgetKit
 
 struct Course: Identifiable {
     var id: String
@@ -103,6 +104,7 @@ class CourseData: ObservableObject {
 //        scheduleDailyReminderNotification() //測試
         listAllPendingNotifications() //列通知
 //        scheduleNotificationTest() //測試
+        refreshNextCourseLiveActivity()
     }
     
     func scheduleNotificationsForAllCourses() {
@@ -176,6 +178,7 @@ class CourseData: ObservableObject {
         courses.append(NCourse)
         print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime.rawValue ?? "ooo").")
         listAllPendingNotifications()
+        refreshNextCourseLiveActivity()
     }
 
     func deleteCourse(_ course: Course) {
@@ -199,6 +202,7 @@ class CourseData: ObservableObject {
                 courses.remove(at: index)
                 print("Success: Deleted course with id \(course.id).")
             }
+            refreshNextCourseLiveActivity()
         } catch {
             print("Error: Failed to delete course with id \(course.id) - \(error.localizedDescription)")
         }
@@ -222,6 +226,7 @@ class CourseData: ObservableObject {
                     courses.remove(at: index)
                     print("Success: Deleted course with id \(courseId).")
                 }
+                refreshNextCourseLiveActivity()
             } else {
                 print("Info: No course found with id \(courseId) to delete.")
             }
@@ -262,6 +267,7 @@ class CourseData: ObservableObject {
                     courses[index] = course
                     print("Success: Updated course with id \(course.id) and name \(course.name).")
                 }
+                refreshNextCourseLiveActivity()
             } else {
                 print("Info: No course found with id \(course.id) to update.")
             }
@@ -294,11 +300,20 @@ class CourseData: ObservableObject {
             }
 
             print("Success: All courses deleted from Core Data and notifications cleared.")
+            refreshNextCourseLiveActivity()
         } catch {
             print("Error: Failed to delete all courses - \(error.localizedDescription)")
         }
     }
 
+    func refreshNextCourseLiveActivity() {
+        let currentCourses = courses
+        Task { @MainActor in
+            NextCourseLiveActivityManager.shared.sync(with: currentCourses)
+            WidgetCenter.shared.reloadTimelines(ofKind: "NextCourseWidget")
+            WidgetCenter.shared.reloadTimelines(ofKind: "CourseLargeWidget")
+        }
+    }
 
     private func saveContext() {
         guard let viewContext = viewContext else {

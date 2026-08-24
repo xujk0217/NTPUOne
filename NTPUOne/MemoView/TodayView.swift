@@ -44,6 +44,7 @@ struct TodayView: View {
     
     @State private var selectedTab = 0
     @State private var showAddMemo = false
+    @State private var selectedTemplate: MemoTemplate? = nil
     @State private var selectedMemo: Memo? = nil
     @State private var editingMemo: Memo? = nil
     @State private var presetCourseLink: String? = nil
@@ -83,19 +84,25 @@ struct TodayView: View {
         .onAppear {
             loadManualPlannedTodayOrder()
             syncManualOrderWithCurrentTasks()
+            refreshLiveActivity()
         }
         .onChange(of: plannedTodayTaskIds) { _ in
             syncManualOrderWithCurrentTasks()
         }
-        .sheet(isPresented: $showAddMemo) {
+        .sheet(isPresented: $showAddMemo, onDismiss: resetMemoDraftState) {
             MemoFormView(
                 memoManager: memoManager,
                 courseData: courseData,
                 memo: nil,
                 presetCourseLink: presetCourseLink,
-                presetPlanAt: Date()
-                )
-            }
+                presetPlanAt: Date(),
+                presetTitle: selectedTemplate?.title,
+                presetTagType: selectedTemplate?.tagType,
+                presetPriority: selectedTemplate?.priority,
+                presetDisableAutoDueReminder: selectedTemplate?.presetDisableAutoDueReminder,
+                presetDisableAutoPlanReminder: selectedTemplate?.presetDisableAutoPlanReminder
+            )
+        }
             .sheet(isPresented: $showScheduledSheet) {
                 ScheduledNotificationsSheet(
                     items: scheduledMemos,
@@ -134,6 +141,17 @@ struct TodayView: View {
             }
     }
 
+    private func startMemoDraft(template: MemoTemplate?, courseLink: String?) {
+        selectedTemplate = template
+        presetCourseLink = courseLink
+        showAddMemo = true
+    }
+
+    private func resetMemoDraftState() {
+        selectedTemplate = nil
+        presetCourseLink = nil
+    }
+
     private var mainStack: some View {
         VStack(spacing: 0) {
             // 頂部統計
@@ -165,11 +183,24 @@ struct TodayView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .navigationBarTrailing) {
-            Button {
-                presetCourseLink = nil
-                showAddMemo = true
+            Menu {
+                Button {
+                    startMemoDraft(template: nil, courseLink: nil)
+                } label: {
+                    Label(String(localized: "memo_template_blank"), systemImage: "square.and.pencil")
+                }
+
+                Section(String(localized: "memo_templates")) {
+                    ForEach(MemoTemplate.allCases) { template in
+                        Button {
+                            startMemoDraft(template: template, courseLink: nil)
+                        } label: {
+                            Label(template.title, systemImage: template.icon)
+                        }
+                    }
+                }
             } label: {
-                Image(systemName: "plus.circle.fill")
+                Image(systemName: "plus.circle")
                     .font(.title2)
             }
         }
@@ -299,7 +330,6 @@ struct TodayView: View {
                     }
                 } label: {
                     Image(systemName: "line.3.horizontal.decrease.circle")
-                        .symbolVariant(hasActiveFilters ? .fill : .none)
                         .foregroundColor(hasActiveFilters ? .blue : .primary)
                 }
             }
@@ -322,7 +352,7 @@ struct TodayView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
-            
+
             Spacer()
             
             // 今日統計
@@ -357,6 +387,15 @@ struct TodayView: View {
         }
         .padding(.horizontal)
         .padding(.vertical, 8)
+    }
+
+    private func refreshLiveActivity() {
+        Task { @MainActor in
+            NextCourseLiveActivityManager.shared.sync(
+                courses: courseData.courses,
+                memos: memoManager.memos
+            )
+        }
     }
     
     // MARK: - Tab 選擇器
@@ -654,8 +693,7 @@ struct TodayView: View {
                             course: course,
                             relatedMemos: memoManager.memosForCourse(course.id),
                             onAddMemo: {
-                                presetCourseLink = course.id
-                                showAddMemo = true
+                                startMemoDraft(template: nil, courseLink: course.id)
                             },
                             onMemoTap: { memo in
                                 selectedMemo = memo

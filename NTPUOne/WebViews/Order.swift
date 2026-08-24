@@ -246,5 +246,22 @@ struct Order: Identifiable, Codable, Equatable {
     var time: String        // 表單中的時間字串
     var email: String       // 聯絡 email
     var date: Double        // 以秒為單位的 epoch（Date().timeIntervalSince1970）
-}
 
+    var favoriteID: String? {
+        guard let id else { return nil }
+        return "order:\(id)"
+    }
+
+    var favoriteSource: String {
+        switch tag {
+        case "1":
+            "活動"
+        case "2":
+            "社團"
+        case "3":
+            "其他"
+        default:
+            "公告"
+        }
+    }
+}

@@ -16,7 +16,7 @@ import MapKit
 import Firebase
 
 struct BackTrafficView: View {
-    @ObservedObject var bikeManager = UbikeManager()
+    @StateObject private var bikeManager = UbikeManager()
     @EnvironmentObject var adFree: AdFreeService
     
     @State private var isExpanded = false

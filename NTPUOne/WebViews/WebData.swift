@@ -38,7 +38,7 @@ class WebManager: ObservableObject{
         ]),
         WebsArray(id: 2, title: String(localized: "web_course"), webs: [
             WebData(id: "3", title: String(localized: "web_course_search"), image: "magnifyingglass", url: "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.chi_main"),
-            WebData(id: "4", title: String(localized: "web_course_review"), image: "ellipsis.message.fill", url: "https://no21.ntpu.org/"),
+            WebData(id: "4", title: String(localized: "web_course_review"), image: "ellipsis.message", url: "https://no21.ntpu.org/"),
             WebData(id: "5", title: String(localized: "web_past_exam"), image: "folder.badge.questionmark", url: "https://past-exam.ntpu.cc"),
         ]),
         WebsArray(id: 3, title: String(localized: "web_departments"), webs: [
@@ -75,12 +75,12 @@ class WebManager: ObservableObject{
         WebsArray(id: 4, title: String(localized: "web_calendar"), webs: []),
         WebsArray(id: 5, title: String(localized: "web_student_union"), webs: [
             WebData(id: "37", title: String(localized: "web_su_linktree"), image: "macwindow", url: "https://linktr.ee/ntpusu"),
-            WebData(id: "38", title: String(localized: "web_vote_site"), image: "person.crop.square.filled.and.at.rectangle", url: "https://ntpusu-vote.vercel.app/"),
+            WebData(id: "38", title: String(localized: "web_vote_site"), image: "person.crop.square", url: "https://ntpusu-vote.vercel.app/"),
         ]),
         WebsArray(id: 6, title: String(localized: "web_others"), webs: [
-            WebData(id: "39", title: String(localized: "web_clubs"), image: "suit.club.fill", url: "https://www.extracurricular-activities-section.com.tw/"),
+            WebData(id: "39", title: String(localized: "web_clubs"), image: "suit.club", url: "https://www.extracurricular-activities-section.com.tw/"),
             WebData(id: "40", title: String(localized: "web_campus_directory"), image: "phone.bubble", url: "https://sea.cc.ntpu.edu.tw/pls/ld/campus_dir_m.main"),
-            WebData(id: "41", title: String(localized: "web_suggestion"), image: "captions.bubble.fill", url: "https://sea.cc.ntpu.edu.tw/pls/ntpu_cof/suggestion_login.html#2"),
+            WebData(id: "41", title: String(localized: "web_suggestion"), image: "captions.bubble", url: "https://sea.cc.ntpu.edu.tw/pls/ntpu_cof/suggestion_login.html#2"),
             WebData(id: "42", title: String(localized: "web_library_login"), image: "book.closed", url: "https://library.ntpu.edu.tw/masses/showMassesLogin"),
             WebData(id: "43", title: String(localized: "web_leave_system"), image: "figure.mind.and.body", url: "https://cof.ntpu.edu.tw/pls/acad2/leave_sys.html"),
         ]),

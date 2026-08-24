@@ -610,7 +610,7 @@ struct MemoLargeWidgetView: View {
                     HStack(spacing: 12) {
                         let (overdue, planOverdue, _, _, _) = categorizedMemos
                         if !overdue.isEmpty {
-                            Label("\(overdue.count)", systemImage: "exclamationmark.circle.fill")
+                            Label("\(overdue.count)", systemImage: "exclamationmark.circle")
                                 .font(.system(size: 11, weight: .medium))
                                 .foregroundColor(.red)
                         }
@@ -636,7 +636,7 @@ struct MemoLargeWidgetView: View {
                     // 空狀態
                     VStack(spacing: 12) {
                         Spacer()
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: "checkmark.circle")
                             .font(.system(size: 48))
                             .foregroundColor(.green)
                         Text(String(localized: "widget_great", bundle: .main))

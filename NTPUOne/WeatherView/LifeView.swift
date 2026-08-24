@@ -68,6 +68,11 @@ struct LifeView: View {
                                 if #available(iOS 17.0, *) { TrafficView() } else { BackTrafficView() }
                             }
                             .padding(.horizontal)
+
+                            CardRow(icon: "map", title: String(localized: "campus_map_title"), iconTint: .blue) {
+                                CampusMapView()
+                            }
+                            .padding(.horizontal)
                         }
 
                         // 今天吃什麼
@@ -77,10 +82,10 @@ struct LifeView: View {
                                 .padding(.horizontal)
 
                             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 12) {
-                                GridCard(icon: "cup.and.saucer.fill", title: String(localized: "breakfast"), iconTint: .orange) { BreakfastView() }
-                                GridCard(icon: "carrot.fill",        title: String(localized: "lunch"),  iconTint: .green)  { LunchView() }
-                                GridCard(icon: "wineglass.fill",     title: String(localized: "dinner"),  iconTint: .purple) { dinnerView() }
-                                GridCard(icon: "moon.stars.fill",    title: String(localized: "late_night_snack"),  iconTint: .indigo) { MSView() }
+                                GridCard(icon: "cup.and.saucer", title: String(localized: "breakfast"), iconTint: .orange) { BreakfastView() }
+                                GridCard(icon: "carrot",        title: String(localized: "lunch"),  iconTint: .green)  { LunchView() }
+                                GridCard(icon: "wineglass",     title: String(localized: "dinner"),  iconTint: .purple) { dinnerView() }
+                                GridCard(icon: "moon.stars",    title: String(localized: "late_night_snack"),  iconTint: .indigo) { MSView() }
                             }
                             .padding(.horizontal)
                         }
@@ -239,7 +244,7 @@ extension LifeView{
 
                     // 中段：天氣描述 + 現在溫度
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(weathers)
+                        Text(ntpuLocalizedWeatherDescription(weathers))
                             .font(.headline)
                             .lineLimit(1)
 
@@ -258,7 +263,7 @@ extension LifeView{
                 // 指標膠囊列
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 8) {
-                        StatChip(icon: "thermometer.sun.fill", text: String(localized: "high_temp \(safeTemp(maxTemperature))"), chipColor: .orange)
+                        StatChip(icon: "thermometer.sun", text: String(localized: "high_temp \(safeTemp(maxTemperature))"), chipColor: .orange)
                         StatChip(icon: "thermometer.snowflake", text: String(localized: "low_temp \(safeTemp(minTemperature))"), chipColor: .blue)
                         Spacer()
                     }

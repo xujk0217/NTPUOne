@@ -105,8 +105,9 @@ class MemoManager: ObservableObject {
             
             // 清理過期的提醒規則
             cleanupExpiredReminders()
-            
+
             applyFiltersAndSort()
+            refreshNextCourseLiveActivityTodos()
         } catch {
             print("Error: Failed to fetch memos from Core Data - \(error.localizedDescription)")
         }
@@ -194,6 +195,7 @@ class MemoManager: ObservableObject {
             try viewContext.save()
             memos.append(memo)
             applyFiltersAndSort()
+            refreshNextCourseLiveActivityTodos()
             scheduleNotification(for: memo)
             print("Success: Added memo '\(memo.title)'")
         } catch {
@@ -220,6 +222,7 @@ class MemoManager: ObservableObject {
                     memos[index] = memo
                 }
                 applyFiltersAndSort()
+                refreshNextCourseLiveActivityTodos()
                 scheduleNotification(for: memo)
                 print("Success: Updated memo '\(memo.title)'")
             }
@@ -245,6 +248,7 @@ class MemoManager: ObservableObject {
                 
                 memos.removeAll { $0.id == memo.id }
                 applyFiltersAndSort()
+                refreshNextCourseLiveActivityTodos()
                 cancelNotification(for: memo)
                 print("Success: Deleted memo '\(memo.title)'")
             }
@@ -426,6 +430,13 @@ class MemoManager: ObservableObject {
             
             // 按優先級排序
             return memo1.priority.sortOrder < memo2.priority.sortOrder
+        }
+    }
+
+    func refreshNextCourseLiveActivityTodos() {
+        let currentMemos = memos
+        Task { @MainActor in
+            NextCourseLiveActivityManager.shared.syncMemos(currentMemos)
         }
     }
     

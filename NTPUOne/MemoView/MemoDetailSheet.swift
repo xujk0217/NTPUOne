@@ -47,7 +47,7 @@ struct MemoDetailSheet: View {
                     if let courseLink = memo.courseLink,
                        let courseName = courseData.courses.first(where: { $0.id == courseLink })?.name {
                         HStack {
-                            Image(systemName: "book.closed.fill")
+                            Image(systemName: "book.closed")
                                 .foregroundColor(.blue)
                             Text(courseName)
                                 .font(.subheadline)
@@ -77,7 +77,7 @@ struct MemoDetailSheet: View {
                     
                     if memo.isOverdue {
                         HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
+                            Image(systemName: "exclamationmark.triangle")
                                 .foregroundColor(.red)
                             Text(memo.dueDateDescription ?? String(localized: "already_overdue"))
                                 .foregroundColor(.red)
@@ -127,7 +127,7 @@ struct MemoDetailSheet: View {
                         // 用戶自訂提醒
                         ForEach(activeRules) { rule in
                             HStack {
-                                Image(systemName: rule.enabled ? "bell.fill" : "bell.slash")
+                                Image(systemName: rule.enabled ? "bell" : "bell.slash")
                                     .foregroundColor(rule.enabled ? .blue : .gray)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(formatDate(rule.triggerAt))
@@ -151,7 +151,7 @@ struct MemoDetailSheet: View {
                             let oneDayBefore = dueAt.addingTimeInterval(-24 * 60 * 60)
                             if oneDayBefore > Date() {
                                 HStack {
-                                    Image(systemName: "bell.fill")
+                                    Image(systemName: "bell")
                                         .foregroundColor(.blue)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(formatDate(oneDayBefore))
@@ -171,7 +171,7 @@ struct MemoDetailSheet: View {
                             let thirtyMinsBefore = dueAt.addingTimeInterval(-30 * 60)
                             if thirtyMinsBefore > Date() {
                                 HStack {
-                                    Image(systemName: "bell.fill")
+                                    Image(systemName: "bell")
                                         .foregroundColor(.blue)
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(formatDate(thirtyMinsBefore))
@@ -209,7 +209,7 @@ struct MemoDetailSheet: View {
                         // 自動計劃時間提醒
                         if showAutoPlanReminder, let planAt = memo.planAt, planAt > Date() {
                             HStack {
-                                Image(systemName: "bell.fill")
+                                Image(systemName: "bell")
                                     .foregroundColor(.blue)
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(formatDate(planAt))

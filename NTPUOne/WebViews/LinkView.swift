@@ -18,11 +18,13 @@ import Firebase
 struct LinkView: View {
     @ObservedObject var webManager = WebManager()
     @StateObject private var orderManager = OrderManager()
+    @StateObject private var todayFoodManager = FManager()
     @EnvironmentObject var adFree: AdFreeService
     @ObservedObject private var rewardedAd = RewardedAdManager.shared
     @State private var showAdConfirm = false
     @State private var showNotReadyAlert = false
     @StateObject var weatherManager = WeatherManager()  // 新增 weather manager
+    @StateObject private var studentImpactStore = StudentImpactStore.shared
     
     @State private var urlString: String? = nil
     @State private var showWebView = false
@@ -63,11 +65,26 @@ struct LinkView: View {
     @State private var goLunch = false
     @State private var goDinner = false
     @State private var goMidnightSnack = false
+    @State private var goNewStudentChecklist = false
+    @State private var goCampusMap = false
     @State private var showTodayTasks = false  // 新增：顯示今日代辦展開
     @State private var selectedMemoForDetail: Memo? = nil  // 新增：選中的備忘錄
     @State private var showWeatherDetail = false  // 新增：顯示天氣詳情
+    @State private var showQuickFeatureEditor = false
+    @State private var announcementMemoDraft: Memo? = nil
+    @State private var isSavedFavoritesExpanded = true
+    @State private var todayRecommendationMealWindow = FoodMealWindow.current()
+    @State private var loadedTodayRecommendationMealWindow: FoodMealWindow?
+    @State private var restaurantRecommendation: FDetail? = nil
+    @State private var isRestaurantRecommendationLoading = false
+    @State private var fallbackRecommendation: FDetail? = nil
+    @State private var recommendationFallbackCollectionName: String? = nil
+    @State private var goTodayRestaurantDetail = false
+    @AppStorage("todayHubRestaurantRecommendationCache") private var todayRestaurantRecommendationCache = ""
+    @AppStorage(NextCourseLiveActivityManager.isEnabledKey) private var isLiveActivityEnabled = true
     
     @State private var peekCourse: Course? = nil
+    private let legacyCrawlerUpdateMessage = "請更新至最新版本以查看新的公告類型"
     
     
     // adview
@@ -92,7 +109,7 @@ struct LinkView: View {
         let weather = station?.WeatherElement.Weather ?? ""
         let temp = Double(station?.WeatherElement.AirTemperature ?? "") ?? 20.0
         let name = nickname.isEmpty ? "" : " \(nickname)"
-        let isRain = weather.contains(String(localized: "rain_keyword"))
+        let isRain = ntpuWeatherContainsRain(weather)
         let isCold = temp < 14
         let isHot = temp >= 33
         let isWarm = !isRain && temp >= 20 && temp <= 27
@@ -207,7 +224,7 @@ struct LinkView: View {
             
             // 天氣資訊
             VStack(alignment: .leading, spacing: 3) {
-                Text(weather)
+                Text(ntpuLocalizedWeatherDescription(weather))
                     .font(.headline)
                     .foregroundStyle(.primary)
                 
@@ -254,7 +271,7 @@ struct LinkView: View {
                     Circle()
                         .fill(slotTint(course.timeSlot).opacity(0.15))
                         .frame(width: 44, height: 44)
-                    Image(systemName: "book.closed.fill")
+                    Image(systemName: "book.closed")
                         .font(.title3)
                         .foregroundStyle(slotTint(course.timeSlot))
                 }
@@ -265,7 +282,7 @@ struct LinkView: View {
                 Spacer()
 
                 if course.isNotification {
-                    Image(systemName: "bell.fill")
+                    Image(systemName: "bell")
                         .font(.callout)
                         .foregroundStyle(slotTint(course.timeSlot))
                 }
@@ -322,7 +339,7 @@ struct LinkView: View {
                     .lineLimit(1)
 
                 Label(course.teacher.isEmpty ? "—" : course.teacher,
-                      systemImage: "person.fill")
+                      systemImage: "person")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -499,7 +516,7 @@ struct LinkView: View {
         HStack(spacing: 8) {
             if stats.overdue > 0 {
                 HStack(spacing: 2) {
-                    Image(systemName: "exclamationmark.triangle.fill")
+                    Image(systemName: "exclamationmark.triangle")
                     Text(String(localized: "overdue_count \(stats.overdue)"))
                 }
                     .font(.caption)
@@ -559,39 +576,279 @@ struct LinkView: View {
     }
     
     @ViewBuilder
-    private var quickFeaturesSection: some View {
-        Section(String(localized: "quick_features")) {
-            LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
-                Button { goSchoolPosts = true } label: {
-                    featureCard(icon: "text.bubble.fill", title: String(localized: "school_announcements"), iconColor: .blue)
-                }
-                .buttonStyle(.plain).contentShape(Rectangle())
+    private var todayHubSection: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 16) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(localized: "today_hub_title"))
+                            .font(.title2.weight(.semibold))
+                        Text(String(localized: "today_hub_subtitle"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
 
-                Button { goLinks = true } label: {
-                    featureCard(icon: "macwindow", title: String(localized: "common_links"), iconColor: .green)
+                    Spacer()
+
+                    todayHubLiveActivityToggle
                 }
-                .buttonStyle(.plain).contentShape(Rectangle())
+
+                VStack(spacing: 8) {
+                    todayNextCourseRow
+                    todayTasksDisclosureGroup
+                }
+
+                todayRestaurantCard
+            }
+            .padding(16)
+            .background {
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .stroke(Color.blue.opacity(0.22), lineWidth: 1)
+                    }
+                    .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 7)
+            }
+            .listRowInsets(.init(top: 8, leading: 0, bottom: 4, trailing: 0))
+        }
+        .listRowBackground(Color.clear)
+    }
+
+    private var todayHubLiveActivityToggle: some View {
+        Toggle(isOn: liveActivityBinding) {
+            Text(String(localized: "live_activity_toggle_label"))
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+        }
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .fixedSize()
+        .accessibilityLabel(Text(String(localized: "live_activity_toggle_accessibility")))
+    }
+
+    private var liveActivityBinding: Binding<Bool> {
+        Binding {
+            isLiveActivityEnabled
+        } set: { newValue in
+            setLiveActivityEnabled(newValue)
+        }
+    }
+
+    private func setLiveActivityEnabled(_ newValue: Bool) {
+        Task { @MainActor in
+            isLiveActivityEnabled = newValue
+            NextCourseLiveActivityManager.shared.setEnabled(
+                newValue,
+                courses: courseData.courses,
+                memos: memoManager.memos
+            )
+        }
+    }
+
+    private var todayRestaurantCard: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: todayRestaurantIcon)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(todayRestaurantTint)
+                    .frame(width: 30, height: 30)
+                    .background(Color(.secondarySystemBackground), in: Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 6) {
+                        Text(todayRestaurantRecommendationTitle)
+                            .font(.subheadline.weight(.semibold))
+                    }
+
+                    if isRestaurantRecommendationLoading {
+                        Text(String(localized: "today_hub_restaurant_loading"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else if let restaurantRecommendation {
+                        Text(restaurantRecommendation.store)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                        Text(restaurantRecommendation.time)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text(String(localized: "today_hub_restaurant_empty"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Spacer(minLength: 0)
+
+                Button {
+                    goTodayRestaurantDetail = true
+                } label: {
+                    Label(String(localized: "today_hub_view_recommendation"), systemImage: "arrow.up.right.square")
+                        .font(.caption2.weight(.semibold))
+                        .imageScale(.small)
+                        .lineLimit(1)
+                        .padding(.vertical, 1)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .tint(todayRestaurantTint)
+                .disabled(restaurantRecommendation == nil)
+                .accessibilityLabel(String(localized: "today_hub_view_recommendation"))
+            }
+
+            HStack(spacing: 10) {
+                Spacer(minLength: 0)
+
+                Button {
+                    openTodayRestaurantList()
+                } label: {
+                    Label(String(localized: "today_hub_meal_list"), systemImage: "list.bullet.rectangle")
+                        .font(.caption2.weight(.semibold))
+                        .imageScale(.small)
+                        .lineLimit(1)
+                        .padding(.vertical, 1)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .accessibilityLabel(String(localized: "today_hub_meal_list"))
 
                 if #available(iOS 17.0, *) {
-                    Button { goRandomFood = true } label: {
-                        featureCard(icon: "chart.pie.fill", title: String(localized: "food_wheel"), iconColor: .orange)
+                    Button {
+                        openFoodWheel()
+                    } label: {
+                        Label(String(localized: "today_hub_food_wheel"), systemImage: "chart.pie")
+                            .font(.caption2.weight(.semibold))
+                            .imageScale(.small)
+                            .lineLimit(1)
+                            .padding(.vertical, 1)
+                            .contentShape(Rectangle())
                     }
-                    .buttonStyle(.plain).contentShape(Rectangle())
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .accessibilityLabel(String(localized: "today_hub_food_wheel"))
                 }
-                
-                Button { goTraffic = true } label: {
-                    featureCard(icon: "bicycle", title: "Ubike", iconColor: .green)
+            }
+        }
+        .padding(14)
+        .background {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color(.tertiarySystemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.primary.opacity(0.06), lineWidth: 1)
                 }
-                .buttonStyle(.plain).contentShape(Rectangle())
-                
-                Button { showFoodMenu = true } label: {
-                    featureCard(icon: "fork.knife", title: String(localized: "restaurant"), iconColor: .red)
+        }
+    }
+
+    @ViewBuilder
+    private var todayNextCourseRow: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: "book.closed")
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
+                Text(String(localized: "today_hub_next_course"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+
+                if let name = nextCourseName, let timeAndLocation = nextCourseTimeAndLocation {
+                    Text(name)
+                        .font(.headline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(timeAndLocation)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
+                    Text(String(localized: "today_hub_no_next_course"))
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .buttonStyle(.plain).contentShape(Rectangle())
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func todayHubRow(icon: String, title: String, detail: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            ZStack {
+                Circle()
+                    .fill(tint.opacity(0.15))
+                    .frame(width: 44, height: 44)
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(tint)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.headline)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(12)
+        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var quickFeaturesSection: some View {
+        Section {
+            LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+                let favorites = studentImpactStore.quickFeatures.filter(\.isFavorite)
+                if favorites.isEmpty {
+                    Text(String(localized: "quick_features_empty"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(favorites) { item in
+                        Button { handleQuickFeature(item) } label: {
+                            featureCard(icon: item.systemImage, title: item.title, iconColor: quickFeatureTint(item.destination))
+                        }
+                        .buttonStyle(.plain)
+                        .contentShape(Rectangle())
+                    }
+                }
             }
             .listRowSeparator(.hidden)
             .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
             .listRowBackground(Color.clear)
+        } header: {
+            HStack {
+                Text(String(localized: "quick_features"))
+                Spacer()
+                Button(String(localized: "quick_features_edit")) {
+                    showQuickFeatureEditor = true
+                }
+                .font(.caption.weight(.semibold))
+                .textCase(nil)
+            }
         }
     }
     
@@ -599,9 +856,8 @@ struct LinkView: View {
         NavigationStack {
             VStack {
                 List {
+                    todayHubSection
                     orderSection
-                    nextCourseSection
-                    todayTasksSection
                     quickFeaturesSection
                     // Native 廣告 Section
                     if !adFree.isAdFree {
@@ -639,6 +895,11 @@ struct LinkView: View {
                     webManager.createData()
                     memoManager.loadMemosFromCoreData()
                     greetingText = buildGreeting()
+                    refreshTodayRestaurantRecommendation()
+                    if weatherManager.weatherDatas == nil { weatherManager.fetchData() }
+                }
+                .onChange(of: todayFoodManager.Food) { _ in
+                    updateTodayRestaurantRecommendation()
                 }
                 .onChange(of: weatherManager.weatherDatas?.records.Station.first?.WeatherElement.AirTemperature) { _ in
                     greetingText = buildGreeting()
@@ -665,9 +926,22 @@ struct LinkView: View {
                 .sheet(isPresented: $showWeatherDetail) {
                     weatherDetailSheet
                 }
+                .sheet(isPresented: $showQuickFeatureEditor) {
+                    quickFeatureEditorSheet
+                }
+                .sheet(item: $announcementMemoDraft) { memo in
+                    MemoFormView(
+                        memoManager: memoManager,
+                        courseData: courseData,
+                        memo: nil,
+                        presetTitle: memo.title,
+                        presetContent: memo.content,
+                        presetTagType: memo.tagType
+                    )
+                }
                 // 底部廣告已移除，改用 List 內 Native Ad
                 // 放在 NavigationStack 裡、List 後面（同一層）
-                NavigationLink(destination: SchoolPostView(), isActive: $goSchoolPosts) { EmptyView() }.hidden()
+                NavigationLink(destination: SchoolPostView(memoManager: memoManager, courseData: courseData), isActive: $goSchoolPosts) { EmptyView() }.hidden()
 
                 NavigationLink(destination: CommonLinksView(), isActive: $goLinks) { EmptyView() }.hidden()
 
@@ -706,6 +980,9 @@ struct LinkView: View {
                 NavigationLink(destination: LunchView(), isActive: $goLunch) { EmptyView() }.hidden()
                 NavigationLink(destination: dinnerView(), isActive: $goDinner) { EmptyView() }.hidden()
                 NavigationLink(destination: MSView(), isActive: $goMidnightSnack) { EmptyView() }.hidden()
+                NavigationLink(destination: todayRestaurantDetailDestination, isActive: $goTodayRestaurantDetail) { EmptyView() }.hidden()
+                NavigationLink(destination: NewStudentChecklistView(), isActive: $goNewStudentChecklist) { EmptyView() }.hidden()
+                NavigationLink(destination: CampusMapView(), isActive: $goCampusMap) { EmptyView() }.hidden()
             }
             .sheet(isPresented: $showFoodMenu) {
                 foodMenuSheet
@@ -733,7 +1010,7 @@ struct LinkView: View {
                 // 右上角按鈕
                 ToolbarItem(placement: toolbarPlacementTrailing) {
                     if adFree.isAdFree {
-                        Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal.fill")
+                        Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal")
                             .labelStyle(.iconOnly)
                             .foregroundStyle(.green)
                             .help(String(localized: "no_banner_until_midnight"))
@@ -777,6 +1054,112 @@ struct LinkView: View {
     }
     
     @ViewBuilder
+    private var quickFeatureEditorSheet: some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(studentImpactStore.quickFeatures) { item in
+                        Toggle(isOn: quickFeatureBinding(for: item.id)) {
+                            Label(item.title, systemImage: item.systemImage)
+                        }
+                    }
+                    .onMove(perform: studentImpactStore.moveQuickFeature)
+                } footer: {
+                    Text(String(localized: "quick_features_editor_footer"))
+                }
+            }
+            .navigationTitle(String(localized: "quick_features_editor_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "close")) {
+                        showQuickFeatureEditor = false
+                    }
+                }
+                ToolbarItem(placement: toolbarPlacementTrailing) {
+                    EditButton()
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+    }
+
+    private func quickFeatureBinding(for id: String) -> Binding<Bool> {
+        Binding {
+            studentImpactStore.quickFeatures.first(where: { $0.id == id })?.isFavorite ?? false
+        } set: { isFavorite in
+            guard let item = studentImpactStore.quickFeatures.first(where: { $0.id == id }), item.isFavorite != isFavorite else { return }
+            studentImpactStore.toggleQuickFeatureFavorite(id: id)
+        }
+    }
+
+    private func handleQuickFeature(_ item: QuickFeatureItem) {
+        switch item.destination {
+        case "schoolAnnouncements":
+            goSchoolPosts = true
+        case "commonLinks":
+            goLinks = true
+        case "ubike":
+            goTraffic = true
+        case "restaurant":
+            showFoodMenu = true
+        case "campusMap":
+            goCampusMap = true
+        case "foodWheel":
+            if #available(iOS 17.0, *) {
+                goRandomFood = true
+            } else {
+                showFoodMenu = true
+            }
+        case "studentInfo":
+            handleURL("https://cof.ntpu.edu.tw/student_new.htm")
+        case "pastExams":
+            handleURL("https://past-exam.ntpu.cc")
+        case "lms":
+            handleURL("https://lms3.ntpu.edu.tw/")
+        case "courseReviews":
+            handleURL("https://no21.ntpu.org/")
+        case "leaveSystem":
+            handleURL("https://cof.ntpu.edu.tw/pls/acad2/leave_sys.html")
+        case "library":
+            handleURL("https://library.ntpu.edu.tw/masses/showMassesLogin")
+        case "newStudentChecklist":
+            goNewStudentChecklist = true
+        default:
+            goLinks = true
+        }
+    }
+
+    private func quickFeatureTint(_ destination: String) -> Color {
+        switch destination {
+        case "studentInfo", "schoolAnnouncements": return .blue
+        case "pastExams", "lms", "library": return .indigo
+        case "commonLinks", "ubike": return .green
+        case "campusMap": return .blue
+        case "restaurant", "foodWheel": return .orange
+        case "courseReviews": return .purple
+        case "leaveSystem": return .teal
+        case "newStudentChecklist": return .blue
+        default: return .accentColor
+        }
+    }
+
+    private func createAnnouncementMemoDraft(from order: Order) {
+        let content = [
+            String(localized: "memo_source_ntpuone_announcement"),
+            "\(String(localized: "memo_publisher_label"))：\(order.name)",
+            "\(String(localized: "memo_time_label"))：\(order.time.isEmpty ? String(localized: "memo_unprovided") : order.time)",
+            "\(String(localized: "memo_link_label"))：\(order.url.isEmpty ? String(localized: "memo_unprovided") : order.url)",
+            "\(String(localized: "memo_contact_label"))：\(order.email.isEmpty ? String(localized: "memo_unprovided") : order.email)"
+        ].joined(separator: "\n")
+
+        announcementMemoDraft = Memo.create(
+            title: displayMessage(for: order),
+            content: content,
+            tagType: .activity
+        )
+    }
+
     private func featureCard(icon: String,
                              title: String,
                              iconColor: Color? = nil) -> some View {
@@ -851,6 +1234,177 @@ struct LinkView: View {
         
         return (overdue, planExpired, todayCount, total)
     }
+
+    private var nextCourseSummary: String {
+        guard let name = nextCourseName, let timeAndLocation = nextCourseTimeAndLocation else {
+            return String(localized: "today_hub_no_next_course")
+        }
+        return "\(name) · \(timeAndLocation)"
+    }
+
+    private var nextCourseName: String? {
+        nextCourseOnAppear?.name
+    }
+
+    private var nextCourseTimeAndLocation: String? {
+        guard let course = nextCourseOnAppear else { return nil }
+        let location = course.location.isEmpty ? String(localized: "course_location_not_set") : course.location
+        return "\(course.startTime.rawValue) · \(location)"
+    }
+
+    private var todayTasksSummary: String {
+        let stats = getTodayMemoStats()
+        if stats.overdue > 0 { return String(format: String(localized: "today_hub_overdue_tasks_format"), stats.overdue) }
+        if stats.planExpired > 0 { return String(format: String(localized: "today_hub_expired_plans_format"), stats.planExpired) }
+        if stats.today > 0 { return String(format: String(localized: "today_hub_today_tasks_format"), stats.today) }
+        if stats.total > 0 { return String(format: String(localized: "today_hub_active_tasks_format"), stats.total) }
+        return String(localized: "today_hub_no_tasks_flexible")
+    }
+
+    private var todayRestaurantRecommendationTitle: String {
+        String(format: String(localized: "today_hub_restaurant_title_format"), todayRecommendationMealWindow.title)
+    }
+
+    @ViewBuilder
+    private var todayRestaurantDetailDestination: some View {
+        if let restaurantRecommendation {
+            let collectionName = recommendationFallbackCollectionName ?? todayRecommendationMealWindow.collectionName
+            if #available(iOS 17.0, *) {
+                dietView(store: restaurantRecommendation, currCollectName: collectionName)
+            } else {
+                noMapDietView(store: restaurantRecommendation, currCollectName: collectionName)
+            }
+        } else {
+            EmptyView()
+        }
+    }
+
+    private var todayRestaurantIcon: String {
+        switch todayRecommendationMealWindow {
+        case .breakfast: return "cup.and.saucer"
+        case .lunch: return "carrot"
+        case .dinner: return "fork.knife"
+        case .midnightSnack: return "moon.stars"
+        }
+    }
+
+    private var todayRestaurantTint: Color {
+        switch todayRecommendationMealWindow {
+        case .breakfast: return .orange
+        case .lunch: return .green
+        case .dinner: return .purple
+        case .midnightSnack: return .indigo
+        }
+    }
+
+    private func refreshTodayRestaurantRecommendation(now: Date = Date()) {
+        let mealWindow = FoodMealWindow.current(now: now)
+        todayRecommendationMealWindow = mealWindow
+
+        if loadedTodayRecommendationMealWindow != mealWindow || todayFoodManager.Food == nil {
+            loadedTodayRecommendationMealWindow = mealWindow
+            restaurantRecommendation = nil
+            fallbackRecommendation = nil
+            recommendationFallbackCollectionName = nil
+            isRestaurantRecommendationLoading = true
+            todayFoodManager.Food = nil
+            todayFoodManager.loadF(whichDiet: mealWindow.dietCode)
+        } else {
+            updateTodayRestaurantRecommendation(now: now)
+        }
+    }
+
+    private func updateTodayRestaurantRecommendation(now: Date = Date()) {
+        let mealWindow = FoodMealWindow.current(now: now)
+        if mealWindow != todayRecommendationMealWindow {
+            refreshTodayRestaurantRecommendation(now: now)
+            return
+        }
+
+        guard loadedTodayRecommendationMealWindow == mealWindow else { return }
+        guard let foods = todayFoodManager.Food else {
+            isRestaurantRecommendationLoading = true
+            return
+        }
+
+        let cacheKey = mealWindow.cacheKey(now: now)
+        let cachedID = cachedTodayRestaurantID(for: cacheKey)
+        let recommendation = FoodRecommendation.recommendedRestaurant(from: foods, cachedID: cachedID, now: now)
+
+        if let recommendation {
+            restaurantRecommendation = recommendation
+            fallbackRecommendation = nil
+            recommendationFallbackCollectionName = nil
+        } else if let fallback = fallbackRecommendation,
+                  FoodFiltering.openingState(for: fallback.time, now: now) == .open {
+            // 本餐期仍無確定營業中的店，沿用先前跨餐期找到、且還在營業的推薦
+            restaurantRecommendation = fallback
+        } else {
+            restaurantRecommendation = nil
+            findOpenStoreAcrossMeals(now: now)
+        }
+        isRestaurantRecommendationLoading = false
+
+        if let id = restaurantRecommendation?.id, fallbackRecommendation == nil {
+            todayRestaurantRecommendationCache = "\(cacheKey)|\(id)"
+        }
+    }
+
+    /// 本餐期沒有確定營業中的店家時，掃其他三個餐期集合，找任何一間現在營業中的店
+    private func findOpenStoreAcrossMeals(now: Date) {
+        let primaryCollectionName = todayRecommendationMealWindow.collectionName
+        let otherCollectionNames = [FoodMealWindow.breakfast, .lunch, .dinner, .midnightSnack]
+            .map(\.collectionName)
+            .filter { $0 != primaryCollectionName }
+
+        let database = Firestore.firestore()
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var candidates: [(store: FDetail, collectionName: String)] = []
+
+        for collectionName in otherCollectionNames {
+            group.enter()
+            database.collection(collectionName)
+                .whereField(K.FStoreF.checkField, isEqualTo: true)
+                .getDocuments { snapshot, _ in
+                    defer { group.leave() }
+                    for document in snapshot?.documents ?? [] {
+                        guard let store = try? document.data(as: FDetail.self) else { continue }
+                        guard FoodFiltering.openingState(for: store.time, now: now) == .open else { continue }
+                        lock.lock()
+                        candidates.append((store, collectionName))
+                        lock.unlock()
+                        break
+                    }
+                }
+        }
+
+        group.notify(queue: .main) {
+            guard restaurantRecommendation == nil else { return }   // 主清單已給出推薦就不覆蓋
+            guard let pick = candidates.randomElement() else { return }   // 全部打烊：維持空狀態
+            fallbackRecommendation = pick.store
+            recommendationFallbackCollectionName = pick.collectionName
+            restaurantRecommendation = pick.store
+        }
+    }
+
+    private func cachedTodayRestaurantID(for cacheKey: String) -> String? {
+        let parts = todayRestaurantRecommendationCache.split(separator: "|", maxSplits: 1).map(String.init)
+        guard parts.count == 2, parts[0] == cacheKey, !parts[1].isEmpty else { return nil }
+        return parts[1]
+    }
+
+    private func openTodayRestaurantList() {
+        showFoodMenu = true
+    }
+
+    private func openFoodWheel() {
+        if #available(iOS 17.0, *) {
+            goRandomFood = true
+        } else {
+            showFoodMenu = true
+        }
+    }
     
     // 新增：取得今日待辦任務列表
     private func getTodayMemos() -> [Memo] {
@@ -907,7 +1461,7 @@ struct LinkView: View {
             
             // 天氣資訊
             VStack(alignment: .leading, spacing: 2) {
-                Text(weather)
+                Text(ntpuLocalizedWeatherDescription(weather))
                     .font(.subheadline.weight(.semibold))
                 HStack(spacing: 8) {
                     Text(safeTemp(currentTemp))
@@ -937,7 +1491,7 @@ struct LinkView: View {
                     showFoodMenu = false
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "cup.and.saucer.fill")
+                        Image(systemName: "cup.and.saucer")
                             .font(.title2)
                             .foregroundStyle(.orange)
                             .frame(width: 40)
@@ -955,7 +1509,7 @@ struct LinkView: View {
                     showFoodMenu = false
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "carrot.fill")
+                        Image(systemName: "carrot")
                             .font(.title2)
                             .foregroundStyle(.green)
                             .frame(width: 40)
@@ -973,7 +1527,7 @@ struct LinkView: View {
                     showFoodMenu = false
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "wineglass.fill")
+                        Image(systemName: "wineglass")
                             .font(.title2)
                             .foregroundStyle(.purple)
                             .frame(width: 40)
@@ -991,7 +1545,7 @@ struct LinkView: View {
                     showFoodMenu = false
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "moon.stars.fill")
+                        Image(systemName: "moon.stars")
                             .font(.title2)
                             .foregroundStyle(.indigo)
                             .frame(width: 40)
@@ -1058,42 +1612,231 @@ struct LinkView: View {
             adFree.grantForTodayEnd()
         })
     }
-    
+
+    private var filteredEventFavorites: [EventFavorite] {
+        let favorites = studentImpactStore.eventFavorites.sorted { $0.savedAt > $1.savedAt }
+        guard !selectedAnnouncementInterestIDs.isEmpty else { return favorites }
+
+        return favorites.filter { favorite in
+            switch favorite.source {
+            case "活動": return selectedAnnouncementInterestIDs.contains("activity")
+            case "社團": return selectedAnnouncementInterestIDs.contains("club")
+            case "其他": return selectedAnnouncementInterestIDs.contains("other")
+            default: return false
+            }
+        }
+    }
+
+    private func savedFavoriteRow(_ favorite: EventFavorite) -> some View {
+        HStack(spacing: 12) {
+            Button {
+                if let link = favorite.link, URL(string: link) != nil {
+                    handleURL(link)
+                }
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: favorite.source == "公告" ? "megaphone" : "sparkles")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.yellow)
+                        .frame(width: 34, height: 34)
+                        .background(Color.yellow.opacity(0.14), in: Circle())
+
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(displayTitle(for: favorite))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+
+                        HStack(spacing: 6) {
+                            Text(favorite.source)
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 3)
+                                .foregroundStyle(.blue)
+                                .background(Color.blue.opacity(0.12), in: Capsule())
+
+                            if let dateText = favorite.dateText, !dateText.isEmpty {
+                                Text(dateText)
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+
+                    Spacer(minLength: 0)
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(favorite.link == nil || favorite.link?.isEmpty == true)
+
+            Button {
+                studentImpactStore.toggleEventFavorite(favorite)
+            } label: {
+                Image(systemName: "star")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.yellow)
+                    .frame(width: 34, height: 34)
+                    .background(Color.yellow.opacity(0.14), in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(String(localized: "favorite_remove"))
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var savedFavoritesDisclosure: some View {
+        DisclosureGroup(isExpanded: $isSavedFavoritesExpanded) {
+            ForEach(filteredEventFavorites) { favorite in
+                savedFavoriteRow(favorite)
+                    .padding(.top, 4)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: "star")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.yellow)
+                    .frame(width: 30, height: 30)
+                    .background(Color.yellow.opacity(0.14), in: Circle())
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(String(localized: "saved_favorites_title"))
+                        .font(.subheadline.weight(.semibold))
+                    Text(String(format: String(localized: "saved_favorites_count_format"), filteredEventFavorites.count))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 4)
+    }
+
+    private var selectedAnnouncementInterestIDs: Set<String> {
+        Set(studentImpactStore.studentInterests.filter { $0.isSelected && announcementFilterIDs.contains($0.id) }.map(\.id))
+    }
+
+    private var announcementFilterIDs: Set<String> {
+        ["activity", "club", "other"]
+    }
+
+    private var selectedOrderTags: Set<String> {
+        var tags = Set<String>()
+        if selectedAnnouncementInterestIDs.contains("activity") { tags.insert("1") }
+        if selectedAnnouncementInterestIDs.contains("club") { tags.insert("2") }
+        if selectedAnnouncementInterestIDs.contains("other") { tags.insert("3") }
+        return tags
+    }
+
+    private var announcementFilterInterests: [StudentInterest] {
+        studentImpactStore.studentInterests.filter { announcementFilterIDs.contains($0.id) }
+    }
+
+    private var filteredAnnouncementOrders: [Order] {
+        let orders = orderManager.order ?? []
+        guard !selectedAnnouncementInterestIDs.isEmpty else { return orders }
+        guard !selectedOrderTags.isEmpty else { return [] }
+        return orders.filter { selectedOrderTags.contains($0.tag) }
+    }
+
+    private var interestFilterChips: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(announcementFilterInterests) { interest in
+                    Button {
+                        studentImpactStore.toggleInterest(id: interest.id)
+                    } label: {
+                        Text(announcementInterestTitle(for: interest.id, fallback: interest.title))
+                            .font(.caption.weight(.semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .foregroundStyle(interest.isSelected ? .white : .blue)
+                            .background(interest.isSelected ? Color.blue : Color.blue.opacity(0.12), in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func favoriteForOrder(_ order: Order) -> EventFavorite? {
+        guard let id = order.favoriteID else { return nil }
+        return EventFavorite(
+            id: id,
+            title: displayMessage(for: order),
+            source: order.favoriteSource,
+            dateText: order.time.isEmpty ? nil : order.time,
+            link: order.url.isEmpty ? nil : order.url,
+            savedAt: Date()
+        )
+    }
+
+    private func announcementInterestTitle(for id: String, fallback: String) -> String {
+        switch id {
+        case "activity": return String(localized: "student_interest_activity")
+        case "club": return String(localized: "student_interest_club")
+        case "other": return String(localized: "student_interest_other")
+        default: return fallback
+        }
+    }
+
+    private func isOrderFavorite(_ order: Order) -> Bool {
+        guard let id = order.favoriteID else { return false }
+        return studentImpactStore.isEventFavorite(id: id)
+    }
+
+    private func toggleOrderFavorite(_ order: Order) {
+        guard let favorite = favoriteForOrder(order) else { return }
+        studentImpactStore.toggleEventFavorite(favorite)
+    }
+
+    private func displayMessage(for order: Order) -> String {
+        let message = order.message.trimmingCharacters(in: .whitespacesAndNewlines)
+        let name = order.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if message.isEmpty || message == legacyCrawlerUpdateMessage {
+            return name.isEmpty ? String(localized: "official_post_default_title") : name
+        }
+        return message
+    }
+
+    private func displayTitle(for favorite: EventFavorite) -> String {
+        guard favorite.title.trimmingCharacters(in: .whitespacesAndNewlines) == legacyCrawlerUpdateMessage else {
+            return favorite.title
+        }
+
+        if let order = (orderManager.order ?? []).first(where: { $0.favoriteID == favorite.id || $0.url == favorite.link }) {
+            return displayMessage(for: order)
+        }
+
+        return favorite.title
+    }
+
     private var orderSection: some View {
         Group {
-            if let order = orderManager.order {
+            if orderManager.order != nil {
                 Section {
-                    if selectDemo == 0{
+                    if filteredAnnouncementOrders.isEmpty {
+                        HStack(spacing: 12) {
+                            Image(systemName: "line.3.horizontal.decrease.circle")
+                                .foregroundStyle(.secondary)
+                            Text(String(localized: "announcements_filter_empty"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    } else {
                         DemoView
                             .onAppear(perform: orderManager.loadOrder)
-                    }else if selectDemo == 1{
-                        DemoViewEvent
-                            .onAppear(perform: orderManager.loadOrderEvent)
-                    }else if selectDemo == 2{
-                        DemoViewPost
-                            .onAppear(perform: orderManager.loadOrderPost)
-                    }else if selectDemo == 3{
-                        DemoViewOther
-                            .onAppear(perform: orderManager.loadOrderOther)
+                    }
+
+                    if !filteredEventFavorites.isEmpty {
+                        savedFavoritesDisclosure
                     }
                 } header: {
-                    HStack {
-                        Picker("", selection: $selectDemo) {
-                            Text("All").tag(0)
-                            Text(String(localized: "tag_activity")).tag(1)
-                            Text(String(localized: "tag_club")).tag(2)
-                            Text(String(localized: "tag_other")).tag(3)
-                        }
-                        .pickerStyle(.segmented)
-                        .labelsHidden()
-                        Spacer()
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(String(localized: "announcements_filter_title"))
+                        interestFilterChips
                     }
-                } footer: {
-                    VStack {
-                        Text(String(localized: "add_broadcast_hint"))
-                            .foregroundStyle(.secondary)
-                            .padding(.bottom)
-                    }
+                    .textCase(nil)
                 }
             } else {
                 Section {
@@ -1232,7 +1975,7 @@ struct LinkView: View {
     }
     
     var DemoView: some View {
-        let orders = orderManager.order ?? []
+        let orders = filteredAnnouncementOrders
         // 計算含 native ad 的總頁數（每 3 個廣播後插入 1 個 native ad）
         let nativeAdInterval = 3
         let nativeAdCount = orders.count >= nativeAdInterval ? orders.count / nativeAdInterval : 0
@@ -1252,12 +1995,15 @@ struct LinkView: View {
                         if orderIndex < orders.count {
                             let item = orders[orderIndex]
                             AnnouncementCard(
-                                message: item.message,
+                                message: displayMessage(for: item),
                                 author: "— \(item.name)",
                                 tag: item.tag,
                                 urlString: item.url,
                                 email: item.email,
-                                time: item.time
+                                time: item.time,
+                                onAddMemo: { createAnnouncementMemoDraft(from: item) },
+                                isFavorite: isOrderFavorite(item),
+                                onToggleFavorite: { toggleOrderFavorite(item) }
                             ) {
                                 handleURL(item.url)
                             }
@@ -1312,12 +2058,15 @@ struct LinkView: View {
                         if orderIndex < filtered.count {
                             let item = filtered[orderIndex]
                             AnnouncementCard(
-                                message: item.message,
+                                message: displayMessage(for: item),
                                 author: "— \(item.name)",
                                 tag: item.tag,
                                 urlString: item.url,
                                 email: item.email,
-                                time: item.time
+                                time: item.time,
+                                onAddMemo: { createAnnouncementMemoDraft(from: item) },
+                                isFavorite: isOrderFavorite(item),
+                                onToggleFavorite: { toggleOrderFavorite(item) }
                             ) {
                                 handleURL(item.url)
                             }
@@ -1368,12 +2117,15 @@ struct LinkView: View {
                         if orderIndex < filtered.count {
                             let item = filtered[orderIndex]
                             AnnouncementCard(
-                                message: item.message,
+                                message: displayMessage(for: item),
                                 author: "— \(item.name)",
                                 tag: item.tag,
                                 urlString: item.url,
                                 email: item.email,
-                                time: item.time
+                                time: item.time,
+                                onAddMemo: { createAnnouncementMemoDraft(from: item) },
+                                isFavorite: isOrderFavorite(item),
+                                onToggleFavorite: { toggleOrderFavorite(item) }
                             ) {
                                 handleURL(item.url)
                             }
@@ -1424,12 +2176,15 @@ struct LinkView: View {
                         if orderIndex < filtered.count {
                             let item = filtered[orderIndex]
                             AnnouncementCard(
-                                message: item.message,
+                                message: displayMessage(for: item),
                                 author: "— \(item.name)",
                                 tag: item.tag,
                                 urlString: item.url,
                                 email: item.email,
-                                time: item.time
+                                time: item.time,
+                                onAddMemo: { createAnnouncementMemoDraft(from: item) },
+                                isFavorite: isOrderFavorite(item),
+                                onToggleFavorite: { toggleOrderFavorite(item) }
                             ) {
                                 handleURL(item.url)
                             }
@@ -1573,6 +2328,9 @@ struct AnnouncementCard: View {
     let urlString: String?
     let email: String?          // 圖片網址
     var time: String? = nil     // 新增 time 參數
+    var onAddMemo: (() -> Void)? = nil
+    var isFavorite: Bool = false
+    var onToggleFavorite: (() -> Void)? = nil
     let onTap: () -> Void
 
     var hasURL: Bool { (urlString?.isEmpty == false) && (URL(string: urlString!) != nil) }
@@ -1678,19 +2436,28 @@ struct AnnouncementCard: View {
 
                     Spacer()
 
-                    if hasURL, let h = host(from: urlString!) {
-                        Label(String(localized: "go_to_host \(h)"), systemImage: "arrow.up.right.square")
-                            .font(.caption2.weight(.semibold))
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .foregroundStyle(.white)
-                            .background(.white.opacity(0.3), in: Capsule())
+                    HStack(spacing: 8) {
+                        if let onAddMemo {
+                            Button {
+                                onAddMemo()
+                            } label: {
+                                Label(String(localized: "add_to_memo"), systemImage: "checklist")
+                                    .font(.caption2.weight(.semibold))
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .foregroundStyle(.white)
+                                    .background(.white.opacity(0.3), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        favoriteButton(foreground: .white, background: .white.opacity(0.3))
                     }
                 }
 
                 Spacer(minLength: 6)
 
                 // 底部：作者
-                Label(author, systemImage: "person.fill")
+                Label(author, systemImage: "person")
                     .font(.caption)
                     .foregroundStyle(.white)
                     .labelStyle(.titleAndIcon)
@@ -1710,8 +2477,21 @@ struct AnnouncementCard: View {
 
                 Spacer()
 
-                if hasURL, let h = host(from: urlString!) {
-                    LinkChip(host: h)
+                HStack(spacing: 8) {
+                    if let onAddMemo {
+                        Button {
+                            onAddMemo()
+                        } label: {
+                            Label(String(localized: "add_to_memo"), systemImage: "checklist")
+                                .font(.caption2.weight(.semibold))
+                                .padding(.horizontal, 10).padding(.vertical, 6)
+                                .foregroundStyle(.orange)
+                                .background(Color.orange.opacity(0.12), in: Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    favoriteButton(foreground: .yellow, background: Color.yellow.opacity(0.14))
                 }
             }
 
@@ -1727,13 +2507,30 @@ struct AnnouncementCard: View {
             Spacer(minLength: 6)
 
             // 底部：作者
-            Label(author, systemImage: "person.fill")
+            Label(author, systemImage: "person")
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)
 
         }
         .padding(14)
+    }
+
+    @ViewBuilder
+    private func favoriteButton(foreground: Color, background: Color) -> some View {
+        if let onToggleFavorite {
+            Button {
+                onToggleFavorite()
+            } label: {
+                Image(systemName: isFavorite ? "star" : "star")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(foreground)
+                    .frame(width: 28, height: 28)
+                    .background(background, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isFavorite ? String(localized: "favorite_remove") : String(localized: "favorite_add"))
+        }
     }
 }
 
@@ -1766,7 +2563,7 @@ struct WeatherDetailView: View {
                     }
                     
                     // 天气描述
-                    Text(weather)
+                    Text(ntpuLocalizedWeatherDescription(weather))
                         .font(.title.weight(.semibold))
                         .foregroundStyle(.primary)
                     
@@ -1880,4 +2677,25 @@ struct WeatherDetailView: View {
         if weather.contains("雪") { return "cloud.snow" }
         return "cloud"
     }
+}
+
+func ntpuWeatherContainsRain(_ weather: String) -> Bool {
+    weather.contains("雨") || weather.localizedCaseInsensitiveContains("rain")
+}
+
+func ntpuLocalizedWeatherDescription(_ weather: String) -> String {
+    if weather.contains("雹") { return String(localized: "weather_hail") }
+    if weather.contains("雨雪") || weather.contains("陣雨雪") { return String(localized: "weather_sleet") }
+    if weather.contains("霾") { return String(localized: "weather_haze") }
+    if weather.contains("靄") || weather.contains("霧") { return String(localized: "weather_fog") }
+    if weather.contains("雷") { return String(localized: "weather_thunderstorm") }
+    if weather.contains("雪") { return String(localized: "weather_snow") }
+    if weather.contains("晴") && weather.contains("雨") { return String(localized: "weather_sun_rain") }
+    if weather.contains("多雲") && weather.contains("雨") { return String(localized: "weather_cloudy_rain") }
+    if weather.contains("晴") && weather.contains("多雲") { return String(localized: "weather_partly_cloudy") }
+    if weather.contains("晴") { return String(localized: "weather_sunny") }
+    if weather.contains("多雲") { return String(localized: "weather_partly_cloudy") }
+    if weather.contains("陰") { return String(localized: "weather_overcast") }
+    if weather.contains("雨") { return String(localized: "weather_rain") }
+    return String(localized: "weather_unknown")
 }

@@ -17,7 +17,7 @@ import Firebase
 
 @available(iOS 17.0, *)
 struct TrafficView: View {
-    @ObservedObject var bikeManager = UbikeManager()
+    @StateObject private var bikeManager = UbikeManager()
     @EnvironmentObject var adFree: AdFreeService
     
     @State private var isExpanded = false
@@ -112,7 +112,7 @@ struct TrafficView: View {
                         if let errorMessage = bikeManager.errorMessage {
                             // 显示错误信息
                             VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle.fill")
+                                Image(systemName: "exclamationmark.triangle")
                                     .font(.system(size: 50))
                                     .foregroundColor(.orange)
                                 

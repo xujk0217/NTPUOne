@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct UnifiedCourseGridView: View {
     @ObservedObject var courseData: CourseData
@@ -506,7 +507,7 @@ struct LunchButtonView: View {
             LunchView()
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: "takeoutbag.and.cup.and.straw.fill")
+                Image(systemName: "takeoutbag.and.cup.and.straw")
                     .imageScale(.medium)
                 Text(String(localized: "lunch_time")).font(.subheadline.weight(.semibold))
                 Spacer()
@@ -608,6 +609,7 @@ struct CourseDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     
     @State private var selectedMemo: Memo? = nil
+    @State private var selectedTemplate: MemoTemplate? = nil
     @State private var isEditingOrder: Bool = false
     
     // 標籤順序持久化（使用 JSON 字串存儲）
@@ -645,10 +647,10 @@ struct CourseDetailSheet: View {
 
             // 資訊卡
             VStack(spacing: 10) {
-                infoRow(icon: "person.fill", title: String(localized: "professor"),  value: course.teacher.isEmpty ? "—" : "\(course.teacher)")
+                infoRow(icon: "person", title: String(localized: "professor"),  value: course.teacher.isEmpty ? "—" : "\(course.teacher)")
                 infoRow(icon: "calendar",   title: String(localized: "time"),  value: "\(course.day), \(course.startTime.rawValue)")
                 infoRow(icon: "mappin.and.ellipse", title: String(localized: "location"),  value: course.location.isEmpty ? "—" : course.location)
-                infoRow(icon: course.isNotification ? "bell.fill" : "bell.slash.fill",
+                infoRow(icon: course.isNotification ? "bell" : "bell.slash",
                         title: String(localized: "notification"), value: course.isNotification ? String(localized: "on") : String(localized: "off"))
             }
             .padding(14)
@@ -660,9 +662,11 @@ struct CourseDetailSheet: View {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
                     .strokeBorder(.quaternary)
             )
-            
-            // 相關任務列表
+
             let relatedMemos = getRelatedMemos()
+            courseIntegrationPack(relatedMemos: relatedMemos)
+
+            // 相關任務列表
             if !relatedMemos.isEmpty {
                 // 按類型分組
                 let groupedMemos = Dictionary(grouping: relatedMemos) { $0.tagType }
@@ -786,6 +790,21 @@ struct CourseDetailSheet: View {
                     }
                 }
             }
+            else {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label(String(localized: "course_no_tasks_title"), systemImage: "checklist")
+                        .font(.subheadline.weight(.semibold))
+                    Text(String(localized: "course_no_tasks_hint"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                )
+            }
 
             Spacer(minLength: 0)
             }
@@ -798,6 +817,107 @@ struct CourseDetailSheet: View {
         .sheet(isPresented: $isEditingOrder) {
             TagOrderEditSheet(currentOrder: tagOrder, onSave: saveTagOrder)
         }
+        .sheet(item: $selectedTemplate) { template in
+            MemoFormView(
+                memoManager: memoManager,
+                courseData: courseData,
+                memo: nil,
+                presetCourseLink: course.id,
+                presetTitle: "\(course.name) \(template.title)",
+                presetTagType: template.tagType,
+                presetPriority: template.priority,
+                presetDisableAutoDueReminder: template.presetDisableAutoDueReminder,
+                presetDisableAutoPlanReminder: template.presetDisableAutoPlanReminder
+            )
+        }
+    }
+
+    @ViewBuilder
+    private func courseIntegrationPack(relatedMemos: [Memo]) -> some View {
+        let examCount = relatedMemos.filter { $0.tagType == .exam }.count
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(String(localized: "course_integration_title"))
+                        .font(.headline)
+                    Text(String(format: String(localized: "course_integration_summary_format"), relatedMemos.count, examCount))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Image(systemName: "square.grid.2x2")
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+                    .padding(8)
+                    .background(Color.blue.opacity(0.12), in: Circle())
+            }
+
+            LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
+                Menu {
+                    ForEach(MemoTemplate.allCases) { template in
+                        Button {
+                            selectedTemplate = template
+                        } label: {
+                            Label(template.title, systemImage: template.icon)
+                        }
+                    }
+                } label: {
+                    courseActionButtonLabel(title: String(localized: "course_add_task"), icon: "plus.circle", tint: .blue)
+                }
+                .buttonStyle(.plain)
+
+                courseActionButton(title: String(localized: "course_add_exam"), icon: "pencil.and.list.clipboard", tint: .red) {
+                    selectedTemplate = .exam
+                }
+                courseActionButton(title: String(localized: "web_lms"), icon: "graduationcap.circle", tint: .indigo) {
+                    openCourseShortcut("https://lms3.ntpu.edu.tw/")
+                }
+                courseActionButton(title: String(localized: "quick_feature_course_reviews"), icon: "ellipsis.message", tint: .purple) {
+                    openCourseShortcut("https://no21.ntpu.org/")
+                }
+                courseActionButton(title: String(localized: "quick_feature_past_exams"), icon: "doc.text.magnifyingglass", tint: .orange) {
+                    openCourseShortcut("https://past-exam.ntpu.cc")
+                }
+            }
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(.quaternary)
+        )
+    }
+
+    private func courseActionButtonLabel(title: String, icon: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon)
+                .foregroundStyle(tint)
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func courseActionButton(title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            courseActionButtonLabel(title: title, icon: icon, tint: tint)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func openCourseShortcut(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        UIApplication.shared.open(url)
     }
     
     // MARK: - 標籤排序編輯 Sheet

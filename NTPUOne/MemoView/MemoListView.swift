@@ -13,6 +13,7 @@ struct MemoListView: View {
     @EnvironmentObject var adFree: AdFreeService
     
     @State private var showAddMemo = false
+    @State private var selectedTemplate: MemoTemplate? = nil
     @State private var selectedMemo: Memo? = nil
     @State private var showFilterSheet = false
     @State private var showFilterMenu = false  // 新增：控制篩選器選單顯示
@@ -45,10 +46,26 @@ struct MemoListView: View {
             .navigationTitle(String(localized: "navigation_memo"))
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showAddMemo = true
+                    Menu {
+                        Button {
+                            selectedTemplate = nil
+                            showAddMemo = true
+                        } label: {
+                            Label(String(localized: "memo_template_blank"), systemImage: "square.and.pencil")
+                        }
+
+                        Section(String(localized: "memo_templates")) {
+                            ForEach(MemoTemplate.allCases) { template in
+                                Button {
+                                    selectedTemplate = template
+                                    showAddMemo = true
+                                } label: {
+                                    Label(template.title, systemImage: template.icon)
+                                }
+                            }
+                        }
                     } label: {
-                        Image(systemName: "plus.circle.fill")
+                        Image(systemName: "plus.circle")
                             .font(.title2)
                     }
                 }
@@ -196,15 +213,23 @@ struct MemoListView: View {
                                 }
                             }
                         } label: {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                                .symbolVariant(hasActiveFilters ? .fill : .none)
-                                .foregroundColor(hasActiveFilters ? .blue : .primary)
+                                Image(systemName: "line.3.horizontal.decrease.circle")
+                                    .foregroundColor(hasActiveFilters ? .blue : .primary)
                         }
                     }
                 }
             }
-            .sheet(isPresented: $showAddMemo) {
-                MemoFormView(memoManager: memoManager, courseData: courseData, memo: nil)
+            .sheet(isPresented: $showAddMemo, onDismiss: { selectedTemplate = nil }) {
+                MemoFormView(
+                    memoManager: memoManager,
+                    courseData: courseData,
+                    memo: nil,
+                    presetTitle: selectedTemplate?.title,
+                    presetTagType: selectedTemplate?.tagType,
+                    presetPriority: selectedTemplate?.priority,
+                    presetDisableAutoDueReminder: selectedTemplate?.presetDisableAutoDueReminder,
+                    presetDisableAutoPlanReminder: selectedTemplate?.presetDisableAutoPlanReminder
+                )
             }
             .sheet(item: $statusPickerMemo) { memo in
                 StatusPickerSheet(memo: memo) { status in
@@ -344,7 +369,7 @@ struct MemoListView: View {
                         }
                     } header: {
                         HStack {
-                            Image(systemName: "book.closed.fill")
+                            Image(systemName: "book.closed")
                                 .foregroundColor(.blue)
                             Text(course.name)
                                 .font(.subheadline.weight(.semibold))
@@ -366,7 +391,7 @@ struct MemoListView: View {
                     }
                 } header: {
                     HStack {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: "checkmark.circle")
                             .foregroundColor(.green)
                         Text(String(localized: "completed"))
                             .font(.subheadline.weight(.semibold))
@@ -477,7 +502,7 @@ struct MemoRowView: View {
                         
                         // 優先級標記
                         if memo.priority == .high {
-                            Image(systemName: "exclamationmark.circle.fill")
+                            Image(systemName: "exclamationmark.circle")
                                 .foregroundColor(.red)
                                 .font(.caption)
                         }
@@ -504,7 +529,7 @@ struct MemoRowView: View {
                     // 截止時間
                     if let description = memo.dueDateDescription {
                         HStack {
-                            Image(systemName: memo.isOverdue ? "exclamationmark.triangle.fill" : "clock")
+                            Image(systemName: memo.isOverdue ? "exclamationmark.triangle" : "clock")
                                 .font(.caption)
                             Text(description)
                                 .font(.caption)

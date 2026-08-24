@@ -65,7 +65,6 @@
 		3F9062862C2C18D300B9F24A /* FirebaseAppDistribution-Beta in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062852C2C18D300B9F24A /* FirebaseAppDistribution-Beta */; };
 		3F9062882C2C18D300B9F24A /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062872C2C18D300B9F24A /* FirebaseAuth */; };
 		3F90628A2C2C18D300B9F24A /* FirebaseAuthCombine-Community in Frameworks */ = {isa = PBXBuildFile; productRef = 3F9062892C2C18D300B9F24A /* FirebaseAuthCombine-Community */; };
-		3FADD0012F5E000000A11D00 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3FADD0032F5E000000A11D00 /* GoogleSignIn */; };
 		3F90628C2C2C18D300B9F24A /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90628B2C2C18D300B9F24A /* FirebaseCrashlytics */; };
 		3F90628E2C2C18D300B9F24A /* FirebaseDatabase in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90628D2C2C18D300B9F24A /* FirebaseDatabase */; };
 		3F9062902C2C18D300B9F24A /* FirebaseDatabaseSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 3F90628F2C2C18D300B9F24A /* FirebaseDatabaseSwift */; };
@@ -103,6 +102,11 @@
 		3F9062D92C32BDC600B9F24A /* FManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062D82C32BDC600B9F24A /* FManager.swift */; };
 		3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F9062DB2C352D0500B9F24A /* AddStoreView.swift */; };
 		3F945E412C39909100A37CB3 /* NativeAdView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F945E402C39909100A37CB3 /* NativeAdView.swift */; };
+		3FA100012F70000000A10000 /* NextCourseLiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA100052F70000000A10000 /* NextCourseLiveActivityAttributes.swift */; };
+		3FA100022F70000000A10000 /* NextCourseLiveActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA100052F70000000A10000 /* NextCourseLiveActivityAttributes.swift */; };
+		3FA100032F70000000A10000 /* NextCourseLiveActivityManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA100062F70000000A10000 /* NextCourseLiveActivityManager.swift */; };
+		3FA100042F70000000A10000 /* NextCourseLiveActivityWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA100072F70000000A10000 /* NextCourseLiveActivityWidget.swift */; };
+		3FADD0012F5E000000A11D00 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 3FADD0032F5E000000A11D00 /* GoogleSignIn */; };
 		3FB3378E2F3A391B00D1E31C /* MemoFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB337892F3A391B00D1E31C /* MemoFormView.swift */; };
 		3FB3378F2F3A391B00D1E31C /* MemoListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB3378A2F3A391B00D1E31C /* MemoListView.swift */; };
 		3FB337902F3A391B00D1E31C /* MemoManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB3378B2F3A391B00D1E31C /* MemoManager.swift */; };
@@ -119,13 +123,13 @@
 		3FB338022F5BFF1200D1E31C /* CommonLinksView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338012F5BFF1200D1E31C /* CommonLinksView.swift */; };
 		3FB338152F5C3DDA00D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB338132F5C3DDA00D1E31C /* Localizable.strings */; };
 		3FB338162F5C3DDA00D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB338102F5C3DDA00D1E31C /* Localizable.strings */; };
-		3FB3381F2F5C4B2400D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB3381A2F5C4B2400D1E31C /* Localizable.strings */; };
-		3FB338202F5C4B2400D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB3381D2F5C4B2400D1E31C /* Localizable.strings */; };
 		3FB338272F5C65CA00D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB338222F5C65CA00D1E31C /* Localizable.strings */; };
 		3FB338282F5C65CA00D1E31C /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 3FB338252F5C65CA00D1E31C /* Localizable.strings */; };
 		3FB338302F5C7D6B00D1E31C /* CommentLimitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB3382F2F5C7D6B00D1E31C /* CommentLimitManager.swift */; };
 		3FB338322F5C960D00D1E31C /* CommentBadgeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338312F5C960D00D1E31C /* CommentBadgeManager.swift */; };
 		3FB338342F5C9A2000D1E31C /* CommentRewardInfoView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338332F5C9A2000D1E31C /* CommentRewardInfoView.swift */; };
+		3FB338362F5D000000D1E31C /* StudentImpactModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338352F5D000000D1E31C /* StudentImpactModels.swift */; };
+		3FB338382F5D001000D1E31C /* CampusMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FB338372F5D001000D1E31C /* CampusMapView.swift */; };
 		3FDF35612C86946900952C69 /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = 3FDF35602C86946900952C69 /* SwiftSoup */; };
 		3FDF35632C86948F00952C69 /* CourseGet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35622C86948F00952C69 /* CourseGet.swift */; };
 		3FDF35652C88A41600952C69 /* CourseYearManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FDF35642C88A41600952C69 /* CourseYearManager.swift */; };
@@ -225,6 +229,9 @@
 		3F9062D82C32BDC600B9F24A /* FManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FManager.swift; sourceTree = "<group>"; };
 		3F9062DB2C352D0500B9F24A /* AddStoreView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AddStoreView.swift; sourceTree = "<group>"; };
 		3F945E402C39909100A37CB3 /* NativeAdView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAdView.swift; sourceTree = "<group>"; };
+		3FA100052F70000000A10000 /* NextCourseLiveActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextCourseLiveActivityAttributes.swift; sourceTree = "<group>"; };
+		3FA100062F70000000A10000 /* NextCourseLiveActivityManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextCourseLiveActivityManager.swift; sourceTree = "<group>"; };
+		3FA100072F70000000A10000 /* NextCourseLiveActivityWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NextCourseLiveActivityWidget.swift; sourceTree = "<group>"; };
 		3FB337882F3A391B00D1E31C /* MemoData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoData.swift; sourceTree = "<group>"; };
 		3FB337892F3A391B00D1E31C /* MemoFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoFormView.swift; sourceTree = "<group>"; };
 		3FB3378A2F3A391B00D1E31C /* MemoListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoListView.swift; sourceTree = "<group>"; };
@@ -246,6 +253,8 @@
 		3FB3382F2F5C7D6B00D1E31C /* CommentLimitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentLimitManager.swift; sourceTree = "<group>"; };
 		3FB338312F5C960D00D1E31C /* CommentBadgeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentBadgeManager.swift; sourceTree = "<group>"; };
 		3FB338332F5C9A2000D1E31C /* CommentRewardInfoView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentRewardInfoView.swift; sourceTree = "<group>"; };
+		3FB338352F5D000000D1E31C /* StudentImpactModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudentImpactModels.swift; sourceTree = "<group>"; };
+		3FB338372F5D001000D1E31C /* CampusMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CampusMapView.swift; sourceTree = "<group>"; };
 		3FDF35622C86948F00952C69 /* CourseGet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseGet.swift; sourceTree = "<group>"; };
 		3FDF35642C88A41600952C69 /* CourseYearManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CourseYearManager.swift; sourceTree = "<group>"; };
 		3FDF35662C8C82E200952C69 /* SchoolPostView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SchoolPostView.swift; sourceTree = "<group>"; };
@@ -313,6 +322,7 @@
 			isa = PBXGroup;
 			children = (
 				3F8F95152C290D5A001A1697 /* Constant.swift */,
+				3FB338352F5D000000D1E31C /* StudentImpactModels.swift */,
 				3F59B8242C671AB300AFB700 /* extention.swift */,
 			);
 			path = Other;
@@ -325,6 +335,7 @@
 				3F59B8302C679AC400AFB700 /* CourseGridView.swift */,
 				3F59B82D2C6799D600AFB700 /* CourseFormView.swift */,
 				3F59B82B2C6798F000AFB700 /* CourseData.swift */,
+				3FA100062F70000000A10000 /* NextCourseLiveActivityManager.swift */,
 				3F8B9F6F2C70CCA4007BF30B /* CoreDataManager.swift */,
 				3FDF35642C88A41600952C69 /* CourseYearManager.swift */,
 				3FDF35622C86948F00952C69 /* CourseGet.swift */,
@@ -350,6 +361,8 @@
 				3FB337B32F3C85FC00D1E31C /* MemoWidget.swift */,
 				3F8B9F8B2C759762007BF30B /* NextCourseWidgetBundle.swift */,
 				3F8B9F8D2C759762007BF30B /* NextCourseWidget.swift */,
+				3FA100052F70000000A10000 /* NextCourseLiveActivityAttributes.swift */,
+				3FA100072F70000000A10000 /* NextCourseLiveActivityWidget.swift */,
 				3F8453032E3F7770008B04D4 /* CourseLargeWidget.swift */,
 				3F8B9F8F2C759765007BF30B /* Assets.xcassets */,
 				3F8B9F912C759765007BF30B /* Info.plist */,
@@ -451,6 +464,7 @@
 			isa = PBXGroup;
 			children = (
 				3F59B81D2C6710E500AFB700 /* LifeView.swift */,
+				3FB338372F5D001000D1E31C /* CampusMapView.swift */,
 				3F90626F2C2AA56200B9F24A /* WeatherData.swift */,
 				3F9062722C2AB86700B9F24A /* WeatherManager.swift */,
 			);
@@ -751,6 +765,8 @@
 				3FB337952F3A393000D1E31C /* MemoEntity+CoreDataClass.swift in Sources */,
 				3FB337962F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */,
 				3FB337B62F3CA9B200D1E31C /* NextTaskWidget.swift in Sources */,
+				3FA100022F70000000A10000 /* NextCourseLiveActivityAttributes.swift in Sources */,
+				3FA100042F70000000A10000 /* NextCourseLiveActivityWidget.swift in Sources */,
 				3F8453042E3F7770008B04D4 /* CourseLargeWidget.swift in Sources */,
 				3FB337B42F3C85FC00D1E31C /* MemoWidget.swift in Sources */,
 				3F8B9F9B2C75B113007BF30B /* CourseEntity+CoreDataProperties.swift in Sources */,
@@ -768,6 +784,7 @@
 				3FB338302F5C7D6B00D1E31C /* CommentLimitManager.swift in Sources */,
 				3F59B8222C67198100AFB700 /* TrafficView.swift in Sources */,
 				3F8B9F732C70CD3E007BF30B /* CourseModel.xcdatamodeld in Sources */,
+				3FA100012F70000000A10000 /* NextCourseLiveActivityAttributes.swift in Sources */,
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95092F5D1000001A1697 /* CommunityNotificationFallbackService.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
@@ -775,10 +792,12 @@
 				3FB337982F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,
 				3FB338342F5C9A2000D1E31C /* CommentRewardInfoView.swift in Sources */,
+				3FB338382F5D001000D1E31C /* CampusMapView.swift in Sources */,
 				3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */,
 				3FB338022F5BFF1200D1E31C /* CommonLinksView.swift in Sources */,
 				3F9062C02C2C7D6800B9F24A /* BreakfastView.swift in Sources */,
 				3F8F95162C290D5A001A1697 /* Constant.swift in Sources */,
+				3FB338362F5D000000D1E31C /* StudentImpactModels.swift in Sources */,
 				3F8F950A2C290C25001A1697 /* WebData.swift in Sources */,
 				3F5C1F2D2E5F282E00129A0D /* AdFreeService.swift in Sources */,
 				3F9062DC2C352D0500B9F24A /* AddStoreView.swift in Sources */,
@@ -809,6 +828,7 @@
 				3F9062C42C2CE71600B9F24A /* FeaturesView.swift in Sources */,
 				3F8F95182C291146001A1697 /* WebDetailView.swift in Sources */,
 				3F59B82C2C6798F000AFB700 /* CourseData.swift in Sources */,
+				3FA100032F70000000A10000 /* NextCourseLiveActivityManager.swift in Sources */,
 				3FDF35692C8D3CB300952C69 /* PostManager.swift in Sources */,
 				3F9062842C2C15A200B9F24A /* Order.swift in Sources */,
 				3F59B8252C671AB300AFB700 /* extention.swift in Sources */,
@@ -917,7 +937,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne.NextCourseWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -946,7 +966,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.3.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne.NextCourseWidget;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
@@ -1105,7 +1125,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4.0;
 				"OTHER_LDFLAGS[arch=*]" = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -1148,7 +1168,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.3.1;
+				MARKETING_VERSION = 1.4.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.xujk.NTPUOne;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -1218,20 +1238,20 @@
 				minimumVersion = 11.6.0;
 			};
 		};
-		3FDF355F2C86946900952C69 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 2.7.5;
-			};
-		};
 		3FADD0022F5E000000A11D00 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
 			requirement = {
 				kind = upToNextMajorVersion;
 				minimumVersion = 7.0.0;
+			};
+		};
+		3FDF355F2C86946900952C69 /* XCRemoteSwiftPackageReference "SwiftSoup" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/scinfu/SwiftSoup.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.7.5;
 			};
 		};
 /* End XCRemoteSwiftPackageReference section */
@@ -1276,11 +1296,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3F9062782C2C09AE00B9F24A /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseAuth;
-		};
-		3FADD0032F5E000000A11D00 /* GoogleSignIn */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 3FADD0022F5E000000A11D00 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
-			productName = GoogleSignIn;
 		};
 		3F9062892C2C18D300B9F24A /* FirebaseAuthCombine-Community */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -1391,6 +1406,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 3F9062CB2C2D0C9200B9F24A /* XCRemoteSwiftPackageReference "swift-package-manager-google-mobile-ads" */;
 			productName = GoogleMobileAds;
+		};
+		3FADD0032F5E000000A11D00 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3FADD0022F5E000000A11D00 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
 		};
 		3FDF35602C86946900952C69 /* SwiftSoup */ = {
 			isa = XCSwiftPackageProductDependency;

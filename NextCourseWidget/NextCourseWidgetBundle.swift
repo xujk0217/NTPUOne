@@ -16,5 +16,8 @@ struct NextCourseWidgetBundle: WidgetBundle {
         CourseLargeWidget()
         MemoWidget()
         NextTaskWidget()
+        if #available(iOSApplicationExtension 16.1, *) {
+            NextCourseLiveActivityWidget()
+        }
     }
 }

@@ -17,6 +17,12 @@ struct MemoFormView: View {
     // 預設值（從 Today 頁面傳入）
     var presetCourseLink: String? = nil
     var presetPlanAt: Date? = nil
+    var presetTitle: String? = nil
+    var presetContent: String? = nil
+    var presetTagType: Memo.TagType? = nil
+    var presetPriority: Memo.Priority? = nil
+    var presetDisableAutoDueReminder: Bool? = nil
+    var presetDisableAutoPlanReminder: Bool? = nil
     
     // 表單狀態
     @State private var title: String = ""
@@ -433,6 +439,30 @@ struct MemoFormView: View {
             disableAutoPlanReminder = memo.disableAutoPlanReminder
         } else {
             // 新增模式：套用預設值
+            if let presetTitle = presetTitle {
+                title = presetTitle
+            }
+
+            if let presetContent = presetContent {
+                content = presetContent
+            }
+
+            if let presetTagType = presetTagType {
+                tagType = presetTagType
+            }
+
+            if let presetPriority = presetPriority {
+                priority = presetPriority
+            }
+
+            if let presetDisableAutoDueReminder = presetDisableAutoDueReminder {
+                disableAutoDueReminder = presetDisableAutoDueReminder
+            }
+
+            if let presetDisableAutoPlanReminder = presetDisableAutoPlanReminder {
+                disableAutoPlanReminder = presetDisableAutoPlanReminder
+            }
+
             if let presetCourseLink = presetCourseLink {
                 selectedCourseId = presetCourseLink
             }

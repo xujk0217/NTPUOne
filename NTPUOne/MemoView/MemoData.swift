@@ -139,8 +139,8 @@ struct Memo: Identifiable, Equatable {
         var icon: String {
             switch self {
             case .todo: return "circle"
-            case .doing: return "circle.lefthalf.filled"
-            case .done: return "checkmark.circle.fill"
+            case .doing: return "hourglass.circle"
+            case .done: return "checkmark.circle"
             case .snoozed: return "clock.arrow.circlepath"
             }
         }
@@ -165,7 +165,7 @@ struct Memo: Identifiable, Equatable {
         var icon: String {
             switch self {
             case .low: return "flag"
-            case .medium: return "flag.fill"
+            case .medium: return "flag"
             case .high: return "exclamationmark.3"
             }
         }
@@ -194,6 +194,123 @@ struct Memo: Identifiable, Equatable {
             }
         }
     }
+}
+
+// MARK: - Memo Templates
+struct MemoTemplate: Identifiable, CaseIterable, Equatable {
+    let id: String
+    let titleKey: String
+    let tagType: Memo.TagType
+    let priority: Memo.Priority
+    let enablesAutoDueReminder: Bool
+    let enablesAutoPlanReminder: Bool
+    let icon: String
+
+    var title: String { String(localized: String.LocalizationValue(titleKey)) }
+    var presetDisableAutoDueReminder: Bool? { enablesAutoDueReminder ? false : nil }
+    var presetDisableAutoPlanReminder: Bool? { enablesAutoPlanReminder ? false : nil }
+
+    static let homework = MemoTemplate(
+        id: "homework",
+        titleKey: "memo_template_homework",
+        tagType: .homework,
+        priority: .medium,
+        enablesAutoDueReminder: true,
+        enablesAutoPlanReminder: false,
+        icon: "doc.text"
+    )
+
+    static let exam = MemoTemplate(
+        id: "exam",
+        titleKey: "memo_template_exam",
+        tagType: .exam,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: true,
+        icon: "pencil.and.list.clipboard"
+    )
+
+    static let report = MemoTemplate(
+        id: "report",
+        titleKey: "memo_template_report",
+        tagType: .homework,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: false,
+        icon: "doc.richtext"
+    )
+
+    static let clubActivity = MemoTemplate(
+        id: "clubActivity",
+        titleKey: "memo_template_club_activity",
+        tagType: .activity,
+        priority: .low,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: false,
+        icon: "person.3"
+    )
+
+    static let courseAddDrop = MemoTemplate(
+        id: "courseAddDrop",
+        titleKey: "memo_template_course_add_drop",
+        tagType: .reminder,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: false,
+        icon: "arrow.left.arrow.right.circle"
+    )
+
+    static let withdrawal = MemoTemplate(
+        id: "withdrawal",
+        titleKey: "memo_template_withdrawal",
+        tagType: .reminder,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: false,
+        icon: "exclamationmark.triangle"
+    )
+
+    static let quiz = MemoTemplate(
+        id: "quiz",
+        titleKey: "memo_template_quiz",
+        tagType: .exam,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: true,
+        icon: "questionmark.app"
+    )
+
+    static let midtermFinal = MemoTemplate(
+        id: "midtermFinal",
+        titleKey: "memo_template_midterm_final",
+        tagType: .exam,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: true,
+        icon: "calendar.badge.clock"
+    )
+
+    static let groupReport = MemoTemplate(
+        id: "groupReport",
+        titleKey: "memo_template_group_report",
+        tagType: .homework,
+        priority: .high,
+        enablesAutoDueReminder: false,
+        enablesAutoPlanReminder: false,
+        icon: "person.2.wave.2"
+    )
+
+    static let allCases: [MemoTemplate] = [
+        .homework,
+        .exam,
+        .report,
+        .clubActivity,
+        .courseAddDrop,
+        .withdrawal,
+        .quiz,
+        .midtermFinal,
+        .groupReport
+    ]
 }
 
 // MARK: - 提醒規則
