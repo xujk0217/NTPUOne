@@ -16,6 +16,11 @@ struct RandomFoodView: View {
     @State private var resetTrigger = false
     @State private var selectedIDs: Set<String> = []
     @State private var showAlert = false
+    @State private var showMealPicker = false
+    @State private var goBreakfast = false
+    @State private var goLunch = false
+    @State private var goDinner = false
+    @State private var goMidnightSnack = false
     
     // adview
     @State private var adHeight: CGFloat = 100
@@ -32,7 +37,8 @@ struct RandomFoodView: View {
 
     var body: some View {
         NavigationStack {
-            List {
+            VStack {
+                List {
                 
                 // MARK: - 餐別選擇區
                 Section {
@@ -139,21 +145,93 @@ struct RandomFoodView: View {
                     }
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
+                }
+                .navigationTitle(String(localized: "navigation_food_wheel"))
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            showMealPicker = true
+                        } label: {
+                            Label(String(localized: "restaurant"), systemImage: "list.bullet.rectangle")
+                                .labelStyle(.iconOnly)
+                        }
+                    }
+                }
+                .onAppear {
+                    fManager.loadF(whichDiet: whichDiet)
+                    if let list = fManager.Food {
+                        selectedIDs = Set(list.compactMap { $0.id })
+                    }
+                }
+                .onChange(of: fManager.Food) { newList in
+                    if let list = newList {
+                        selectedIDs = Set(list.compactMap { $0.id })
+                    }
+                }
+                .sheet(isPresented: $showMealPicker) {
+                    mealPickerSheet
+                }
+                .alert(String(localized: "alert_keep_one_restaurant"), isPresented: $showAlert) {
+                    Button(String(localized: "ok"), role: .cancel) {}
+                }
+
+                NavigationLink(destination: BreakfastView(), isActive: $goBreakfast) { EmptyView() }.hidden()
+                NavigationLink(destination: LunchView(), isActive: $goLunch) { EmptyView() }.hidden()
+                NavigationLink(destination: dinnerView(), isActive: $goDinner) { EmptyView() }.hidden()
+                NavigationLink(destination: MSView(), isActive: $goMidnightSnack) { EmptyView() }.hidden()
             }
-            .navigationTitle(String(localized: "navigation_food_wheel"))
-            .onAppear {
-                fManager.loadF(whichDiet: whichDiet)
-                if let list = fManager.Food {
-                    selectedIDs = Set(list.compactMap { $0.id })
+        }
+    }
+
+    private var mealPickerSheet: some View {
+        NavigationStack {
+            List {
+                mealPickerRow(icon: "cup.and.saucer", title: String(localized: "breakfast"), tint: .orange) {
+                    goBreakfast = true
+                    showMealPicker = false
+                }
+
+                mealPickerRow(icon: "carrot", title: String(localized: "lunch"), tint: .green) {
+                    goLunch = true
+                    showMealPicker = false
+                }
+
+                mealPickerRow(icon: "wineglass", title: String(localized: "dinner"), tint: .purple) {
+                    goDinner = true
+                    showMealPicker = false
+                }
+
+                mealPickerRow(icon: "moon.stars", title: String(localized: "midnight_snack"), tint: .indigo) {
+                    goMidnightSnack = true
+                    showMealPicker = false
                 }
             }
-            .onChange(of: fManager.Food) { newList in
-                if let list = newList {
-                    selectedIDs = Set(list.compactMap { $0.id })
+            .navigationTitle(String(localized: "choose_meal"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(String(localized: "close")) {
+                        showMealPicker = false
+                    }
                 }
             }
-            .alert(String(localized: "alert_keep_one_restaurant"), isPresented: $showAlert) {
-                Button(String(localized: "ok"), role: .cancel) {}
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func mealPickerRow(icon: String, title: String, tint: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.title2)
+                    .foregroundStyle(tint)
+                    .frame(width: 40)
+                Text(title)
+                    .font(.headline)
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
     }

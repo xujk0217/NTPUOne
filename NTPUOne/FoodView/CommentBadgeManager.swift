@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import FirebaseAuth
 import SwiftUI
 
 /// 評論徽章/稱號管理器
@@ -21,7 +22,7 @@ final class CommentBadgeManager: ObservableObject {
         case expert = 3      // 40-79 則
         case master = 4      // 80+ 則
         case developer = 99  // 開發者專屬
-        
+
         var title: String {
             switch self {
             case .newbie: return String(localized: "badge_newbie")
@@ -86,10 +87,27 @@ final class CommentBadgeManager: ObservableObject {
     
     @AppStorage("totalCommentCount") private var storedTotalComments: Int = 0
     @AppStorage("isAdmin") private var isAdmin: Bool = false
+
+    /// 開發者本人帳號（只代表有資格；仍需 App 內管理員登入才顯示開發者徽章）
+    static var isDeveloperAccount: Bool {
+        guard let email = Auth.auth().currentUser?.email?.lowercased() else { return false }
+        let parts = email.split(separator: "@")
+        guard parts.count == 2 else { return false }
+        return parts[0].hasPrefix("s411285047")
+            && ["gn.ntpu.edu.tw", "gm.ntpu.edu.tw"].contains(String(parts[1]))
+    }
+
+    /// 是否為管理員（不受留言次數限制）
+    var isAdminUser: Bool { isAdmin }
+
+    /// 公開顯示開發者徽章必須同時符合本人帳號與目前管理員登入狀態。
+    private var hasActiveDeveloperBadge: Bool {
+        isAdmin && Self.isDeveloperAccount
+    }
     
     init() {
         totalComments = storedTotalComments
-        updateBadge()
+        currentBadge = getBadgeLevel(for: totalComments)
     }
     
     // MARK: - 公開方法
@@ -111,44 +129,52 @@ final class CommentBadgeManager: ObservableObject {
         print("🗑️ 累積評論數：\(totalComments)，當前稱號：\(currentBadge.title)")
     }
     
-    /// 同步伺服器上的實際留言數量（用於修正本地記錄）
-    func syncCommentCount(_ serverCount: Int) {
-        // 只有當伺服器數量大於本地記錄時才更新（避免降級）
-        if serverCount > storedTotalComments {
-            storedTotalComments = serverCount
-            totalComments = serverCount
-            updateBadge()
-            print("🔄 已同步留言數量：\(serverCount)，稱號：\(currentBadge.title)")
-        }
+    /// 同步伺服器上的實際留言數量（以 server 為準，修正本地可能偏高或偏低的計數）
+    /// 登出時改回本地裝置計數
+    func reloadLocalCount() {
+        totalComments = storedTotalComments
+        currentBadge = getBadgeLevel(for: totalComments)
     }
-    
-    /// 根據累積評論數取得對應的徽章等級
+
+    func syncCommentCount(_ serverCount: Int) {
+        guard serverCount != storedTotalComments else { return }
+        storedTotalComments = serverCount
+        totalComments = serverCount
+        updateBadge()
+        print("🔄 已同步留言數量：\(serverCount)，稱號：\(currentBadge.title)")
+    }
+
+    func refreshBadgeForAdminStatusChange() {
+        currentBadge = getBadgeLevel(for: totalComments)
+        // 管理員登入／登出時，即使本機顯示值碰巧相同，也重新同步所有既有公開內容。
+        CommunityProfileManager.propagateCurrentBadgeLevelIfNeeded()
+    }
+
+    /// 根據累積評論數取得對應的徽章等級（自己用，考慮目前帳號與管理員狀態）
     func getBadgeLevel(for commentCount: Int) -> BadgeLevel {
-        // 開發者特殊判斷
-        if isAdmin {
-            return .developer
-        }
-        
+        if hasActiveDeveloperBadge { return .developer }
+        return Self.badgeLevel(for: commentCount)
+    }
+
+    /// 根據累積評論數取得徽章等級（給他人用，不受 isAdmin 影響）
+    static func badgeLevel(for commentCount: Int) -> BadgeLevel {
         switch commentCount {
-        case 0..<5: return .newbie
+        case 0..<5:  return .newbie
         case 5..<15: return .explorer
         case 15..<40: return .senior
         case 40..<80: return .expert
-        default: return .master
+        default:     return .master
         }
     }
     
     /// 取得當前用戶的徽章（考慮開發者身份）
     func getCurrentBadge() -> BadgeLevel {
-        if isAdmin {
-            return .developer
-        }
-        return currentBadge
+        getBadgeLevel(for: totalComments)
     }
     
     /// 取得下一個等級所需的評論數
     func commentsToNextLevel() -> Int? {
-        if isAdmin { return nil }  // 開發者已是最高
+        if hasActiveDeveloperBadge { return nil }  // 開發者已是最高
         
         let nextLevels: [BadgeLevel] = [.explorer, .senior, .expert, .master]
         for level in nextLevels {
@@ -161,7 +187,7 @@ final class CommentBadgeManager: ObservableObject {
     
     /// 取得升級進度 (0.0 ~ 1.0)
     func progressToNextLevel() -> Double {
-        if isAdmin { return 1.0 }
+        if hasActiveDeveloperBadge { return 1.0 }
         
         let current = getCurrentBadge()
         let levels: [BadgeLevel] = [.newbie, .explorer, .senior, .expert, .master]
@@ -179,7 +205,11 @@ final class CommentBadgeManager: ObservableObject {
     // MARK: - 私有方法
     
     private func updateBadge() {
+        let previousBadge = currentBadge
         currentBadge = getBadgeLevel(for: totalComments)
+        if currentBadge != previousBadge {
+            CommunityProfileManager.propagateCurrentBadgeLevelIfNeeded()
+        }
     }
 }
 
@@ -286,7 +316,7 @@ struct BadgeCardView: View {
                 .padding(.horizontal, 20)
             } else {
                 HStack(spacing: 4) {
-                    Image(systemName: "crown.fill")
+                    Image(systemName: "crown")
                         .foregroundStyle(.yellow)
                     Text(String(localized: "max_level_reached"))
                         .font(.caption.bold())

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import FirebaseAuth
 import FirebaseFirestore
 
 /// 用戶留言記錄
@@ -16,6 +17,7 @@ struct MyCommentRecord: Identifiable {
     let collection: String
     var body: String
     let date: Date
+    let canManage: Bool
     
     var dateText: String {
         let fmt = DateFormatter()
@@ -68,7 +70,7 @@ struct CommentRewardInfoView: View {
                 todayStatusContent
             } header: {
                 HStack {
-                    Image(systemName: "clock.fill")
+                    Image(systemName: "clock")
                         .foregroundStyle(.blue)
                     Text(String(localized: "today_status"))
                 }
@@ -83,7 +85,7 @@ struct CommentRewardInfoView: View {
                     }
                 } label: {
                     HStack {
-                        Image(systemName: "bubble.left.and.bubble.right.fill")
+                        Image(systemName: "bubble.left.and.bubble.right")
                             .foregroundStyle(.purple)
                         Text(String(localized: "my_comments"))
                             .font(.headline)
@@ -120,23 +122,6 @@ struct CommentRewardInfoView: View {
                     } else {
                         ForEach(myComments) { comment in
                             myCommentRow(comment)
-                                .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                                    Button(role: .destructive) {
-                                        commentToDelete = comment
-                                        showDeleteConfirm = true
-                                    } label: {
-                                        Label(String(localized: "delete"), systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button {
-                                        editingBody = comment.body
-                                        editingComment = comment
-                                    } label: {
-                                        Label(String(localized: "edit"), systemImage: "pencil")
-                                    }
-                                    .tint(.blue)
-                                }
                         }
                     }
                 }
@@ -147,7 +132,7 @@ struct CommentRewardInfoView: View {
                 badgeLevelsContent
             } header: {
                 HStack {
-                    Image(systemName: "star.circle.fill")
+                    Image(systemName: "star.circle")
                         .foregroundStyle(.orange)
                     Text(String(localized: "badge_levels"))
                 }
@@ -158,7 +143,7 @@ struct CommentRewardInfoView: View {
                 rewardInfoContent
             } header: {
                 HStack {
-                    Image(systemName: "gift.fill")
+                    Image(systemName: "gift")
                         .foregroundStyle(.green)
                     Text(String(localized: "comment_rewards"))
                 }
@@ -214,6 +199,24 @@ struct CommentRewardInfoView: View {
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 4)
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if comment.canManage {
+                Button(role: .destructive) {
+                    commentToDelete = comment
+                    showDeleteConfirm = true
+                } label: {
+                    Label(String(localized: "delete"), systemImage: "trash")
+                }
+
+                Button {
+                    editingBody = comment.body
+                    editingComment = comment
+                } label: {
+                    Label(String(localized: "edit"), systemImage: "pencil")
+                }
+                .tint(.blue)
+            }
+        }
     }
     
     // MARK: - 編輯留言 Sheet
@@ -276,11 +279,11 @@ struct CommentRewardInfoView: View {
         commentManager.deleteComment(
             collection: comment.collection,
             storeId: comment.storeId,
-            id: comment.id
+            id: comment.id,
+            deviceId: deviceId
         ) { success in
             if success {
                 myComments.removeAll { $0.id == comment.id }
-                // 更新徽章數量
                 badgeManager.decrementComment()
             }
         }
@@ -306,7 +309,7 @@ struct CommentRewardInfoView: View {
                 
                 if badgeManager.totalComments >= item.level.minComments || 
                    (item.level == .developer && badgeManager.getCurrentBadge() == .developer) {
-                    Image(systemName: "checkmark.circle.fill")
+                    Image(systemName: "checkmark.circle")
                         .foregroundStyle(.green)
                 }
             }
@@ -317,7 +320,7 @@ struct CommentRewardInfoView: View {
     @ViewBuilder
     private var rewardInfoContent: some View {
         HStack(spacing: 12) {
-            Image(systemName: "bubble.left.fill")
+            Image(systemName: "bubble.left")
                 .font(.title3)
                 .foregroundStyle(.blue)
                 .frame(width: 30)
@@ -331,7 +334,7 @@ struct CommentRewardInfoView: View {
         }
         
         HStack(spacing: 12) {
-            Image(systemName: "clock.fill")
+            Image(systemName: "clock")
                 .font(.title3)
                 .foregroundStyle(.orange)
                 .frame(width: 30)
@@ -345,7 +348,7 @@ struct CommentRewardInfoView: View {
         }
         
         HStack(spacing: 12) {
-            Image(systemName: "arrow.up.circle.fill")
+            Image(systemName: "arrow.up.circle")
                 .font(.title3)
                 .foregroundStyle(.green)
                 .frame(width: 30)
@@ -421,69 +424,74 @@ struct CommentRewardInfoView: View {
     
     // MARK: - Load Comments
     private func loadMyComments() {
-        guard !deviceId.isEmpty else { return }
+        guard let uid = Auth.auth().currentUser?.uid else {
+            myComments = []
+            isLoadingComments = false
+            return
+        }
+
         isLoadingComments = true
-        
+
         let db = Firestore.firestore()
-        let collections = ["breakfast", "lunch", "dinner", "MS"]
-        var allComments: [MyCommentRecord] = []
-        let group = DispatchGroup()
-        
-        for collection in collections {
-            group.enter()
-            
-            // 先獲取所有餐廳
-            db.collection(collection).getDocuments { snapshot, error in
-                guard let docs = snapshot?.documents, error == nil else {
-                    group.leave()
+        db.collection("restaurantCommentOwners")
+            .document(uid)
+            .collection("comments")
+            .getDocuments { snapshot, _ in
+                let ownerDocs = snapshot?.documents ?? []
+                guard !ownerDocs.isEmpty else {
+                    finishLoadingComments([], db: db, uid: uid)
                     return
                 }
-                
-                let innerGroup = DispatchGroup()
-                
-                for doc in docs {
-                    innerGroup.enter()
-                    let storeId = doc.documentID
-                    let storeName = doc.data()["store"] as? String ?? storeId
-                    
-                    // 查詢該餐廳的用戶留言
-                    db.collection(collection)
-                        .document(storeId)
-                        .collection("comments")
-                        .whereField("deviceId", isEqualTo: deviceId)
-                        .getDocuments { commentSnapshot, error in
-                            defer { innerGroup.leave() }
-                            guard let commentDocs = commentSnapshot?.documents, error == nil else { return }
-                            
-                            for commentDoc in commentDocs {
-                                let data = commentDoc.data()
+
+                let group = DispatchGroup()
+                let lock = NSLock()
+                var loadedRecords: [MyCommentRecord] = []
+
+                for ownerDoc in ownerDocs {
+                    let ownerData = ownerDoc.data()
+                    guard let collection = ownerData["mealCollection"] as? String,
+                          let storeId = ownerData["storeId"] as? String,
+                          let commentId = ownerData["commentId"] as? String else { continue }
+
+                    group.enter()
+                    db.collection(collection).document(storeId).getDocument { storeSnapshot, _ in
+                        let storeName = storeSnapshot?.data()?["store"] as? String ?? storeId
+                        db.collection(collection)
+                            .document(storeId)
+                            .collection("comments")
+                            .document(commentId)
+                            .getDocument { commentSnapshot, _ in
+                                defer { group.leave() }
+                                guard let data = commentSnapshot?.data() else { return }
                                 let record = MyCommentRecord(
-                                    id: commentDoc.documentID,
+                                    id: commentId,
                                     storeId: storeId,
                                     storeName: storeName,
                                     collection: collection,
                                     body: data["body"] as? String ?? "",
-                                    date: Date(timeIntervalSince1970: data["date"] as? Double ?? 0)
+                                    date: Date(timeIntervalSince1970: data["date"] as? Double ?? 0),
+                                    canManage: true
                                 )
-                                allComments.append(record)
+                                lock.lock()
+                                loadedRecords.append(record)
+                                lock.unlock()
                             }
-                        }
+                    }
                 }
-                
-                innerGroup.notify(queue: .main) {
-                    group.leave()
+
+                group.notify(queue: .main) {
+                    finishLoadingComments(loadedRecords, db: db, uid: uid)
                 }
             }
-        }
-        
-        group.notify(queue: .main) {
-            // 按時間排序（最新的在前面）
-            myComments = allComments.sorted { $0.date > $1.date }
-            isLoadingComments = false
-            
-            // 同步伺服器上的留言數量到本地（修正可能的數量差異）
-            CommentBadgeManager.shared.syncCommentCount(allComments.count)
-        }
+    }
+
+    private func finishLoadingComments(_ records: [MyCommentRecord], db: Firestore, uid: String) {
+        myComments = records.sorted { $0.date > $1.date }
+        isLoadingComments = false
+        let actualCount = records.count
+        CommentBadgeManager.shared.syncCommentCount(actualCount)
+        db.collection("userStats").document(uid)
+            .setData(["total": actualCount], merge: true)
     }
 }
 

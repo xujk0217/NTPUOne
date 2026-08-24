@@ -14,14 +14,18 @@ struct MSView: View {
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
+    @State private var selectedFilter: FoodListFilter = .popular
     
     var body: some View {
         if let Food = fManager.Food {
+            let displayedFoods = FoodFiltering.filteredFoods(Food, filter: selectedFilter, userLocation: nil)
             NavigationStack {
                 List {
+                    FoodFilterControls(selectedFilter: $selectedFilter)
                     // 地圖 Section
                     if #available(iOS 17.0, *) {
-                        let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
+                        // 篩選後為空（如營業中無店）時，地圖改顯示全部店家供參考
+                        let pins = (displayedFoods.isEmpty ? Food : displayedFoods).filter { $0.lat != 0 && $0.lng != 0 }
                         if !pins.isEmpty {
                             Section(String(localized: "nearby_restaurant_map")) {
                                 Map(initialPosition: .camera(
@@ -41,7 +45,16 @@ struct MSView: View {
                         }
                     }
                     Section {
-                        ForEach(Array(fManager.Food!.enumerated()), id: \.element.id) { index, store in
+                        if displayedFoods.isEmpty {
+                            Label(
+                                selectedFilter == .openNow
+                                    ? String(localized: "food_filter_open_now_empty")
+                                    : String(localized: "food_list_empty"),
+                                systemImage: selectedFilter == .openNow ? "moon.zzz" : "tray"
+                            )
+                            .foregroundStyle(.secondary)
+                        }
+                        ForEach(Array(displayedFoods.enumerated()), id: \.element.id) { index, store in
                             if #available(iOS 17.0, *) {
                                 StoreNavigationLink(store: store, collectionName: K.FStoreF.collectionNamem)
                             } else {
@@ -49,14 +62,12 @@ struct MSView: View {
                             }
                             
                             // 每 5 個餐廳後插入 Native 廣告
-                            if !adFree.isAdFree && (index + 1) % 5 == 0 && index < fManager.Food!.count - 1 {
+                            if !adFree.isAdFree && (index + 1) % 5 == 0 && index < displayedFoods.count - 1 {
                                 NativeAdSectionView(style: .compact)
                                     .frame(height: 140)
                                     .listRowInsets(.init(top: 8, leading: 0, bottom: 8, trailing: 0))
                             }
                         }
-                    } header: {
-                        Text("\(Image(systemName: "star.fill")) 是人氣數")
                     }
                     // 底部 Native 廣告 Section
                     if !adFree.isAdFree {
@@ -69,13 +80,13 @@ struct MSView: View {
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.gray.opacity(0.1))
-                .navigationTitle("Midnight Snack")
+                .navigationTitle(String(localized: "midnight_snack"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamem)
                         } label: {
-                            Image(systemName: "plus.circle.fill")
+                            Image(systemName: "plus.circle")
                                 .foregroundStyle(Color.blue)
                         }
                     }
@@ -85,7 +96,7 @@ struct MSView: View {
                 }
             }
         } else {
-            Text("Loading...")
+            Text(String(localized: "loading"))
                 .onAppear {
                     fManager.loadF(whichDiet: "M")
                 }

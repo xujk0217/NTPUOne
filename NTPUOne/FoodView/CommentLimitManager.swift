@@ -45,6 +45,7 @@ final class CommentLimitManager: ObservableObject {
     /// 檢查是否還可以新增留言
     var canComment: Bool {
         resetDailyCountIfNeeded()
+        if CommentBadgeManager.shared.isAdminUser { return true }
         return dailyCommentCount < currentDailyLimit
     }
     

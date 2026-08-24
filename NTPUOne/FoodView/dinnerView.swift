@@ -13,13 +13,18 @@ struct dinnerView: View {
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
+    @State private var selectedFilter: FoodListFilter = .popular
+
     var body: some View {
         if let Food = fManager.Food {
+            let displayedFoods = FoodFiltering.filteredFoods(Food, filter: selectedFilter, userLocation: nil)
             NavigationStack {
                 List {
+                    FoodFilterControls(selectedFilter: $selectedFilter)
                     // 地圖 Section
                     if #available(iOS 17.0, *) {
-                        let pins = Food.filter { $0.lat != 0 && $0.lng != 0 }
+                        // 篩選後為空（如營業中無店）時，地圖改顯示全部店家供參考
+                        let pins = (displayedFoods.isEmpty ? Food : displayedFoods).filter { $0.lat != 0 && $0.lng != 0 }
                         if !pins.isEmpty {
                             Section(String(localized: "nearby_restaurant_map")) {
                                 Map(initialPosition: .camera(
@@ -38,8 +43,17 @@ struct dinnerView: View {
                             }
                         }
                     }
-                    Section{
-                        ForEach(Array(fManager.Food!.enumerated()), id: \.element.id) { index, store in
+                    Section {
+                        if displayedFoods.isEmpty {
+                            Label(
+                                selectedFilter == .openNow
+                                    ? String(localized: "food_filter_open_now_empty")
+                                    : String(localized: "food_list_empty"),
+                                systemImage: selectedFilter == .openNow ? "moon.zzz" : "tray"
+                            )
+                            .foregroundStyle(.secondary)
+                        }
+                        ForEach(Array(displayedFoods.enumerated()), id: \.element.id) { index, store in
                             if #available(iOS 17.0, *) {
                                 StoreNavigationLinkL(store: store)
                             } else {
@@ -48,14 +62,12 @@ struct dinnerView: View {
                             }
                             
                             // 每 5 個餐廳後插入 Native 廣告
-                            if !adFree.isAdFree && (index + 1) % 5 == 0 && index < fManager.Food!.count - 1 {
+                            if !adFree.isAdFree && (index + 1) % 5 == 0 && index < displayedFoods.count - 1 {
                                 NativeAdSectionView(style: .compact)
                                     .frame(height: 140)
                                     .listRowInsets(.init(top: 8, leading: 0, bottom: 8, trailing: 0))
                             }
                         }
-                    } header: {
-                        Text("\(Image(systemName: "star.fill")) 是人氣數")
                     }
                     // 底部 Native 廣告 Section
                     if !adFree.isAdFree {
@@ -68,13 +80,13 @@ struct dinnerView: View {
                 }
                 .scrollContentBackground(.hidden)
                 .background(Color.gray.opacity(0.1))
-                .navigationTitle("Dinner")
+                .navigationTitle(String(localized: "dinner"))
                 .toolbar {
                     ToolbarItem(placement: .primaryAction) {
                         NavigationLink {
                             AddStoreView(currCollectName: K.FStoreF.collectionNamed)
                         } label: {
-                            Image(systemName: "plus.circle.fill")
+                            Image(systemName: "plus.circle")
                                 .foregroundStyle(Color.blue)
                         }
                     }
@@ -84,7 +96,7 @@ struct dinnerView: View {
                 }
             }
         } else {
-            Text("Loading...")
+            Text(String(localized: "loading"))
                 .onAppear {
                     fManager.loadF(whichDiet: "D")
                 }
@@ -137,7 +149,7 @@ struct StoreRowViewL: View {
                 Text("\(Int(store!.starNum))")
                     .font(.title2.bold())
                     .foregroundStyle(.white)
-                Image(systemName: "star.fill")
+                Image(systemName: "star")
                     .font(.caption)
                     .foregroundStyle(.white)
             }
@@ -150,7 +162,7 @@ struct StoreRowViewL: View {
                     .font(.headline)
                     .foregroundStyle(.primary)
                 HStack(spacing: 4) {
-                    Image(systemName: "mappin.circle.fill")
+                    Image(systemName: "mappin.circle")
                         .foregroundStyle(.secondary)
                         .font(.caption)
                     Text(store!.address)
@@ -159,9 +171,9 @@ struct StoreRowViewL: View {
                         .lineLimit(1)
                 }
                 if !store!.check {
-                    Label(String(localized: "data_not_verified"), systemImage: "exclamationmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    Text(String(localized: "data_not_verified"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                 }
             }
             Spacer()

@@ -7,8 +7,26 @@
 import SwiftUI
 import MapKit
 import SafariServices
+import FirebaseAuth
 import FirebaseFirestore
 import FirebaseFirestoreSwift
+
+private func restaurantCommentRelativeTime(_ timestamp: Double) -> String {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.locale = Locale.current
+    formatter.unitsStyle = .short
+    return formatter.localizedString(for: Date(timeIntervalSince1970: timestamp), relativeTo: Date())
+}
+
+// 新留言以寫入時的徽章快照為準（不再暴露 authorUid 查全域統計）；舊留言退回統計推算
+fileprivate func storedOrCountedBadge(for comment: StoreComment, globalStats: [String: Int]) -> CommentBadgeManager.BadgeLevel {
+    if let stored = comment.authorBadgeLevel,
+       let level = CommentBadgeManager.BadgeLevel(rawValue: stored) {
+        return level
+    }
+    let count = globalStats[comment.statsOwnerId] ?? 0
+    return CommentBadgeManager.badgeLevel(for: count)
+}
 
 @available(iOS 17.0, *)
 struct dietView: View {
@@ -32,10 +50,12 @@ struct dietView: View {
     @State private var commentBody = ""
     @State private var isSubmitting = false
     @FocusState private var commentBodyFocused: Bool
+    @State private var commentErrorMessage: String?
     
     // 留言限制 Alert
     @State private var showCommentLimitAlert = false
     @State private var showAdNotReadyAlert = false
+    @State private var showSignInRequiredAlert = false
     
     // 評論獎勵 Toast
     @State private var showRewardToast = false
@@ -44,7 +64,13 @@ struct dietView: View {
     
     // 編輯留言
     @State private var editingComment: StoreComment? = nil
+
+    private var myEditableComments: [StoreComment] {
+        commentManager.comments.filter { commentManager.canEdit($0) }
+    }
     @State private var editingBody: String = ""
+    @State private var commentToDelete: StoreComment? = nil
+    @State private var showDeleteConfirm = false
 
     init(store: FDetail, currCollectName: String?) {
         self._store = State(initialValue: store)
@@ -72,19 +98,26 @@ struct dietView: View {
                 }
 
                 Section {
-                    Button {
-                        if !isStar {
-                            addStar()
-                        }
-                    } label: {
-                        HStack {
-                            Text("\(Int(store.starNum))")
-                                .font(.title.bold())
+                    HStack(spacing: 10) {
+                        Button {
+                            toggleStar()
+                        } label: {
                             Image(systemName: isStar ? "star.fill" : "star")
-                            Divider()
-                            Text(String(localized: "recommend_hint"))
+                                .font(.title2)
+                                .foregroundStyle(isStar ? Color.yellow : Color.gray)
                         }
+                        .buttonStyle(.plain)
+
+                        Text("\(Int(store.starNum))")
+                            .font(.title3.weight(.bold))
+
+                        Text(String(localized: "popularity_index_label"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
                     }
+                    .padding(.vertical, 2)
                 }
 
                 Section {
@@ -94,6 +127,7 @@ struct dietView: View {
                         HStack {
                             Image(systemName: "house")
                             Text(": \(store.address)")
+                                .foregroundStyle(store.url.isEmpty ? Color.primary : Color.blue)
                         }
                         HStack {
                             Image(systemName: "clock")
@@ -107,8 +141,6 @@ struct dietView: View {
                     .onTapGesture {
                         openURL(store.url)
                     }
-                } footer: {
-                    Text(String(localized: "tap_to_open_map"))
                 }
 
                 // 留言 Section
@@ -122,11 +154,36 @@ struct dietView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .simultaneousGesture(TapGesture().onEnded { commentBodyFocused = false })
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
+            .safeAreaInset(edge: .bottom) {
+                commentPinnedBar
+            }
             .navigationTitle(store.store)
-            .onAppear {
-                if deviceId.isEmpty { deviceId = UUID().uuidString }
+
+            .toolbar {
+                if !myEditableComments.isEmpty {
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            ForEach(myEditableComments) { comment in
+                                Button("\(comment.dateText) · \(comment.body.prefix(12))") {
+                                    editingBody = comment.body
+                                    editingComment = comment
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                    }
+                }
+            }            .onAppear {
+                deviceId = CommunityProfileManager.ensureDeviceId()
+                if nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    nickname = CommunityProfileManager.ensureDefaultNickname(deviceId: deviceId)
+                }
+                // 每次開啟餐廳頁面時同步自己的全域統計，讓他人能看到正確徽章等級
                 if let coll = currCollectName, let sid = store.id {
                     commentManager.loadComments(collection: coll, storeId: sid)
                 }
@@ -154,6 +211,21 @@ struct dietView: View {
             }
             .alert(String(localized: "ad_not_ready"), isPresented: $showAdNotReadyAlert) {
                 Button(String(localized: "ok"), role: .cancel) { }
+            }
+            .alert(String(localized: "community_action_failed_title"), isPresented: $showSignInRequiredAlert) {
+                Button(String(localized: "ok"), role: .cancel) { }
+            } message: {
+                Text(String(localized: "community_google_sign_in_required_error"))
+            }
+            .alert(String(localized: "confirm_delete"), isPresented: $showDeleteConfirm) {
+                Button(String(localized: "cancel"), role: .cancel) { }
+                Button(String(localized: "delete"), role: .destructive) {
+                    if let comment = commentToDelete {
+                        deleteOwnedComment(comment)
+                    }
+                }
+            } message: {
+                Text(String(localized: "delete_comment_confirm_message"))
             }
             .sheet(item: $editingComment) { comment in
                 editCommentSheet(comment)
@@ -208,6 +280,19 @@ struct dietView: View {
         }
     }
 
+    private func deleteOwnedComment(_ comment: StoreComment) {
+        guard let coll = currCollectName,
+              let sid = store.id,
+              let cid = comment.id else { return }
+
+        commentManager.deleteComment(collection: coll, storeId: sid, id: cid, deviceId: comment.deviceId) { success in
+            if success {
+                badgeManager.decrementComment()
+            }
+            commentToDelete = nil
+        }
+    }
+
     var mapView: some View {
         Map(position: $position, selection: $selectionResult) {
             Marker(store.store, systemImage: "house", coordinate: CLLocationCoordinate2D(latitude: store.lat, longitude: store.lng))
@@ -220,14 +305,28 @@ struct dietView: View {
     private var commentsSection: some View {
         Section {
             commentsContent
-            commentInputView
         } header: {
             commentsHeader
         } footer: {
             commentsFooter
         }
     }
-    
+
+    private var commentPinnedBar: some View {
+        commentInputView
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                    }
+            )
+            .padding(.horizontal)
+            .padding(.bottom, 10)
+    }
+
     @ViewBuilder
     private var commentsContent: some View {
         if commentManager.isLoading {
@@ -243,8 +342,8 @@ struct dietView: View {
         ForEach(commentManager.comments) { comment in
             commentRow(comment)
         }
-        if nickname.isEmpty {
-            Label(String(localized: "set_nickname_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
+        if Auth.auth().currentUser == nil {
+            Label(String(localized: "restaurant_google_sign_in_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .listRowSeparator(.hidden)
@@ -252,24 +351,16 @@ struct dietView: View {
     }
     
     private func commentRow(_ comment: StoreComment) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: "person.fill")
-                    .font(.caption2)
-                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
-                Text(comment.name)
-                    .font(.caption.bold())
-                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
-                // 顯示徽章（自己的留言顯示當前徽章）
-                if comment.deviceId == deviceId {
-                    BadgeIconView(badge: badgeManager.getCurrentBadge(), showTitle: false)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(restaurantCommentDisplayName(comment))
+                    .font(.caption.weight(.semibold))
+                if commentManager.canEdit(comment) {
+                    BadgeTagView(badge: badgeManager.getCurrentBadge(), compact: true)
+                } else {
+                    BadgeTagView(badge: storedOrCountedBadge(for: comment, globalStats: commentManager.userGlobalStats), compact: true)
                 }
-                if !comment.deviceId.isEmpty {
-                    Text("#\(comment.deviceId.prefix(4))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                if comment.deviceId == deviceId {
+                if commentManager.canEdit(comment) {
                     Text(String(localized: "you"))
                         .font(.caption2.bold())
                         .padding(.horizontal, 5).padding(.vertical, 1)
@@ -278,27 +369,40 @@ struct dietView: View {
                         .clipShape(Capsule())
                 }
                 Spacer()
-                Text(comment.dateText)
+                HStack(spacing: 4) {
+                    Text(restaurantCommentRelativeTime(comment.updatedAt ?? comment.date))
+                    Text("·").foregroundStyle(.secondary)
+                    Text(comment.dateText).foregroundStyle(.secondary)
+                }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                if comment.isEdited {
+                    Text(String(localized: "community_edited_label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             Text(comment.body)
                 .font(.body)
         }
-        .padding(.vertical, 3)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if comment.deviceId == deviceId {
+        .padding(.vertical, 6)
+        .padding(.horizontal, 2)
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+        )
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if commentManager.canEdit(comment) {
                 Button(role: .destructive) {
-                    if let coll = currCollectName, let cid = comment.id {
-                        commentManager.deleteComment(collection: coll, storeId: store.id!, id: cid)
-                    }
+                    commentToDelete = comment
+                    showDeleteConfirm = true
                 } label: {
                     Label(String(localized: "delete"), systemImage: "trash")
                 }
-            }
-        }
-        .swipeActions(edge: .leading) {
-            if comment.deviceId == deviceId {
+
                 Button {
                     editingBody = comment.body
                     editingComment = comment
@@ -311,28 +415,58 @@ struct dietView: View {
     }
     
     private var commentInputView: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField(String(localized: "textfield_comment"), text: $commentBody, axis: .vertical)
-                .lineLimit(1...4)
-                .focused($commentBodyFocused)
-                .onSubmit { }
-            Button {
-                submitComment()
-            } label: {
-                let isDisabled = commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || isSubmitting
-                Image(systemName: isSubmitting ? "clock" : "paperplane.fill")
-                    .foregroundStyle(isDisabled ? Color.secondary : Color.orange)
+        VStack(alignment: .leading, spacing: 8) {
+            if Auth.auth().currentUser == nil {
+                Text(String(localized: "community_google_sign_in_required_error"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .buttonStyle(.plain)
-            .disabled(
-                commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || isSubmitting
-            )
+            CommentIdentityBar(showsDepartmentAndYear: false, interactive: false)
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField(String(localized: "textfield_comment"), text: $commentBody)
+                    .submitLabel(.done)
+                    .focused($commentBodyFocused)
+                    .onSubmit { commentBodyFocused = false }
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 40)
+                    .background(Color(.systemBackground), in: Capsule())
+                    .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
+
+                Button {
+                    submitComment()
+                } label: {
+                    Group {
+                        if isSubmitting {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "paperplane.fill")
+                        }
+                    }
+                    .font(.body)
+                    .frame(width: 44, height: 40)
+                    .foregroundStyle(.white)
+                    .background(Color.accentColor, in: Capsule())
+                    .shadow(color: Color.accentColor.opacity(0.25), radius: 4, x: 0, y: 2)
+                }
+                .buttonStyle(.plain)
+                .disabled(
+                    commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                    || Auth.auth().currentUser == nil
+                    || isSubmitting
+                )
+            }
+        }
+        .padding(.vertical, 4)
+        .alert(String(localized: "comment_post_failed_title"), isPresented: Binding(
+            get: { commentErrorMessage != nil },
+            set: { if !$0 { commentErrorMessage = nil } }
+        )) {
+            Button(String(localized: "ok"), role: .cancel) { }
+        } message: {
+            Text(commentErrorMessage ?? "")
         }
     }
+
     
     private var commentsHeader: some View {
         HStack {
@@ -346,11 +480,15 @@ struct dietView: View {
     
     @ViewBuilder
     private var commentsFooter: some View {
-        if !nickname.isEmpty {
-            Text(nickname)
+        if Auth.auth().currentUser != nil {
+            Text(CommunityProfileManager.currentNicknameDisplayName())
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    private func restaurantCommentDisplayName(_ comment: StoreComment) -> String {
+        commentManager.canEdit(comment) ? CommunityProfileManager.currentNicknameDisplayName() : comment.name
     }
 
     func openURL(_ urlString: String) {
@@ -361,46 +499,36 @@ struct dietView: View {
         }
     }
 
-    func addStar() {
-        isStar = true
+    func toggleStar() {
+        let target = !isStar
+        isStar = target
         let db = Firestore.firestore()
         let docRef = db.collection(currCollectName!).document(store.id!)
 
-        docRef.getDocument { document, error in
+        docRef.getDocument { document, _ in
             guard let document, document.exists,
-                  var storeData = try? document.data(as: FDetail.self)
-            else { return }
-
-            storeData.starNum += 1
-
+                  var storeData = try? document.data(as: FDetail.self) else { return }
+            let newValue = max(0, storeData.starNum + (target ? 1 : -1))
+            storeData.starNum = newValue
             do {
-                try docRef.setData(from: storeData) { error in
-                    if let error = error {
-                        print("❌ 更新失敗: \(error)")
-                        return
-                    }
-
-                    // ✅ 再次抓回更新後的資料
-                    docRef.getDocument { newDoc, error in
-                        guard let newDoc,
-                              newDoc.exists,
-                              let updatedStore = try? newDoc.data(as: FDetail.self)
-                        else { return }
-
-                        DispatchQueue.main.async {
-                            store.starNum = updatedStore.starNum
-                        }
+                try docRef.setData(from: storeData) { _ in
+                    DispatchQueue.main.async {
+                        store.starNum = newValue
                     }
                 }
             } catch {
-                print("❌ setData 錯誤: \(error)")
+                print(error)
             }
         }
     }
     func submitComment() {
         guard let coll = currCollectName, let sid = store.id else { return }
         let trimBody = commentBody.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Auth.auth().currentUser != nil else {
+            showSignInRequiredAlert = true
+            return
+        }
+        let trimName = CommunityProfileManager.currentNicknameDisplayName().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimBody.isEmpty, !trimName.isEmpty else { return }
         
         // 檢查留言限制
@@ -410,9 +538,12 @@ struct dietView: View {
         }
         
         isSubmitting = true
-        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
+        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] error in
             isSubmitting = false
-            if success {
+            if let error {
+                commentErrorMessage = error.localizedDescription
+                return
+            }
                 let rewardedHours = commentLimit.recordComment()
                 commentBody = ""
                 commentBodyFocused = false
@@ -431,7 +562,6 @@ struct dietView: View {
                         showRewardToast = false
                     }
                 }
-            }
         }
     }
     
@@ -478,10 +608,12 @@ struct noMapDietView: View {
     @State private var commentBody = ""
     @State private var isSubmitting = false
     @FocusState private var commentBodyFocused: Bool
+    @State private var commentErrorMessage: String?
     
     // 留言限制 Alert
     @State private var showCommentLimitAlert = false
     @State private var showAdNotReadyAlert = false
+    @State private var showSignInRequiredAlert = false
     
     // 評論獎勵 Toast
     @State private var showRewardToast = false
@@ -490,7 +622,13 @@ struct noMapDietView: View {
     
     // 編輯留言
     @State private var editingComment: StoreComment? = nil
+
+    private var myEditableComments: [StoreComment] {
+        commentManager.comments.filter { commentManager.canEdit($0) }
+    }
     @State private var editingBody: String = ""
+    @State private var commentToDelete: StoreComment? = nil
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -507,26 +645,27 @@ struct noMapDietView: View {
                             .foregroundStyle(Color.red)
                     }
                 }
-                Section{
-                    Button {
-                        if isStar == false{
-                            addStar()
+                Section {
+                    HStack(spacing: 10) {
+                        Button {
+                            toggleStar()
+                        } label: {
+                            Image(systemName: isStar ? "star.fill" : "star")
+                                .font(.title2)
+                                .foregroundStyle(isStar ? Color.yellow : Color.gray)
                         }
-                    } label: {
-                        HStack{
-                            HStack {
-                                Text("\(Int(store!.starNum))")
-                                    .font(.title.bold())
-                                if isStar == true{
-                                    Image(systemName: "star.fill")
-                                }else{
-                                    Image(systemName: "star")
-                                }
-                                Divider()
-                                Text(String(localized: "recommend_hint"))
-                            }
-                        }
+                        .buttonStyle(.plain)
+
+                        Text("\(Int(store!.starNum))")
+                            .font(.title3.weight(.bold))
+
+                        Text(String(localized: "popularity_index_label"))
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
                     }
+                    .padding(.vertical, 2)
                 }
                 Section {
                     HStack {
@@ -540,6 +679,7 @@ struct noMapDietView: View {
                                 HStack(alignment: .top) {
                                     Image(systemName: "house")
                                     Text(": \(store!.address)")
+                                        .foregroundStyle(store!.url.isEmpty ? Color.primary : Color.blue)
                                     Spacer()
                                 }
                                 HStack(alignment: .top) {
@@ -558,8 +698,6 @@ struct noMapDietView: View {
                     .onTapGesture {
                         openURL(store!.url)
                     }
-                } footer: {
-                    Text(String(localized: "tap_to_open_map"))
                 }
 
                 // 留言 Section
@@ -573,11 +711,37 @@ struct noMapDietView: View {
                     }
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
-            }.scrollContentBackground(.hidden)
+            }
+                .scrollDismissesKeyboard(.interactively)
+                .simultaneousGesture(TapGesture().onEnded { commentBodyFocused = false })
+                .scrollContentBackground(.hidden)
                 .background(Color.gray.opacity(0.1))
+                .safeAreaInset(edge: .bottom) {
+                    noMapCommentPinnedBar
+                }
             .navigationTitle(store!.store)
-            .onAppear {
-                if deviceId.isEmpty { deviceId = UUID().uuidString }
+
+            .toolbar {
+                if !myEditableComments.isEmpty {
+                    ToolbarItem(placement: .primaryAction) {
+                        Menu {
+                            ForEach(myEditableComments) { comment in
+                                Button("\(comment.dateText) · \(comment.body.prefix(12))") {
+                                    editingBody = comment.body
+                                    editingComment = comment
+                                }
+                            }
+                        } label: {
+                            Image(systemName: "pencil")
+                        }
+                    }
+                }
+            }            .onAppear {
+                deviceId = CommunityProfileManager.ensureDeviceId()
+                if nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    nickname = CommunityProfileManager.ensureDefaultNickname(deviceId: deviceId)
+                }
+                // 每次開啟餐廳頁面時同步自己的全域統計，讓他人能看到正確徽章等級
                 if let coll = currCollectName, let sid = store?.id {
                     commentManager.loadComments(collection: coll, storeId: sid)
                 }
@@ -605,6 +769,21 @@ struct noMapDietView: View {
             }
             .alert(String(localized: "ad_not_ready"), isPresented: $showAdNotReadyAlert) {
                 Button(String(localized: "ok"), role: .cancel) { }
+            }
+            .alert(String(localized: "community_action_failed_title"), isPresented: $showSignInRequiredAlert) {
+                Button(String(localized: "ok"), role: .cancel) { }
+            } message: {
+                Text(String(localized: "community_google_sign_in_required_error"))
+            }
+            .alert(String(localized: "confirm_delete"), isPresented: $showDeleteConfirm) {
+                Button(String(localized: "cancel"), role: .cancel) { }
+                Button(String(localized: "delete"), role: .destructive) {
+                    if let comment = commentToDelete {
+                        noMapDeleteOwnedComment(comment)
+                    }
+                }
+            } message: {
+                Text(String(localized: "delete_comment_confirm_message"))
             }
             .sheet(item: $editingComment) { comment in
                 noMapEditCommentSheet(comment)
@@ -651,32 +830,33 @@ extension noMapDietView{
         }
     }
     
-    func addStar(){
-        isStar = true
+    func toggleStar() {
+        let target = !isStar
+        isStar = target
         let db = Firestore.firestore()
-            let documentReference =
-        db.collection(currCollectName!).document(store!.id!)
-            documentReference.getDocument { document, error in
-                guard let document,
-                      document.exists,
-                      var store = try? document.data(as: FDetail.self)
-                else {
-                    return
-                }
-                store.starNum += 1
-                do {
-                    try documentReference.setData(from: store)
-                } catch {
-                    print(error)
-                }
-                
+        let docRef = db.collection(currCollectName!).document(store!.id!)
+
+        docRef.getDocument { document, _ in
+            guard let document, document.exists,
+                  var storeData = try? document.data(as: FDetail.self) else { return }
+            let newValue = max(0, storeData.starNum + (target ? 1 : -1))
+            storeData.starNum = newValue
+            do {
+                try docRef.setData(from: storeData)
+            } catch {
+                print(error)
             }
+        }
     }
 
     func submitComment() {
         guard let coll = currCollectName, let sid = store?.id else { return }
         let trimBody = commentBody.trimmingCharacters(in: .whitespacesAndNewlines)
-        let trimName = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard Auth.auth().currentUser != nil else {
+            showSignInRequiredAlert = true
+            return
+        }
+        let trimName = CommunityProfileManager.currentNicknameDisplayName().trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimBody.isEmpty, !trimName.isEmpty else { return }
         
         // 檢查留言限制
@@ -686,9 +866,12 @@ extension noMapDietView{
         }
         
         isSubmitting = true
-        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] success in
+        commentManager.addComment(collection: coll, storeId: sid, name: trimName, body: trimBody, deviceId: deviceId) { [self] error in
             isSubmitting = false
-            if success {
+            if let error {
+                commentErrorMessage = error.localizedDescription
+                return
+            }
                 let rewardedHours = commentLimit.recordComment()
                 commentBody = ""
                 commentBodyFocused = false
@@ -707,7 +890,6 @@ extension noMapDietView{
                         showRewardToast = false
                     }
                 }
-            }
         }
     }
     
@@ -727,14 +909,28 @@ extension noMapDietView{
     var noMapCommentsSection: some View {
         Section {
             noMapCommentsContent
-            noMapCommentInputView
         } header: {
             noMapCommentsHeader
         } footer: {
             noMapCommentsFooter
         }
     }
-    
+
+    var noMapCommentPinnedBar: some View {
+        noMapCommentInputView
+            .padding(10)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(Color(.secondarySystemBackground))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                    }
+            )
+            .padding(.horizontal)
+            .padding(.bottom, 10)
+    }
+
     @ViewBuilder
     var noMapCommentsContent: some View {
         if commentManager.isLoading {
@@ -750,8 +946,8 @@ extension noMapDietView{
         ForEach(commentManager.comments) { comment in
             noMapCommentRow(comment)
         }
-        if nickname.isEmpty {
-            Label(String(localized: "set_nickname_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
+        if Auth.auth().currentUser == nil {
+            Label(String(localized: "restaurant_google_sign_in_to_comment"), systemImage: "person.crop.circle.badge.exclamationmark")
                 .font(.caption)
                 .foregroundStyle(.orange)
                 .listRowSeparator(.hidden)
@@ -759,24 +955,16 @@ extension noMapDietView{
     }
     
     func noMapCommentRow(_ comment: StoreComment) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 4) {
-                Image(systemName: "person.fill")
-                    .font(.caption2)
-                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
-                Text(comment.name)
-                    .font(.caption.bold())
-                    .foregroundStyle(comment.deviceId == deviceId ? .orange : .secondary)
-                // 顯示徽章（自己的留言顯示當前徽章）
-                if comment.deviceId == deviceId {
-                    BadgeIconView(badge: badgeManager.getCurrentBadge(), showTitle: false)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(noMapRestaurantCommentDisplayName(comment))
+                    .font(.caption.weight(.semibold))
+                if commentManager.canEdit(comment) {
+                    BadgeTagView(badge: badgeManager.getCurrentBadge(), compact: true)
+                } else {
+                    BadgeTagView(badge: storedOrCountedBadge(for: comment, globalStats: commentManager.userGlobalStats), compact: true)
                 }
-                if !comment.deviceId.isEmpty {
-                    Text("#\(comment.deviceId.prefix(4))")
-                        .font(.caption2)
-                        .foregroundStyle(.tertiary)
-                }
-                if comment.deviceId == deviceId {
+                if commentManager.canEdit(comment) {
                     Text(String(localized: "you"))
                         .font(.caption2.bold())
                         .padding(.horizontal, 5).padding(.vertical, 1)
@@ -785,29 +973,40 @@ extension noMapDietView{
                         .clipShape(Capsule())
                 }
                 Spacer()
-                Text(comment.dateText)
+                HStack(spacing: 4) {
+                    Text(restaurantCommentRelativeTime(comment.updatedAt ?? comment.date))
+                    Text("·").foregroundStyle(.secondary)
+                    Text(comment.dateText).foregroundStyle(.secondary)
+                }
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                if comment.isEdited {
+                    Text(String(localized: "community_edited_label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
             }
             Text(comment.body)
                 .font(.body)
         }
-        .padding(.vertical, 3)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            if comment.deviceId == deviceId {
+        .padding(.vertical, 6)
+        .padding(.horizontal, 2)
+        .listRowBackground(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+        )
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if commentManager.canEdit(comment) {
                 Button(role: .destructive) {
-                    if let coll = currCollectName,
-                       let sid = store?.id,
-                       let cid = comment.id {
-                        commentManager.deleteComment(collection: coll, storeId: sid, id: cid)
-                    }
+                    commentToDelete = comment
+                    showDeleteConfirm = true
                 } label: {
                     Label(String(localized: "delete"), systemImage: "trash")
                 }
-            }
-        }
-        .swipeActions(edge: .leading) {
-            if comment.deviceId == deviceId {
+
                 Button {
                     editingBody = comment.body
                     editingComment = comment
@@ -820,26 +1019,78 @@ extension noMapDietView{
     }
     
     var noMapCommentInputView: some View {
-        HStack(alignment: .bottom, spacing: 8) {
-            TextField(String(localized: "textfield_comment"), text: $commentBody, axis: .vertical)
-                .lineLimit(1...4)
+        VStack(alignment: .leading, spacing: 8) {
+            if Auth.auth().currentUser == nil {
+                Text(String(localized: "community_google_sign_in_required_error"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            TextField(String(localized: "textfield_comment"), text: $commentBody)
+                .submitLabel(.done)
                 .focused($commentBodyFocused)
-                .onSubmit { }
+                .onSubmit { commentBodyFocused = false }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 40)
+                .background(Color(.systemBackground), in: Capsule())
+                .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
+            noMapRestaurantCommentIdentityCard
             Button {
                 submitComment()
             } label: {
-                let isDisabled = commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                    || isSubmitting
-                Image(systemName: isSubmitting ? "clock" : "paperplane.fill")
-                    .foregroundStyle(isDisabled ? Color.secondary : Color.orange)
+                Label(String(localized: "community_send_reply"), systemImage: isSubmitting ? "clock" : "paperplane")
+                    .font(.body.weight(.semibold))
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .foregroundStyle(.white)
+                    .background(Color.accentColor, in: Capsule())
+                    .shadow(color: Color.accentColor.opacity(0.25), radius: 4, x: 0, y: 2)
             }
             .buttonStyle(.plain)
             .disabled(
                 commentBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                || nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                || Auth.auth().currentUser == nil
                 || isSubmitting
             )
+        }
+        .padding(.vertical, 4)
+        .alert(String(localized: "comment_post_failed_title"), isPresented: Binding(
+            get: { commentErrorMessage != nil },
+            set: { if !$0 { commentErrorMessage = nil } }
+        )) {
+            Button(String(localized: "ok"), role: .cancel) { }
+        } message: {
+            Text(commentErrorMessage ?? "")
+        }
+    }
+
+    var noMapRestaurantCommentIdentityCard: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "person.text.rectangle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange)
+                .frame(width: 28, height: 28)
+                .background(Color.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(CommunityProfileManager.currentNicknameDisplayName())
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                Text(String(localized: "community_badge_reply_detail"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+            BadgeTagView(badge: badgeManager.getCurrentBadge(), compact: true)
+        }
+        .padding(12)
+        .background {
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .stroke(Color.orange.opacity(0.16), lineWidth: 1)
+                }
         }
     }
     
@@ -855,11 +1106,15 @@ extension noMapDietView{
     
     @ViewBuilder
     var noMapCommentsFooter: some View {
-        if !nickname.isEmpty {
-            Text(nickname)
+        if Auth.auth().currentUser != nil {
+            Text(CommunityProfileManager.currentNicknameDisplayName())
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    func noMapRestaurantCommentDisplayName(_ comment: StoreComment) -> String {
+        commentManager.canEdit(comment) ? CommunityProfileManager.currentNicknameDisplayName() : comment.name
     }
     
     // MARK: - 編輯留言 Sheet
@@ -908,6 +1163,18 @@ extension noMapDietView{
             editingComment = nil
         }
     }
+
+    private func noMapDeleteOwnedComment(_ comment: StoreComment) {
+        guard let coll = currCollectName,
+              let sid = store?.id,
+              let cid = comment.id else { return }
+
+        commentManager.deleteComment(collection: coll, storeId: sid, id: cid, deviceId: comment.deviceId) { success in
+            if success {
+                badgeManager.decrementComment()
+            }
+            commentToDelete = nil
+        }
+    }
     
 }
-
