@@ -14,6 +14,10 @@ service cloud.firestore {
       return value is string && value.size() > 0;
     }
 
+    function isValidCommunityStringUpTo(value, maxLength) {
+      return isValidCommunityString(value) && value.size() <= maxLength;
+    }
+
     function docMatchesDeviceSecret(docId, payload) {
       return payload is map
         && isValidCommunityString(payload.deviceId)
@@ -34,75 +38,616 @@ service cloud.firestore {
       return isAuthOwner(resource.data.ownerUid);
     }
 
-    function isReplyCountOnlyUpdate() {
-      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
-        && request.resource.data.replyCount is int
+    // replyCount 只能在「同一批次建立/刪除回覆」時變動（輔助函式實作見 publicTopicPath 之後）
+
+    function isDeveloperAccount() {
+      let email = hasAuth() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : "";
+      return hasAuth()
+        && email.matches('^s411285047.*@g[mn]\\.ntpu\\.edu\\.tw$');
+    }
+
+    function isValidCommunityBadgeLevel(value) {
+      // 一般用戶可寫 0-4；99（developer）限開發者本人帳號
+      return value is int
+        && ((value in [0, 1, 2, 3, 4]) || (value == 99 && isDeveloperAccount()));
+    }
+
+    function isValidCommunityCategory(value) {
+      return value is string && (value in ['food', 'course', 'campus', 'question', 'trade', 'meetup']);
+    }
+
+    function isRestaurantCollection(collectionName) {
+      return collectionName is string && (collectionName in ['breakfast', 'lunch', 'dinner', 'MS']);
+    }
+
+    function isAdminOrDeveloper() {
+      // 後台權限＝開發者自訂 claim 或 專屬信箱 s411285047@*.ntpu.edu.tw（App 端另有密碼門）
+      let email = hasAuth() && request.auth.token.email is string
+        ? request.auth.token.email.lower()
+        : "";
+      return hasAuth()
         && (
-          (
-            resource.data.keys().hasAny(['replyCount'])
-            && resource.data.replyCount is int
-            && request.resource.data.replyCount == resource.data.replyCount + 1
-          )
-          || (
-            !resource.data.keys().hasAny(['replyCount'])
-            && request.resource.data.replyCount == 1
-          )
+          request.auth.token.admin == true
+          || request.auth.token.developer == true
+          || email.matches('^s411285047.*@g[mn]\\.ntpu\\.edu\\.tw$')
         );
+    }
+
+    function isAllowedOrderTag(value) {
+      return value is string && (value in ['1', '2', '3']);
+    }
+
+    function isValidOrderWrite() {
+      return request.resource.data.keys().hasOnly(['message', 'name', 'time', 'email', 'url', 'tag', 'date'])
+        && isValidCommunityString(request.resource.data.message)
+        && isValidCommunityString(request.resource.data.name)
+        && request.resource.data.time is string
+        && request.resource.data.email is string
+        && request.resource.data.url is string
+        && isAllowedOrderTag(request.resource.data.tag)
+        && request.resource.data.date is number;
+    }
+
+    function isValidOrderAdminUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['message', 'name', 'time', 'email', 'url', 'tag'])
+        && isValidCommunityString(request.resource.data.message)
+        && isValidCommunityString(request.resource.data.name)
+        && request.resource.data.time is string
+        && request.resource.data.email is string
+        && request.resource.data.url is string
+        && isAllowedOrderTag(request.resource.data.tag)
+        && request.resource.data.date == resource.data.date;
+    }
+
+    function isValidFeedbackSubmission() {
+      return request.resource.data.keys().hasOnly(['email', 'issue', 'detail'])
+        && request.resource.data.email is string
+        && isValidCommunityString(request.resource.data.issue)
+        && isValidCommunityString(request.resource.data.detail);
+    }
+
+    function isValidRestaurantDocument() {
+      return request.resource.data.keys().hasOnly(['store', 'time', 'url', 'address', 'phone', 'starNum', 'lat', 'lng', 'check'])
+        && isValidCommunityString(request.resource.data.store)
+        && isValidCommunityString(request.resource.data.time)
+        && isValidCommunityString(request.resource.data.url)
+        && isValidCommunityString(request.resource.data.address)
+        && request.resource.data.phone is string
+        && request.resource.data.starNum is number
+        && request.resource.data.starNum >= 0
+        && request.resource.data.lat is number
+        && request.resource.data.lng is number
+        && request.resource.data.check is bool;
+    }
+
+    function isValidPublicRestaurantCreate() {
+      return isValidRestaurantDocument()
+        && request.resource.data.check == false
+        && request.resource.data.starNum == 1;
+    }
+
+    function isValidRestaurantCommentCreate() {
+      let d = request.resource.data;
+      return isValidCommunityStringUpTo(d.name, 30)
+        && isValidCommunityStringUpTo(d.body, 2000)
+        && d.date is number
+        && isValidCommunityStringUpTo(d.deviceId, 64)
+        && (
+             // 新版 App：徽章快照、不帶 authorUid
+             (d.keys().hasOnly(['name', 'body', 'date', 'deviceId', 'authorBadgeLevel'])
+               && isValidCommunityBadgeLevel(d.authorBadgeLevel))
+             // 舊版 App 過渡：仍帶 authorUid；待全數更新後移除此分支
+          || (d.keys().hasOnly(['name', 'body', 'date', 'deviceId', 'authorUid'])
+               && d.authorUid == request.auth.uid)
+        );
+    }
+
+    function isValidRestaurantCommentUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['body', 'updatedAt'])
+        && isValidCommunityString(request.resource.data.body)
+        && request.resource.data.updatedAt is number;
+    }
+
+    function isValidRestaurantCommentDisplayUpdate() {
+      let changed = request.resource.data.diff(resource.data).affectedKeys();
+      return changed.hasOnly(['name', 'authorBadgeLevel'])
+        && (!changed.hasAny(['name']) || isValidCommunityString(request.resource.data.name))
+        && (!changed.hasAny(['authorBadgeLevel']) || isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel));
+    }
+
+    // 舊留言過渡清理：僅允許本人「刪除」authorUid 欄位（FieldValue.delete 後該 key 不存在）
+    function isLegacyAuthorUidScrub() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['authorUid'])
+        && !request.resource.data.keys().hasAny(['authorUid']);
+    }
+
+    function restaurantCommentOwnerId(mealCollection, storeId, commentId) {
+      return mealCollection + '_' + storeId + '_' + commentId;
+    }
+
+    function publicRestaurantCommentPath(mealCollection, storeId, commentId) {
+      return /databases/$(database)/documents/$(mealCollection)/$(storeId)/comments/$(commentId);
+    }
+
+    function restaurantCommentOwnerPath(mealCollection, storeId, commentId) {
+      return /databases/$(database)/documents/restaurantCommentOwners/$(request.auth.uid)/comments/$(restaurantCommentOwnerId(mealCollection, storeId, commentId));
+    }
+
+    function hasRestaurantCommentOwner(mealCollection, storeId, commentId) {
+      return hasAuth() && exists(restaurantCommentOwnerPath(mealCollection, storeId, commentId));
+    }
+
+    function createsRestaurantCommentOwner(mealCollection, storeId, commentId) {
+      return hasAuth()
+        && getAfter(restaurantCommentOwnerPath(mealCollection, storeId, commentId)).data.ownerUid == request.auth.uid
+        && getAfter(restaurantCommentOwnerPath(mealCollection, storeId, commentId)).data.mealCollection == mealCollection
+        && getAfter(restaurantCommentOwnerPath(mealCollection, storeId, commentId)).data.storeId == storeId
+        && getAfter(restaurantCommentOwnerPath(mealCollection, storeId, commentId)).data.commentId == commentId;
+    }
+
+    function isValidRestaurantCommentOwnerCreate(uid, ownerId) {
+      return isAuthOwner(uid)
+        && request.resource.data.keys().hasOnly(['ownerUid', 'mealCollection', 'storeId', 'commentId', 'createdAt'])
+        && request.resource.data.ownerUid == uid
+        && isRestaurantCollection(request.resource.data.mealCollection)
+        && isValidCommunityString(request.resource.data.storeId)
+        && isValidCommunityString(request.resource.data.commentId)
+        && request.resource.data.createdAt is number
+        && ownerId == restaurantCommentOwnerId(request.resource.data.mealCollection, request.resource.data.storeId, request.resource.data.commentId)
+        && (
+             // 新留言：與公開留言同一批次原子建立
+             (!exists(publicRestaurantCommentPath(request.resource.data.mealCollection, request.resource.data.storeId, request.resource.data.commentId))
+               && getAfter(publicRestaurantCommentPath(request.resource.data.mealCollection, request.resource.data.storeId, request.resource.data.commentId)).data.body is string)
+             // 舊留言認領：公開文件已存在，且其 authorUid 與本人相符
+          || (exists(publicRestaurantCommentPath(request.resource.data.mealCollection, request.resource.data.storeId, request.resource.data.commentId))
+               && get(publicRestaurantCommentPath(request.resource.data.mealCollection, request.resource.data.storeId, request.resource.data.commentId)).data.authorUid == uid)
+        );
+    }
+
+    function isValidUserStatsWrite() {
+      return request.resource.data.keys().hasOnly(['total'])
+        && request.resource.data.total is int
+        && request.resource.data.total >= 0;
+    }
+
+    function isRestaurantStarUpdate() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(['starNum'])
+        && request.resource.data.starNum is number
+        && resource.data.starNum is number
+        && request.resource.data.starNum >= resource.data.starNum;
+    }
+
+    function isAllowedTopicCreate() {
+      return request.resource.data.keys().hasOnly([
+        'title',
+        'body',
+        'category',
+        'authorName',
+        'authorDeviceId',
+        'authorDepartment',
+        'authorEntryYear',
+        'authorShowsYear',
+        'authorShowsBadge',
+        'authorBadgeLevel',
+        'createdAt',
+        'replyCount',
+        'likeCount'
+      ])
+        && isValidCommunityStringUpTo(request.resource.data.title, 120)
+        && isValidCommunityStringUpTo(request.resource.data.body, 4000)
+        && isValidCommunityCategory(request.resource.data.category)
+        && isValidCommunityStringUpTo(request.resource.data.authorName, 30)
+        && isValidCommunityStringUpTo(request.resource.data.authorDeviceId, 64)
+        && request.resource.data.authorDepartment is string
+        && request.resource.data.authorDepartment.size() <= 50
+        && request.resource.data.authorEntryYear is string
+        && request.resource.data.authorEntryYear.size() <= 10
+        && request.resource.data.authorShowsYear is bool
+        && request.resource.data.authorShowsBadge is bool
+        && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel)
+        && request.resource.data.replyCount == 0
+        && request.resource.data.likeCount == 0;
+    }
+
+    function isAllowedReplyCreate() {
+      return request.resource.data.keys().hasOnly([
+        'body',
+        'authorName',
+        'authorDeviceId',
+        'authorDepartment',
+        'authorEntryYear',
+        'authorShowsYear',
+        'authorShowsBadge',
+        'authorBadgeLevel',
+        'createdAt'
+      ])
+        && isValidCommunityStringUpTo(request.resource.data.body, 2000)
+        && isValidCommunityStringUpTo(request.resource.data.authorName, 30)
+        && isValidCommunityStringUpTo(request.resource.data.authorDeviceId, 64)
+        && request.resource.data.authorDepartment is string
+        && request.resource.data.authorDepartment.size() <= 50
+        && request.resource.data.authorEntryYear is string
+        && request.resource.data.authorEntryYear.size() <= 10
+        && request.resource.data.authorShowsYear is bool
+        && request.resource.data.authorShowsBadge is bool
+        && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel);
+    }
+
+    function topicOwnerPath(topicId) {
+      return /databases/$(database)/documents/communityContentOwners/$(request.auth.uid)/topics/$(topicId);
+    }
+
+    // 刪除回覆的批次會同時將主題 replyCount -1；此分支僅允許「往下修、不低於 0」，
+    // 且建立路徑已封死獨立 +1，故通膨方向（灌數字）維持不可行。
+    function isTopicReplyCountDecrementOnly() {
+      return hasAuth()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['replyCount'])
+        && request.resource.data.replyCount is int
+        && request.resource.data.replyCount >= 0
+        && resource.data.keys().hasAny(['replyCount'])
+        && resource.data.replyCount is int
+        && resource.data.replyCount > 0
+        && request.resource.data.replyCount < resource.data.replyCount;
+    }
+
+    function publicTopicPath(topicId) {
+      return /databases/$(database)/documents/communityTopics/$(topicId);
+    }
+
+    function publicReplyPath(topicId, replyId) {
+      return /databases/$(database)/documents/communityTopics/$(topicId)/replies/$(replyId);
+    }
+
+    // replyCount 只能在「同一批次建立/刪除回覆」時變動，杜絕獨立 ±1 竄改
+    function topicReplyCountIncrementedByOne(topicId) {
+      return exists(publicTopicPath(topicId))
+        && getAfter(publicTopicPath(topicId)).data.replyCount
+          == get(publicTopicPath(topicId)).data.replyCount + 1;
+    }
+
+    function topicReplyCountDecrementedByOne(topicId) {
+      return !exists(publicTopicPath(topicId))
+        || (get(publicTopicPath(topicId)).data.replyCount is int
+          && get(publicTopicPath(topicId)).data.replyCount <= 0)
+        || getAfter(publicTopicPath(topicId)).data.replyCount
+          == get(publicTopicPath(topicId)).data.replyCount - 1;
+    }
+
+    // 按讚計數只能在同批建立/刪除 like 文件時變動（與 replyCount 同模式）
+    function publicTopicLikePath(topicId, uid) {
+      return /databases/$(database)/documents/communityTopicLikes/$(topicId)/likes/$(uid);
+    }
+
+    function currentTopicLikeCount(topicId) {
+      let topic = get(publicTopicPath(topicId)).data;
+      // 舊貼文可能尚未有 likeCount；先確認欄位存在，避免取用不存在欄位時規則評估失敗。
+      return topic.keys().hasAny(['likeCount']) && topic.likeCount is int
+        ? topic.likeCount
+        : 0;
+    }
+
+    function topicLikeIncrementedByOne(topicId) {
+      return exists(publicTopicPath(topicId))
+        && getAfter(publicTopicPath(topicId)).data.likeCount
+          == currentTopicLikeCount(topicId) + 1;
+    }
+
+    function topicLikeDecrementedByOne(topicId) {
+      return !exists(publicTopicPath(topicId))
+        || (currentTopicLikeCount(topicId) <= 0)
+        || getAfter(publicTopicPath(topicId)).data.likeCount
+          == currentTopicLikeCount(topicId) - 1;
+    }
+
+    // 允許主題的 likeCount 隨批次 ±1（含舊文件無欄位、第一次按讚時寫入 1）
+    function isTopicLikeCountAdjust() {
+      return hasAuth()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likeCount'])
+        && request.resource.data.likeCount is int
+        && request.resource.data.likeCount >= 0
+        && (
+             !resource.data.keys().hasAny(['likeCount'])
+             || (resource.data.likeCount is int
+               && (request.resource.data.likeCount == resource.data.likeCount + 1
+                 || request.resource.data.likeCount == resource.data.likeCount - 1))
+           );
+    }
+
+    function canCreateReplyForTopic(topicId) {
+      return exists(publicTopicPath(topicId))
+        && (
+          !get(publicTopicPath(topicId)).data.keys().hasAny(['isDeleted'])
+          || get(publicTopicPath(topicId)).data.isDeleted != true
+        );
+    }
+
+    function replyOwnerPath(topicId, replyId) {
+      return /databases/$(database)/documents/communityContentOwners/$(request.auth.uid)/replies/$(topicId + '_' + replyId);
+    }
+
+    function hasTopicOwner(topicId) {
+      return hasAuth() && exists(topicOwnerPath(topicId));
+    }
+
+    function hasReplyOwner(topicId, replyId) {
+      return hasAuth() && exists(replyOwnerPath(topicId, replyId));
+    }
+
+    function createsTopicOwner(topicId) {
+      return hasAuth()
+        && getAfter(topicOwnerPath(topicId)).data.ownerUid == request.auth.uid
+        && getAfter(topicOwnerPath(topicId)).data.topicId == topicId;
+    }
+
+    function createsReplyOwner(topicId, replyId) {
+      return hasAuth()
+        && getAfter(replyOwnerPath(topicId, replyId)).data.ownerUid == request.auth.uid
+        && getAfter(replyOwnerPath(topicId, replyId)).data.topicId == topicId
+        && getAfter(replyOwnerPath(topicId, replyId)).data.replyId == replyId;
+    }
+
+    function isOwnedTopicContentUpdate(topicId) {
+      return hasTopicOwner(topicId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'updatedAt'])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['title']) || isValidCommunityString(request.resource.data.title))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['body']) || isValidCommunityString(request.resource.data.body))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt']) || request.resource.data.updatedAt is timestamp);
+    }
+
+    function isOwnedTopicDisplayUpdate(topicId) {
+      return hasTopicOwner(topicId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'authorName',
+          'authorDepartment',
+          'authorEntryYear',
+          'authorShowsYear',
+          'authorShowsBadge',
+          'authorBadgeLevel'
+        ])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorName']) || isValidCommunityString(request.resource.data.authorName))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorDepartment'])
+          || (resource.data.authorDepartment is string && resource.data.authorDepartment.size() > 0 && request.resource.data.authorDepartment is string))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorEntryYear', 'authorShowsYear'])
+          || (resource.data.authorShowsYear == true && request.resource.data.authorEntryYear is string && request.resource.data.authorShowsYear is bool))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorBadgeLevel', 'authorShowsBadge'])
+          || (resource.data.authorShowsBadge == true && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel) && request.resource.data.authorShowsBadge is bool));
+    }
+
+    function isOwnedTopicDeleteUpdate(topicId) {
+      return hasTopicOwner(topicId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title',
+          'body',
+          'authorName',
+          'authorDeviceId',
+          'authorDepartment',
+          'authorEntryYear',
+          'authorShowsYear',
+          'authorShowsBadge',
+          'authorBadgeLevel',
+          'isDeleted',
+          'deletedAt',
+          'updatedAt'
+        ])
+        && request.resource.data.isDeleted == true
+        && request.resource.data.deletedAt is timestamp
+        && request.resource.data.updatedAt is timestamp;
+    }
+
+    function isOwnedReplyUpdate(topicId, replyId) {
+      return hasReplyOwner(topicId, replyId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'body',
+          'authorName',
+          'authorDepartment',
+          'authorEntryYear',
+          'authorShowsYear',
+          'authorShowsBadge',
+          'authorBadgeLevel',
+          'updatedAt'
+        ])
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['body']) || isValidCommunityString(request.resource.data.body))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt']) || request.resource.data.updatedAt is timestamp)
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorName']) || isValidCommunityString(request.resource.data.authorName))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorDepartment'])
+          || (resource.data.authorDepartment is string && resource.data.authorDepartment.size() > 0 && request.resource.data.authorDepartment is string))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorEntryYear', 'authorShowsYear'])
+          || (resource.data.authorShowsYear == true && request.resource.data.authorEntryYear is string && request.resource.data.authorShowsYear is bool))
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['authorBadgeLevel', 'authorShowsBadge'])
+          || (resource.data.authorShowsBadge == true && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel) && request.resource.data.authorShowsBadge is bool));
     }
 
     match /communityProfiles/{deviceSecret} {
       allow read: if false;
-      allow create: if canWriteSecretDocument(deviceSecret);
-      allow update: if canUpdateSecretDocument(deviceSecret);
+      allow create: if hasAuth() && canWriteSecretDocument(deviceSecret);
+      allow update: if hasAuth() && canUpdateSecretDocument(deviceSecret);
       allow delete: if canDeleteSecretDocument();
     }
 
     match /communityDeviceTokens/{deviceSecret} {
       allow read: if false;
-      allow create: if canWriteSecretDocument(deviceSecret);
-      allow update: if canUpdateSecretDocument(deviceSecret);
+      allow create: if hasAuth() && canWriteSecretDocument(deviceSecret);
+      allow update: if hasAuth() && canUpdateSecretDocument(deviceSecret);
       allow delete: if canDeleteSecretDocument();
+    }
+
+    match /communityUserProfiles/{uid} {
+      allow read, create, update, delete: if isAuthOwner(uid);
     }
 
     match /communityCategorySubscriptions/{category}/devices/{deviceSecret} {
       allow read: if false;
-      allow create: if isValidCommunityString(request.resource.data.deviceId)
+      allow create: if hasAuth()
+        && isValidCommunityStringUpTo(request.resource.data.deviceId, 64)
         && request.resource.data.deviceSecret == deviceSecret;
-      allow update: if request.resource.data.deviceSecret == deviceSecret
+      allow update: if hasAuth()
+        && request.resource.data.deviceSecret == deviceSecret
         && resource.data.deviceSecret == deviceSecret;
       allow delete: if isAuthOwner(resource.data.ownerUid);
     }
 
     match /communityTopicSubscriptions/{topicId}/devices/{deviceSecret} {
       allow read: if false;
-      allow create: if isValidCommunityString(request.resource.data.deviceId)
+      allow create: if hasAuth()
+        && isValidCommunityStringUpTo(request.resource.data.deviceId, 64)
         && request.resource.data.deviceSecret == deviceSecret;
-      allow update: if request.resource.data.deviceSecret == deviceSecret
+      allow update: if hasAuth()
+        && request.resource.data.deviceSecret == deviceSecret
         && resource.data.deviceSecret == deviceSecret;
       allow delete: if isAuthOwner(resource.data.ownerUid);
     }
 
-    match /communityContentOwners/{deviceSecret} {
-      allow read, write: if false;
+    match /communityContentOwners/{uid} {
+      allow read: if isAuthOwner(uid);
+      allow write: if false;
 
+      match /topics/{topicId} {
+        allow read, list: if isAuthOwner(uid);
+        allow create: if isAuthOwner(uid)
+          && request.resource.data.ownerUid == uid
+          && request.resource.data.topicId == topicId
+          && !exists(publicTopicPath(topicId))
+          && getAfter(publicTopicPath(topicId)).data.title is string;
+        allow update: if (isAuthOwner(uid)
+          && (!resource.data.keys().hasAny(['ownerUid']) || resource.data.ownerUid == uid)
+          && resource.data.topicId == topicId) || isAdminOrDeveloper();
+        allow delete: if isAuthOwner(uid) || isAdminOrDeveloper();
+      }
+
+      match /replies/{replyOwnerId} {
+        allow read, list: if isAuthOwner(uid);
+        allow create: if isAuthOwner(uid)
+          && request.resource.data.ownerUid == uid
+          && replyOwnerId == request.resource.data.topicId + '_' + request.resource.data.replyId
+          && !exists(publicReplyPath(request.resource.data.topicId, request.resource.data.replyId))
+          && getAfter(publicReplyPath(request.resource.data.topicId, request.resource.data.replyId)).data.body is string;
+        allow update: if (isAuthOwner(uid)
+          && (!resource.data.keys().hasAny(['ownerUid']) || resource.data.ownerUid == uid)
+          && replyOwnerId == resource.data.topicId + '_' + resource.data.replyId) || isAdminOrDeveloper();
+        allow delete: if isAuthOwner(uid) || isAdminOrDeveloper();
+      }
+
+      // 管理員後台需要跨帳號查詢擁有者索引（一般用戶仍只能讀自己的）
       match /{document=**} {
-        allow read, write: if false;
+        allow read: if isAdminOrDeveloper();
       }
     }
 
     match /communityTopics/{topicId} {
       allow read: if true;
 
-      allow create: if false;
+      allow create: if hasAuth()
+        && isAllowedTopicCreate()
+        && createsTopicOwner(topicId);
 
-      allow update: if isReplyCountOnlyUpdate();
+      allow update: if isOwnedTopicContentUpdate(topicId)
+        || isOwnedTopicDisplayUpdate(topicId)
+        || isOwnedTopicDeleteUpdate(topicId)
+        || isTopicReplyCountDecrementOnly()
+        || isTopicLikeCountAdjust()
+        || isAdminOrDeveloper();
+
+      allow delete: if isAdminOrDeveloper();
     }
 
     match /communityTopics/{topicId}/replies/{replyId} {
       allow read: if true;
-      allow create: if false;
+      allow create: if hasAuth()
+        && isAllowedReplyCreate()
+        && canCreateReplyForTopic(topicId)
+        && createsReplyOwner(topicId, replyId)
+        && topicReplyCountIncrementedByOne(topicId);
+      // 管理員可繞過擁有者驗證（App 端仍會同批維護 replyCount 與 owner 文件）
+      allow update: if isOwnedReplyUpdate(topicId, replyId) || isAdminOrDeveloper();
+      allow delete: if (hasReplyOwner(topicId, replyId)
+          && topicReplyCountDecrementedByOne(topicId))
+        || isAdminOrDeveloper();
+    }
+
+    match /communityUserLikes/{uid}/topics/{topicId} {
+      allow read, create, update, delete: if isAuthOwner(uid) || isAdminOrDeveloper();
+    }
+
+    match /communityTopicLikes/{topicId}/likes/{uid} {
+      allow read: if isAuthOwner(uid) || isAdminOrDeveloper();
+      allow create: if isAuthOwner(uid)
+        && request.resource.data.keys().hasOnly(['ownerUid', 'createdAt'])
+        && request.resource.data.ownerUid == uid
+        && !exists(publicTopicLikePath(topicId, uid))
+        && topicLikeIncrementedByOne(topicId);
+      allow delete: if (isAuthOwner(uid) && topicLikeDecrementedByOne(topicId)) || isAdminOrDeveloper();
+    }
+
+    match /restaurantCommentOwners/{uid} {
+      allow read: if isAuthOwner(uid);
+      allow write: if false;
+
+      match /comments/{ownerId} {
+        allow read, list: if isAuthOwner(uid);
+        allow create: if isValidRestaurantCommentOwnerCreate(uid, ownerId);
+        allow update: if isAdminOrDeveloper();
+        allow delete: if isAuthOwner(uid) || isAdminOrDeveloper();
+      }
+    }
+
+    match /userStats/{uid} {
+      allow read: if true;
+      allow create, update: if (isAuthOwner(uid) && isValidUserStatsWrite())
+        || (isAdminOrDeveloper() && isValidUserStatsWrite());
+    }
+
+    match /adminUsers/{uid} {
+      allow read, write: if false;
+    }
+
+    match /order/{orderId} {
+      allow read: if true;
+      allow create: if isValidOrderWrite();
+      allow update: if isAdminOrDeveloper() && isValidOrderAdminUpdate();
+      allow delete: if isAdminOrDeveloper();
+    }
+
+    match /bug/{bugId} {
+      allow create: if isValidFeedbackSubmission();
+      allow read, delete: if isAdminOrDeveloper();
       allow update: if false;
-      allow delete: if false;
+    }
+
+    match /feature/{featureId} {
+      allow create: if isValidFeedbackSubmission();
+      allow read, delete: if isAdminOrDeveloper();
+      allow update: if false;
+    }
+
+    match /{mealCollection}/{storeId} {
+      allow read: if isRestaurantCollection(mealCollection);
+      allow create: if isRestaurantCollection(mealCollection)
+        && (isValidPublicRestaurantCreate() || (isAdminOrDeveloper() && isValidRestaurantDocument()));
+      allow update: if isRestaurantCollection(mealCollection)
+        && (isRestaurantStarUpdate() || (isAdminOrDeveloper() && isValidRestaurantDocument()));
+      allow delete: if isRestaurantCollection(mealCollection) && isAdminOrDeveloper();
+
+      match /comments/{commentId} {
+        allow read: if isRestaurantCollection(mealCollection);
+        allow create: if isRestaurantCollection(mealCollection)
+          && isValidRestaurantCommentCreate()
+          && createsRestaurantCommentOwner(mealCollection, storeId, commentId);
+        // 新制以私有 owner 文件認定；舊留言（含 authorUid）僅限該帳號本人；管理員後台可全權處理
+        allow update: if isRestaurantCollection(mealCollection)
+          && (
+               (hasRestaurantCommentOwner(mealCollection, storeId, commentId)
+                 && (isValidRestaurantCommentUpdate() || isValidRestaurantCommentDisplayUpdate()))
+            || (resource.data.authorUid == request.auth.uid
+                 && (isValidRestaurantCommentUpdate() || isValidRestaurantCommentDisplayUpdate() || isLegacyAuthorUidScrub()))
+            || isAdminOrDeveloper()
+          );
+        allow delete: if isRestaurantCollection(mealCollection)
+          && (hasRestaurantCommentOwner(mealCollection, storeId, commentId)
+            || resource.data.authorUid == request.auth.uid
+            || isAdminOrDeveloper());
+      }
     }
   }
 }

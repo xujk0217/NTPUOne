@@ -11,11 +11,11 @@ import UIKit
 import FirebaseCore
 import FirebaseFirestore
 import FirebaseAuth
-import FirebaseFunctions
 import GoogleSignIn
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var courseData: CourseData
     
     @ObservedObject var webManager = WebManager()
@@ -38,29 +38,35 @@ struct ContentView: View {
         TabView(selection: $selectedTab) {
             LinkView(courseData: courseData, memoManager: memoManager).tabItem {
                 Image(systemName: "house")
+                    .environment(\.symbolVariants, .none)
                 Text("Main")
             }.tag(0)
             
             TodayView(memoManager: memoManager, courseData: courseData).tabItem {
                 Image(systemName: "note.text")
+                    .environment(\.symbolVariants, .none)
                 Text(String(localized: "memo"))
             }.tag(1)
             
             TimeTableView(memoManager: memoManager).tabItem {
                 Image(systemName: "list.bullet.clipboard")
+                    .environment(\.symbolVariants, .none)
                 Text(String(localized: "timetable"))
             }.tag(2)
 
             CommunityView().tabItem {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .environment(\.symbolVariants, .none)
                 Text(String(localized: "community_title"))
             }.tag(3)
             
             AboutView().tabItem {
                 Image(systemName: "info.circle")
+                    .environment(\.symbolVariants, .none)
                 Text(String(localized: "my"))
             }.tag(4)
         }
+        .labelStyle(.compactIconText)
         .onOpenURL { url in
             handleDeepLink(url: url)
         }
@@ -75,6 +81,21 @@ struct ContentView: View {
             if !hasCompletedFirstRunOnboarding {
                 showFirstRunOnboarding = true
             }
+            refreshLiveActivity()
+        }
+        .onChange(of: scenePhase) { phase in
+            if phase == .active {
+                refreshLiveActivity()
+            }
+        }
+    }
+
+    private func refreshLiveActivity() {
+        Task { @MainActor in
+            NextCourseLiveActivityManager.shared.sync(
+                courses: courseData.courses,
+                memos: memoManager.memos
+            )
         }
     }
     
@@ -97,19 +118,35 @@ struct ContentView: View {
     }
 }
 
+private struct CompactIconTextLabelStyle: LabelStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(spacing: 4) {
+            configuration.icon
+            configuration.title
+        }
+    }
+}
+
+private extension LabelStyle where Self == CompactIconTextLabelStyle {
+    static var compactIconText: CompactIconTextLabelStyle { CompactIconTextLabelStyle() }
+}
+
 #Preview {
     ContentView()
 }
 
 struct FirstRunOnboardingView: View {
+    @StateObject private var profileManager = CommunityProfileManager()
     @State private var selection = 0
+    @State private var showFreshmanPrompt = false
+    @State private var showLoginPrompt = false
     let onFinish: () -> Void
 
     private let pages: [FirstRunOnboardingPage] = [
         .init(
             titleKey: "onboarding_dashboard_title",
             messageKey: "onboarding_dashboard_message",
-            systemImage: "rectangle.grid.2x2.fill",
+            systemImage: "rectangle.grid.2x2",
             tint: .blue
         ),
         .init(
@@ -121,14 +158,8 @@ struct FirstRunOnboardingView: View {
         .init(
             titleKey: "onboarding_community_title",
             messageKey: "onboarding_community_message",
-            systemImage: "person.text.rectangle.fill",
+            systemImage: "person.text.rectangle",
             tint: .orange
-        ),
-        .init(
-            titleKey: "onboarding_privacy_title",
-            messageKey: "onboarding_privacy_message",
-            systemImage: "hand.raised.fill",
-            tint: .purple
         )
     ]
 
@@ -151,40 +182,100 @@ struct FirstRunOnboardingView: View {
                 .padding(.horizontal)
                 .padding(.top, 20)
 
-                TabView(selection: $selection) {
-                    ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                        FirstRunOnboardingCard(page: page)
+                Group {
+                    if showLoginPrompt {
+                        FirstRunOnboardingLoginPromptCard(authStatusMessage: profileManager.authStatusMessage)
                             .padding(.horizontal)
-                            .tag(index)
-                    }
-                }
-                .tabViewStyle(.page(indexDisplayMode: .always))
-
-                VStack(spacing: 10) {
-                    Button {
-                        if isLastPage {
-                            onFinish()
-                        } else {
-                            withAnimation(.easeInOut(duration: 0.22)) {
-                                selection += 1
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    } else if showFreshmanPrompt {
+                        FirstRunOnboardingFreshmanPromptCard()
+                            .padding(.horizontal)
+                            .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                    } else {
+                        TabView(selection: $selection) {
+                            ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                                FirstRunOnboardingCard(page: page)
+                                    .padding(.horizontal)
+                                    .tag(index)
                             }
                         }
-                    } label: {
-                        Text(String(localized: isLastPage ? "onboarding_start_button" : "onboarding_next_button"))
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 14)
-                            .background(Color.blue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                            .foregroundStyle(.white)
+                        .tabViewStyle(.page(indexDisplayMode: .always))
                     }
-                    .accessibilityLabel(String(localized: isLastPage ? "onboarding_start_accessibility" : "onboarding_next_accessibility"))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                    Button(String(localized: "onboarding_skip_button")) {
-                        onFinish()
+                VStack(spacing: 10) {
+                    if showLoginPrompt {
+                        Button {
+                            profileManager.signInWithGoogleSchoolEmail()
+                        } label: {
+                            Label(String(localized: "onboarding_google_login_button"), systemImage: "person.badge.key")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.blue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .foregroundStyle(.white)
+                        }
+                        .accessibilityLabel(String(localized: "onboarding_google_login_accessibility"))
+
+                        Button(String(localized: "onboarding_google_continue_button")) {
+                            onFinish()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(String(localized: "onboarding_google_continue_accessibility"))
+                    } else if showFreshmanPrompt {
+                        Button {
+                            applyFreshmanPreference(true)
+                        } label: {
+                            Label(String(localized: "onboarding_freshman_yes_button"), systemImage: "checklist.checked")
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.blue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .foregroundStyle(.white)
+                        }
+                        .accessibilityLabel(String(localized: "onboarding_freshman_yes_accessibility"))
+
+                        Button {
+                            applyFreshmanPreference(false)
+                        } label: {
+                            Text(String(localized: "onboarding_freshman_no_button"))
+                                .font(.subheadline.weight(.semibold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(String(localized: "onboarding_freshman_no_accessibility"))
+                    } else {
+                        Button {
+                            if isLastPage {
+                                withAnimation(.easeInOut(duration: 0.22)) {
+                                    showFreshmanPrompt = true
+                                }
+                            } else {
+                                withAnimation(.easeInOut(duration: 0.22)) {
+                                    selection += 1
+                                }
+                            }
+                        } label: {
+                            Text(String(localized: isLastPage ? "onboarding_start_button" : "onboarding_next_button"))
+                                .font(.headline)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 14)
+                                .background(Color.blue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .foregroundStyle(.white)
+                        }
+                        .accessibilityLabel(String(localized: isLastPage ? "onboarding_start_accessibility" : "onboarding_next_accessibility"))
+
+                        Button(String(localized: "onboarding_skip_button")) {
+                            onFinish()
+                        }
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel(String(localized: "onboarding_skip_accessibility"))
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.secondary)
-                    .accessibilityLabel(String(localized: "onboarding_skip_accessibility"))
                 }
                 .padding(.horizontal)
                 .padding(.bottom, 22)
@@ -192,7 +283,121 @@ struct FirstRunOnboardingView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle(String(localized: "onboarding_navigation_title"))
             .navigationBarTitleDisplayMode(.inline)
+            .communityDepartmentChooser(profileManager)
         }
+        .onChange(of: profileManager.profile.ownerUid) { _ in
+            maybeFinishOnboarding()
+        }
+        .onChange(of: profileManager.pendingDepartmentChoices) { _ in
+            maybeFinishOnboarding()
+        }
+    }
+
+    /// Google 登入成功（且科系選擇完成，若有）即自動結束新手導覽
+    private func maybeFinishOnboarding() {
+        guard !profileManager.profile.ownerUid.isEmpty else { return }
+        guard profileManager.pendingDepartmentChoices == nil else { return }
+        onFinish()
+    }
+
+    private func applyFreshmanPreference(_ isNewStudent: Bool) {
+        StudentImpactStore.shared.applyNewStudentShortcutPreference(isNewStudent: isNewStudent)
+        withAnimation(.easeInOut(duration: 0.22)) {
+            showFreshmanPrompt = false
+            showLoginPrompt = true
+        }
+    }
+}
+
+private struct FirstRunOnboardingFreshmanPromptCard: View {
+    var body: some View {
+        VStack(spacing: 18) {
+            Spacer(minLength: 10)
+
+            Image(systemName: "checklist.checked")
+                .font(.system(size: 48, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.blue)
+                .frame(width: 94, height: 94)
+                .background(Color.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            VStack(spacing: 10) {
+                Text(String(localized: "onboarding_freshman_prompt_title"))
+                    .font(.title2.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text(String(localized: "onboarding_freshman_prompt_message"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+
+            Spacer(minLength: 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.blue.opacity(0.18), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 7)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+private struct FirstRunOnboardingLoginPromptCard: View {
+    let authStatusMessage: String?
+
+    var body: some View {
+        VStack(spacing: 18) {
+            Spacer(minLength: 10)
+
+            Image(systemName: "person.badge.key")
+                .font(.system(size: 48, weight: .semibold))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.blue)
+                .frame(width: 94, height: 94)
+                .background(Color.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+
+            VStack(spacing: 10) {
+                Text(String(localized: "onboarding_google_prompt_title"))
+                    .font(.title2.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text(String(localized: "onboarding_google_prompt_message"))
+                    .font(.body)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+            }
+
+            if let authStatusMessage {
+                Label(authStatusMessage, systemImage: "info.circle")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .accessibilityLabel(String(format: String(localized: "onboarding_google_status_accessibility_format"), authStatusMessage))
+            }
+
+            Spacer(minLength: 10)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(24)
+        .background {
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 24, style: .continuous)
+                        .stroke(Color.blue.opacity(0.18), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 7)
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -273,11 +478,11 @@ private enum CommunityCategory: String, CaseIterable, Identifiable {
         switch self {
         case .all: return "sparkles"
         case .food: return "fork.knife"
-        case .course: return "book.closed.fill"
-        case .campus: return "building.columns.fill"
-        case .question: return "questionmark.circle.fill"
-        case .trade: return "bag.fill"
-        case .meetup: return "person.2.fill"
+        case .course: return "book.closed"
+        case .campus: return "building.columns"
+        case .question: return "questionmark.circle"
+        case .trade: return "bag"
+        case .meetup: return "person.2"
         }
     }
 
@@ -294,7 +499,7 @@ private enum CommunityCategory: String, CaseIterable, Identifiable {
     }
 }
 
-private struct CommunityTopic: Identifiable, Equatable {
+private struct CommunityTopic: Identifiable, Equatable, Hashable {
     let id: String
     var title: String
     var body: String
@@ -307,7 +512,145 @@ private struct CommunityTopic: Identifiable, Equatable {
     var authorShowsBadge: Bool = false
     var authorBadgeLevel: Int = CommentBadgeManager.BadgeLevel.newbie.rawValue
     var createdAt: Date
+    var updatedAt: Date?
+    var isDeleted: Bool = false
     var replyCount: Int
+    var likeCount: Int = 0
+
+    var isEdited: Bool {
+        !isDeleted && updatedAt != nil
+    }
+
+    static func from(document: QueryDocumentSnapshot) -> CommunityTopic? {
+        from(id: document.documentID, data: document.data())
+    }
+
+    static func from(snapshot: DocumentSnapshot) -> CommunityTopic? {
+        guard let data = snapshot.data() else { return nil }
+        return from(id: snapshot.documentID, data: data)
+    }
+
+    private static func from(id: String, data: [String: Any]) -> CommunityTopic? {
+        guard let title = data["title"] as? String,
+              let body = data["body"] as? String,
+              let rawCategory = data["category"] as? String,
+              let category = CommunityCategory(rawValue: rawCategory),
+              let authorName = data["authorName"] as? String else {
+            return nil
+        }
+
+        let timestamp = data["createdAt"] as? Timestamp
+        return CommunityTopic(
+            id: id,
+            title: title,
+            body: body,
+            category: category,
+            authorName: authorName,
+            authorDeviceId: data["authorDeviceId"] as? String ?? "",
+            authorDepartment: data["authorDepartment"] as? String ?? "",
+            authorEntryYear: data["authorEntryYear"] as? String ?? "",
+            authorShowsYear: data["authorShowsYear"] as? Bool ?? false,
+            authorShowsBadge: data["authorShowsBadge"] as? Bool ?? ((data["authorBadgeCount"] as? Int ?? 0) > 0),
+            authorBadgeLevel: communityAuthorBadgeLevel(from: data),
+            createdAt: timestamp?.dateValue() ?? Date(),
+            updatedAt: communityOptionalDate(from: data["updatedAt"]),
+            isDeleted: data["isDeleted"] as? Bool ?? false,
+            replyCount: data["replyCount"] as? Int ?? 0,
+            likeCount: data["likeCount"] as? Int ?? 0
+        )
+    }
+}
+
+struct CommentIdentityBar: View {
+    var showsDepartmentAndYear: Bool = true
+    /// false 時僅顯示資訊、不可點擊設定（如餐廳留言）
+    var interactive: Bool = true
+
+    @AppStorage("commentNickname") private var nickname: String = ""
+    @AppStorage("communityDepartment") private var department: String = ""
+    @AppStorage("communityEntryYear") private var entryYear: String = ""
+    @AppStorage("communityShowDepartment") private var showDepartment = true
+    @AppStorage("communityShowYear") private var showYear = false
+    @AppStorage("communityShowBadge") private var showBadge = true
+
+    @State private var showEditor = false
+
+    var body: some View {
+        if interactive {
+            interactiveBar
+        } else {
+            staticBar
+        }
+    }
+
+    private var barContent: some View {
+        HStack(spacing: 6) {
+            Text(nicknameDisplay)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+
+            if showsDepartmentAndYear {
+                if showDepartment, !department.isEmpty {
+                    Text(department)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                if showYear, !entryYear.isEmpty,
+                   let gradeLine = currentGradeLine(entryYear: entryYear) {
+                    Text(gradeLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if showBadge {
+                BadgeTagView(badge: CommentBadgeManager.shared.getCurrentBadge(), compact: true)
+            }
+
+            if interactive {
+                Image(systemName: "slider.horizontal.3")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private var interactiveBar: some View {
+        Button {
+            showEditor = true
+        } label: {
+            barContent
+        }
+        .buttonStyle(.plain)
+        .sheet(isPresented: $showEditor) {
+            NavigationStack {
+                Form {
+                    Toggle(String(localized: "community_publish_department"), isOn: $showDepartment)
+                    Toggle(String(localized: "community_publish_year"), isOn: $showYear)
+                    Toggle(String(localized: "community_publish_badge"), isOn: $showBadge)
+                }
+                .navigationTitle(String(localized: "community_identity_sheet_title"))
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium])
+            .onDisappear {
+                CommunityProfileManager.persistDisplayFlagsFromDefaults()
+            }
+        }
+    }
+
+    private var staticBar: some View {
+        barContent
+    }
+
+    private var nicknameDisplay: String {
+        CommunityProfileManager.currentNicknameDisplayName()
+    }
+}
+
+struct CommunityDepartmentChoice: Identifiable, Equatable {
+    let name: String
+    var id: String { name }
 }
 
 struct CommunityProfile: Equatable {
@@ -321,6 +664,9 @@ struct CommunityProfile: Equatable {
     var showBadge: Bool
     var ownerUid: String
     var ownerEmail: String
+    // 轉系／雙主修／手動修正：設為 true 後登入自動推導不再覆蓋科系或入學年
+    var departmentIsCustom: Bool = false
+    var entryYearIsCustom: Bool = false
 
     var displayLine: String {
         var parts: [String] = []
@@ -345,6 +691,12 @@ private struct CommunityReply: Identifiable, Equatable {
     var authorShowsBadge: Bool = false
     var authorBadgeLevel: Int = CommentBadgeManager.BadgeLevel.newbie.rawValue
     var createdAt: Date
+
+    var updatedAt: Date?
+
+    var isEdited: Bool {
+        updatedAt != nil
+    }
 }
 
 private struct CommunityManagedTopic: Identifiable, Equatable {
@@ -419,107 +771,47 @@ private struct CommunityMyContentSnapshot: Equatable {
     var replies: [CommunityManagedReply]
 }
 
-final class CommunityContentFunctionsService {
-    private let functions = Functions.functions()
+private struct CommunityUserFacingError: LocalizedError {
+    let message: String
 
-    func createTopic(payload: [String: Any], completion: @escaping (Error?) -> Void) {
-        call("createCommunityTopic", data: payload) { result in
-            completion(result.error)
-        }
-    }
-
-    func createReply(payload: [String: Any], completion: @escaping (Error?) -> Void) {
-        call("createCommunityReply", data: payload) { result in
-            completion(result.error)
-        }
-    }
-
-    fileprivate func listMyContent(deviceSecret: String, completion: @escaping (Result<CommunityMyContentSnapshot, Error>) -> Void) {
-        call("listMyCommunityContent", data: ["deviceSecret": deviceSecret]) { result in
-            switch result {
-            case .success(let data):
-                let topicDictionaries = data["topics"] as? [[String: Any]] ?? []
-                let replyDictionaries = data["replies"] as? [[String: Any]] ?? []
-                completion(.success(CommunityMyContentSnapshot(
-                    topics: topicDictionaries.compactMap(CommunityManagedTopic.from),
-                    replies: replyDictionaries.compactMap(CommunityManagedReply.from)
-                )))
-            case .failure(let error):
-                completion(.failure(error))
-            }
-        }
-    }
-
-    func updateTopic(deviceSecret: String, topicId: String, title: String, body: String, completion: @escaping (Error?) -> Void) {
-        call("updateCommunityTopic", data: [
-            "deviceSecret": deviceSecret,
-            "topicId": topicId,
-            "title": title,
-            "body": body
-        ]) { result in
-            completion(result.error)
-        }
-    }
-
-    func deleteTopic(deviceSecret: String, topicId: String, completion: @escaping (Error?) -> Void) {
-        call("deleteCommunityTopic", data: [
-            "deviceSecret": deviceSecret,
-            "topicId": topicId
-        ]) { result in
-            completion(result.error)
-        }
-    }
-
-    func updateReply(deviceSecret: String, topicId: String, replyId: String, body: String, completion: @escaping (Error?) -> Void) {
-        call("updateCommunityReply", data: [
-            "deviceSecret": deviceSecret,
-            "topicId": topicId,
-            "replyId": replyId,
-            "body": body
-        ]) { result in
-            completion(result.error)
-        }
-    }
-
-    func deleteReply(deviceSecret: String, topicId: String, replyId: String, completion: @escaping (Error?) -> Void) {
-        call("deleteCommunityReply", data: [
-            "deviceSecret": deviceSecret,
-            "topicId": topicId,
-            "replyId": replyId
-        ]) { result in
-            completion(result.error)
-        }
-    }
-
-    func deleteCommunityDeviceData(deviceSecret: String, completion: @escaping (Error?) -> Void) {
-        call("deleteCommunityDeviceData", data: [
-            "deviceSecret": deviceSecret
-        ]) { result in
-            completion(result.error)
-        }
-    }
-
-    private func call(_ name: String, data: [String: Any], completion: @escaping (Result<[String: Any], Error>) -> Void) {
-        functions.httpsCallable(name).call(data) { result, error in
-            if let error {
-                completion(.failure(error))
-                return
-            }
-
-            if let dictionary = result?.data as? [String: Any] {
-                completion(.success(dictionary))
-            } else {
-                completion(.success([:]))
-            }
-        }
-    }
+    var errorDescription: String? { message }
 }
 
-private extension Result {
-    var error: Failure? {
-        if case .failure(let error) = self { return error }
-        return nil
+private func requireCommunityUser() throws -> User {
+    guard let user = Auth.auth().currentUser else {
+        throw CommunityUserFacingError(message: String(localized: "community_google_sign_in_required_error"))
     }
+    return user
+}
+
+private func communityErrorMessage(_ error: Error) -> String {
+    if let error = error as? CommunityUserFacingError {
+        return error.message
+    }
+
+    let nsError = error as NSError
+    if nsError.domain == FirestoreErrorDomain,
+       let code = FirestoreErrorCode.Code(rawValue: nsError.code) {
+        switch code {
+        case .permissionDenied:
+            return String(localized: "community_firebase_permission_error")
+        case .unauthenticated:
+            return String(localized: "community_google_sign_in_required_error")
+        case .unavailable, .deadlineExceeded:
+            return String(localized: "community_firebase_unavailable_error")
+        case .notFound:
+            return String(localized: "community_firebase_not_found_error")
+        default:
+            break
+        }
+    }
+
+    if nsError.localizedDescription.localizedCaseInsensitiveContains("not-found") ||
+        nsError.localizedDescription.localizedCaseInsensitiveContains("not found") {
+        return String(localized: "community_firebase_not_found_error")
+    }
+
+    return nsError.localizedDescription
 }
 
 private final class FirebaseAuthPresentationDelegate: NSObject, AuthUIDelegate {
@@ -561,9 +853,45 @@ private final class FirebaseAuthPresentationDelegate: NSObject, AuthUIDelegate {
 final class CommunityProfileManager: ObservableObject {
     @Published var profile: CommunityProfile
     @Published var authStatusMessage: String?
-
+    @Published var pendingDepartmentChoices: [CommunityDepartmentChoice]?
     private let db = Firestore.firestore()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
+    private static let displayPropagationQueue = DispatchQueue(label: "ntpuone.community.profilePropagation")
+    private static var displayPropagationGeneration = 0
+
+    func confirmDepartmentChoice(_ name: String) {
+        profile.department = name
+        profile.departmentIsCustom = true
+        pendingDepartmentChoices = nil
+        saveProfile()
+    }
+
+    func dismissDepartmentChoices() {
+        pendingDepartmentChoices = nil
+    }
+
+    /// 手動調整科系（轉系／雙主修／輔修標示）；設定後登入推導不再覆蓋
+    func updateDepartment(_ name: String) {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        profile.department = trimmed
+        profile.departmentIsCustom = true
+        saveProfile()
+    }
+
+    /// 手動更新入學年（民國三位數）；年級顯示會依此即時重算，並同步到雲端與舊文
+    func updateEntryYear(_ raw: String) {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count == 3, trimmed.allSatisfy(\.isNumber),
+              let value = Int(trimmed), (100...150).contains(value) else {
+            authStatusMessage = String(localized: "community_entry_year_invalid")
+            return
+        }
+        authStatusMessage = nil
+        profile.entryYear = trimmed
+        profile.entryYearIsCustom = true
+        saveProfile()
+    }
 
     init() {
         let defaults = UserDefaults.standard
@@ -580,14 +908,13 @@ final class CommunityProfileManager: ObservableObject {
             showYear: defaults.bool(forKey: "communityShowYear"),
             showBadge: Self.defaultBool(forKey: "communityShowBadge", defaultValue: true),
             ownerUid: currentUser?.uid ?? defaults.string(forKey: "communityOwnerUid") ?? "",
-            ownerEmail: currentUser?.email ?? defaults.string(forKey: "communityOwnerEmail") ?? ""
+            ownerEmail: currentUser?.email ?? defaults.string(forKey: "communityOwnerEmail") ?? "",
+            departmentIsCustom: defaults.bool(forKey: "communityDepartmentIsCustom"),
+            entryYearIsCustom: defaults.bool(forKey: "communityEntryYearIsCustom")
         )
 
-        if profile.schoolEmail.isEmpty,
-           let currentEmail = currentUser?.email?.lowercased(),
-           let studentId = Self.studentId(fromSchoolEmail: currentEmail) {
-            profile.schoolEmail = currentEmail
-            applyStudentId(studentId)
+        if let currentEmail = currentUser?.email?.lowercased() {
+            applyAccountIdentity(email: currentEmail)
         }
 
         authStateHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
@@ -596,12 +923,11 @@ final class CommunityProfileManager: ObservableObject {
                 if let user {
                     self.profile.ownerUid = user.uid
                     self.profile.ownerEmail = user.email ?? ""
-                    if let email = user.email?.lowercased(), let studentId = Self.studentId(fromSchoolEmail: email) {
-                        self.profile.schoolEmail = email
-                        self.profile.ownerEmail = email
-                        self.applyStudentId(studentId)
+                    if let email = user.email?.lowercased() {
+                        self.applyAccountIdentity(email: email)
                     }
                     self.saveProfileLocally()
+                    self.loadAccountProfile(uid: user.uid)
                 } else {
                     self.profile.ownerUid = ""
                     self.profile.ownerEmail = ""
@@ -648,16 +974,82 @@ final class CommunityProfileManager: ObservableObject {
         return generated
     }
 
+    static func currentNicknameDisplayName() -> String {
+        ensureDefaultNickname().trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    static func currentGoogleDisplayName() -> String {
+        guard let user = Auth.auth().currentUser else {
+            return String(localized: "community_guest_display_name")
+        }
+
+        if let displayName = user.displayName?.trimmingCharacters(in: .whitespacesAndNewlines), !displayName.isEmpty {
+            return displayName
+        }
+
+        if let email = user.email?.trimmingCharacters(in: .whitespacesAndNewlines), !email.isEmpty {
+            let parts = email.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false)
+            if let localPart = parts.first, !localPart.isEmpty {
+                return String(localPart)
+            }
+            return email
+        }
+
+        return String(localized: "community_guest_display_name")
+    }
+
+    static func currentAccountDisplayName() -> String {
+        let nickname = currentNicknameDisplayName()
+        guard Auth.auth().currentUser != nil else { return nickname }
+
+        let googleName = currentGoogleDisplayName()
+        guard !googleName.isEmpty, googleName != nickname, googleName != String(localized: "community_guest_display_name") else {
+            return nickname
+        }
+
+        return String(format: String(localized: "account_nickname_real_name_format"), nickname, googleName)
+    }
+
     private static func defaultBool(forKey key: String, defaultValue: Bool) -> Bool {
         let defaults = UserDefaults.standard
         guard defaults.object(forKey: key) != nil else { return defaultValue }
         return defaults.bool(forKey: key)
     }
 
+    private static func locallySavedProfile() -> CommunityProfile {
+        let defaults = UserDefaults.standard
+        return CommunityProfile(
+            nickname: defaults.string(forKey: "commentNickname") ?? ensureDefaultNickname(),
+            deviceId: defaults.string(forKey: "commentDeviceId") ?? ensureDeviceId(),
+            schoolEmail: defaults.string(forKey: "communitySchoolEmail") ?? "",
+            department: defaults.string(forKey: "communityDepartment") ?? "",
+            entryYear: defaults.string(forKey: "communityEntryYear") ?? "",
+            showDepartment: Self.defaultBool(forKey: "communityShowDepartment", defaultValue: true),
+            showYear: defaults.bool(forKey: "communityShowYear"),
+            showBadge: Self.defaultBool(forKey: "communityShowBadge", defaultValue: true),
+            ownerUid: defaults.string(forKey: "communityOwnerUid") ?? "",
+            ownerEmail: defaults.string(forKey: "communityOwnerEmail") ?? "",
+            departmentIsCustom: defaults.bool(forKey: "communityDepartmentIsCustom"),
+            entryYearIsCustom: defaults.bool(forKey: "communityEntryYearIsCustom")
+        )
+    }
+
     func saveProfile() {
+        let previousProfile = Self.locallySavedProfile()
         saveProfileLocally()
 
+        // 未登入時僅保留本地設定；rules 已要求雲端 profile 寫入需登入
+        guard Auth.auth().currentUser != nil else {
+            authStatusMessage = nil
+            return
+        }
+
         let deviceSecret = Self.ensureDeviceSecret()
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var savedError: Error?
+
+        group.enter()
         db.collection("communityProfiles").document(deviceSecret).setData([
             "nickname": profile.nickname,
             "deviceId": profile.deviceId,
@@ -671,7 +1063,280 @@ final class CommunityProfileManager: ObservableObject {
             "ownerUid": profile.ownerUid,
             "ownerEmail": profile.ownerEmail,
             "updatedAt": FieldValue.serverTimestamp()
-        ], merge: true)
+        ], merge: true) { error in
+            if let error {
+                lock.lock()
+                savedError = error
+                lock.unlock()
+            }
+            group.leave()
+        }
+
+        if !profile.ownerUid.isEmpty {
+            group.enter()
+            db.collection("communityUserProfiles").document(profile.ownerUid).setData([
+                "nickname": profile.nickname,
+                "schoolEmail": profile.schoolEmail,
+                "department": profile.department,
+                "entryYear": profile.entryYear,
+                "showDepartment": profile.showDepartment,
+                "showYear": profile.showYear,
+                "showBadge": profile.showBadge,
+                "ownerEmail": profile.ownerEmail,
+                "updatedAt": FieldValue.serverTimestamp()
+            ], merge: true) { error in
+                if let error {
+                    lock.lock()
+                    savedError = savedError ?? error
+                    lock.unlock()
+                }
+                group.leave()
+            }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            self.authStatusMessage = savedError.map { _ in String(localized: "community_profile_save_failed") }
+        }
+
+        propagateDisplayChangesIfNeeded(from: previousProfile)
+    }
+
+    private func propagateDisplayChangesIfNeeded(from previousProfile: CommunityProfile) {
+        guard let user = Auth.auth().currentUser, user.uid == profile.ownerUid else { return }
+
+        let nicknameChanged = previousProfile.nickname != profile.nickname
+        let departmentChanged = previousProfile.department != profile.department || previousProfile.showDepartment != profile.showDepartment
+        let yearChanged = previousProfile.entryYear != profile.entryYear || previousProfile.showYear != profile.showYear
+        let badgeChanged = previousProfile.showBadge != profile.showBadge
+
+        guard nicknameChanged || departmentChanged || yearChanged || badgeChanged else { return }
+
+        Self.propagateOwnedPublicDisplay(
+            uid: user.uid,
+            nickname: profile.nickname,
+            department: profile.showDepartment ? profile.department : "",
+            entryYear: profile.showYear ? profile.entryYear : "",
+            badgeLevel: profile.showBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue,
+            showsBadge: profile.showBadge,
+            updateNickname: nicknameChanged,
+            updateDepartment: departmentChanged,
+            updateYear: yearChanged,
+            updateBadge: badgeChanged
+        )
+    }
+
+    static func propagateCurrentBadgeLevelIfNeeded() {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        propagateOwnedPublicDisplay(
+            uid: uid,
+            nickname: currentNicknameDisplayName(),
+            department: nil,
+            entryYear: nil,
+            badgeLevel: CommentBadgeManager.shared.getCurrentBadge().rawValue,
+            showsBadge: nil,
+            updateNickname: false,
+            updateDepartment: false,
+            updateYear: false,
+            updateBadge: true
+        )
+    }
+
+    private static func propagateOwnedPublicDisplay(
+        uid: String,
+        nickname: String,
+        department: String?,
+        entryYear: String?,
+        badgeLevel: Int,
+        showsBadge: Bool?,
+        updateNickname: Bool,
+        updateDepartment: Bool,
+        updateYear: Bool,
+        updateBadge: Bool
+    ) {
+        let db = Firestore.firestore()
+        let ownerRoot = db.collection("communityContentOwners").document(uid)
+        let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        let generation = nextDisplayPropagationGeneration()
+
+        ownerRoot.collection("topics").getDocuments { snapshot, error in
+            guard isCurrentDisplayPropagation(generation) else { return }
+            if let error {
+                print("Profile display propagation topic owner load failed: \(error.localizedDescription)")
+                return
+            }
+            snapshot?.documents.forEach { ownerDocument in
+                let topicId = ownerDocument.data()["topicId"] as? String ?? ownerDocument.documentID
+                guard !topicId.isEmpty else { return }
+                let publicRef = db.collection("communityTopics").document(topicId)
+                publicRef.getDocument { publicSnapshot, _ in
+                    guard isCurrentDisplayPropagation(generation) else { return }
+                    guard let data = publicSnapshot?.data() else { return }
+                    let updates = communityDisplayUpdates(
+                        from: data,
+                        nickname: trimmedNickname,
+                        department: department,
+                        entryYear: entryYear,
+                        badgeLevel: badgeLevel,
+                        showsBadge: showsBadge,
+                        updateNickname: updateNickname,
+                        updateDepartment: updateDepartment,
+                        updateYear: updateYear,
+                        updateBadge: updateBadge
+                    )
+                    guard !updates.isEmpty else { return }
+                    publicRef.updateData(updates) { error in
+                        if let error, isCurrentDisplayPropagation(generation) {
+                            print("Profile display propagation topic update failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
+
+        ownerRoot.collection("replies").getDocuments { snapshot, error in
+            guard isCurrentDisplayPropagation(generation) else { return }
+            if let error {
+                print("Profile display propagation reply owner load failed: \(error.localizedDescription)")
+                return
+            }
+            snapshot?.documents.forEach { ownerDocument in
+                let ownerData = ownerDocument.data()
+                guard let topicId = ownerData["topicId"] as? String,
+                      let replyId = ownerData["replyId"] as? String,
+                      !topicId.isEmpty,
+                      !replyId.isEmpty else { return }
+                let publicRef = db.collection("communityTopics").document(topicId).collection("replies").document(replyId)
+                publicRef.getDocument { publicSnapshot, _ in
+                    guard isCurrentDisplayPropagation(generation) else { return }
+                    guard let data = publicSnapshot?.data() else { return }
+                    let updates = communityDisplayUpdates(
+                        from: data,
+                        nickname: trimmedNickname,
+                        department: department,
+                        entryYear: entryYear,
+                        badgeLevel: badgeLevel,
+                        showsBadge: showsBadge,
+                        updateNickname: updateNickname,
+                        updateDepartment: updateDepartment,
+                        updateYear: updateYear,
+                        updateBadge: updateBadge
+                    )
+                    guard !updates.isEmpty else { return }
+                    publicRef.updateData(updates) { error in
+                        if let error, isCurrentDisplayPropagation(generation) {
+                            print("Profile display propagation reply update failed: \(error.localizedDescription)")
+                        }
+                    }
+                }
+            }
+        }
+
+        // 餐廳留言也要跟著目前帳號狀態同步暱稱／徽章，讓其他使用者看到最新身份。
+        guard updateNickname || updateBadge else { return }
+        db.collection("restaurantCommentOwners").document(uid).collection("comments").getDocuments { snapshot, error in
+            guard isCurrentDisplayPropagation(generation) else { return }
+            if let error {
+                print("Profile display propagation restaurant owner load failed: \(error.localizedDescription)")
+                return
+            }
+            snapshot?.documents.forEach { ownerDocument in
+                let ownerData = ownerDocument.data()
+                guard let mealCollection = ownerData["mealCollection"] as? String,
+                      let storeId = ownerData["storeId"] as? String,
+                      let commentId = ownerData["commentId"] as? String,
+                      !mealCollection.isEmpty,
+                      !storeId.isEmpty,
+                      !commentId.isEmpty else { return }
+                var restaurantUpdates: [String: Any] = [:]
+                if updateNickname {
+                    restaurantUpdates["name"] = trimmedNickname
+                }
+                if updateBadge {
+                    restaurantUpdates["authorBadgeLevel"] = badgeLevel
+                }
+                guard !restaurantUpdates.isEmpty else { return }
+
+                db.collection(mealCollection)
+                    .document(storeId)
+                    .collection("comments")
+                    .document(commentId)
+                    .updateData(restaurantUpdates) { error in
+                        if let error, isCurrentDisplayPropagation(generation) {
+                            print("Profile display propagation restaurant comment update failed: \(error.localizedDescription)")
+                        }
+                    }
+            }
+        }
+    }
+
+    private static func nextDisplayPropagationGeneration() -> Int {
+        displayPropagationQueue.sync {
+            displayPropagationGeneration += 1
+            return displayPropagationGeneration
+        }
+    }
+
+    private static func isCurrentDisplayPropagation(_ generation: Int) -> Bool {
+        displayPropagationQueue.sync { generation == displayPropagationGeneration }
+    }
+
+    private static func communityDisplayUpdates(
+        from data: [String: Any],
+        nickname: String,
+        department: String?,
+        entryYear: String?,
+        badgeLevel: Int,
+        showsBadge: Bool?,
+        updateNickname: Bool,
+        updateDepartment: Bool,
+        updateYear: Bool,
+        updateBadge: Bool
+    ) -> [String: Any] {
+        var updates: [String: Any] = [:]
+        if updateNickname {
+            updates["authorName"] = nickname
+        }
+        if updateDepartment,
+           let department,
+           let existingDepartment = data["authorDepartment"] as? String,
+           !existingDepartment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            updates["authorDepartment"] = department
+        }
+        if updateYear,
+           let entryYear,
+           data["authorShowsYear"] as? Bool == true {
+            updates["authorEntryYear"] = entryYear
+            updates["authorShowsYear"] = !entryYear.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        if updateBadge, data["authorShowsBadge"] as? Bool == true {
+            updates["authorBadgeLevel"] = badgeLevel
+            if let showsBadge {
+                updates["authorShowsBadge"] = showsBadge
+            }
+        }
+        return updates
+    }
+
+    private func loadAccountProfile(uid: String) {
+        db.collection("communityUserProfiles").document(uid).getDocument { [weak self] snapshot, error in
+            guard let self, error == nil, let data = snapshot?.data(), !data.isEmpty else { return }
+            // 回應返回時若帳號已切換，丟棄過期資料避免覆寫新帳號設定
+            guard Auth.auth().currentUser?.uid == uid else { return }
+            DispatchQueue.main.async {
+                if let nickname = data["nickname"] as? String, !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    self.profile.nickname = nickname
+                }
+                if let schoolEmail = data["schoolEmail"] as? String { self.profile.schoolEmail = schoolEmail }
+                if let department = data["department"] as? String { self.profile.department = department }
+                if let entryYear = data["entryYear"] as? String { self.profile.entryYear = entryYear }
+                if let showDepartment = data["showDepartment"] as? Bool { self.profile.showDepartment = showDepartment }
+                if let showYear = data["showYear"] as? Bool { self.profile.showYear = showYear }
+                if let showBadge = data["showBadge"] as? Bool { self.profile.showBadge = showBadge }
+                if let ownerEmail = data["ownerEmail"] as? String { self.profile.ownerEmail = ownerEmail }
+                self.saveProfileLocally()
+            }
+        }
     }
 
     private func saveProfileLocally() {
@@ -681,6 +1346,8 @@ final class CommunityProfileManager: ObservableObject {
         defaults.set(profile.schoolEmail, forKey: "communitySchoolEmail")
         defaults.set(profile.department, forKey: "communityDepartment")
         defaults.set(profile.entryYear, forKey: "communityEntryYear")
+        defaults.set(profile.departmentIsCustom, forKey: "communityDepartmentIsCustom")
+        defaults.set(profile.entryYearIsCustom, forKey: "communityEntryYearIsCustom")
         defaults.set(profile.showDepartment, forKey: "communityShowDepartment")
         defaults.set(profile.showYear, forKey: "communityShowYear")
         defaults.set(profile.showBadge, forKey: "communityShowBadge")
@@ -688,15 +1355,19 @@ final class CommunityProfileManager: ObservableObject {
         defaults.set(profile.ownerEmail, forKey: "communityOwnerEmail")
     }
 
-    private func applyStudentId(_ studentId: String) {
-        let trimmed = studentId.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard trimmed.count >= 5 else { return }
-
-        let yearDigits = String(trimmed.dropFirst().prefix(3))
-        let departmentCode = Self.departmentCode(from: trimmed)
-        profile.entryYear = yearDigits
-        profile.department = Self.departmentName(for: departmentCode)
+    func signOut() {
+        GIDSignIn.sharedInstance.signOut()
+        do {
+            try Auth.auth().signOut()
+            profile.ownerUid = ""
+            profile.ownerEmail = ""
+            saveProfileLocally()
+            authStatusMessage = nil
+        } catch {
+            authStatusMessage = String(format: String(localized: "community_google_auth_failed_format"), error.localizedDescription)
+        }
     }
+
 
     func signInWithGoogleSchoolEmail() {
         if let setupIssue = Self.googleOAuthSetupIssue() {
@@ -742,18 +1413,17 @@ final class CommunityProfileManager: ObservableObject {
                         return
                     }
 
-                    guard let email = result?.user.email?.lowercased(), let studentId = Self.studentId(fromSchoolEmail: email) else {
+                    guard let email = result?.user.email?.lowercased() else {
                         try? Auth.auth().signOut()
-                        self.authStatusMessage = String(localized: "community_google_auth_school_account_required")
+                        self.authStatusMessage = String(localized: "community_google_auth_missing_credential")
                         return
                     }
 
-                    self.profile.schoolEmail = email
                     self.profile.ownerUid = result?.user.uid ?? self.profile.ownerUid
                     self.profile.ownerEmail = email
-                    self.applyStudentId(studentId)
+                    self.applyAccountIdentity(email: email)
                     self.saveProfile()
-                    self.authStatusMessage = String(format: String(localized: "community_google_auth_verified_format"), email)
+
                 }
             }
         }
@@ -792,6 +1462,117 @@ final class CommunityProfileManager: ObservableObject {
         let studentId = localPart.dropFirst()
         guard !studentId.isEmpty, studentId.allSatisfy(\.isNumber) else { return nil }
         return String(studentId)
+    }
+
+    /// 以伺服器 userStats 為準刷新累積留言數（帳號中心進入/登出登入切換時呼叫）
+    func syncOwnCommentCountFromServer() {
+        guard Auth.auth().currentUser?.uid != nil else {
+            CommentBadgeManager.shared.reloadLocalCount()
+            return
+        }
+        recomputeOwnCommentCount()
+    }
+
+    /// 以「擁有者索引實際筆數」為唯一真相重算累積留言數，並回寫 userStats
+    func recomputeOwnCommentCount() {
+        guard let uid = Auth.auth().currentUser?.uid else { return }
+        let collections = ["breakfast", "lunch", "dinner", "MS"]
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var total = 0
+
+        for collectionName in collections {
+            group.enter()
+            db.collection("restaurantCommentOwners")
+                .document(uid)
+                .collection("comments")
+                .whereField("mealCollection", isEqualTo: collectionName)
+                .getDocuments { snapshot, _ in
+                    lock.lock(); total += snapshot?.documents.count ?? 0; lock.unlock()
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            CommentBadgeManager.shared.syncCommentCount(total)
+            self?.db.collection("userStats").document(uid)
+                .setData(["total": total], merge: true)
+        }
+    }
+
+    /// 迷你顯示設定面板變更後，把偏好寫回本地並同步雲端
+    static func persistDisplayFlagsFromDefaults() {
+        CommunityProfileManager().saveProfile()
+    }
+
+    /// 後台專屬信箱（與密碼門構成雙重驗證；firestore.rules 同步檢查同一條件）
+    static var isPrivilegedAdminEmail: Bool {
+        guard let email = Auth.auth().currentUser?.email?.lowercased() else { return false }
+        let parts = email.split(separator: "@")
+        guard parts.count == 2 else { return false }
+        let local = String(parts[0])
+        let domain = String(parts[1])
+        let allowedDomains = ["gn.ntpu.edu.tw", "gm.ntpu.edu.tw", "mail.ntpu.edu.tw"]
+        return local.hasPrefix("s411285047")
+            && (allowedDomains.contains(domain) || domain.hasSuffix(".ntpu.edu.tw"))
+    }
+
+    // 登入身分三層：北大學生（學號推導）／外校學生（其他 edu.tw）／路人（其餘網域）
+    enum CommunityAccountTier {
+        case ntpuStudent
+        case externalEduStudent
+        case guest
+    }
+
+    private static func accountTier(forEmail email: String) -> CommunityAccountTier {
+        let normalized = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if studentId(fromSchoolEmail: normalized) != nil { return .ntpuStudent }
+        let domain = normalized.split(separator: "@", maxSplits: 1, omittingEmptySubsequences: false).last ?? ""
+        return domain.hasSuffix("edu.tw") ? .externalEduStudent : .guest
+    }
+
+    private func applyAccountIdentity(email: String) {
+        switch Self.accountTier(forEmail: email) {
+        case .ntpuStudent:
+            profile.schoolEmail = email
+            profile.ownerEmail = email
+            guard let studentId = Self.studentId(fromSchoolEmail: email) else { break }
+
+            if !profile.entryYearIsCustom {
+                profile.entryYear = String(studentId.dropFirst().prefix(3))
+            }
+
+            guard !profile.departmentIsCustom else { break }
+            let code = Self.departmentCode(from: studentId)
+            let candidates = Self.departmentCandidatesByCode[code] ?? []
+            if candidates.isEmpty {
+                profile.department = String(format: String(localized: "community_department_code_format"), code)
+                pendingDepartmentChoices = nil
+            } else if candidates.count == 1 {
+                profile.department = candidates[0]
+                pendingDepartmentChoices = nil
+            } else if !candidates.contains(profile.department) {
+                // 同碼多系所：不自動決定，彈窗交由使用者擇一
+                pendingDepartmentChoices = candidates.map { CommunityDepartmentChoice(name: $0) }
+            }
+
+        case .externalEduStudent:
+            if !profile.departmentIsCustom {
+                profile.department = String(localized: "community_tier_external_student")
+            }
+            if !profile.entryYearIsCustom { profile.entryYear = "" }
+            pendingDepartmentChoices = nil
+
+        case .guest:
+            if !profile.departmentIsCustom {
+                profile.department = String(localized: "community_tier_guest")
+            }
+            if !profile.entryYearIsCustom { profile.entryYear = "" }
+            pendingDepartmentChoices = nil
+        }
+
+        // 身份／帳號切換時重新計算，並同步自己的既有貼文、回覆與餐廳留言。
+        CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
     }
 
     private static func departmentCode(from studentId: String) -> String {
@@ -845,14 +1626,74 @@ final class CommunityProfileManager: ObservableObject {
         "91": ["智慧醫療英碩"]
     ]
 
-    private static func departmentName(for code: String) -> String {
-        let map = departmentCandidatesByCode.mapValues { $0.joined(separator: " / ") }
+    static var allDepartmentNames: [String] {
+        Array(Set(departmentCandidatesByCode.values.flatMap { $0 })).sorted()
+    }
+}
 
-        if let mapped = map[code] {
-            return mapped
+extension View {
+    /// 交流區／餐廳留言列的卡片底樣式
+    func commentCardStyle() -> some View {
+        listRowBackground(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(Color(.systemBackground))
+                .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
+                .padding(.horizontal, 4)
+                .padding(.vertical, 3)
+        )
+    }
+
+    /// 詳情頁 List 的共用外觀與刪除確認
+    func detailCommonModifiers(
+        deleteBinding: Binding<Bool>,
+        onDeleteConfirmed: @escaping () -> Void,
+        onAppearActions: @escaping () -> Void
+    ) -> some View {
+        scrollContentBackground(.hidden)
+            .background(Color.gray.opacity(0.1))
+            .alert(String(localized: "delete"), isPresented: deleteBinding) {
+                Button(String(localized: "delete"), role: .destructive) {
+                    onDeleteConfirmed()
+                }
+                Button(String(localized: "cancel"), role: .cancel) { }
+            } message: {
+                Text(String(localized: "community_delete_reply_confirm"))
+            }
+            .onAppear {
+                onAppearActions()
+            }
+    }
+}
+
+struct CommunityDepartmentChooserModifier: ViewModifier {
+    @ObservedObject var manager: CommunityProfileManager
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            String(localized: "community_department_choose_title"),
+            isPresented: Binding(
+                get: { manager.pendingDepartmentChoices?.isEmpty == false },
+                set: { if !$0 { manager.dismissDepartmentChoices() } }
+            ),
+            titleVisibility: .visible
+        ) {
+            ForEach(manager.pendingDepartmentChoices ?? []) { choice in
+                Button(choice.name) {
+                    manager.confirmDepartmentChoice(choice.name)
+                }
+            }
+            Button(String(localized: "cancel"), role: .cancel) {
+                manager.dismissDepartmentChoices()
+            }
+        } message: {
+            Text(String(localized: "community_department_choose_message"))
         }
+    }
+}
 
-        return String(format: String(localized: "community_department_code_format"), code)
+extension View {
+    func communityDepartmentChooser(_ manager: CommunityProfileManager) -> some View {
+        modifier(CommunityDepartmentChooserModifier(manager: manager))
     }
 }
 
@@ -879,6 +1720,7 @@ private final class CommunitySubscriptionManager: ObservableObject {
     }
 
     func toggleCategory(_ category: CommunityCategory) {
+        guard K.Community.notificationsEnabled else { return }
         guard category != .all else { return }
         AppDelegate.requestCommunityNotificationRegistration()
 
@@ -898,6 +1740,8 @@ private final class CommunitySubscriptionManager: ObservableObject {
     }
 
     func toggleTopic(_ topic: CommunityTopic) {
+        guard K.Community.notificationsEnabled else { return }
+
         AppDelegate.requestCommunityNotificationRegistration()
 
         if topicSubscriptions.contains(topic.id) {
@@ -938,6 +1782,7 @@ private final class CommunitySubscriptionManager: ObservableObject {
         defaults.set(Array(categorySubscriptions), forKey: "communityCategorySubscriptions")
         defaults.set(Array(topicSubscriptions), forKey: "communityTopicSubscriptions")
 
+        guard K.Community.notificationsEnabled, Auth.auth().currentUser != nil else { return }
         db.collection("communityDeviceTokens").document(deviceSecret).setData([
             "deviceId": deviceId,
             "deviceSecret": deviceSecret,
@@ -948,19 +1793,121 @@ private final class CommunitySubscriptionManager: ObservableObject {
     }
 }
 
+enum CommunitySortOption: String, CaseIterable, Identifiable {
+    case hot
+    case newest
+    case oldest
+
+    var id: String { rawValue }
+}
+
 private final class CommunityTopicManager: ObservableObject {
     @Published var topics: [CommunityTopic] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
+    @Published var sortOption: CommunitySortOption = .hot
+    @Published var likedTopicIDs: Set<String> = []
 
     private let db = Firestore.firestore()
-    private let communityFunctions = CommunityContentFunctionsService()
     private var listener: ListenerRegistration?
+    private static func likesKey(for uid: String?) -> String {
+        uid.map { "communityLikedTopicIDs_\($0)" } ?? "communityLikedTopicIDs"
+    }
+
+    func loadLikedTopicIDs() {
+        let key = Self.likesKey(for: Auth.auth().currentUser?.uid)
+        let local = Set(UserDefaults.standard.stringArray(forKey: key) ?? [])
+
+        guard let uid = Auth.auth().currentUser?.uid else {
+            likedTopicIDs = local
+            return
+        }
+        // 以伺服器鏡像為準（跨裝置同步），本地集合作為離線緩存
+        db.collection("communityUserLikes").document(uid).collection("topics").getDocuments { [weak self] snapshot, error in
+            let server = Set(snapshot?.documents.map(\.documentID) ?? [])
+            DispatchQueue.main.async {
+                // 成功讀取時以伺服器（包含空集合）為準，避免過期快取把「加讚」誤判成取消讚。
+                self?.likedTopicIDs = error == nil ? server : local
+            }
+        }
+    }
+
+    func isLiked(_ topic: CommunityTopic) -> Bool {
+        likedTopicIDs.contains(topic.id)
+    }
+
+    func toggleLike(_ topic: CommunityTopic, completion: ((Error?) -> Void)? = nil) {
+        do {
+            let user = try requireCommunityUser()
+            let uid = user.uid
+            let topicRef = db.collection("communityTopics").document(topic.id)
+            let likeRef = db.collection("communityTopicLikes")
+                .document(topic.id)
+                .collection("likes")
+                .document(uid)
+            let mirrorRef = db.collection("communityUserLikes")
+                .document(uid)
+                .collection("topics")
+                .document(topic.id)
+
+            // 判斷、like 文件與計數都在同一個 transaction 中完成，避免快取與併發寫入不同步。
+            db.runTransaction({ transaction, errorPointer -> Any? in
+                do {
+                    let likeSnapshot = try transaction.getDocument(likeRef)
+                    let topicSnapshot = try transaction.getDocument(topicRef)
+                    let willLike = !likeSnapshot.exists
+                    let currentCount = topicSnapshot.data()?["likeCount"] as? Int ?? 0
+                    let nextCount = willLike ? currentCount + 1 : max(0, currentCount - 1)
+
+                    if willLike {
+                        transaction.setData(
+                            ["ownerUid": uid, "createdAt": FieldValue.serverTimestamp()],
+                            forDocument: likeRef
+                        )
+                        transaction.setData(["likedAt": FieldValue.serverTimestamp()], forDocument: mirrorRef)
+                    } else {
+                        transaction.deleteDocument(likeRef)
+                        transaction.deleteDocument(mirrorRef)
+                    }
+                    transaction.updateData(["likeCount": nextCount], forDocument: topicRef)
+                    return NSNumber(value: willLike)
+                } catch let error as NSError {
+                    errorPointer?.pointee = error
+                    return nil
+                }
+            }) { [weak self] result, error in
+                DispatchQueue.main.async {
+                    guard let self else { return }
+                    guard error == nil, let willLike = (result as? NSNumber)?.boolValue else {
+                        completion?(error)
+                        return
+                    }
+                    if willLike { self.likedTopicIDs.insert(topic.id) } else { self.likedTopicIDs.remove(topic.id) }
+                    self.persistLikedIDs()
+                    self.updateLocalLikeCount(topicId: topic.id, delta: willLike ? 1 : -1)
+                    completion?(nil)
+                }
+            }
+        } catch {
+            DispatchQueue.main.async { completion?(error) }
+        }
+    }
+
+    private func persistLikedIDs() {
+        let key = Self.likesKey(for: Auth.auth().currentUser?.uid)
+        UserDefaults.standard.set(Array(likedTopicIDs), forKey: key)
+    }
+
+    private func updateLocalLikeCount(topicId: String, delta: Int) {
+        guard let index = topics.firstIndex(where: { $0.id == topicId }) else { return }
+        topics[index].likeCount = max(0, topics[index].likeCount + delta)
+    }
 
     deinit { listener?.remove() }
 
     func loadTopics() {
         listener?.remove()
+        loadLikedTopicIDs()
         isLoading = true
 
         listener = db.collection("communityTopics")
@@ -969,39 +1916,15 @@ private final class CommunityTopicManager: ObservableObject {
                 guard let self else { return }
                 if let error {
                     DispatchQueue.main.async {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = communityErrorMessage(error)
                         self.isLoading = false
                     }
                     return
                 }
 
-                let mapped = snapshot?.documents.compactMap { document -> CommunityTopic? in
-                    let data = document.data()
-                    guard let title = data["title"] as? String,
-                          let body = data["body"] as? String,
-                          let rawCategory = data["category"] as? String,
-                          let category = CommunityCategory(rawValue: rawCategory),
-                          let authorName = data["authorName"] as? String else {
-                        return nil
-                    }
-
-                    let timestamp = data["createdAt"] as? Timestamp
-                    return CommunityTopic(
-                        id: document.documentID,
-                        title: title,
-                        body: body,
-                        category: category,
-                        authorName: authorName,
-                        authorDeviceId: data["authorDeviceId"] as? String ?? "",
-                        authorDepartment: data["authorDepartment"] as? String ?? "",
-                        authorEntryYear: data["authorEntryYear"] as? String ?? "",
-                        authorShowsYear: data["authorShowsYear"] as? Bool ?? false,
-                        authorShowsBadge: data["authorShowsBadge"] as? Bool ?? ((data["authorBadgeCount"] as? Int ?? 0) > 0),
-                        authorBadgeLevel: authorBadgeLevel(from: data),
-                        createdAt: timestamp?.dateValue() ?? Date(),
-                        replyCount: data["replyCount"] as? Int ?? 0
-                    )
-                } ?? []
+                let mapped = snapshot?.documents
+                    .compactMap(CommunityTopic.from)
+                    .filter { !$0.isDeleted } ?? []
 
                 DispatchQueue.main.async {
                     self.topics = mapped
@@ -1012,24 +1935,53 @@ private final class CommunityTopicManager: ObservableObject {
     }
 
     func addTopic(title: String, body: String, category: CommunityCategory, authorName: String, deviceId: String, publishDepartment: Bool, publishYear: Bool, publishBadge: Bool, completion: ((Error?) -> Void)? = nil) {
-        let defaults = UserDefaults.standard
-        let payload: [String: Any] = [
-            "deviceSecret": CommunityProfileManager.ensureDeviceSecret(),
-            "title": title.trimmingCharacters(in: .whitespacesAndNewlines),
-            "body": body.trimmingCharacters(in: .whitespacesAndNewlines),
-            "category": category.rawValue,
-            "authorName": authorName.trimmingCharacters(in: .whitespacesAndNewlines),
-            "authorDeviceId": deviceId,
-            "authorDepartment": publishDepartment ? (defaults.string(forKey: "communityDepartment") ?? "") : "",
-            "authorEntryYear": publishYear ? (defaults.string(forKey: "communityEntryYear") ?? "") : "",
-            "authorShowsYear": publishYear,
-            "authorShowsBadge": publishBadge,
-            "authorBadgeLevel": publishBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue
-        ]
+        do {
+            let user = try requireCommunityUser()
+            let defaults = UserDefaults.standard
+            let topicRef = db.collection("communityTopics").document()
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("topics").document(topicRef.documentID)
+            let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let now = FieldValue.serverTimestamp()
+            let batch = db.batch()
 
-        communityFunctions.createTopic(payload: payload) { [weak self] error in
+            batch.setData([
+                "title": trimmedTitle,
+                "body": trimmedBody,
+                "category": category.rawValue,
+                "authorName": authorName.trimmingCharacters(in: .whitespacesAndNewlines),
+                "authorDeviceId": deviceId,
+                "authorDepartment": publishDepartment ? (defaults.string(forKey: "communityDepartment") ?? "") : "",
+                "authorEntryYear": publishYear ? (defaults.string(forKey: "communityEntryYear") ?? "") : "",
+                "authorShowsYear": publishYear,
+                "authorShowsBadge": publishBadge,
+                "authorBadgeLevel": publishBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue,
+                "createdAt": now,
+                "replyCount": 0,
+                "likeCount": 0
+            ], forDocument: topicRef)
+
+            batch.setData([
+                "ownerUid": user.uid,
+                "topicId": topicRef.documentID,
+                "category": category.rawValue,
+                "title": trimmedTitle,
+                "body": trimmedBody,
+                "bodyPreview": communityBodyPreview(trimmedBody),
+                "createdAt": now,
+                "updatedAt": now,
+                "isDeleted": false
+            ], forDocument: ownerRef)
+
+            batch.commit { [weak self] error in
+                DispatchQueue.main.async {
+                    self?.errorMessage = error.map(communityErrorMessage)
+                    completion?(error)
+                }
+            }
+        } catch {
             DispatchQueue.main.async {
-                self?.errorMessage = error?.localizedDescription
+                self.errorMessage = communityErrorMessage(error)
                 completion?(error)
             }
         }
@@ -1042,12 +1994,15 @@ private final class CommunityReplyManager: ObservableObject {
     @Published var errorMessage: String?
 
     private let topicID: String
+    private let topicTitle: String
+    private let topicCategory: CommunityCategory
     private let db = Firestore.firestore()
-    private let communityFunctions = CommunityContentFunctionsService()
     private var listener: ListenerRegistration?
 
-    init(topicID: String) {
-        self.topicID = topicID
+    init(topic: CommunityTopic) {
+        self.topicID = topic.id
+        self.topicTitle = topic.title
+        self.topicCategory = topic.category
     }
 
     deinit { listener?.remove() }
@@ -1064,7 +2019,7 @@ private final class CommunityReplyManager: ObservableObject {
                 guard let self else { return }
                 if let error {
                     DispatchQueue.main.async {
-                        self.errorMessage = error.localizedDescription
+                        self.errorMessage = communityErrorMessage(error)
                         self.isLoading = false
                     }
                     return
@@ -1087,8 +2042,9 @@ private final class CommunityReplyManager: ObservableObject {
                         authorEntryYear: data["authorEntryYear"] as? String ?? "",
                         authorShowsYear: data["authorShowsYear"] as? Bool ?? false,
                         authorShowsBadge: data["authorShowsBadge"] as? Bool ?? ((data["authorBadgeCount"] as? Int ?? 0) > 0),
-                        authorBadgeLevel: authorBadgeLevel(from: data),
-                        createdAt: timestamp?.dateValue() ?? Date()
+                        authorBadgeLevel: communityAuthorBadgeLevel(from: data),
+                        createdAt: timestamp?.dateValue() ?? Date(),
+                        updatedAt: communityOptionalDate(from: data["updatedAt"])
                     )
                 } ?? []
 
@@ -1100,24 +2056,57 @@ private final class CommunityReplyManager: ObservableObject {
             }
     }
 
-    func addReply(body: String, authorName: String, deviceId: String, publishDepartment: Bool, publishYear: Bool, publishBadge: Bool, completion: ((Error?) -> Void)? = nil) {
-        let defaults = UserDefaults.standard
-        let payload: [String: Any] = [
-            "deviceSecret": CommunityProfileManager.ensureDeviceSecret(),
-            "topicId": topicID,
-            "body": body.trimmingCharacters(in: .whitespacesAndNewlines),
-            "authorName": authorName.trimmingCharacters(in: .whitespacesAndNewlines),
-            "authorDeviceId": deviceId,
-            "authorDepartment": publishDepartment ? (defaults.string(forKey: "communityDepartment") ?? "") : "",
-            "authorEntryYear": publishYear ? (defaults.string(forKey: "communityEntryYear") ?? "") : "",
-            "authorShowsYear": publishYear,
-            "authorShowsBadge": publishBadge,
-            "authorBadgeLevel": publishBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue
-        ]
+    func updateReplyLocally(replyId: String, body: String) {
+        guard let index = replies.firstIndex(where: { $0.id == replyId }) else { return }
+        replies[index].body = body
+        replies[index].updatedAt = Date()
+    }
 
-        communityFunctions.createReply(payload: payload) { [weak self] error in
+    func addReply(body: String, authorName: String, deviceId: String, publishDepartment: Bool, publishYear: Bool, publishBadge: Bool, completion: ((Error?) -> Void)? = nil) {
+        do {
+            let user = try requireCommunityUser()
+            let defaults = UserDefaults.standard
+            let topicRef = db.collection("communityTopics").document(topicID)
+            let replyRef = topicRef.collection("replies").document()
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("replies").document("\(topicID)_\(replyRef.documentID)")
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let now = FieldValue.serverTimestamp()
+            let batch = db.batch()
+
+            batch.setData([
+                "body": trimmedBody,
+                "authorName": authorName.trimmingCharacters(in: .whitespacesAndNewlines),
+                "authorDeviceId": deviceId,
+                "authorDepartment": publishDepartment ? (defaults.string(forKey: "communityDepartment") ?? "") : "",
+                "authorEntryYear": publishYear ? (defaults.string(forKey: "communityEntryYear") ?? "") : "",
+                "authorShowsYear": publishYear,
+                "authorShowsBadge": publishBadge,
+                "authorBadgeLevel": publishBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue,
+                "createdAt": now
+            ], forDocument: replyRef)
+            batch.updateData(["replyCount": FieldValue.increment(Int64(1))], forDocument: topicRef)
+            batch.setData([
+                "ownerUid": user.uid,
+                "topicId": topicID,
+                "replyId": replyRef.documentID,
+                "category": topicCategory.rawValue,
+                "title": topicTitle,
+                "body": trimmedBody,
+                "bodyPreview": communityBodyPreview(trimmedBody),
+                "createdAt": now,
+                "updatedAt": now,
+                "isDeleted": false
+            ], forDocument: ownerRef)
+
+            batch.commit { [weak self] error in
+                DispatchQueue.main.async {
+                    self?.errorMessage = error.map(communityErrorMessage)
+                    completion?(error)
+                }
+            }
+        } catch {
             DispatchQueue.main.async {
-                self?.errorMessage = error?.localizedDescription
+                self.errorMessage = communityErrorMessage(error)
                 completion?(error)
             }
         }
@@ -1125,6 +2114,8 @@ private final class CommunityReplyManager: ObservableObject {
 }
 
 private struct CommunityView: View {
+    @EnvironmentObject var adFree: AdFreeService
+    private let adInterval = 5
     @StateObject private var manager = CommunityTopicManager()
     @StateObject private var subscriptionManager = CommunitySubscriptionManager()
     @StateObject private var profileManager = CommunityProfileManager()
@@ -1135,10 +2126,20 @@ private struct CommunityView: View {
     private var visibleTopics: [CommunityTopic] {
         let categorized = selectedCategory == .all ? manager.topics : manager.topics.filter { $0.category == selectedCategory }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return categorized }
-        return categorized.filter {
-            $0.title.localizedCaseInsensitiveContains(query) ||
-            $0.body.localizedCaseInsensitiveContains(query)
+        let searched = query.isEmpty
+            ? categorized
+            : categorized.filter {
+                $0.title.localizedCaseInsensitiveContains(query) ||
+                $0.body.localizedCaseInsensitiveContains(query)
+            }
+        let live = searched.filter { !$0.isDeleted }
+        switch manager.sortOption {
+        case .hot:
+            return live.sorted { ($0.likeCount + $0.replyCount, $0.createdAt) > ($1.likeCount + $1.replyCount, $1.createdAt) }
+        case .newest:
+            return live.sorted { $0.createdAt > $1.createdAt }
+        case .oldest:
+            return live.sorted { $0.createdAt < $1.createdAt }
         }
     }
 
@@ -1157,57 +2158,14 @@ private struct CommunityView: View {
                     .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
                     .listRowBackground(Color.clear)
 
-                if let errorMessage = manager.errorMessage {
-                    Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-                }
-
-                Section {
-                    if manager.isLoading && manager.topics.isEmpty {
-                        ProgressView(String(localized: "community_loading"))
-                            .frame(maxWidth: .infinity, alignment: .center)
-                    } else if visibleTopics.isEmpty {
-                        VStack(spacing: 8) {
-                            Image(systemName: "bubble.left.and.bubble.right")
-                                .font(.title2)
-                                .foregroundStyle(.secondary)
-                            Text(String(localized: isSearching ? "community_empty_search_title" : "community_empty_title"))
-                                .font(.headline)
-                            Text(String(localized: isSearching ? "community_empty_search_subtitle" : "community_empty_subtitle"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 20)
-                    } else {
-                        ForEach(visibleTopics) { topic in
-                            NavigationLink {
-                                CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager)
-                            } label: {
-                                CommunityTopicRow(topic: topic)
-                            }
-                        }
-                    }
-                } header: {
-                    Text(selectedCategory == .all ? String(localized: "community_latest_topics") : selectedCategory.title)
-                }
+                communityErrorSection
+                topicFeedSection
             }
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
             .navigationTitle(String(localized: "community_title"))
             .searchable(text: $searchText, prompt: String(localized: "community_search_prompt"))
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        showComposer = true
-                    } label: {
-                        Label(String(localized: "community_add_topic"), systemImage: "square.and.pencil")
-                    }
-                }
-            }
+            .toolbar { communityToolbar }
             .sheet(isPresented: $showComposer) {
                 CommunityComposerView(manager: manager, initialCategory: selectedCategory == .all ? .question : selectedCategory)
             }
@@ -1215,10 +2173,101 @@ private struct CommunityView: View {
         }
     }
 
+    @ViewBuilder
+    private var communityErrorSection: some View {
+        if let errorMessage = manager.errorMessage {
+            Section {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
+        }
+    }
+
+    private var topicFeedSection: some View {
+        Section {
+            topicFeedContent
+        } header: {
+            Text(selectedCategory == .all ? String(localized: "community_latest_topics") : selectedCategory.title)
+        }
+    }
+
+    @ViewBuilder
+    private var topicFeedContent: some View {
+        if manager.isLoading && manager.topics.isEmpty {
+            ProgressView(String(localized: "community_loading"))
+                .frame(maxWidth: .infinity, alignment: .center)
+        } else if visibleTopics.isEmpty {
+            VStack(spacing: 8) {
+                Image(systemName: "bubble.left.and.bubble.right")
+                    .font(.title2)
+                    .foregroundStyle(.secondary)
+                Text(String(localized: isSearching ? "community_empty_search_title" : "community_empty_title"))
+                    .font(.headline)
+                Text(String(localized: isSearching ? "community_empty_search_subtitle" : "community_empty_subtitle"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .center)
+            .padding(.vertical, 20)
+        } else {
+            ForEach(Array(visibleTopics.enumerated()), id: \.element.id) { index, topic in
+                topicNavigationLink(topic)
+                if shouldShowAd(after: index) {
+                    NativeAdSectionView(style: .compact)
+                        .frame(height: 140)
+                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                }
+            }
+        }
+    }
+
+    private func topicNavigationLink(_ topic: CommunityTopic) -> some View {
+        NavigationLink {
+            CommunityTopicDetailView(
+                topic: topic,
+                subscriptionManager: subscriptionManager,
+                isLiked: manager.isLiked(topic),
+                onToggleLike: { updatedTopic, completion in
+                    manager.toggleLike(updatedTopic, completion: completion)
+                }
+            )
+        } label: {
+            CommunityTopicRow(topic: topic)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var communityToolbar: some ToolbarContent {
+        ToolbarItem(placement: .primaryAction) {
+            Menu {
+                Picker(String(localized: "community_sort_title"), selection: $manager.sortOption) {
+                    Label(String(localized: "community_sort_hot"), systemImage: "flame").tag(CommunitySortOption.hot)
+                    Label(String(localized: "community_sort_newest"), systemImage: "clock.arrow.circlepath").tag(CommunitySortOption.newest)
+                    Label(String(localized: "community_sort_oldest"), systemImage: "clock").tag(CommunitySortOption.oldest)
+                }
+                .pickerStyle(.inline)
+            } label: {
+                Image(systemName: "arrow.up.arrow.down")
+            }
+        }
+        ToolbarItem(placement: .primaryAction) {
+            Button {
+                showComposer = true
+            } label: {
+                Label(String(localized: "community_add_topic"), systemImage: "square.and.pencil")
+            }
+        }
+    }
+
+    private func shouldShowAd(after index: Int) -> Bool {
+        !adFree.isAdFree && (index + 1).isMultiple(of: adInterval)
+    }
+
     private var communityHero: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Image(systemName: "bubble.left.and.bubble.right.fill")
+                Image(systemName: "bubble.left.and.bubble.right")
                     .font(.title2)
                     .foregroundStyle(.blue)
                     .frame(width: 42, height: 42)
@@ -1241,9 +2290,6 @@ private struct CommunityView: View {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.secondary)
             }
-            Label(String(localized: "community_hero_profile_hint"), systemImage: "info.circle")
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
         .padding(16)
         .background {
@@ -1265,7 +2311,11 @@ private struct CommunityView: View {
                         Button {
                             selectedCategory = category
                         } label: {
-                            Label(category.title, systemImage: category.icon)
+                            HStack(spacing: 3) {
+                                Image(systemName: category.icon)
+                                    .imageScale(.small)
+                                Text(category.title)
+                            }
                                 .font(.caption.weight(.semibold))
                                 .padding(.leading, 11)
                                 .padding(.trailing, category == .all ? 11 : 4)
@@ -1274,11 +2324,11 @@ private struct CommunityView: View {
                         }
                         .buttonStyle(.plain)
 
-                        if category != .all {
+                        if category != .all && K.Community.notificationsEnabled {
                             Button {
                                 subscriptionManager.toggleCategory(category)
                             } label: {
-                                Image(systemName: subscriptionManager.isSubscribed(to: category) ? "bell.fill" : "bell")
+                                Image(systemName: subscriptionManager.isSubscribed(to: category) ? "bell.badge" : "bell")
                                     .font(.caption.weight(.semibold))
                                     .foregroundStyle(selectedCategory == category ? .white : category.tint)
                                     .padding(.trailing, 10)
@@ -1297,6 +2347,8 @@ private struct CommunityView: View {
 
 private struct CommunityTopicRow: View {
     let topic: CommunityTopic
+    @AppStorage("commentDeviceId") private var deviceId: String = ""
+    @AppStorage("commentNickname") private var nickname: String = ""
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -1325,14 +2377,15 @@ private struct CommunityTopicRow: View {
                 .lineLimit(2)
 
             HStack(spacing: 10) {
-                Label(topic.authorName, systemImage: "person.fill")
+                Label(communityAuthorDisplayName(storedName: topic.authorName, authorDeviceId: topic.authorDeviceId, currentDeviceId: deviceId, currentNickname: nickname), systemImage: "person")
                 if topic.authorShowsBadge {
                     BadgeTagView(badge: badgeLevel(from: topic.authorBadgeLevel))
                 }
                 if !authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear).isEmpty {
                     Label(authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear), systemImage: "person.text.rectangle")
                 }
-                Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble.fill")
+                Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: "heart")
+                Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble")
             }
             .font(.caption2)
             .foregroundStyle(.secondary)
@@ -1363,26 +2416,31 @@ private struct CommunityComposerView: View {
     @State private var isSubmitting = false
     @State private var submitErrorMessage: String?
 
+    private enum ComposerField { case title, body }
+    @FocusState private var focusedField: ComposerField?
+
     init(manager: CommunityTopicManager, initialCategory: CommunityCategory) {
         self.manager = manager
         self._category = State(initialValue: initialCategory)
     }
 
     private var canSubmit: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !topicBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !isSubmitting
+        submitBlockReason == nil && !isSubmitting
+    }
+
+    private var submitBlockReason: LocalizedStringResource? {
+        if Auth.auth().currentUser == nil { return "community_publish_sign_in_required_hint" }
+        if title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "community_publish_title_required_hint" }
+        if topicBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return "community_publish_body_required_hint" }
+        return nil
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section(String(localized: "community_identity_section")) {
-                    Label(nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "community_identity_not_set") : nickname, systemImage: "person.text.rectangle")
-                    Text(String(localized: "community_identity_setup_hint"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Label(CommunityProfileManager.currentNicknameDisplayName(), systemImage: "person.text.rectangle")
+
                 }
 
                 Section(String(localized: "community_category_section")) {
@@ -1395,8 +2453,28 @@ private struct CommunityComposerView: View {
 
                 Section(String(localized: "community_topic_section")) {
                     TextField(String(localized: "community_topic_title_placeholder"), text: $title)
+                        .focused($focusedField, equals: .title)
+                        .submitLabel(.next)
+                        .onSubmit { focusedField = .body }
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Spacer()
+                            Button(String(localized: "done")) { focusedField = nil }
+                        }
+                    }
                     TextField(String(localized: "community_topic_body_placeholder"), text: $topicBody, axis: .vertical)
                         .lineLimit(5...10)
+                        .focused($focusedField, equals: .body)
+                        .submitLabel(.done)
+                        .onSubmit { focusedField = nil }
+                }
+
+                if let submitBlockReason {
+                    Section {
+                        Label(String(localized: submitBlockReason), systemImage: Auth.auth().currentUser == nil ? "person.crop.circle.badge.exclamationmark" : "text.badge.exclamationmark")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Auth.auth().currentUser == nil ? .orange : .secondary)
+                    }
                 }
 
                 Section {
@@ -1405,14 +2483,25 @@ private struct CommunityComposerView: View {
                     Toggle(String(localized: "community_publish_year"), isOn: $publishYear)
                         .disabled(communityEntryYear.isEmpty)
                     Toggle(String(localized: "community_publish_badge"), isOn: $publishBadge)
-                    if publishBadge {
-                        HStack(spacing: 8) {
-                            Text(String(localized: "community_preview"))
-                                .foregroundStyle(.secondary)
+                    HStack(spacing: 6) {
+                        Text(String(localized: "community_preview"))
+                            .foregroundStyle(.secondary)
+
+                        if publishDepartment, !communityDepartment.isEmpty {
+                            Text(communityDepartment)
+                                .font(.caption2)
+                        }
+                        if publishYear, !communityEntryYear.isEmpty,
+                           let gradeLine = currentGradeLine(entryYear: communityEntryYear) {
+                            Text(gradeLine)
+                                .font(.caption2)
+                        }
+
+                        if publishBadge {
                             BadgeTagView(badge: badgeManager.getCurrentBadge(), compact: false)
                         }
-                        .font(.caption)
                     }
+                    .font(.caption)
                 } header: {
                     Text(String(localized: "community_publish_disclosure_header"))
                 } footer: {
@@ -1421,7 +2510,7 @@ private struct CommunityComposerView: View {
 
                 if let submitErrorMessage {
                     Section {
-                        Label(submitErrorMessage, systemImage: "exclamationmark.triangle.fill")
+                        Label(submitErrorMessage, systemImage: "exclamationmark.triangle")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -1445,7 +2534,21 @@ private struct CommunityComposerView: View {
                 }
                 loadDisclosureDefaultsIfNeeded()
             }
+            .alert(String(localized: "community_action_failed_title"), isPresented: submitErrorBinding) {
+                Button(String(localized: "ok"), role: .cancel) { submitErrorMessage = nil }
+            } message: {
+                Text(submitErrorMessage ?? "")
+            }
         }
+    }
+
+    private var submitErrorBinding: Binding<Bool> {
+        Binding(
+            get: { submitErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented { submitErrorMessage = nil }
+            }
+        )
     }
 
     private func loadDisclosureDefaultsIfNeeded() {
@@ -1461,10 +2564,10 @@ private struct CommunityComposerView: View {
         if deviceId.isEmpty { deviceId = UUID().uuidString }
         submitErrorMessage = nil
         isSubmitting = true
-        manager.addTopic(title: title, body: topicBody, category: category, authorName: nickname, deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge) { error in
+        manager.addTopic(title: title, body: topicBody, category: category, authorName: CommunityProfileManager.currentNicknameDisplayName(), deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge) { error in
             isSubmitting = false
             if let error {
-                submitErrorMessage = String(format: String(localized: "community_publish_failed_format"), error.localizedDescription)
+                submitErrorMessage = String(format: String(localized: "community_publish_failed_format"), communityErrorMessage(error))
             } else {
                 dismiss()
             }
@@ -1473,9 +2576,9 @@ private struct CommunityComposerView: View {
 }
 
 private struct CommunityTopicDetailView: View {
-    let topic: CommunityTopic
     @ObservedObject var subscriptionManager: CommunitySubscriptionManager
     @StateObject private var replyManager: CommunityReplyManager
+    @StateObject private var contentManager = CommunityMyContentManager()
     @AppStorage("commentNickname") private var nickname: String = ""
     @AppStorage("commentDeviceId") private var deviceId: String = ""
     @AppStorage("communityDepartment") private var communityDepartment: String = ""
@@ -1490,16 +2593,85 @@ private struct CommunityTopicDetailView: View {
     @State private var publishBadge = true
     @State private var didLoadDisclosureDefaults = false
     @State private var isSubmitting = false
-    @State private var isReplyPublicInfoExpanded = false
+    @State private var replyErrorMessage: String?
+    @FocusState private var replyFieldFocused: Bool
+    @State private var replyDeletionTarget: CommunityManagedContentEditItem?
+    @Environment(\.dismiss) private var dismissDetail
+    @State private var topic: CommunityTopic
+    @State private var editableTopic: CommunityManagedTopic?
+    @State private var editableReplies: [String: CommunityManagedReply] = [:]
+    @State private var editingItem: CommunityManagedContentEditItem?
 
-    init(topic: CommunityTopic, subscriptionManager: CommunitySubscriptionManager) {
-        self.topic = topic
+    @State private var isLiked: Bool
+    var onToggleLike: ((CommunityTopic, @escaping (Error?) -> Void) -> Void)? = nil
+
+    init(
+        topic: CommunityTopic,
+        subscriptionManager: CommunitySubscriptionManager,
+        isLiked: Bool = false,
+        onToggleLike: ((CommunityTopic, @escaping (Error?) -> Void) -> Void)? = nil
+    ) {
         self.subscriptionManager = subscriptionManager
-        self._replyManager = StateObject(wrappedValue: CommunityReplyManager(topicID: topic.id))
+        self._isLiked = State(initialValue: isLiked)
+        self.onToggleLike = onToggleLike
+        self._topic = State(initialValue: topic)
+        self._replyManager = StateObject(wrappedValue: CommunityReplyManager(topic: topic))
     }
 
     var body: some View {
+        detailListView
+    }
+
+    private var detailListView: some View {
         List {
+            topicHeaderSection
+            repliesSection
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .simultaneousGesture(TapGesture().onEnded { replyFieldFocused = false })
+        .detailCommonModifiers(
+            deleteBinding: deleteReplyAlertPresented,
+            onDeleteConfirmed: handleReplyDeletion,
+            onAppearActions: {
+                if deviceId.isEmpty { deviceId = UUID().uuidString }
+                loadDisclosureDefaultsIfNeeded()
+                loadEditableTopicIfOwned()
+                loadEditableRepliesIfOwned()
+                replyManager.loadReplies()
+            }
+        )
+        .safeAreaInset(edge: .bottom) {
+            topicDetailPinnedBar
+        }
+        .toolbar { topicDetailToolbar }
+        .onChange(of: defaultShowDepartment) { newValue in
+            publishDepartment = newValue
+        }
+        .onChange(of: defaultShowYear) { newValue in
+            publishYear = newValue
+        }
+        .onChange(of: defaultShowBadge) { newValue in
+            publishBadge = newValue
+        }
+        .sheet(item: $editingItem) { item in
+            managedContentEditSheet(for: item)
+        }
+        .alert(String(localized: "community_action_failed_title"), isPresented: replyErrorBinding) {
+            Button(String(localized: "ok"), role: .cancel) { replyErrorMessage = nil }
+        } message: {
+            Text(replyErrorMessage ?? "")
+        }
+    }
+
+    private func handleReplyDeletion() {
+        if let target = replyDeletionTarget, case .reply(let managed) = target {
+            contentManager.deleteReply(managed)
+            loadEditableRepliesIfOwned()
+        }
+        replyDeletionTarget = nil
+    }
+
+    private var topicHeaderSection: some View {
             Section {
                 VStack(alignment: .leading, spacing: 12) {
                     Label(topic.category.title, systemImage: topic.category.icon)
@@ -1512,7 +2684,17 @@ private struct CommunityTopicDetailView: View {
                         .font(.body)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
-                            Label("\(topic.authorName) · \(relativeTime(topic.createdAt))", systemImage: "person.fill")
+                            Label("\(topicDisplayName) · \(relativeTime(topic.createdAt))", systemImage: "person")
+                            if onToggleLike != nil {
+                                Button(action: toggleLike) {
+                                    Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: isLiked ? "heart.fill" : "heart")
+                                        .foregroundStyle(isLiked ? Color.red : Color.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                            if topic.isEdited {
+                                Text(String(localized: "community_edited_label"))
+                            }
                             if topic.authorShowsBadge {
                                 BadgeTagView(badge: badgeLevel(from: topic.authorBadgeLevel))
                             }
@@ -1527,13 +2709,15 @@ private struct CommunityTopicDetailView: View {
                 }
                 .padding(.vertical, 6)
             }
+    }
 
+    private var repliesSection: some View {
             Section(String(localized: "community_replies_section")) {
                 if replyManager.isLoading && replyManager.replies.isEmpty {
                     ProgressView()
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else if let errorMessage = replyManager.errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.red)
                 } else if replyManager.replies.isEmpty {
@@ -1542,211 +2726,235 @@ private struct CommunityTopicDetailView: View {
                         .foregroundStyle(.secondary)
                 } else {
                     ForEach(replyManager.replies) { reply in
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text(reply.authorName)
-                                    .font(.caption.weight(.semibold))
-                                if reply.authorShowsBadge {
-                                    BadgeTagView(badge: badgeLevel(from: reply.authorBadgeLevel))
-                                }
-                                let profileLine = authorProfileLine(department: reply.authorDepartment, entryYear: reply.authorEntryYear, showsYear: reply.authorShowsYear)
-                                if !profileLine.isEmpty {
-                                    Text(profileLine)
-                                        .font(.caption2)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Text(relativeTime(reply.createdAt))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Text(reply.body)
-                                .font(.body)
-                        }
-                        .padding(.vertical, 4)
+                        replyRowView(reply)
                     }
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    if nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                        Text(String(localized: "community_reply_identity_required"))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            }
+    }
+
+    private var topicDetailPinnedBar: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if onToggleLike != nil {
+                HStack {
+                    Spacer()
+                    Button(action: toggleLike) {
+                        HStack(spacing: 6) {
+                            Image(systemName: isLiked ? "heart.fill" : "heart")
+                                .foregroundStyle(isLiked ? Color.red : Color.primary)
+                            Text(String(format: String(localized: "community_like_count_format"), topic.likeCount))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 7)
+                        .background(Color(.systemBackground), in: Capsule())
+                        .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
+                        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                     }
-                    TextField(String(localized: "community_reply_placeholder"), text: $replyBody, axis: .vertical)
-                        .lineLimit(2...5)
-                    replyPublicInfoCard
-                    Button {
-                        submitReply()
-                    } label: {
-                        Label(String(localized: "community_send_reply"), systemImage: "paperplane.fill")
-                            .frame(maxWidth: .infinity)
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .disabled(!canSubmitReply)
+                    .buttonStyle(.plain)
                 }
-                .padding(.vertical, 4)
+            }
+
+            replyInputCard
+        }
+        .padding(.horizontal)
+        .padding(.bottom, 10)
+    }
+
+    private var replyInputCard: some View {
+        VStack(alignment: .leading, spacing: 8) {
+                if nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text(String(localized: "community_reply_identity_required"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                CommentIdentityBar()
+                    .padding(.top, 4)
+                HStack(alignment: .bottom, spacing: 8) {
+                        TextField(String(localized: "community_reply_placeholder"), text: $replyBody)
+                            .focused($replyFieldFocused)
+                            .submitLabel(.done)
+                            .onSubmit { replyFieldFocused = false }
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 40)
+                            .background(Color(.systemBackground), in: Capsule())
+                            .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
+
+                        Button {
+                            submitReply()
+                        } label: {
+                            Group {
+                                if isSubmitting {
+                                    ProgressView().tint(.white)
+                                } else {
+                                    Image(systemName: "paperplane.fill")
+                                }
+                            }
+                            .font(.body)
+                            .frame(width: 44, height: 40)
+                            .foregroundStyle(.white)
+                            .background(Color.accentColor, in: Capsule())
+                            .shadow(color: Color.accentColor.opacity(0.25), radius: 4, x: 0, y: 2)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canSubmitReply)
+                    }
+                }
+        .padding(10)
+        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+        }
+    }
+
+    private func toggleLike() {
+        guard let onToggleLike else { return }
+        let previousLikeState = isLiked
+        let previousCount = topic.likeCount
+        isLiked.toggle()
+        topic.likeCount = max(0, topic.likeCount + (isLiked ? 1 : -1))
+        onToggleLike(topic) { error in
+            guard let error else { return }
+            isLiked = previousLikeState
+            topic.likeCount = previousCount
+            replyErrorMessage = communityErrorMessage(error)
+        }
+    }
+
+    private func managedContentEditSheet(for item: CommunityManagedContentEditItem) -> some View {
+        CommunityManagedContentEditView(item: item, save: { title, newBody, completion in
+            applyManagedEdit(item: item, newTitle: title, newBody: newBody, completion: completion)
+        }, onDelete: {
+            switch item {
+            case .topic(let managedTopic):
+                contentManager.deleteTopic(managedTopic)
+                topic.isDeleted = true
+            case .reply(let managedReply):
+                contentManager.deleteReply(managedReply)
+                replyManager.loadReplies()
+            }
+            loadEditableRepliesIfOwned()
+            dismissDetail()
+        })
+    }
+
+    private func applyManagedEdit(
+        item: CommunityManagedContentEditItem,
+        newTitle: String,
+        newBody: String,
+        completion: @escaping (Error?) -> Void
+    ) {
+        switch item {
+        case .topic(var editableTopic):
+            contentManager.updateTopic(editableTopic, title: newTitle, body: newBody) { error in
+                if error == nil {
+                    topic.title = newTitle
+                    topic.body = newBody
+                    topic.updatedAt = Date()
+                    editableTopic.title = newTitle
+                    editableTopic.body = newBody
+                    editableTopic.bodyPreview = communityBodyPreview(newBody)
+                }
+                completion(error)
+            }
+        case .reply(let editableReply):
+            contentManager.updateReply(editableReply, body: newBody) { error in
+                if error == nil {
+                    replyManager.updateReplyLocally(replyId: editableReply.replyId, body: newBody)
+                    editableReplies[editableReply.replyId]?.body = newBody
+                    editableReplies[editableReply.replyId]?.bodyPreview = communityBodyPreview(newBody)
+                    editableReplies[editableReply.replyId]?.updatedAt = Date()
+                }
+                completion(error)
             }
         }
-        .navigationTitle(String(localized: "community_topic_navigation_title"))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
+    }
+
+    @ToolbarContentBuilder
+    private var topicDetailToolbar: some ToolbarContent {
+        if let editableTopic, !editableTopic.isDeleted {
             ToolbarItem(placement: .primaryAction) {
+                Button {
+                    editingItem = .topic(editableTopic)
+                } label: {
+                    Label(String(localized: "edit"), systemImage: "pencil")
+                }
+            }
+        }
+
+        ToolbarItem(placement: .primaryAction) {
+            if K.Community.notificationsEnabled {
                 Button {
                     subscriptionManager.toggleTopic(topic)
                 } label: {
-                    Label(String(localized: subscriptionManager.isSubscribed(to: topic.id) ? "community_unsubscribe" : "community_subscribe_topic"), systemImage: subscriptionManager.isSubscribed(to: topic.id) ? "bell.fill" : "bell")
+                    Label(String(localized: subscriptionManager.isSubscribed(to: topic.id) ? "community_unsubscribe" : "community_subscribe_topic"), systemImage: subscriptionManager.isSubscribed(to: topic.id) ? "bell.badge" : "bell")
                 }
             }
-        }
-        .onAppear {
-            if deviceId.isEmpty { deviceId = UUID().uuidString }
-            loadDisclosureDefaultsIfNeeded()
-            replyManager.loadReplies()
         }
     }
 
-    private var replyPublicInfoCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    isReplyPublicInfoExpanded.toggle()
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "person.text.rectangle.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.blue)
-                        .frame(width: 28, height: 28)
-                        .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(String(localized: "community_public_info"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(replyPublicInfoSummary)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                    }
-
-                    Spacer()
-
-                    Image(systemName: "chevron.down")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .rotationEffect(.degrees(isReplyPublicInfoExpanded ? 180 : 0))
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            if isReplyPublicInfoExpanded {
-                VStack(alignment: .leading, spacing: 8) {
-                    replyPublicInfoOption(
-                        title: String(localized: "community_publish_department"),
-                        detail: communityDepartment.isEmpty ? String(localized: "community_department_unavailable") : communityDepartment,
-                        systemImage: "building.columns.fill",
-                        isOn: $publishDepartment,
-                        isEnabled: !communityDepartment.isEmpty
-                    )
-                    replyPublicInfoOption(
-                        title: String(localized: "community_publish_year"),
-                        detail: communityEntryYear.isEmpty ? String(localized: "community_entry_year_unavailable") : String(format: String(localized: "community_entry_year_format"), communityEntryYear),
-                        systemImage: "calendar",
-                        isOn: $publishYear,
-                        isEnabled: !communityEntryYear.isEmpty
-                    )
-                    replyPublicInfoOption(
-                        title: String(localized: "community_publish_badge"),
-                        detail: String(localized: "community_badge_reply_detail"),
-                        systemImage: "tag.fill",
-                        isOn: $publishBadge
-                    )
-                    if publishBadge {
-                        HStack(spacing: 8) {
-                            Text(String(localized: "community_badge_preview"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            BadgeTagView(badge: badgeManager.getCurrentBadge(), compact: false)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(10)
-                        .background(Color.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                    }
-                }
-                .padding(.top, 2)
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
-        .padding(12)
-        .background {
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .stroke(Color.blue.opacity(0.16), lineWidth: 1)
-                }
-        }
+    private var deleteReplyAlertPresented: Binding<Bool> {
+        Binding(
+            get: { replyDeletionTarget != nil },
+            set: { if !$0 { replyDeletionTarget = nil } }
+        )
     }
 
-    private func replyPublicInfoOption(title: String, detail: String, systemImage: String, isOn: Binding<Bool>, isEnabled: Bool = true) -> some View {
-        Button {
-            guard isEnabled else { return }
-            withAnimation(.easeInOut(duration: 0.18)) {
-                isOn.wrappedValue.toggle()
+    private var replyErrorBinding: Binding<Bool> {
+        Binding(
+            get: { replyErrorMessage != nil },
+            set: { isPresented in
+                if !isPresented { replyErrorMessage = nil }
             }
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isEnabled ? Color.blue : Color.secondary)
-                    .frame(width: 34, height: 34)
-                    .background(isEnabled ? Color.blue.opacity(isOn.wrappedValue ? 0.16 : 0.10) : Color.gray.opacity(0.10), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        )
+    }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(isEnabled ? Color.primary : Color.secondary)
-                    Text(detail)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-
-                Spacer(minLength: 8)
-
-                Image(systemName: isOn.wrappedValue ? "checkmark.circle.fill" : "circle")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(isEnabled && isOn.wrappedValue ? Color.blue : Color.secondary)
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 9)
-            .background {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(isEnabled ? Color(.tertiarySystemBackground) : Color.gray.opacity(0.08))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .stroke(isEnabled && isOn.wrappedValue ? Color.blue.opacity(0.26) : Color.secondary.opacity(0.12), lineWidth: 1)
-                    }
-            }
-            .opacity(isEnabled ? 1 : 0.58)
-            .contentShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+    private func loadEditableTopicIfOwned() {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            editableTopic = nil
+            return
         }
-        .buttonStyle(.plain)
-        .disabled(!isEnabled)
-        .accessibilityLabel(title)
-        .accessibilityValue(String(localized: isOn.wrappedValue ? "community_accessibility_selected" : "community_accessibility_not_selected"))
-        .accessibilityHint(String(localized: isEnabled ? "community_accessibility_toggle_hint" : "community_accessibility_unavailable_hint"))
+
+        Firestore.firestore()
+            .collection("communityContentOwners")
+            .document(uid)
+            .collection("topics")
+            .document(topic.id)
+            .getDocument { snapshot, _ in
+                guard let snapshot, snapshot.exists else { return }
+                var data = snapshot.data() ?? [:]
+                data["id"] = snapshot.documentID
+                DispatchQueue.main.async {
+                    editableTopic = CommunityManagedTopic.from(data)
+                }
+            }
     }
 
-    private var replyPublicInfoSummary: String {
-        var parts: [String] = []
-        if publishDepartment && !communityDepartment.isEmpty { parts.append(String(localized: "community_public_part_department")) }
-        if publishYear && !communityEntryYear.isEmpty { parts.append(String(localized: "community_public_part_year")) }
-        if publishBadge { parts.append(String(localized: "community_public_part_badge")) }
-        return parts.isEmpty ? String(localized: "community_public_info_none") : String(format: String(localized: "community_public_info_summary_format"), parts.joined(separator: String(localized: "community_list_separator")))
+    private func loadEditableRepliesIfOwned() {
+        guard let uid = Auth.auth().currentUser?.uid else {
+            editableReplies = [:]
+            return
+        }
+
+        Firestore.firestore()
+            .collection("communityContentOwners")
+            .document(uid)
+            .collection("replies")
+            .whereField("topicId", isEqualTo: topic.id)
+            .getDocuments { snapshot, _ in
+                let replies = snapshot?.documents.compactMap { document -> CommunityManagedReply? in
+                    var data = document.data()
+                    data["id"] = document.documentID
+                    return CommunityManagedReply.from(data)
+                } ?? []
+                DispatchQueue.main.async {
+                    editableReplies = Dictionary(uniqueKeysWithValues: replies.map { ($0.replyId, $0) })
+                }
+            }
     }
+
 
     private func loadDisclosureDefaultsIfNeeded() {
         guard !didLoadDisclosureDefaults else { return }
@@ -1758,17 +2966,86 @@ private struct CommunityTopicDetailView: View {
 
     private var canSubmitReply: Bool {
         !replyBody.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
-        !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+        Auth.auth().currentUser != nil &&
+        !topic.isDeleted &&
         !isSubmitting
+    }
+
+    private var topicDisplayName: String {
+        if topic.authorDeviceId == deviceId || editableTopic != nil {
+            return CommunityProfileManager.currentNicknameDisplayName()
+        }
+        return topic.authorName
+    }
+
+    private func replyDisplayName(_ reply: CommunityReply) -> String {
+        if reply.authorDeviceId == deviceId || editableReplies[reply.id] != nil {
+            return CommunityProfileManager.currentNicknameDisplayName()
+        }
+        return reply.authorName
+    }
+
+    private func replyRowView(_ reply: CommunityReply) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(replyDisplayName(reply))
+                    .font(.caption.weight(.semibold))
+                if reply.authorShowsBadge {
+                    BadgeTagView(badge: badgeLevel(from: reply.authorBadgeLevel))
+                }
+                let profileLine = authorProfileLine(department: reply.authorDepartment, entryYear: reply.authorEntryYear, showsYear: reply.authorShowsYear)
+                if !profileLine.isEmpty {
+                    Text(profileLine)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Text(relativeTime(reply.createdAt))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                if reply.isEdited {
+                    Text(String(localized: "community_edited_label"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Text(reply.body)
+                .font(.body)
+        }
+        .padding(.vertical, 6)
+        .padding(.horizontal, 2)
+        .commentCardStyle()
+        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            if let editableReply = editableReplies[reply.id], !editableReply.isDeleted {
+                Button(role: .destructive) {
+                    replyDeletionTarget = .reply(editableReply)
+                } label: {
+                    Label(String(localized: "delete"), systemImage: "trash")
+                }
+
+                Button {
+                    editingItem = .reply(editableReply)
+                } label: {
+                    Label(String(localized: "edit"), systemImage: "pencil")
+                }
+                .tint(.blue)
+            }
+        }
     }
 
     private func submitReply() {
         guard canSubmitReply else { return }
         if deviceId.isEmpty { deviceId = UUID().uuidString }
         isSubmitting = true
-        replyManager.addReply(body: replyBody, authorName: nickname, deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge) { error in
+        replyManager.addReply(body: replyBody, authorName: CommunityProfileManager.currentNicknameDisplayName(), deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge) { error in
             isSubmitting = false
-            if error == nil { replyBody = "" }
+            if let error {
+                replyErrorMessage = String(format: String(localized: "community_reply_failed_format"), communityErrorMessage(error))
+            } else {
+                replyBody = ""
+                replyFieldFocused = false
+                loadEditableRepliesIfOwned()
+            }
         }
     }
 }
@@ -1811,75 +3088,248 @@ private final class CommunityMyContentManager: ObservableObject {
     @Published var isSaving = false
     @Published var errorMessage: String?
 
-    private let communityFunctions = CommunityContentFunctionsService()
-    private let deviceSecret: String
-
-    init(deviceSecret: String = CommunityProfileManager.ensureDeviceSecret()) {
-        self.deviceSecret = deviceSecret
-    }
+    private let db = Firestore.firestore()
 
     func load() {
+        guard let user = Auth.auth().currentUser else {
+            topics = []
+            replies = []
+            errorMessage = String(localized: "community_google_sign_in_required_error")
+            return
+        }
+
         isLoading = true
         errorMessage = nil
 
-        communityFunctions.listMyContent(deviceSecret: deviceSecret) { [weak self] result in
-            DispatchQueue.main.async {
-                guard let self else { return }
+        let ownerRoot = db.collection("communityContentOwners").document(user.uid)
+        let group = DispatchGroup()
+        var loadedTopics: [CommunityManagedTopic] = []
+        var loadedReplies: [CommunityManagedReply] = []
+        var loadError: Error?
+
+        group.enter()
+        ownerRoot.collection("topics").order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            if let error { loadError = error }
+            loadedTopics = snapshot?.documents.compactMap { document in
+                var data = document.data()
+                data["id"] = document.documentID
+                return CommunityManagedTopic.from(data)
+            } ?? []
+            group.leave()
+        }
+
+        group.enter()
+        ownerRoot.collection("replies").order(by: "createdAt", descending: true).getDocuments { snapshot, error in
+            if let error { loadError = error }
+            loadedReplies = snapshot?.documents.compactMap { document in
+                var data = document.data()
+                data["id"] = document.documentID
+                return CommunityManagedReply.from(data)
+            } ?? []
+            group.leave()
+        }
+
+        group.notify(queue: .main) { [weak self] in
+            guard let self else { return }
+            if let loadError {
                 self.isLoading = false
-                switch result {
-                case .success(let snapshot):
-                    self.topics = snapshot.topics
-                    self.replies = snapshot.replies
-                case .failure(let error):
-                    self.errorMessage = error.localizedDescription
+                self.errorMessage = communityErrorMessage(loadError)
+            } else {
+                self.filterRepliesWithActiveTopics(loadedReplies.filter { !$0.isDeleted }) { activeReplies in
+                    self.isLoading = false
+                    self.topics = loadedTopics.filter { !$0.isDeleted }
+                    self.replies = activeReplies
                 }
             }
         }
     }
 
+    private func filterRepliesWithActiveTopics(_ replies: [CommunityManagedReply], completion: @escaping ([CommunityManagedReply]) -> Void) {
+        let topicIds = Array(Set(replies.map(\.topicId)))
+        guard !topicIds.isEmpty else {
+            completion([])
+            return
+        }
+
+        let batches = stride(from: 0, to: topicIds.count, by: 30).map {
+            Array(topicIds[$0..<min($0 + 30, topicIds.count)])
+        }
+        let group = DispatchGroup()
+        let lock = NSLock()
+        var activeTopicIds = Set<String>()
+
+        for batch in batches {
+            group.enter()
+            db.collection("communityTopics")
+                .whereField(FieldPath.documentID(), in: batch)
+                .getDocuments { snapshot, _ in
+                    let activeIds = snapshot?.documents.compactMap { document -> String? in
+                        guard let topic = CommunityTopic.from(document: document), !topic.isDeleted else { return nil }
+                        return topic.id
+                    } ?? []
+                    lock.lock()
+                    activeTopicIds.formUnion(activeIds)
+                    lock.unlock()
+                    group.leave()
+                }
+        }
+
+        group.notify(queue: .main) {
+            completion(replies.filter { activeTopicIds.contains($0.topicId) })
+        }
+    }
+
     func updateTopic(_ topic: CommunityManagedTopic, title: String, body: String, completion: @escaping (Error?) -> Void) {
-        isSaving = true
-        errorMessage = nil
-        communityFunctions.updateTopic(deviceSecret: deviceSecret, topicId: topic.topicId, title: title, body: body) { [weak self] error in
-            DispatchQueue.main.async {
-                self?.finishMutation(error: error, completion: completion)
+        do {
+            let user = try requireCommunityUser()
+            isSaving = true
+            errorMessage = nil
+            let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let now = FieldValue.serverTimestamp()
+            let batch = db.batch()
+            let topicRef = db.collection("communityTopics").document(topic.topicId)
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("topics").document(topic.topicId)
+
+            batch.updateData(["title": trimmedTitle, "body": trimmedBody, "updatedAt": now], forDocument: topicRef)
+            batch.updateData([
+                "title": trimmedTitle,
+                "body": trimmedBody,
+                "bodyPreview": communityBodyPreview(trimmedBody),
+                "updatedAt": now
+            ], forDocument: ownerRef)
+            batch.commit { [weak self] error in
+                DispatchQueue.main.async { self?.finishMutation(error: error, completion: completion) }
             }
+        } catch {
+            finishMutation(error: error, completion: completion)
         }
     }
 
     func deleteTopic(_ topic: CommunityManagedTopic) {
-        isSaving = true
-        errorMessage = nil
-        communityFunctions.deleteTopic(deviceSecret: deviceSecret, topicId: topic.topicId) { [weak self] error in
-            DispatchQueue.main.async {
-                self?.finishMutation(error: error)
+        do {
+            let user = try requireCommunityUser()
+            isSaving = true
+            errorMessage = nil
+            let now = FieldValue.serverTimestamp()
+            let batch = db.batch()
+            let topicRef = db.collection("communityTopics").document(topic.topicId)
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("topics").document(topic.topicId)
+
+            batch.updateData([
+                "title": String(localized: "community_deleted_topic_title"),
+                "body": String(localized: "community_deleted_topic_body"),
+                "authorName": "",
+                "authorDeviceId": "",
+                "authorDepartment": "",
+                "authorEntryYear": "",
+                "authorShowsYear": false,
+                "authorShowsBadge": false,
+                "authorBadgeLevel": CommentBadgeManager.BadgeLevel.newbie.rawValue,
+                "isDeleted": true,
+                "deletedAt": now,
+                "updatedAt": now
+            ], forDocument: topicRef)
+            batch.updateData([
+                "title": String(localized: "community_deleted_topic_title"),
+                "body": "",
+                "bodyPreview": "",
+                "isDeleted": true,
+                "deletedAt": now,
+                "updatedAt": now
+            ], forDocument: ownerRef)
+            batch.commit { [weak self] error in
+                DispatchQueue.main.async { self?.finishMutation(error: error) }
             }
+        } catch {
+            finishMutation(error: error)
         }
     }
 
     func updateReply(_ reply: CommunityManagedReply, body: String, completion: @escaping (Error?) -> Void) {
-        isSaving = true
-        errorMessage = nil
-        communityFunctions.updateReply(deviceSecret: deviceSecret, topicId: reply.topicId, replyId: reply.replyId, body: body) { [weak self] error in
-            DispatchQueue.main.async {
-                self?.finishMutation(error: error, completion: completion)
+        do {
+            let user = try requireCommunityUser()
+            isSaving = true
+            errorMessage = nil
+            let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let now = FieldValue.serverTimestamp()
+            let batch = db.batch()
+            let replyRef = db.collection("communityTopics").document(reply.topicId).collection("replies").document(reply.replyId)
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("replies").document("\(reply.topicId)_\(reply.replyId)")
+
+            batch.updateData(["body": trimmedBody, "updatedAt": now], forDocument: replyRef)
+            batch.updateData([
+                "body": trimmedBody,
+                "bodyPreview": communityBodyPreview(trimmedBody),
+                "updatedAt": now
+            ], forDocument: ownerRef)
+            batch.commit { [weak self] error in
+                DispatchQueue.main.async { self?.finishMutation(error: error, completion: completion) }
             }
+        } catch {
+            finishMutation(error: error, completion: completion)
         }
     }
 
     func deleteReply(_ reply: CommunityManagedReply) {
-        isSaving = true
-        errorMessage = nil
-        communityFunctions.deleteReply(deviceSecret: deviceSecret, topicId: reply.topicId, replyId: reply.replyId) { [weak self] error in
-            DispatchQueue.main.async {
-                self?.finishMutation(error: error)
+        do {
+            let user = try requireCommunityUser()
+            isSaving = true
+            errorMessage = nil
+            let now = FieldValue.serverTimestamp()
+            let topicRef = db.collection("communityTopics").document(reply.topicId)
+            let replyRef = topicRef.collection("replies").document(reply.replyId)
+            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("replies").document("\(reply.topicId)_\(reply.replyId)")
+
+            // 先讀目前回覆數，寫入夾住下限的明確值（rules 僅允許往下修且 >= 0）
+            topicRef.getDocument { [weak self] snapshot, _ in
+                guard let self else { return }
+                let currentCount = snapshot?.data()?["replyCount"] as? Int ?? 0
+                let batch = self.db.batch()
+                batch.deleteDocument(replyRef)
+                if currentCount > 0 {
+                    batch.updateData(["replyCount": max(0, currentCount - 1)], forDocument: topicRef)
+                }
+                batch.updateData([
+                    "body": "",
+                    "bodyPreview": "",
+                    "isDeleted": true,
+                    "deletedAt": now,
+                    "updatedAt": now
+                ], forDocument: ownerRef)
+                batch.commit { error in
+                    DispatchQueue.main.async { self.finishMutation(error: error) }
+                }
             }
+        } catch {
+            finishMutation(error: error)
+        }
+    }
+
+    func loadTopic(id topicId: String, completion: @escaping (Result<CommunityTopic, Error>) -> Void) {
+        db.collection("communityTopics").document(topicId).getDocument { snapshot, error in
+            if let error {
+                DispatchQueue.main.async { completion(.failure(error)) }
+                return
+            }
+
+            guard let snapshot,
+                  snapshot.exists,
+                  let topic = CommunityTopic.from(snapshot: snapshot),
+                  !topic.isDeleted else {
+                DispatchQueue.main.async {
+                    completion(.failure(CommunityUserFacingError(message: String(localized: "community_open_topic_not_found"))))
+                }
+                return
+            }
+
+            DispatchQueue.main.async { completion(.success(topic)) }
         }
     }
 
     private func finishMutation(error: Error?, completion: ((Error?) -> Void)? = nil) {
         isSaving = false
-        errorMessage = error?.localizedDescription
+        errorMessage = error.map(communityErrorMessage)
         completion?(error)
         if error == nil { load() }
     }
@@ -1893,20 +3343,26 @@ struct CommunityMyContentView: View {
 
 private struct CommunityMyContentListView: View {
     @StateObject private var manager = CommunityMyContentManager()
+    @StateObject private var subscriptionManager = CommunitySubscriptionManager()
     @State private var editingItem: CommunityManagedContentEditItem?
     @State private var deletionItem: CommunityManagedContentDeletionItem?
+    @State private var selectedTopic: CommunityTopic?
+    @State private var openingTopicID: String?
 
     var body: some View {
         List {
             Section {
-                Label(String(localized: "community_my_content_private_notice"), systemImage: "lock.shield.fill")
+                Label(String(localized: "community_my_content_private_notice"), systemImage: "lock.shield")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Label(String(localized: "community_my_content_swipe_hint"), systemImage: "hand.draw")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
             if let errorMessage = manager.errorMessage {
                 Section {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .font(.caption)
                         .foregroundStyle(.red)
                 }
@@ -1920,7 +3376,7 @@ private struct CommunityMyContentListView: View {
                     emptyManagedContentRow(title: String(localized: "community_no_managed_topics"), systemImage: "bubble.left")
                 } else {
                     ForEach(manager.topics) { topic in
-                        CommunityManagedTopicRow(topic: topic)
+                        managedTopicRow(topic)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 if !topic.isDeleted {
                                     Button(role: .destructive) {
@@ -1952,7 +3408,7 @@ private struct CommunityMyContentListView: View {
                     emptyManagedContentRow(title: String(localized: "community_no_managed_replies"), systemImage: "text.bubble")
                 } else {
                     ForEach(manager.replies) { reply in
-                        CommunityManagedReplyRow(reply: reply)
+                        managedReplyRow(reply)
                             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                                 if !reply.isDeleted {
                                     Button(role: .destructive) {
@@ -1994,10 +3450,9 @@ private struct CommunityMyContentListView: View {
                 manager.load()
             }
         }
+        .background(topicNavigationLink)
         .sheet(item: $editingItem) { item in
-            CommunityManagedContentEditView(item: item) { title, body, completion in
-                save(item: item, title: title, body: body, completion: completion)
-            }
+            myContentEditSheet(for: item)
         }
         .alert(String(localized: "community_delete_confirm_title"), isPresented: deleteAlertBinding) {
             Button(String(localized: "cancel"), role: .cancel) { deletionItem = nil }
@@ -2011,9 +3466,28 @@ private struct CommunityMyContentListView: View {
                     .padding(16)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                     .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
+            } else if openingTopicID != nil {
+                ProgressView(String(localized: "community_opening_topic"))
+                    .padding(16)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 4)
             }
         }
-        .disabled(manager.isSaving)
+        .disabled(manager.isSaving || openingTopicID != nil)
+    }
+
+    private func myContentEditSheet(for item: CommunityManagedContentEditItem) -> some View {
+        CommunityManagedContentEditView(item: item, save: { title, body, completion in
+            save(item: item, title: title, body: body, completion: completion)
+        }, onDelete: {
+            switch item {
+            case .topic(let managedTopic):
+                deletionItem = .topic(managedTopic)
+            case .reply(let managedReply):
+                deletionItem = .reply(managedReply)
+            }
+            deleteSelectedItem()
+        })
     }
 
     private var deleteAlertBinding: Binding<Bool> {
@@ -2023,6 +3497,29 @@ private struct CommunityMyContentListView: View {
                 if !isPresented { deletionItem = nil }
             }
         )
+    }
+
+    private var selectedTopicIsActive: Binding<Bool> {
+        Binding(
+            get: { selectedTopic != nil },
+            set: { isActive in
+                if !isActive { selectedTopic = nil }
+            }
+        )
+    }
+
+    @ViewBuilder
+    private var topicNavigationLink: some View {
+        NavigationLink(isActive: selectedTopicIsActive) {
+            if let selectedTopic {
+                CommunityTopicDetailView(topic: selectedTopic, subscriptionManager: subscriptionManager)
+            } else {
+                EmptyView()
+            }
+        } label: {
+            EmptyView()
+        }
+        .hidden()
     }
 
     private func save(item: CommunityManagedContentEditItem, title: String, body: String, completion: @escaping (Error?) -> Void) {
@@ -2043,6 +3540,39 @@ private struct CommunityMyContentListView: View {
             manager.deleteReply(reply)
         }
         self.deletionItem = nil
+    }
+
+    @ViewBuilder
+    private func managedTopicRow(_ topic: CommunityManagedTopic) -> some View {
+        Button {
+            openTopic(id: topic.topicId)
+        } label: {
+            CommunityManagedTopicRow(topic: topic)
+        }
+        .buttonStyle(.plain)
+    }
+
+    @ViewBuilder
+    private func managedReplyRow(_ reply: CommunityManagedReply) -> some View {
+        Button {
+            openTopic(id: reply.topicId)
+        } label: {
+            CommunityManagedReplyRow(reply: reply)
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func openTopic(id topicId: String) {
+        openingTopicID = topicId
+        manager.loadTopic(id: topicId) { result in
+            openingTopicID = nil
+            switch result {
+            case .success(let topic):
+                selectedTopic = topic
+            case .failure(let error):
+                manager.errorMessage = communityErrorMessage(error)
+            }
+        }
     }
 
     private func emptyManagedContentRow(title: String, systemImage: String) -> some View {
@@ -2098,6 +3628,8 @@ private struct CommunityManagedTopicRow: View {
             }
         }
         .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 }
 
@@ -2107,7 +3639,7 @@ private struct CommunityManagedReplyRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(spacing: 8) {
-                Label(String(localized: "community_reply_label"), systemImage: "text.bubble.fill")
+                Label(String(localized: "community_reply_label"), systemImage: "text.bubble")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.blue)
                     .padding(.horizontal, 8)
@@ -2139,6 +3671,8 @@ private struct CommunityManagedReplyRow: View {
                 .truncationMode(.middle)
         }
         .padding(.vertical, 5)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
     }
 
     private var replyContextLine: String {
@@ -2151,15 +3685,22 @@ private struct CommunityManagedContentEditView: View {
     @Environment(\.dismiss) private var dismiss
     let item: CommunityManagedContentEditItem
     let save: (String, String, @escaping (Error?) -> Void) -> Void
+    var onDelete: (() -> Void)? = nil
 
     @State private var title: String
     @State private var bodyText: String
     @State private var isSaving = false
     @State private var errorMessage: String?
+    @State private var showDeleteConfirm = false
 
-    init(item: CommunityManagedContentEditItem, save: @escaping (String, String, @escaping (Error?) -> Void) -> Void) {
+    init(
+        item: CommunityManagedContentEditItem,
+        save: @escaping (String, String, @escaping (Error?) -> Void) -> Void,
+        onDelete: (() -> Void)? = nil
+    ) {
         self.item = item
         self.save = save
+        self.onDelete = onDelete
         switch item {
         case .topic(let topic):
             _title = State(initialValue: topic.title)
@@ -2209,9 +3750,19 @@ private struct CommunityManagedContentEditView: View {
 
                 if let errorMessage {
                     Section {
-                        Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                        Label(errorMessage, systemImage: "exclamationmark.triangle")
                             .font(.caption)
                             .foregroundStyle(.red)
+                    }
+                }
+
+                if onDelete != nil {
+                    Section {
+                        Button(role: .destructive) {
+                            showDeleteConfirm = true
+                        } label: {
+                            Label(String(localized: "delete"), systemImage: "trash")
+                        }
                     }
                 }
             }
@@ -2225,6 +3776,15 @@ private struct CommunityManagedContentEditView: View {
                     Button(String(localized: "save")) { submit() }
                         .disabled(!canSave)
                 }
+            }
+            .alert(String(localized: "community_delete_confirm_title"), isPresented: $showDeleteConfirm) {
+                Button(String(localized: "delete"), role: .destructive) {
+                    dismiss()
+                    onDelete?()
+                }
+                Button(String(localized: "cancel"), role: .cancel) { }
+            } message: {
+                Text(String(localized: "community_delete_confirm_message"))
             }
         }
     }
@@ -2246,7 +3806,7 @@ private struct CommunityManagedContentEditView: View {
         ) { error in
             isSaving = false
             if let error {
-                errorMessage = error.localizedDescription
+                errorMessage = communityErrorMessage(error)
             } else {
                 dismiss()
             }
@@ -2258,6 +3818,8 @@ struct CommunityProfileView: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var profileManager: CommunityProfileManager
     @State private var nickname: String = ""
+    @State private var entryYearText: String = ""
+    @State private var selectedDepartment: String = ""
     @State private var showDepartment = true
     @State private var showYear = false
     @State private var showBadge = true
@@ -2266,36 +3828,67 @@ struct CommunityProfileView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField(String(localized: "community_nickname_placeholder"), text: $nickname)
-                    Toggle(String(localized: "community_default_show_department"), isOn: $showDepartment)
-                    Toggle(String(localized: "community_publish_year"), isOn: $showYear)
-                    Toggle(String(localized: "community_default_show_badge"), isOn: $showBadge)
+                    HStack(spacing: 8) {
+                        TextField(String(localized: "community_nickname_placeholder"), text: $nickname)
+                            .submitLabel(.done)
+                            .onSubmit(saveNickname)
+
+                        Button(String(localized: "save")) {
+                            saveNickname()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(nickname.trimmingCharacters(in: .whitespacesAndNewlines) == profileManager.profile.nickname)
+                    }
                 } header: {
                     Text(String(localized: "community_profile_title"))
                 } footer: {
                     Text(String(localized: "community_profile_footer"))
                 }
 
-                if !profilePreviewLine.isEmpty || !profileManager.profile.schoolEmail.isEmpty {
-                    Section(String(localized: "community_display_preview")) {
-                        Label(profileManager.profile.nickname.isEmpty ? String(localized: "community_nickname_not_set") : profileManager.profile.nickname, systemImage: "person.fill")
-                        if !profilePreviewLine.isEmpty {
-                            Label(profilePreviewLine, systemImage: "person.text.rectangle")
+                Section {
+                    HStack(spacing: 8) {
+                        TextField("113", text: $entryYearText)
+                            .keyboardType(.numberPad)
+                            .submitLabel(.done)
+                            .onSubmit(saveEntryYear)
+
+                        Button(String(localized: "save")) {
+                            saveEntryYear()
                         }
-                        if !profileManager.profile.schoolEmail.isEmpty {
-                            Label(profileManager.profile.schoolEmail, systemImage: "envelope.fill")
-                        }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                        .disabled(entryYearText.trimmingCharacters(in: .whitespacesAndNewlines) == profileManager.profile.entryYear)
                     }
+                } header: {
+                    Text(String(localized: "community_entry_year_header"))
+                } footer: {
+                    Text(String(localized: "community_entry_year_footer"))
                 }
 
                 Section {
-                    Button {
-                        profileManager.signInWithGoogleSchoolEmail()
-                    } label: {
-                        Label(String(localized: profileManager.profile.schoolEmail.isEmpty ? "community_google_verify_identity" : "community_google_change_account"), systemImage: "person.badge.key.fill")
+                    Picker(String(localized: "community_department_pick_label"), selection: $selectedDepartment) {
+                        ForEach(departmentOptions, id: \.self) { name in
+                            Text(name).tag(name)
+                        }
                     }
+                    .onChange(of: selectedDepartment) { newValue in
+                        guard newValue != profileManager.profile.department else { return }
+                        profileManager.updateDepartment(newValue)
+                        profileManager.authStatusMessage = String(localized: "community_profile_saved")
+                    }
+                } header: {
+                    Text(String(localized: "community_department_header"))
                 } footer: {
-                    Text(String(localized: profileManager.profile.schoolEmail.isEmpty ? "community_google_verify_footer" : "community_google_change_footer"))
+                    Text(String(localized: "community_department_footer"))
+                }
+
+                Section {
+                    Toggle(String(localized: "community_default_show_department"), isOn: $showDepartment)
+                    Toggle(String(localized: "community_publish_year"), isOn: $showYear)
+                    Toggle(String(localized: "community_default_show_badge"), isOn: $showBadge)
+                } header: {
+                    Text(String(localized: "account_display_preferences"))
                 }
 
                 if let message = profileManager.authStatusMessage {
@@ -2305,54 +3898,62 @@ struct CommunityProfileView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
-
-                Section {
-                    Button {
-                        save()
-                    } label: {
-                        Label(String(localized: "community_save_profile"), systemImage: "checkmark.circle.fill")
-                    }
-                }
             }
             .navigationTitle(String(localized: "community_profile_title"))
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "close")) { dismiss() }
-                }
-            }
             .onAppear {
                 nickname = profileManager.profile.nickname
+                entryYearText = profileManager.profile.entryYear
+                selectedDepartment = profileManager.profile.department
                 showDepartment = profileManager.profile.showDepartment
                 showYear = profileManager.profile.showYear
                 showBadge = profileManager.profile.showBadge
             }
+            .onChange(of: showDepartment) { newValue in
+                saveDisplayPreference(\.showDepartment, newValue)
+            }
+            .onChange(of: showYear) { newValue in
+                saveDisplayPreference(\.showYear, newValue)
+            }
+            .onChange(of: showBadge) { newValue in
+                saveDisplayPreference(\.showBadge, newValue)
+            }
         }
+        .communityDepartmentChooser(profileManager)
     }
 
-    private var profilePreviewLine: String {
-        var preview = profileManager.profile
-        preview.showDepartment = showDepartment
-        preview.showYear = showYear
-        preview.showBadge = showBadge
-        return preview.displayLine
+    private func saveDisplayPreference(_ keyPath: WritableKeyPath<CommunityProfile, Bool>, _ value: Bool) {
+        guard profileManager.profile[keyPath: keyPath] != value else { return }
+        profileManager.profile[keyPath: keyPath] = value
+        profileManager.saveProfile()
+        profileManager.authStatusMessage = String(localized: "community_profile_saved")
     }
 
-    private func save() {
+    private var departmentOptions: [String] {
+        var names = Set(CommunityProfileManager.allDepartmentNames)
+        if !profileManager.profile.department.isEmpty {
+            names.insert(profileManager.profile.department)
+        }
+        return names.sorted()
+    }
+
+    private func saveNickname() {
         let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
         profileManager.profile.nickname = trimmedNickname.isEmpty ? CommunityProfileManager.ensureDefaultNickname(deviceId: profileManager.profile.deviceId) : trimmedNickname
-        profileManager.profile.showDepartment = showDepartment
-        profileManager.profile.showYear = showYear
-        profileManager.profile.showBadge = showBadge
         profileManager.saveProfile()
         nickname = profileManager.profile.nickname
         profileManager.authStatusMessage = String(localized: "community_profile_saved")
+    }
+
+    private func saveEntryYear() {
+        profileManager.updateEntryYear(entryYearText)
+        entryYearText = profileManager.profile.entryYear
     }
 }
 
 private func relativeTime(_ date: Date) -> String {
     let formatter = RelativeDateTimeFormatter()
-    formatter.locale = Locale(identifier: "zh_Hant_TW")
+    formatter.locale = .current
     formatter.unitsStyle = .short
     return formatter.localizedString(for: date, relativeTo: Date())
 }
@@ -2364,11 +3965,20 @@ private func authorProfileLine(department: String, entryYear: String, showsYear:
     return parts.joined(separator: " · ")
 }
 
+private func communityAuthorDisplayName(storedName: String, authorDeviceId: String, currentDeviceId: String, currentNickname: String) -> String {
+    if !authorDeviceId.isEmpty, authorDeviceId == currentDeviceId {
+        let trimmedNickname = currentNickname.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedNickname.isEmpty { return trimmedNickname }
+        return CommunityProfileManager.currentNicknameDisplayName()
+    }
+    return storedName
+}
+
 private func badgeLevel(from rawValue: Int) -> CommentBadgeManager.BadgeLevel {
     CommentBadgeManager.BadgeLevel(rawValue: rawValue) ?? .newbie
 }
 
-private func authorBadgeLevel(from data: [String: Any]) -> Int {
+private func communityAuthorBadgeLevel(from data: [String: Any]) -> Int {
     if let level = data["authorBadgeLevel"] as? Int {
         return badgeLevel(from: level).rawValue
     }
@@ -2379,6 +3989,10 @@ private func authorBadgeLevel(from data: [String: Any]) -> Int {
 }
 
 private func communityDate(from value: Any?) -> Date {
+    communityOptionalDate(from: value) ?? Date()
+}
+
+private func communityOptionalDate(from value: Any?) -> Date? {
     if let timestamp = value as? Timestamp {
         return timestamp.dateValue()
     }
@@ -2399,7 +4013,13 @@ private func communityDate(from value: Any?) -> Date {
     if let seconds = value as? TimeInterval {
         return Date(timeIntervalSince1970: seconds)
     }
-    return Date()
+    return nil
+}
+
+private func communityBodyPreview(_ body: String) -> String {
+    let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard trimmed.count > 120 else { return trimmed }
+    return String(trimmed.prefix(120)) + "..."
 }
 
 private func currentGradeLine(entryYear: String, now: Date = Date()) -> String? {
@@ -2409,7 +4029,8 @@ private func currentGradeLine(entryYear: String, now: Date = Date()) -> String? 
     let year = calendar.component(.year, from: now)
     let month = calendar.component(.month, from: now)
     let rocYear = year - 1911
-    let academicYear = month >= 9 ? rocYear : rocYear - 1
+    // 台灣學年度自 8 月 1 日起算，年級顯示隨日期自動晉級
+    let academicYear = month >= 8 ? rocYear : rocYear - 1
     let grade = academicYear - entryYear + 1
 
     switch grade {

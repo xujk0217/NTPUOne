@@ -1,61 +1,46 @@
-# NTPUOne Community Notifications
+# NTPUOne Firebase
 
-This folder is a deployable Firebase Cloud Functions reference for community push notifications
-and secure community content ownership actions.
+This folder contains the Firebase project configuration for NTPUOne.
+
+Community topic/reply creation and ownership work on the Firebase **Spark plan**
+through Firestore security rules plus Firebase Auth private owner documents.
+The iOS app writes all community data with **direct, batched Firestore writes** —
+there are no callable APIs and no Cloud Functions in use.
 
 Run Firebase CLI commands from the `firebase/` directory so `firebase.json` resolves
-`firestore.rules` and the `functions/` source folder correctly.
+`firestore.rules` and `firestore.indexes.json` correctly.
 
-The iOS app writes:
+## Current state (2026-08)
 
-- `communityDeviceTokens/{deviceSecret}`: latest FCM token and local subscription arrays.
-- `communityProfiles/{deviceSecret}`: private profile settings for the local installation.
-- `communityCategorySubscriptions/{category}/devices/{deviceSecret}`: category subscribers.
-- `communityTopicSubscriptions/{topicId}/devices/{deviceSecret}`: topic subscribers.
-- `communityTopics/{topicId}` and `communityTopics/{topicId}/replies/{replyId}`: discussion data.
+- **Community push notifications: disabled.** The previous FCM trigger functions
+  (`notifyCommunityCategorySubscribers`, `notifyCommunityTopicSubscribers`) and the
+  callable content API (`communityContent.js`) were removed. Course-schedule and
+  memo reminders remain local notifications and do not involve this folder.
+- The callable API was removed because it never verified `request.auth` and keyed
+  ownership by a caller-supplied `deviceSecret`, which allowed tampering with other
+  users' content. Any future server API must authenticate every request, derive
+  ownership from `request.auth.uid`, enforce App Check, and apply quotas before it
+  is deployed.
 
-The functions send FCM/APNs pushes when:
+## What the iOS app writes
 
-- a new topic is created in a subscribed category;
-- a new reply is created under a subscribed topic.
-
-The callable functions manage community ownership actions:
-
-- create topics/replies while also creating private owner records;
-- list the current device's owned topics/replies;
-- edit or delete owned topics/replies after checking the private owner record.
-
-Deploying requires Firebase CLI, a configured Firebase project, and APNs/FCM setup for the iOS bundle. This code is not deployed automatically by the app build.
-
-## Required Firebase setup
-
-1. Enable Google as a Firebase Authentication sign-in provider.
-2. Replace the placeholder `CLIENT_ID` and `REVERSED_CLIENT_ID` values in
-   `NTPUOne/GoogleService-Info.plist` with the current iOS app values from the
-   Firebase console.
-3. Replace `REVERSED_CLIENT_ID_PLACEHOLDER` in `NTPUOne/Info.plist` with the same
-   `REVERSED_CLIENT_ID` value so Firebase Auth can receive the OAuth callback.
-4. Configure APNs for the iOS bundle in Firebase Cloud Messaging.
-5. Deploy Firestore rules, indexes, and functions from this directory:
-
-   ```sh
-   firebase deploy --only firestore:rules,firestore:indexes,functions
-   ```
+- `communityDeviceTokens/{deviceSecret}`: FCM token + subscription arrays (requires sign-in).
+- `communityProfiles/{deviceSecret}`: private profile settings for the local installation (requires sign-in).
+- `communityCategorySubscriptions/{category}/devices/{deviceSecret}` / `communityTopicSubscriptions/{topicId}/devices/{deviceSecret}`: subscribers (require sign-in).
+- `communityContentOwners/{uid}/topics|replies`: private ownership index for the signed-in Google account; created atomically together with each public document.
+- `restaurantCommentOwners/{uid}/comments/...`: private ownership index for restaurant comments (created atomically with new comments; legacy comments can be adopted by their original author).
+- `userStats/{uid}`: global comment count used for badge levels.
+- `communityTopics/{topicId}` + replies, `{breakfast,lunch,dinner,MS}/{storeId}/comments/{commentId}`: public discussion data without owner UID fields on newly written documents.
 
 ## Security notes
 
-- Community topics and replies are publicly readable.
-- Device tokens, category subscriptions, and topic subscriptions are not client-readable.
-  Cloud Functions read them with Admin SDK privileges when sending notifications.
-- Private device documents are keyed by a local `communityDeviceSecret`; public
-  `authorDeviceId` values from topics/replies are not enough to update token,
-  profile, or subscription docs.
-- Profiles are not client-readable because public topics include `authorDeviceId`.
-  The app writes profile metadata directly into topics/replies when authors choose to
-  display it.
-- Post and reply edits are limited by private ownership records under
-  `communityContentOwners/{deviceSecret}`. Public `authorDeviceId` values are not
-  enough to edit or delete community content.
-- The iOS app now creates topics/replies through callables so new content can be
-  managed later. Legacy public content without an owner record is intentionally not
-  editable through the management UI.
+- Community topics and replies are publicly readable; device tokens, profiles, and
+  subscriptions are not client-readable and now require authentication to write.
+- Public topics/replies embed a display snapshot (`authorName`, department/year/badge
+  flags) chosen by the author at post time; profile edits fan out updates to owned docs only.
+- `replyCount` is maintained exclusively inside the same atomic batch that creates or
+  deletes a reply; standalone count adjustments are rejected by the rules.
+- Restaurant comments no longer store `authorUid`. Legacy documents that still carry
+  `authorUid` can be edited/deleted only by that exact authenticated account, and the
+  app adopts them into private ownership records then scrubs the field.
+- Badge level `99` (developer) cannot be written by regular client calls.

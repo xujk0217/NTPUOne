@@ -11,10 +11,28 @@ import SafariServices
 struct SchoolPostView: View {
     
     @StateObject private var postManager = PostManager()
+    @StateObject private var studentImpactStore = StudentImpactStore.shared
     @EnvironmentObject var adFree: AdFreeService
+    @ObservedObject var memoManager: MemoManager
+    @ObservedObject var courseData: CourseData
     
     @State private var showSafariView = false
     private let safariURL = URL(string: "https://new.ntpu.edu.tw/news")!
+
+    private func favoriteForPublication(_ publication: Publication) -> EventFavorite {
+        EventFavorite(
+            id: publication.favoriteID,
+            title: publication.favoriteTitle,
+            source: "公告",
+            dateText: publication.favoriteDateText.isEmpty ? nil : publication.favoriteDateText,
+            link: "https://new.ntpu.edu.tw/news",
+            savedAt: Date()
+        )
+    }
+
+    private func togglePublicationFavorite(_ publication: Publication) {
+        studentImpactStore.toggleEventFavorite(favoriteForPublication(publication))
+    }
 
     
     var body: some View {
@@ -22,18 +40,34 @@ struct SchoolPostView: View {
             List {
                 ForEach(postManager.publications, id: \._id) { publication in
                     if publication.title != "" {
-                        NavigationLink {
-                            PostDetailView(publication: publication)
-                        } label: {
-                            VStack(alignment: .leading) {
-                                Text(publication.title ?? "No Title")
-                                    .font(.headline)
-                                Text(publication.createdAt?.prefix(10) ?? "No Time")
-                                    .font(.subheadline)
+                        HStack(spacing: 10) {
+                            NavigationLink {
+                                PostDetailView(memoManager: memoManager, courseData: courseData, publication: publication)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(publication.favoriteTitle)
+                                        .font(.headline)
+                                        .foregroundStyle(.primary)
+                                    Text(publication.favoriteDateText.isEmpty ? String(localized: "time_unprovided") : publication.favoriteDateText)
+                                        .font(.subheadline)
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+
+                            Button {
+                                togglePublicationFavorite(publication)
+                            } label: {
+                                Image(systemName: studentImpactStore.isEventFavorite(id: publication.favoriteID) ? "star" : "star")
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.yellow)
+                                    .frame(width: 34, height: 34)
+                                    .background(Color.yellow.opacity(0.14), in: Circle())
                         }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(studentImpactStore.isEventFavorite(id: publication.favoriteID) ? String(localized: "favorite_remove") : String(localized: "favorite_add"))
                     }
                 }
+            }
                 
                 // Native 廣告 Section
                 if !adFree.isAdFree {
@@ -65,5 +99,5 @@ struct SchoolPostView: View {
 }
 
 #Preview {
-    SchoolPostView()
+    SchoolPostView(memoManager: MemoManager(), courseData: CourseData())
 }

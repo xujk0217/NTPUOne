@@ -122,6 +122,18 @@ struct Publication: Codable {
     let coverImage: CoverImage?
     let bannerLink: String?
     let files: [File]?
+
+    var favoriteID: String {
+        "publication:\(_id)"
+    }
+
+    var favoriteTitle: String {
+        title ?? String(localized: "official_post_default_title")
+    }
+
+    var favoriteDateText: String {
+        String(createdAt?.prefix(10) ?? "")
+    }
 }
 
 struct CoverImage: Codable {

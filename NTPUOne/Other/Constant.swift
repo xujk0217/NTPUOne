@@ -8,7 +8,12 @@
 import Foundation
 
 struct K{
-//    static let 
+//    static let
+    struct Community {
+        /// 交流區通知總開關（2026-08 暫停：推播函式已移除、本地 fallback 已停用）。
+        /// 課表、備忘錄等本地通知不受影響。要重啟時改回 true 並重新部署 functions。
+        static let notificationsEnabled = false
+    }
     struct Web{
         static let NTPUurl = "https://new.ntpu.edu.tw/"
     }

@@ -59,8 +59,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         FirebaseApp.configure()
         
         AppCheck.appCheck().token(forcingRefresh: true) { token, error in
-            if let token = token {
-                print("✅ AppCheck token: \(token.token)")
+            if token != nil {
+                print("✅ AppCheck token refreshed")
             } else if let error = error {
                 print("❌ AppCheck failed: \(error.localizedDescription)")
             } else {
@@ -69,8 +69,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
         
         AppCheck.appCheck().token(forcingRefresh: true) { tokenResult, error in
-            if let token = tokenResult?.token {
-                print("✅ App Check token: \(token)")
+            if tokenResult?.token != nil {
+                print("✅ App Check token available")
             } else if let error = error {
                 print("❌ Failed to get App Check token: \(error.localizedDescription)")
             }
@@ -84,13 +84,15 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         WidgetCenter.shared.reloadAllTimelines()
         UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
-        Self.registerCommunityNotificationRefreshTask()
-        Self.scheduleCommunityNotificationRefresh()
-        Messaging.messaging().token { token, error in
-            if let error {
-                print("❌ FCM token fetch failed: \(error.localizedDescription)")
-            } else if let token {
-                Self.persistCommunityFCMToken(token)
+        if K.Community.notificationsEnabled {
+            Self.registerCommunityNotificationRefreshTask()
+            Self.scheduleCommunityNotificationRefresh()
+            Messaging.messaging().token { token, error in
+                if let error {
+                    print("❌ FCM token fetch failed: \(error.localizedDescription)")
+                } else if let token {
+                    Self.persistCommunityFCMToken(token)
+                }
             }
         }
 
@@ -116,6 +118,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
         Messaging.messaging().apnsToken = deviceToken
+        guard K.Community.notificationsEnabled else { return }
         Messaging.messaging().token { token, error in
             if let error {
                 print("❌ FCM token refresh after APNs registration failed: \(error.localizedDescription)")
@@ -126,11 +129,12 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
-        guard let fcmToken else { return }
+        guard K.Community.notificationsEnabled, let fcmToken else { return }
         Self.persistCommunityFCMToken(fcmToken)
     }
 
     static func requestCommunityNotificationRegistration() {
+        guard K.Community.notificationsEnabled else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             if let error {
                 print("❌ Community notification permission failed: \(error.localizedDescription)")
@@ -196,6 +200,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     private static func persistCommunityFCMToken(_ token: String) {
+        guard K.Community.notificationsEnabled else { return }
         let defaults = UserDefaults.standard
         let key = "commentDeviceId"
         let deviceId: String
@@ -338,9 +343,11 @@ struct NTPUOneApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     let persistenceController = PersistenceController.shared
     @StateObject private var adFree = AdFreeService.shared
+    @StateObject private var courseData: CourseData
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
+        self._courseData = StateObject(wrappedValue: CourseData(context: PersistenceController.shared.container.viewContext))
         incrementLaunchCount()
     }
 
@@ -348,16 +355,21 @@ struct NTPUOneApp: App {
         WindowGroup {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(CourseData(context: persistenceController.container.viewContext))
+                .environmentObject(courseData)
                 .environmentObject(adFree)
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 adFree.refresh()   // 回到前景時刷新到期狀態
                 WidgetCenter.shared.reloadAllTimelines()  // 刷新所有 Widget
-                CommunityNotificationFallbackService.shared.refresh(source: "foreground")
+                courseData.refreshNextCourseLiveActivity()
+                if K.Community.notificationsEnabled {
+                    CommunityNotificationFallbackService.shared.refresh(source: "foreground")
+                }
             } else if phase == .background {
-                AppDelegate.scheduleCommunityNotificationRefresh()
+                if K.Community.notificationsEnabled {
+                    AppDelegate.scheduleCommunityNotificationRefresh()
+                }
             }
         }
     }
