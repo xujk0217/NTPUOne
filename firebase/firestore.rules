@@ -311,23 +311,33 @@ service cloud.firestore {
         : 0;
     }
 
-    function topicReplyCountIncrementedByOne(topicId) {
+    function hasCoupledReplyCountIncrement(topicId, replyId, mutationId) {
       let nextTopic = getAfter(publicTopicPath(topicId)).data;
       return hasAuth()
         && exists(publicTopicPath(topicId))
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+        && nextTopic.replyCount is int
+        && nextTopic.replyCount == currentTopicReplyCount(topicId) + 1
+        && nextTopic.lastReplyId == replyId
+        && nextTopic.lastReplyMutationId == mutationId
+        // 新回覆必須和計數同批建立，並以一次性識別碼綁定，不能單獨灌 replyCount。
+        && !exists(publicReplyPath(topicId, replyId))
+        && getAfter(publicReplyPath(topicId, replyId)).data.replyMutationId == mutationId;
+    }
+
+    function topicReplyCountIncrementedByOne(topicId) {
+      let nextTopic = getAfter(publicTopicPath(topicId)).data;
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'replyCount',
           'lastReplyId',
           'lastReplyMutationId'
         ])
-        && nextTopic.replyCount is int
         && nextTopic.lastReplyId is string
         && nextTopic.lastReplyMutationId is string
-        && nextTopic.replyCount == currentTopicReplyCount(topicId) + 1
-        // 新回覆必須和計數同批建立，並以一次性識別碼綁定，不能單獨灌 replyCount。
-        && !exists(publicReplyPath(topicId, nextTopic.lastReplyId))
-        && getAfter(publicReplyPath(topicId, nextTopic.lastReplyId)).data.replyMutationId
-          == nextTopic.lastReplyMutationId;
+        && hasCoupledReplyCountIncrement(
+          topicId,
+          nextTopic.lastReplyId,
+          nextTopic.lastReplyMutationId
+        );
     }
 
     function topicReplyCountDecrementedByOne(topicId) {
@@ -582,7 +592,7 @@ service cloud.firestore {
         && isAllowedReplyCreate()
         && canCreateReplyForTopic(topicId)
         && createsReplyOwner(topicId, replyId)
-        && topicReplyCountIncrementedByOne(topicId);
+        && hasCoupledReplyCountIncrement(topicId, replyId, request.resource.data.replyMutationId);
       // 管理員可繞過擁有者驗證（App 端仍會同批維護 replyCount 與 owner 文件）
       allow update: if isOwnedReplyUpdate(topicId, replyId) || isAdminOrDeveloper();
       allow delete: if (hasReplyOwner(topicId, replyId)
