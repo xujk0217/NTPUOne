@@ -2070,6 +2070,7 @@ private final class CommunityReplyManager: ObservableObject {
             let replyRef = topicRef.collection("replies").document()
             let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("replies").document("\(topicID)_\(replyRef.documentID)")
             let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let replyMutationId = UUID().uuidString
             let now = FieldValue.serverTimestamp()
             let batch = db.batch()
 
@@ -2082,9 +2083,14 @@ private final class CommunityReplyManager: ObservableObject {
                 "authorShowsYear": publishYear,
                 "authorShowsBadge": publishBadge,
                 "authorBadgeLevel": publishBadge ? CommentBadgeManager.shared.getCurrentBadge().rawValue : CommentBadgeManager.BadgeLevel.newbie.rawValue,
+                "replyMutationId": replyMutationId,
                 "createdAt": now
             ], forDocument: replyRef)
-            batch.updateData(["replyCount": FieldValue.increment(Int64(1))], forDocument: topicRef)
+            batch.updateData([
+                "replyCount": FieldValue.increment(Int64(1)),
+                "lastReplyId": replyRef.documentID,
+                "lastReplyMutationId": replyMutationId
+            ], forDocument: topicRef)
             batch.setData([
                 "ownerUid": user.uid,
                 "topicId": topicID,

@@ -261,6 +261,7 @@ service cloud.firestore {
         'authorShowsYear',
         'authorShowsBadge',
         'authorBadgeLevel',
+        'replyMutationId',
         'createdAt'
       ])
         && isValidCommunityStringUpTo(request.resource.data.body, 2000)
@@ -272,7 +273,8 @@ service cloud.firestore {
         && request.resource.data.authorEntryYear.size() <= 10
         && request.resource.data.authorShowsYear is bool
         && request.resource.data.authorShowsBadge is bool
-        && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel);
+        && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel)
+        && isValidCommunityStringUpTo(request.resource.data.replyMutationId, 64);
     }
 
     function topicOwnerPath(topicId) {
@@ -301,10 +303,31 @@ service cloud.firestore {
     }
 
     // replyCount 只能在「同一批次建立/刪除回覆」時變動，杜絕獨立 ±1 竄改
+    function currentTopicReplyCount(topicId) {
+      let topic = get(publicTopicPath(topicId)).data;
+      // 舊貼文可能沒有 replyCount；第一次回覆時將它視為 0。
+      return topic.keys().hasAny(['replyCount']) && topic.replyCount is int
+        ? topic.replyCount
+        : 0;
+    }
+
     function topicReplyCountIncrementedByOne(topicId) {
-      return exists(publicTopicPath(topicId))
-        && getAfter(publicTopicPath(topicId)).data.replyCount
-          == get(publicTopicPath(topicId)).data.replyCount + 1;
+      let nextTopic = getAfter(publicTopicPath(topicId)).data;
+      return hasAuth()
+        && exists(publicTopicPath(topicId))
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'replyCount',
+          'lastReplyId',
+          'lastReplyMutationId'
+        ])
+        && nextTopic.replyCount is int
+        && nextTopic.lastReplyId is string
+        && nextTopic.lastReplyMutationId is string
+        && nextTopic.replyCount == currentTopicReplyCount(topicId) + 1
+        // 新回覆必須和計數同批建立，並以一次性識別碼綁定，不能單獨灌 replyCount。
+        && !exists(publicReplyPath(topicId, nextTopic.lastReplyId))
+        && getAfter(publicReplyPath(topicId, nextTopic.lastReplyId)).data.replyMutationId
+          == nextTopic.lastReplyMutationId;
     }
 
     function topicReplyCountDecrementedByOne(topicId) {
@@ -545,6 +568,7 @@ service cloud.firestore {
       allow update: if isOwnedTopicContentUpdate(topicId)
         || isOwnedTopicDisplayUpdate(topicId)
         || isOwnedTopicDeleteUpdate(topicId)
+        || topicReplyCountIncrementedByOne(topicId)
         || isTopicReplyCountDecrementOnly()
         || isTopicLikeCountAdjust()
         || isAdminOrDeveloper();
