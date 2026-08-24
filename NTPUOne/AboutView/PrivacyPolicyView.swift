@@ -57,7 +57,7 @@ struct PrivacyPolicyView: View {
                     NavigationLink {
                         PrivacyDataControlsView()
                     } label: {
-                        Label(String(localized: "privacy_data_controls"), systemImage: "lock.shield.fill")
+                        Label(String(localized: "privacy_data_controls"), systemImage: "lock.shield")
                     }
 
                     Link("AdMob / Google Privacy", destination: URL(string: "https://policies.google.com/privacy")!)
@@ -67,7 +67,7 @@ struct PrivacyPolicyView: View {
                     NavigationLink {
                         ContactMeView()
                     } label: {
-                        Label(String(localized: "contact_developer"), systemImage: "envelope.fill")
+                        Label(String(localized: "contact_developer"), systemImage: "envelope")
                     }
                 } header: {
                     Text(String(localized: "privacy_policy_links_title"))

@@ -78,7 +78,7 @@ struct ContactMeView: View {
             // Email
             Section("Email") {
                 ContactLinkRow(
-                    icon: "envelope.fill",
+                    icon: "envelope",
                     tint: .indigo,
                     title: "Email",
                     subtitle: "kevin16021777@gmail.com",
@@ -89,19 +89,6 @@ struct ContactMeView: View {
                 .contextMenu {
                     Button(String(localized: "copy_email"), systemImage: "doc.on.doc") {
                         UIPasteboard.general.string = "kevin16021777@gmail.com"
-                    }
-                }
-            }
-            if isAdmin {
-                Section("Admin"){
-                    VStack(spacing: 15) {
-                        Text(String(localized: "you_are_admin"))
-                            .foregroundColor(.green)
-
-                        Button(String(localized: "logout_admin")) {
-                            isAdmin = false
-                        }
-                        .foregroundColor(.red)
                     }
                 }
             }
@@ -116,6 +103,7 @@ struct ContactMeView: View {
             Button(String(localized: "confirm")) {
                 if passwordInput == correctPassword {
                     isAdmin = true   // ✅ 登入成功
+                    CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
                     adFree.refresh()
                 } else {
                     showWrongPasswordAlert = true

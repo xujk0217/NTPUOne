@@ -26,7 +26,7 @@ struct CrawledBanner: Identifiable, Equatable {
     /// 轉換為備取 Order
     func toPendingOrder() -> PendingOrder {
         PendingOrder(
-            message: "請更新至最新版本以查看新的公告類型",
+            message: altText.isEmpty ? "北大輪播公告" : altText,
             name: altText,         // 公告標題作為作者
             url: fullURL,
             tag: "3",

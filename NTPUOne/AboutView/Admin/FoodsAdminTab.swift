@@ -262,7 +262,7 @@ private struct ApproveBadge: View {
     let approved: Bool
     var body: some View {
         Label(approved ? "已審核" : "未審核",
-              systemImage: approved ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
+              systemImage: approved ? "checkmark.seal" : "exclamationmark.triangle")
             .font(.caption2)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)

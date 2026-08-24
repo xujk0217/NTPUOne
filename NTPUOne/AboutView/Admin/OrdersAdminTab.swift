@@ -534,12 +534,12 @@ struct CrawlerSheet: View {
                                 Button {
                                     showUploadAll = true
                                 } label: {
-                                    Label("全部上傳", systemImage: "arrow.up.circle.fill")
+                                    Label("全部上傳", systemImage: "arrow.up.circle")
                                 }
                                 Button(role: .destructive) {
                                     showReplaceConfirm = true
                                 } label: {
-                                    Label("替換舊資料並上傳", systemImage: "arrow.triangle.2.circlepath.circle.fill")
+                                    Label("替換舊資料並上傳", systemImage: "arrow.triangle.2.circlepath.circle")
                                 }
                             } label: {
                                 Image(systemName: "ellipsis.circle")
@@ -703,7 +703,7 @@ private struct PendingOrderRow: View {
             // 已存在標籤
             if isDuplicate {
                 HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
+                    Image(systemName: "checkmark.circle")
                     Text("已存在於資料庫")
                 }
                 .font(.caption.weight(.semibold))

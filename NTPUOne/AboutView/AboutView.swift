@@ -19,9 +19,11 @@ import UserNotifications
 struct AboutView: View {
     //about rewardAds
     @StateObject private var rewardAd = RewardedAd()
-    @ObservedObject private var rewardedManager = RewardedAdManager.shared
+    @ObservedObject private var rewardedAdManager = RewardedAdManager.shared
     @EnvironmentObject var adFree: AdFreeService
     @State private var isReward = false
+    @State private var showAdConfirm = false
+    @State private var showAdNotReadyAlert = false
     
     // adview
     @State private var adHeight: CGFloat = 100
@@ -29,7 +31,6 @@ struct AboutView: View {
     
     //admin
     @AppStorage("isAdmin") private var isAdmin: Bool = false
-    @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
 
     // 個人設定
     @AppStorage("commentNickname") private var nickname: String = ""
@@ -40,157 +41,25 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
-                // MARK: - 帳號與偏好
-                Section {
-                    NavigationLink {
-                        CommunityProfileView(profileManager: communityProfileManager)
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "person.text.rectangle.fill")
-                                .foregroundStyle(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "community_profile_title"))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "community_profile_subtitle"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    NavigationLink {
-                        CommunityMyContentView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "tray.full.fill")
-                                .foregroundStyle(.blue)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "community_my_content_title"))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "community_my_content_subtitle"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    // 評論獎勵系統（放在交流身份下方）
-                    NavigationLink {
-                        CommentRewardInfoView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            BadgeTagView(badge: CommentBadgeManager.shared.getCurrentBadge(), compact: false)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "comment_reward_system"))
-                                    .foregroundStyle(.primary)
-                                Text(String(format: String(localized: "total_comments_format"), CommentBadgeManager.shared.totalComments))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            
-                            Spacer()
-                        }
-                    }
-
-                    NavigationLink {
-                        PrivacyDataControlsView()
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "lock.shield.fill")
-                                .foregroundStyle(.green)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "privacy_data_controls"))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "privacy_data_controls_subtitle"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                    }
-
-                    Button {
-                        hasCompletedFirstRunOnboarding = false
-                        showOnboarding = true
-                    } label: {
-                        HStack(spacing: 12) {
-                            Image(systemName: "sparkles.rectangle.stack.fill")
-                                .foregroundStyle(.orange)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(String(localized: "show_onboarding_again"))
-                                    .foregroundStyle(.primary)
-                                Text(String(localized: "show_onboarding_again_subtitle"))
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                        }
-                    }
-                    .accessibilityLabel(String(localized: "show_onboarding_again_accessibility"))
-
-                    // 廣告設定
-                    if !isAdmin {
-                        if adFree.isAdFree {
-                            HStack {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .foregroundStyle(.green)
-                                Text(String(localized: "no_banner_today"))
-                                    .foregroundStyle(.secondary)
-                                Spacer()
-                                Button(String(localized: "reset")) {
-                                    adFree.clear()
-                                    rewardedManager.preload()
-                                }
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            }
-                        } else {
-                            Button {
-                                showRewarded()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "play.rectangle.fill")
-                                        .foregroundStyle(.blue)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(String(localized: "watch_30s_no_banner"))
-                                            .foregroundStyle(.primary)
-                                        Text(rewardedManager.isLoading ? String(localized: "loading") : String(format: String(localized: "watch_30s_remaining %lld"), rewardedManager.remainingViews))
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                            }
-                            .disabled(rewardedManager.isLoading || !rewardedManager.isReady)
-                        }
-                    }
-                } header: {
-                    Label(String(localized: "account_and_preferences"), systemImage: "gearshape.fill")
-                } footer: {
-                    Text(String(localized: "my_center_account_footer"))
-                }
-                
-                // Admin 區塊
-                if isAdmin {
+                // Admin 區塊（密碼解鎖＋專屬信箱雙重確認）
+                if isAdmin, CommunityProfileManager.isPrivilegedAdminEmail {
                     Section {
                         NavigationLink {
                             AdminConsoleView()
                         } label: {
-                            Label(String(localized: "admin_console"), systemImage: "shield.fill")
+                            Label(String(localized: "admin_console"), systemImage: "shield")
                         }
+                    } header: {
+                        Label(String(localized: "admin_console"), systemImage: "shield")
                     }
                 }
 
-                // MARK: - 互動
                 Section {
                     Button {
                         isReward = true
                     } label: {
                         HStack {
-                            Image(systemName: "megaphone.fill")
+                            Image(systemName: "megaphone")
                                 .foregroundStyle(.purple)
                             Text(String(localized: "navigation_add_announcement"))
                                 .foregroundStyle(.primary)
@@ -207,12 +76,29 @@ struct AboutView: View {
                         Label(String(localized: "new_student_checklist_title"), systemImage: "checklist.checked")
                             .foregroundStyle(.primary)
                     }
-                    
+                } header: {
+                    Label(String(localized: "student_app_tools"), systemImage: "wrench.and.screwdriver")
+                }
+
+                Section {
+                    Button {
+                        showOnboarding = true
+                    } label: {
+                        Label(String(localized: "show_onboarding_again"), systemImage: "sparkles.tv")
+                            .foregroundStyle(.primary)
+                    }
+
+                    adPreferencesRow
+                } header: {
+                    Label(String(localized: "ad_preferences_section"), systemImage: "slider.horizontal.3")
+                }
+
+                Section {
                     NavigationLink {
                         FeaturesView()
                             .navigationTitle(String(localized: "feature_suggestion"))
                     } label: {
-                        Label(String(localized: "feature_suggestion"), systemImage: "lightbulb.fill")
+                        Label(String(localized: "feature_suggestion"), systemImage: "lightbulb")
                             .foregroundStyle(.primary)
                     }
                     
@@ -220,13 +106,11 @@ struct AboutView: View {
                         ReportBugView()
                             .navigationTitle(String(localized: "report_bug"))
                     } label: {
-                        Label(String(localized: "report_bug"), systemImage: "ladybug.fill")
+                        Label(String(localized: "report_bug"), systemImage: "ladybug")
                             .foregroundStyle(.primary)
                     }
                 } header: {
-                    Label(String(localized: "interaction"), systemImage: "bubble.left.and.bubble.right.fill")
-                } footer: {
-                    Text(String(localized: "feature_suggestion"))
+                    Label(String(localized: "feedback_section"), systemImage: "bubble.left.and.bubble.right")
                 }
                 
                 // MARK: - 關於
@@ -234,18 +118,18 @@ struct AboutView: View {
                     NavigationLink {
                         ContactMeView()
                     } label: {
-                        Label(String(localized: "contact_developer"), systemImage: "envelope.fill")
+                        Label(String(localized: "contact_developer"), systemImage: "envelope")
                             .foregroundStyle(.primary)
                     }
                     
                     NavigationLink {
                         PrivacyPolicyView()
                     } label: {
-                        Label(String(localized: "privacy_policy"), systemImage: "hand.raised.fill")
+                        Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
                             .foregroundStyle(.primary)
                     }
                 } header: {
-                    Label(String(localized: "my"), systemImage: "person.crop.circle.fill")
+                    Label(String(localized: "about"), systemImage: "info.circle")
                 }
                 
                 // 原生廣告（放在最底部，不干擾功能流程）
@@ -259,21 +143,39 @@ struct AboutView: View {
             }
             .navigationTitle(String(localized: "my"))
             .navigationBarTitleDisplayMode(.large)
-            .onAppear { rewardedManager.preload() }
-            .fullScreenCover(isPresented: $showOnboarding) {
-                FirstRunOnboardingView {
-                    hasCompletedFirstRunOnboarding = true
-                    showOnboarding = false
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    NavigationLink {
+                        AccountCenterView(
+                            communityProfileManager: communityProfileManager
+                        )
+                    } label: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                    .accessibilityLabel(String(localized: "account_center_accessibility"))
                 }
-                .interactiveDismissDisabled()
             }
             .navigationDestination(isPresented: $isReward) {
                 AddOrderView(rewardAd: rewardAd)
             }
-            .onChange(of: isReward) { newValue in
-                if !newValue {
-                    rewardedManager.preload()
+            .fullScreenCover(isPresented: $showOnboarding) {
+                FirstRunOnboardingView {
+                    showOnboarding = false
                 }
+                .interactiveDismissDisabled()
+            }
+            .alert(String(localized: "disable_today_banner_title"), isPresented: $showAdConfirm) {
+                Button(String(localized: "cancel"), role: .cancel) { }
+                Button(String(localized: "start_watching")) {
+                    showRewardedAdFreeReward()
+                }
+            } message: {
+                Text(String(localized: "watch_ad_hint"))
+            }
+            .alert(String(localized: "video_not_ready"), isPresented: $showAdNotReadyAlert) {
+                Button(String(localized: "ok"), role: .cancel) { }
+            } message: {
+                Text(rewardedAdManager.remainingViews > 0 ? String(localized: "loading_ad_retry") : String(localized: "daily_view_limit_reached"))
             }
         }
         .onAppear {
@@ -281,159 +183,310 @@ struct AboutView: View {
             if nickname.isEmpty {
                 nickname = String(format: String(localized: "community_default_user_format"), String(deviceId.prefix(4)).uppercased())
             }
+            if !adFree.isAdFree {
+                rewardedAdManager.preload()
+            }
+        }
+        .communityDepartmentChooser(communityProfileManager)
+    }
+
+    @ViewBuilder
+    private var adPreferencesRow: some View {
+        if adFree.isAdFree {
+            HStack {
+                Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal")
+                    .foregroundStyle(.green)
+                Spacer()
+                Button(String(localized: "show_ads_again")) {
+                    adFree.clear()
+                    rewardedAdManager.preload()
+                }
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+        } else {
+            Button {
+                if rewardedAdManager.isLoading { return }
+                showAdConfirm = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "film.stack")
+                        .foregroundStyle(.orange)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(String(localized: "watch_ad"))
+                            .foregroundStyle(.primary)
+                    }
+                    Spacer()
+                    if rewardedAdManager.isLoading {
+                        ProgressView()
+                            .controlSize(.small)
+                    } else {
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            .disabled(rewardedAdManager.isLoading)
         }
     }
-    private func showRewarded() {
-        rewardedManager.present {
+
+    private func showRewardedAdFreeReward() {
+        guard rewardedAdManager.isReady, !rewardedAdManager.isLoading else {
+            showAdNotReadyAlert = true
+            rewardedAdManager.preload()
+            return
+        }
+
+        let presented = rewardedAdManager.present(onReward: {
             adFree.grantForTodayEnd()
-        } onDismiss: {
+        })
+
+        if !presented {
+            showAdNotReadyAlert = true
+            rewardedAdManager.preload()
         }
     }
 }
 
-struct PrivacyDataControlsView: View {
-    @AppStorage("communityDeviceSecret") private var deviceSecret: String = ""
-    @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
-
-    @State private var showLocalResetConfirmation = false
-    @State private var showRemoteDeleteConfirmation = false
-    @State private var isDeletingRemoteData = false
-    @State private var statusMessage: String?
-
-    private let communityFunctions = CommunityContentFunctionsService()
+private struct AccountCenterView: View {
+    @ObservedObject var communityProfileManager: CommunityProfileManager
+    @AppStorage("isAdmin") private var isAdmin: Bool = false
 
     var body: some View {
-        Form {
+        List {
             Section {
-                Label(String(localized: "privacy_data_controls_intro"), systemImage: "lock.shield.fill")
-                    .foregroundStyle(.primary)
-                Text(String(localized: "privacy_data_controls_intro_detail"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                accountHeaderRow
 
-            Section {
-                Button(role: .destructive) {
-                    showLocalResetConfirmation = true
-                } label: {
-                    Label(String(localized: "reset_local_privacy_data"), systemImage: "trash.fill")
-                }
-                .accessibilityLabel(String(localized: "reset_local_privacy_data_accessibility"))
-            } header: {
-                Text(String(localized: "local_data"))
-            } footer: {
-                Text(String(localized: "reset_local_privacy_data_footer"))
-            }
+                if isSignedIn {
+                    Button(role: .destructive) {
+                        communityProfileManager.signOut()
+                    } label: {
+                        Label(String(localized: "account_logout"), systemImage: "rectangle.portrait.and.arrow.right")
+                    }
+                } else {
+                    Text(String(localized: "account_guest_sign_in_explanation"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-            Section {
-                Button(role: .destructive) {
-                    showRemoteDeleteConfirmation = true
-                } label: {
-                    if isDeletingRemoteData {
-                        HStack {
-                            ProgressView()
-                            Text(String(localized: "remote_delete_in_progress"))
-                        }
-                    } else {
-                        Label(String(localized: "request_remote_device_cleanup"), systemImage: "icloud.slash.fill")
+                    Button {
+                        communityProfileManager.signInWithGoogleSchoolEmail()
+                    } label: {
+                        rowLabel(
+                            title: String(localized: "account_google_login"),
+                            systemImage: "person.badge.key",
+                            tint: .blue
+                        )
                     }
                 }
-                .disabled(isDeletingRemoteData || deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                .accessibilityLabel(String(localized: "request_remote_device_cleanup_accessibility"))
-            } header: {
-                Text(String(localized: "remote_private_data"))
-            } footer: {
-                Text(deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? String(localized: "remote_cleanup_no_device_secret") : String(localized: "remote_cleanup_footer"))
+
+            if isAdmin {
+                Section(String(localized: "account_admin_section")) {
+                    Text(String(localized: "you_are_admin"))
+                        .foregroundStyle(.green)
+                    Button(String(localized: "logout_admin")) {
+                        isAdmin = false
+                        CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
+                    }
+                    .foregroundStyle(.red)
+                }
             }
 
-            if let statusMessage {
-                Section {
-                    Text(statusMessage)
+                if let message = communityProfileManager.authStatusMessage {
+                    Label(message, systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Label(String(localized: "account_center"), systemImage: "person.crop.circle")
+            }
+
+            Section {
+                NavigationLink {
+                    CommunityMyContentView()
+                } label: {
+                    rowLabel(
+                        title: String(localized: "community_my_content_title"),
+                        systemImage: "tray.full",
+                        tint: .blue
+                    )
+                }
+
+                NavigationLink {
+                    CommentRewardInfoView()
+                } label: {
+                    HStack(spacing: 12) {
+                        BadgeTagView(badge: CommentBadgeManager.shared.getCurrentBadge(), compact: false)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(format: String(localized: "total_comments_format"), CommentBadgeManager.shared.totalComments))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(String(localized: "comment_reward_system"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                }
+            } header: {
+                Label(String(localized: "community_title"), systemImage: "person.2")
+            }
+
+            Section {
+                NavigationLink {
+                    PrivacyDataControlsView()
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "lock.shield")
+                            .foregroundStyle(.green)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(String(localized: "privacy_data_controls"))
+                                .foregroundStyle(.primary)
+                        }
+                    }
+                }
+            } header: {
+                Label(String(localized: "account_and_preferences"), systemImage: "gearshape")
+            }
+        }
+        .navigationTitle(String(localized: "account_center"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var isSignedIn: Bool {
+        !communityProfileManager.profile.ownerUid.isEmpty
+    }
+
+    private var accountEmail: String? {
+        let ownerEmail = communityProfileManager.profile.ownerEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !ownerEmail.isEmpty { return ownerEmail }
+
+        let schoolEmail = communityProfileManager.profile.schoolEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !schoolEmail.isEmpty { return schoolEmail }
+
+        return nil
+    }
+
+    private var displayPreferenceSummary: String {
+        var parts: [String] = []
+        if communityProfileManager.profile.showDepartment {
+            parts.append(String(localized: "community_public_part_department"))
+        }
+        if communityProfileManager.profile.showYear {
+            parts.append(String(localized: "community_public_part_year"))
+        }
+        if communityProfileManager.profile.showBadge {
+            parts.append(String(localized: "community_public_part_badge"))
+        }
+
+        guard !parts.isEmpty else {
+            return String(localized: "community_public_info_none")
+        }
+
+        return String(format: String(localized: "account_display_preferences_summary_format"), parts.joined(separator: String(localized: "community_list_separator")))
+    }
+
+    @ViewBuilder
+    private var accountHeaderRow: some View {
+        NavigationLink {
+            CommunityProfileView(profileManager: communityProfileManager)
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: isSignedIn ? "checkmark.seal" : "person.crop.circle")
+                    .font(.title3)
+                    .foregroundStyle(isSignedIn ? .green : .secondary)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(CommunityProfileManager.currentAccountDisplayName())
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    if !isSignedIn {
+                        Text(String(localized: "account_guest_status"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if isSignedIn, !communityProfileManager.profile.displayLine.isEmpty {
+                        Text(communityProfileManager.profile.displayLine)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    if isSignedIn, let accountEmail {
+                        Text(accountEmail)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    if isSignedIn {
+                        Text(displayPreferenceSummary)
+                            .font(.caption2)
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+                Spacer()
+            }
+            .padding(.vertical, 4)
+        }
+        .accessibilityLabel(String(localized: "account_display_preferences"))
+        .communityDepartmentChooser(communityProfileManager)
+        .onAppear { communityProfileManager.syncOwnCommentCountFromServer() }
+        .onChange(of: communityProfileManager.profile.ownerUid) { _ in
+            communityProfileManager.syncOwnCommentCountFromServer()
+        }
+    }
+
+    private func rowLabel(title: String, subtitle: String? = nil, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: systemImage)
+                .foregroundStyle(tint)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .foregroundStyle(.primary)
+                if let subtitle {
+                    Text(subtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             }
         }
+    }
+}
+
+struct PrivacyDataControlsView: View {
+    @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
+    @State private var showReshowConfirmation = false
+
+    var body: some View {
+        Form {
+            Section {
+                Label(String(localized: "data_controls_row_icloud"), systemImage: "icloud")
+                    .foregroundStyle(.primary)
+                Label(String(localized: "data_controls_row_community"), systemImage: "person.crop.circle")
+                    .foregroundStyle(.primary)
+                Label(String(localized: "data_controls_row_comments"), systemImage: "bubble.left")
+                    .foregroundStyle(.primary)
+            } header: {
+                Text(String(localized: "privacy_data_controls_intro"))
+            }
+
+            Section {
+                Button {
+                    showReshowConfirmation = true
+                } label: {
+                    Label(String(localized: "data_controls_reshow_onboarding"), systemImage: "sparkles")
+                }
+            } header: {
+                Text(String(localized: "local_data"))
+            }
+        }
         .navigationTitle(String(localized: "privacy_data_controls"))
         .navigationBarTitleDisplayMode(.inline)
-        .alert(String(localized: "reset_local_privacy_data_confirm_title"), isPresented: $showLocalResetConfirmation) {
+        .alert(String(localized: "reset_local_privacy_data_confirm_title"), isPresented: $showReshowConfirmation) {
             Button(String(localized: "cancel"), role: .cancel) { }
-            Button(String(localized: "reset_local_privacy_data_confirm_button"), role: .destructive) {
-                resetLocalData()
+            Button(String(localized: "ok"), role: .destructive) {
+                hasCompletedFirstRunOnboarding = false
             }
         } message: {
-            Text(String(localized: "reset_local_privacy_data_confirm_message"))
-        }
-        .alert(String(localized: "remote_cleanup_confirm_title"), isPresented: $showRemoteDeleteConfirmation) {
-            Button(String(localized: "cancel"), role: .cancel) { }
-            Button(String(localized: "remote_cleanup_confirm_button"), role: .destructive) {
-                requestRemoteCleanup()
-            }
-        } message: {
-            Text(String(localized: "remote_cleanup_confirm_message"))
+            Text(String(localized: "data_controls_reshow_confirm_message"))
         }
     }
-
-    private func resetLocalData() {
-        let defaults = UserDefaults.standard
-        Self.localResetKeys.forEach { defaults.removeObject(forKey: $0) }
-        hasCompletedFirstRunOnboarding = false
-        removePendingCommunityNotifications()
-        statusMessage = String(localized: "local_privacy_data_reset_done")
-    }
-
-    private func requestRemoteCleanup() {
-        let currentDeviceSecret = deviceSecret.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !currentDeviceSecret.isEmpty else {
-            statusMessage = String(localized: "remote_cleanup_no_device_secret")
-            return
-        }
-
-        isDeletingRemoteData = true
-        statusMessage = nil
-        communityFunctions.deleteCommunityDeviceData(deviceSecret: currentDeviceSecret) { error in
-            DispatchQueue.main.async {
-                isDeletingRemoteData = false
-                if let error {
-                    statusMessage = String(format: String(localized: "remote_cleanup_failed_format"), error.localizedDescription)
-                } else {
-                    statusMessage = String(localized: "remote_cleanup_requested_done")
-                }
-            }
-        }
-    }
-
-    private func removePendingCommunityNotifications() {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let identifiers = requests
-                .map(\.identifier)
-                .filter { $0.hasPrefix("community.topic.") || $0.hasPrefix("community.reply.") }
-            guard !identifiers.isEmpty else { return }
-            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
-        }
-    }
-
-    private static let localResetKeys = [
-        "hasCompletedFirstRunOnboarding",
-        "commentNickname",
-        "commentDeviceId",
-        "communityDeviceSecret",
-        "communitySchoolEmail",
-        "communityDepartment",
-        "communityEntryYear",
-        "communityShowDepartment",
-        "communityShowYear",
-        "communityShowBadge",
-        "communityOwnerUid",
-        "communityOwnerEmail",
-        "communityCategorySubscriptions",
-        "communityTopicSubscriptions",
-        "communityNotificationLastRefreshAt",
-        "communityNotificationCategoryBaselines",
-        "communityNotificationTopicBaselines",
-        "communityNotificationSeenTopicIDs",
-        "communityNotificationSeenReplyIDsByTopic"
-    ]
 }
 
 #Preview {
