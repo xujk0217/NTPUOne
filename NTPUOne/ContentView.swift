@@ -2324,8 +2324,7 @@ private struct CommunityView: View {
                             }
                                 .font(.caption.weight(.semibold))
                                 .padding(.leading, 11)
-                                // 非「全部」分類在通知按鈕關閉時也要保留右側留白，避免文字貼齊膠囊邊界。
-                                .padding(.trailing, category == .all ? 11 : 12)
+                                .padding(.trailing, 12)
                                 .padding(.vertical, 8)
                                 .foregroundStyle(selectedCategory == category ? .white : category.tint)
                         }
