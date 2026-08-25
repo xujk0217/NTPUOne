@@ -217,6 +217,11 @@ final class CommunityAdminModel: ObservableObject {
         ]
 
         func finishOwnerCleanup(_ success: Bool) {
+            if success {
+                Task { @MainActor in
+                    await CommunityImageService.shared.deleteImage(topicID: topic.id)
+                }
+            }
             cleanupOwnerDocs(group: "topics", matchField: "topicId", equals: topic.id) {
                 DispatchQueue.main.async { completion?(success) }
             }

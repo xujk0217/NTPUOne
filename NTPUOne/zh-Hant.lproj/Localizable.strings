@@ -1154,6 +1154,17 @@
 "community_guest_display_name" = "訪客";
 "community_category_section" = "分類";
 "community_topic_section" = "主題";
+"community_image_section" = "圖片（選填）";
+"community_image_select" = "選擇圖片";
+"community_image_replace" = "更換圖片";
+"community_image_remove" = "移除圖片";
+"community_image_preparing" = "正在處理圖片…";
+"community_image_footer" = "每篇限一張，會自動縮圖與壓縮，上傳檔案不超過 2 MB；上傳需要登入 iCloud。";
+"community_image_invalid" = "無法讀取這張圖片";
+"community_image_too_large" = "圖片壓縮後仍超過 2 MB，請改選其他圖片";
+"community_image_icloud_required" = "上傳圖片需要先登入 iCloud";
+"community_image_load_failed" = "圖片載入失敗";
+"community_image_attached" = "含圖片";
 "community_topic_title_placeholder" = "標題";
 "community_topic_body_placeholder" = "想說什麼？";
 "community_content_placeholder" = "內容";

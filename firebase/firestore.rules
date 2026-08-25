@@ -233,7 +233,8 @@ service cloud.firestore {
         'authorBadgeLevel',
         'createdAt',
         'replyCount',
-        'likeCount'
+        'likeCount',
+        'imageRecordName'
       ])
         && isValidCommunityStringUpTo(request.resource.data.title, 120)
         && isValidCommunityStringUpTo(request.resource.data.body, 4000)
@@ -247,6 +248,8 @@ service cloud.firestore {
         && request.resource.data.authorShowsYear is bool
         && request.resource.data.authorShowsBadge is bool
         && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel)
+        && (!request.resource.data.keys().hasAny(['imageRecordName'])
+          || isValidCommunityStringUpTo(request.resource.data.imageRecordName, 200))
         && request.resource.data.replyCount == 0
         && request.resource.data.likeCount == 0;
     }
