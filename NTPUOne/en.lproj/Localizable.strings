@@ -1160,8 +1160,10 @@
 "community_image_remove" = "Remove Image";
 "community_image_preparing" = "Preparing image…";
 "community_image_footer" = "Up to three images per post. Each image is resized and compressed to no more than 2 MB. Uploading requires an iCloud account.";
+"community_image_edit_footer" = "Images are optional. Remove existing images or add new ones; changes apply when you save. Up to three per post.";
 "community_image_invalid" = "This image could not be read";
 "community_image_too_large" = "The compressed image is still larger than 2 MB. Please choose another image.";
+"community_image_too_many" = "Each post can contain up to three images.";
 "community_image_icloud_required" = "Sign in to iCloud before uploading an image";
 "community_image_load_failed" = "Image failed to load";
 "community_image_attached" = "Includes an image";

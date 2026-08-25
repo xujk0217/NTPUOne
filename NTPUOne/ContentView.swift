@@ -579,13 +579,14 @@ private struct CommunityTopic: Identifiable, Equatable, Hashable {
 @MainActor
 final class CommunityImageService {
     static let shared = CommunityImageService()
-    static let maximumUploadBytes = 2 * 1024 * 1024
-    static let maximumImageDimension: CGFloat = 2_048
-    static let maximumImagesPerTopic = 3
+    nonisolated static let maximumUploadBytes = 2 * 1024 * 1024
+    nonisolated static let maximumImageDimension: CGFloat = 2_048
+    nonisolated static let maximumImagesPerTopic = 3
 
     enum ImageError: LocalizedError {
         case invalidImage
         case imageTooLarge
+        case tooManyImages
         case iCloudUnavailable
         case missingAsset
 
@@ -593,6 +594,7 @@ final class CommunityImageService {
             switch self {
             case .invalidImage: return String(localized: "community_image_invalid")
             case .imageTooLarge: return String(localized: "community_image_too_large")
+            case .tooManyImages: return String(localized: "community_image_too_many")
             case .iCloudUnavailable: return String(localized: "community_image_icloud_required")
             case .missingAsset: return String(localized: "community_image_load_failed")
             }
@@ -604,7 +606,7 @@ final class CommunityImageService {
 
     private var database: CKDatabase { container.publicCloudDatabase }
 
-    static func recordName(for topicID: String, index: Int = 0) -> String {
+    nonisolated static func recordName(for topicID: String, index: Int = 0) -> String {
         let baseName = "community-topic-\(topicID)"
         return index == 0 ? baseName : "\(baseName)-\(index)"
     }
@@ -635,15 +637,42 @@ final class CommunityImageService {
     }
 
     func uploadJPEGs(_ dataList: [Data], topicID: String, ownerUID: String) async throws -> [String] {
-        guard dataList.count <= Self.maximumImagesPerTopic else { throw ImageError.imageTooLarge }
+        let recordNames = dataList.indices.map { Self.recordName(for: topicID, index: $0) }
+        return try await uploadJPEGs(
+            dataList,
+            topicID: topicID,
+            ownerUID: ownerUID,
+            recordNames: recordNames
+        )
+    }
+
+    func uploadJPEGs(
+        _ dataList: [Data],
+        topicID: String,
+        ownerUID: String,
+        recordNames: [String]
+    ) async throws -> [String] {
+        guard dataList.count <= Self.maximumImagesPerTopic,
+              dataList.count == recordNames.count,
+              Set(recordNames).count == recordNames.count else {
+            throw ImageError.tooManyImages
+        }
         guard dataList.allSatisfy({ $0.count <= Self.maximumUploadBytes }) else { throw ImageError.imageTooLarge }
         guard !dataList.isEmpty else { return [] }
+        let canonicalRecordNames = Set(
+            (0..<Self.maximumImagesPerTopic).map { Self.recordName(for: topicID, index: $0) }
+        )
+        let editRecordPrefix = "\(Self.recordName(for: topicID))-edit-"
+        guard recordNames.allSatisfy({
+            canonicalRecordNames.contains($0) || $0.hasPrefix(editRecordPrefix)
+        }) else {
+            throw ImageError.invalidImage
+        }
         guard try await iCloudAccountIsAvailable() else { throw ImageError.iCloudUnavailable }
 
         var uploadedRecordNames: [String] = []
         do {
-            for (index, data) in dataList.enumerated() {
-                let recordName = Self.recordName(for: topicID, index: index)
+            for (data, recordName) in zip(dataList, recordNames) {
                 try await uploadJPEG(data, recordName: recordName, topicID: topicID, ownerUID: ownerUID)
                 uploadedRecordNames.append(recordName)
             }
@@ -660,7 +689,13 @@ final class CommunityImageService {
         try data.write(to: temporaryURL, options: .atomic)
         defer { try? FileManager.default.removeItem(at: temporaryURL) }
 
-        let record = CKRecord(recordType: "CommunityImage", recordID: CKRecord.ID(recordName: recordName))
+        let recordID = CKRecord.ID(recordName: recordName)
+        let record: CKRecord
+        do {
+            record = try await database.record(for: recordID)
+        } catch let error as CKError where error.code == .unknownItem {
+            record = CKRecord(recordType: "CommunityImage", recordID: recordID)
+        }
         record["image"] = CKAsset(fileURL: temporaryURL)
         record["topicID"] = topicID as CKRecordValue
         record["ownerUID"] = ownerUID as CKRecordValue
@@ -689,7 +724,7 @@ final class CommunityImageService {
         await deleteImages(recordNames: recordNames)
     }
 
-    private func deleteImages(recordNames: [String]) async {
+    func deleteImages(recordNames: [String]) async {
         for recordName in recordNames {
             await deleteImage(recordName: recordName)
         }
@@ -931,6 +966,7 @@ private struct CommunityManagedTopic: Identifiable, Equatable {
     var createdAt: Date
     var updatedAt: Date
     var isDeleted: Bool
+    var imageRecordNames: [String]
 
     static func from(_ data: [String: Any]) -> CommunityManagedTopic? {
         guard let topicId = data["topicId"] as? String,
@@ -939,6 +975,14 @@ private struct CommunityManagedTopic: Identifiable, Equatable {
               let title = data["title"] as? String else {
             return nil
         }
+
+        let legacyImageRecordName = (data["imageRecordName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let storedImageRecordNames = (data["imageRecordNames"] as? [String]) ?? []
+        let imageRecordNames = Array(
+            (storedImageRecordNames.isEmpty ? legacyImageRecordName.map { [$0] } ?? [] : storedImageRecordNames)
+                .filter { !$0.isEmpty }
+                .prefix(CommunityImageService.maximumImagesPerTopic)
+        )
 
         return CommunityManagedTopic(
             id: data["id"] as? String ?? topicId,
@@ -949,7 +993,8 @@ private struct CommunityManagedTopic: Identifiable, Equatable {
             bodyPreview: data["bodyPreview"] as? String ?? "",
             createdAt: communityDate(from: data["createdAt"]),
             updatedAt: communityDate(from: data["updatedAt"]),
-            isDeleted: data["isDeleted"] as? Bool ?? false
+            isDeleted: data["isDeleted"] as? Bool ?? false,
+            imageRecordNames: imageRecordNames
         )
     }
 }
@@ -3230,8 +3275,15 @@ private struct CommunityTopicDetailView: View {
     }
 
     private func managedContentEditSheet(for item: CommunityManagedContentEditItem) -> some View {
-        CommunityManagedContentEditView(item: item, save: { title, newBody, completion in
-            applyManagedEdit(item: item, newTitle: title, newBody: newBody, completion: completion)
+        CommunityManagedContentEditView(item: item, save: { title, newBody, retainedImages, newImages, completion in
+            applyManagedEdit(
+                item: item,
+                newTitle: title,
+                newBody: newBody,
+                retainedImageRecordNames: retainedImages,
+                newImageData: newImages,
+                completion: completion
+            )
         }, onDelete: {
             switch item {
             case .topic(let managedTopic):
@@ -3250,20 +3302,31 @@ private struct CommunityTopicDetailView: View {
         item: CommunityManagedContentEditItem,
         newTitle: String,
         newBody: String,
-        completion: @escaping (Error?) -> Void
+        retainedImageRecordNames: [String],
+        newImageData: [Data],
+        completion: @escaping (Result<[String], Error>) -> Void
     ) {
         switch item {
-        case .topic(var editableTopic):
-            contentManager.updateTopic(editableTopic, title: newTitle, body: newBody) { error in
-                if error == nil {
+        case .topic(let editableTopic):
+            contentManager.updateTopic(
+                editableTopic,
+                title: newTitle,
+                body: newBody,
+                retainedImageRecordNames: retainedImageRecordNames,
+                newImageData: newImageData
+            ) { result in
+                if case .success(let imageRecordNames) = result {
                     topic.title = newTitle
                     topic.body = newBody
                     topic.updatedAt = Date()
-                    editableTopic.title = newTitle
-                    editableTopic.body = newBody
-                    editableTopic.bodyPreview = communityBodyPreview(newBody)
+                    topic.imageRecordNames = imageRecordNames
+                    self.editableTopic?.title = newTitle
+                    self.editableTopic?.body = newBody
+                    self.editableTopic?.bodyPreview = communityBodyPreview(newBody)
+                    self.editableTopic?.updatedAt = Date()
+                    self.editableTopic?.imageRecordNames = imageRecordNames
                 }
-                completion(error)
+                completion(result)
             }
         case .reply(let editableReply):
             contentManager.updateReply(editableReply, body: newBody) { error in
@@ -3273,7 +3336,11 @@ private struct CommunityTopicDetailView: View {
                     editableReplies[editableReply.replyId]?.bodyPreview = communityBodyPreview(newBody)
                     editableReplies[editableReply.replyId]?.updatedAt = Date()
                 }
-                completion(error)
+                if let error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success([]))
+                }
             }
         }
     }
@@ -3491,6 +3558,14 @@ private enum CommunityManagedContentDeletionItem: Identifiable, Equatable {
     }
 }
 
+private typealias CommunityManagedContentSave = (
+    _ title: String,
+    _ body: String,
+    _ retainedImageRecordNames: [String],
+    _ newImageData: [Data],
+    _ completion: @escaping (Result<[String], Error>) -> Void
+) -> Void
+
 private final class CommunityMyContentManager: ObservableObject {
     @Published var topics: [CommunityManagedTopic] = []
     @Published var replies: [CommunityManagedReply] = []
@@ -3589,30 +3664,129 @@ private final class CommunityMyContentManager: ObservableObject {
         }
     }
 
-    func updateTopic(_ topic: CommunityManagedTopic, title: String, body: String, completion: @escaping (Error?) -> Void) {
+    func updateTopic(
+        _ topic: CommunityManagedTopic,
+        title: String,
+        body: String,
+        retainedImageRecordNames: [String],
+        newImageData: [Data],
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
         do {
             let user = try requireCommunityUser()
+            let existingRecordNames = topic.imageRecordNames
+            let retainedSet = Set(retainedImageRecordNames)
+            guard retainedSet.isSubset(of: Set(existingRecordNames)) else {
+                throw CommunityImageService.ImageError.invalidImage
+            }
+
+            let retainedNames = existingRecordNames.filter(retainedSet.contains)
+            guard retainedNames.count + newImageData.count <= CommunityImageService.maximumImagesPerTopic else {
+                throw CommunityImageService.ImageError.tooManyImages
+            }
+
             isSaving = true
             errorMessage = nil
             let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
-            let now = FieldValue.serverTimestamp()
-            let batch = db.batch()
-            let topicRef = db.collection("communityTopics").document(topic.topicId)
-            let ownerRef = db.collection("communityContentOwners").document(user.uid).collection("topics").document(topic.topicId)
+            let editRecordPrefix = "\(CommunityImageService.recordName(for: topic.topicId))-edit-"
+            let newRecordNames = newImageData.indices.map { index in
+                "\(editRecordPrefix)\(UUID().uuidString)-\(index)"
+            }
+            let removedRecordNames = existingRecordNames.filter { !retainedSet.contains($0) }
 
-            batch.updateData(["title": trimmedTitle, "body": trimmedBody, "updatedAt": now], forDocument: topicRef)
-            batch.updateData([
-                "title": trimmedTitle,
-                "body": trimmedBody,
-                "bodyPreview": communityBodyPreview(trimmedBody),
-                "updatedAt": now
-            ], forDocument: ownerRef)
-            batch.commit { [weak self] error in
-                DispatchQueue.main.async { self?.finishMutation(error: error, completion: completion) }
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    let uploadedRecordNames = try await CommunityImageService.shared.uploadJPEGs(
+                        newImageData,
+                        topicID: topic.topicId,
+                        ownerUID: user.uid,
+                        recordNames: newRecordNames
+                    )
+                    let finalRecordNames = retainedNames + uploadedRecordNames
+                    self.commitTopicUpdate(
+                        topic,
+                        userUID: user.uid,
+                        title: trimmedTitle,
+                        body: trimmedBody,
+                        finalRecordNames: finalRecordNames,
+                        uploadedRecordNames: uploadedRecordNames,
+                        removedRecordNames: removedRecordNames.filter { !uploadedRecordNames.contains($0) },
+                        completion: completion
+                    )
+                } catch {
+                    self.isSaving = false
+                    self.errorMessage = communityErrorMessage(error)
+                    completion(.failure(error))
+                }
             }
         } catch {
-            finishMutation(error: error, completion: completion)
+            isSaving = false
+            errorMessage = communityErrorMessage(error)
+            completion(.failure(error))
+        }
+    }
+
+    private func commitTopicUpdate(
+        _ topic: CommunityManagedTopic,
+        userUID: String,
+        title: String,
+        body: String,
+        finalRecordNames: [String],
+        uploadedRecordNames: [String],
+        removedRecordNames: [String],
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
+        let now = FieldValue.serverTimestamp()
+        let batch = db.batch()
+        let topicRef = db.collection("communityTopics").document(topic.topicId)
+        let ownerRef = db.collection("communityContentOwners").document(userUID).collection("topics").document(topic.topicId)
+        var publicUpdate: [String: Any] = [
+            "title": title,
+            "body": body,
+            "updatedAt": now
+        ]
+        var ownerUpdate: [String: Any] = [
+            "title": title,
+            "body": body,
+            "bodyPreview": communityBodyPreview(body),
+            "updatedAt": now
+        ]
+
+        if let firstRecordName = finalRecordNames.first {
+            publicUpdate["imageRecordName"] = firstRecordName
+            publicUpdate["imageRecordNames"] = finalRecordNames
+            ownerUpdate["imageRecordName"] = firstRecordName
+            ownerUpdate["imageRecordNames"] = finalRecordNames
+        } else {
+            publicUpdate["imageRecordName"] = FieldValue.delete()
+            publicUpdate["imageRecordNames"] = FieldValue.delete()
+            ownerUpdate["imageRecordName"] = FieldValue.delete()
+            ownerUpdate["imageRecordNames"] = FieldValue.delete()
+        }
+
+        batch.updateData(publicUpdate, forDocument: topicRef)
+        batch.updateData(ownerUpdate, forDocument: ownerRef)
+        batch.commit { [weak self] error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.isSaving = false
+                self.errorMessage = error.map(communityErrorMessage)
+
+                if let error {
+                    Task { @MainActor in
+                        await CommunityImageService.shared.deleteImages(recordNames: uploadedRecordNames)
+                    }
+                    completion(.failure(error))
+                } else {
+                    Task { @MainActor in
+                        await CommunityImageService.shared.deleteImages(recordNames: removedRecordNames)
+                    }
+                    completion(.success(finalRecordNames))
+                    self.load()
+                }
+            }
         }
     }
 
@@ -3651,6 +3825,7 @@ private final class CommunityMyContentManager: ObservableObject {
             batch.commit { [weak self] error in
                 if error == nil {
                     Task { @MainActor in
+                        await CommunityImageService.shared.deleteImages(recordNames: topic.imageRecordNames)
                         await CommunityImageService.shared.deleteImages(topicID: topic.topicId)
                     }
                 }
@@ -4017,8 +4192,15 @@ private struct CommunityMyContentListView: View {
     }
 
     private func myContentEditSheet(for item: CommunityManagedContentEditItem) -> some View {
-        CommunityManagedContentEditView(item: item, save: { title, body, completion in
-            save(item: item, title: title, body: body, completion: completion)
+        CommunityManagedContentEditView(item: item, save: { title, body, retainedImages, newImages, completion in
+            save(
+                item: item,
+                title: title,
+                body: body,
+                retainedImageRecordNames: retainedImages,
+                newImageData: newImages,
+                completion: completion
+            )
         }, onDelete: {
             switch item {
             case .topic(let managedTopic):
@@ -4062,12 +4244,32 @@ private struct CommunityMyContentListView: View {
         .hidden()
     }
 
-    private func save(item: CommunityManagedContentEditItem, title: String, body: String, completion: @escaping (Error?) -> Void) {
+    private func save(
+        item: CommunityManagedContentEditItem,
+        title: String,
+        body: String,
+        retainedImageRecordNames: [String],
+        newImageData: [Data],
+        completion: @escaping (Result<[String], Error>) -> Void
+    ) {
         switch item {
         case .topic(let topic):
-            manager.updateTopic(topic, title: title, body: body, completion: completion)
+            manager.updateTopic(
+                topic,
+                title: title,
+                body: body,
+                retainedImageRecordNames: retainedImageRecordNames,
+                newImageData: newImageData,
+                completion: completion
+            )
         case .reply(let reply):
-            manager.updateReply(reply, body: body, completion: completion)
+            manager.updateReply(reply, body: body) { error in
+                if let error {
+                    completion(.failure(error))
+                } else {
+                    completion(.success([]))
+                }
+            }
         }
     }
 
@@ -4224,18 +4426,23 @@ private struct CommunityManagedReplyRow: View {
 private struct CommunityManagedContentEditView: View {
     @Environment(\.dismiss) private var dismiss
     let item: CommunityManagedContentEditItem
-    let save: (String, String, @escaping (Error?) -> Void) -> Void
+    let save: CommunityManagedContentSave
     var onDelete: (() -> Void)? = nil
 
     @State private var title: String
     @State private var bodyText: String
+    @State private var retainedImageRecordNames: [String]
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var preparedImages: [CommunityPreparedImage] = []
+    @State private var imagePreparationGeneration = UUID()
+    @State private var isPreparingImages = false
     @State private var isSaving = false
     @State private var errorMessage: String?
     @State private var showDeleteConfirm = false
 
     init(
         item: CommunityManagedContentEditItem,
-        save: @escaping (String, String, @escaping (Error?) -> Void) -> Void,
+        save: @escaping CommunityManagedContentSave,
         onDelete: (() -> Void)? = nil
     ) {
         self.item = item
@@ -4245,9 +4452,11 @@ private struct CommunityManagedContentEditView: View {
         case .topic(let topic):
             _title = State(initialValue: topic.title)
             _bodyText = State(initialValue: topic.body)
+            _retainedImageRecordNames = State(initialValue: topic.imageRecordNames)
         case .reply(let reply):
             _title = State(initialValue: "")
             _bodyText = State(initialValue: reply.body)
+            _retainedImageRecordNames = State(initialValue: [])
         }
     }
 
@@ -4259,9 +4468,20 @@ private struct CommunityManagedContentEditView: View {
     private var canSave: Bool {
         let trimmedBody = bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
         if isTopic {
-            return !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !trimmedBody.isEmpty && !isSaving
+            return !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                && !trimmedBody.isEmpty
+                && !isSaving
+                && !isPreparingImages
         }
         return !trimmedBody.isEmpty && !isSaving
+    }
+
+    private var imageCount: Int {
+        retainedImageRecordNames.count + preparedImages.count
+    }
+
+    private var remainingImageCapacity: Int {
+        max(0, CommunityImageService.maximumImagesPerTopic - retainedImageRecordNames.count)
     }
 
     var body: some View {
@@ -4277,6 +4497,8 @@ private struct CommunityManagedContentEditView: View {
                     } footer: {
                         previewFooter
                     }
+
+                    imageEditorSection
                 } else {
                     Section {
                         TextField(String(localized: "community_content_placeholder"), text: $bodyText, axis: .vertical)
@@ -4326,6 +4548,133 @@ private struct CommunityManagedContentEditView: View {
             } message: {
                 Text(String(localized: "community_delete_confirm_message"))
             }
+            .onChange(of: selectedPhotoItems) { items in
+                prepareSelectedImages(items)
+            }
+        }
+    }
+
+    private var imageEditorSection: some View {
+        Section {
+            if imageCount > 0 {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(retainedImageRecordNames, id: \.self) { recordName in
+                            CommunityTopicImageView(recordName: recordName)
+                                .frame(width: 180, height: 150)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(alignment: .topTrailing) {
+                                    removeImageButton {
+                                        retainedImageRecordNames.removeAll { $0 == recordName }
+                                    }
+                                }
+                        }
+
+                        ForEach(Array(preparedImages.enumerated()), id: \.element.id) { index, preparedImage in
+                            Image(uiImage: preparedImage.preview)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 180, height: 150)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(alignment: .topTrailing) {
+                                    removeImageButton {
+                                        removeSelectedImage(at: index)
+                                    }
+                                }
+                        }
+                    }
+                }
+            }
+
+            if remainingImageCapacity > 0 {
+                PhotosPicker(
+                    selection: $selectedPhotoItems,
+                    maxSelectionCount: remainingImageCapacity,
+                    matching: .images,
+                    photoLibrary: .shared()
+                ) {
+                    Label(
+                        String(
+                            format: String(localized: "community_images_selected_count_format"),
+                            imageCount,
+                            CommunityImageService.maximumImagesPerTopic
+                        ),
+                        systemImage: "photo.badge.plus"
+                    )
+                }
+                .disabled(isSaving || isPreparingImages)
+            }
+
+            if isPreparingImages {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(String(localized: "community_image_preparing"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        } header: {
+            Text(String(localized: "community_image_section"))
+        } footer: {
+            Text(String(localized: "community_image_edit_footer"))
+        }
+    }
+
+    private func removeImageButton(action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.title2)
+                .symbolRenderingMode(.palette)
+                .foregroundStyle(.white, .black.opacity(0.65))
+                .padding(6)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(String(localized: "community_image_remove"))
+    }
+
+    private func removeSelectedImage(at index: Int) {
+        guard selectedPhotoItems.indices.contains(index), preparedImages.indices.contains(index) else { return }
+        preparedImages.remove(at: index)
+        selectedPhotoItems.remove(at: index)
+    }
+
+    private func prepareSelectedImages(_ items: [PhotosPickerItem]) {
+        let generation = UUID()
+        imagePreparationGeneration = generation
+        guard !items.isEmpty else {
+            preparedImages = []
+            isPreparingImages = false
+            return
+        }
+
+        isPreparingImages = true
+        errorMessage = nil
+        let maximumNewImages = remainingImageCapacity
+
+        Task { @MainActor in
+            do {
+                var newPreparedImages: [CommunityPreparedImage] = []
+                for item in items.prefix(maximumNewImages) {
+                    try Task.checkCancellation()
+                    guard let originalData = try await item.loadTransferable(type: Data.self) else {
+                        throw CommunityImageService.ImageError.invalidImage
+                    }
+                    let preparedData = try CommunityImageService.shared.preparedJPEG(from: originalData)
+                    guard let preview = UIImage(data: preparedData) else {
+                        throw CommunityImageService.ImageError.invalidImage
+                    }
+                    newPreparedImages.append(CommunityPreparedImage(data: preparedData, preview: preview))
+                }
+                guard imagePreparationGeneration == generation else { return }
+                preparedImages = newPreparedImages
+                isPreparingImages = false
+            } catch {
+                guard imagePreparationGeneration == generation else { return }
+                selectedPhotoItems = []
+                preparedImages = []
+                isPreparingImages = false
+                errorMessage = communityErrorMessage(error)
+            }
         }
     }
 
@@ -4342,12 +4691,15 @@ private struct CommunityManagedContentEditView: View {
         errorMessage = nil
         save(
             title.trimmingCharacters(in: .whitespacesAndNewlines),
-            bodyText.trimmingCharacters(in: .whitespacesAndNewlines)
-        ) { error in
+            bodyText.trimmingCharacters(in: .whitespacesAndNewlines),
+            retainedImageRecordNames,
+            preparedImages.map(\.data)
+        ) { result in
             isSaving = false
-            if let error {
+            switch result {
+            case .failure(let error):
                 errorMessage = communityErrorMessage(error)
-            } else {
+            case .success:
                 dismiss()
             }
         }

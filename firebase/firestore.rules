@@ -442,10 +442,19 @@ service cloud.firestore {
 
     function isOwnedTopicContentUpdate(topicId) {
       return hasTopicOwner(topicId)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['title', 'body', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'title',
+          'body',
+          'updatedAt',
+          'imageRecordName',
+          'imageRecordNames'
+        ])
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['title']) || isValidCommunityString(request.resource.data.title))
         && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['body']) || isValidCommunityString(request.resource.data.body))
-        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt']) || request.resource.data.updatedAt is timestamp);
+        && (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['updatedAt']) || request.resource.data.updatedAt is timestamp)
+        && (!request.resource.data.keys().hasAny(['imageRecordName'])
+          || isValidCommunityStringUpTo(request.resource.data.imageRecordName, 200))
+        && hasValidCommunityImageRecordNames();
     }
 
     function isOwnedTopicDisplayUpdate(topicId) {
