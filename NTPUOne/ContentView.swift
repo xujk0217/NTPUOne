@@ -763,9 +763,15 @@ final class CommunityImageService {
 private final class CommunityImageLoader: ObservableObject {
     @Published var image: UIImage?
     @Published var failed = false
+    private var loadedRecordName: String?
 
     func load(recordName: String) async {
-        guard image == nil, !failed else { return }
+        // 當 recordName 改變（例如編輯後換成新圖片）時，必須清除舊圖並重新載入，
+        // 否則同一個 loader 實例會因 guard 而保留舊圖片，導致貼文頁面只刷新文字、不刷新圖片。
+        if loadedRecordName == recordName, image != nil || failed { return }
+        loadedRecordName = recordName
+        image = nil
+        failed = false
         do {
             image = try await CommunityImageService.shared.image(recordName: recordName)
         } catch {
