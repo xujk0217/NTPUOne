@@ -14,9 +14,6 @@ struct CampusMapView: View {
     @State private var transientImageScale: CGFloat = 1
     @State private var campusImageOffset: CGSize = .zero
     @State private var transientImageOffset: CGSize = .zero
-    @State private var landmarkPins: [CampusMapPin] = []
-    @State private var isLoadingLandmarks = false
-
     private let center = CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682)
 
     private var restaurantPins: [CampusLivePin] {
@@ -56,7 +53,7 @@ struct CampusMapView: View {
     }
 
     private var allMapPins: [CampusMapPin] {
-        landmarkPins + restaurantPins.map(CampusMapPin.init) + ubikePins.map(CampusMapPin.init)
+        CampusMapLandmark.defaults.map(\.pin) + restaurantPins.map(CampusMapPin.init) + ubikePins.map(CampusMapPin.init)
     }
 
     private var visibleMapPins: [CampusMapPin] {
@@ -128,20 +125,9 @@ struct CampusMapView: View {
     @ViewBuilder
     private var mapSection: some View {
         Section {
-            if #available(iOS 17.0, *) {
-                Map(initialPosition: .camera(MapCamera(centerCoordinate: center, distance: 1800))) {
-                    ForEach(visibleMapPins) { pin in
-                        Marker(pin.title, systemImage: pin.kind.icon, coordinate: pin.coordinate)
-                            .tint(pin.kind.tint)
-                    }
-                }
+            CampusMapUIKitView(center: center, pins: visibleMapPins)
                 .frame(height: 260)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            } else {
-                Label(String(localized: "campus_map_ios17_hint"), systemImage: "map")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
         } header: {
             Text(String(localized: "campus_live_map_title"))
         } footer: {
@@ -274,56 +260,6 @@ struct CampusMapView: View {
         if dinnerManager.Food == nil { dinnerManager.loadF(whichDiet: "D") }
         if snackManager.Food == nil { snackManager.loadF(whichDiet: "M") }
         if ubikeManager.bikeDatas == nil { ubikeManager.fetchData() }
-        loadCampusLandmarks()
-    }
-
-    private func loadCampusLandmarks() {
-        guard landmarkPins.isEmpty, !isLoadingLandmarks else { return }
-        isLoadingLandmarks = true
-
-        let searchRegion = MKCoordinateRegion(
-            center: center,
-            latitudinalMeters: 2_400,
-            longitudinalMeters: 2_400
-        )
-        let campusCenter = CLLocation(latitude: center.latitude, longitude: center.longitude)
-
-        Task {
-            var foundPins: [CampusMapPin] = []
-            for landmark in CampusMapLandmark.defaults {
-                let request = MKLocalSearch.Request()
-                request.naturalLanguageQuery = landmark.query
-                request.region = searchRegion
-
-                do {
-                    let response = try await MKLocalSearch(request: request).start()
-                    guard let mapItem = response.mapItems.first(where: {
-                        campusCenter.distance(from: $0.placemark.location ?? campusCenter) < 1_600
-                    }) else {
-                        continue
-                    }
-                    let coordinate = mapItem.placemark.coordinate
-                    guard CLLocationCoordinate2DIsValid(coordinate) else { continue }
-                    foundPins.append(
-                        CampusMapPin(
-                            id: "landmark-\(landmark.id)",
-                            title: landmark.title,
-                            subtitle: landmark.detail,
-                            coordinate: coordinate,
-                            kind: landmark.layer
-                        )
-                    )
-                } catch {
-                    continue
-                }
-            }
-
-            landmarkPins = foundPins
-            isLoadingLandmarks = false
-            if !availableLayers.contains(selectedLayer) {
-                selectedLayer = .all
-            }
-        }
     }
 
 }
@@ -406,24 +342,114 @@ private struct CampusMapPin: Identifiable {
     }
 }
 
+private struct CampusMapUIKitView: UIViewRepresentable {
+    let center: CLLocationCoordinate2D
+    let pins: [CampusMapPin]
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        mapView.setRegion(
+            MKCoordinateRegion(
+                center: center,
+                latitudinalMeters: 2_000,
+                longitudinalMeters: 2_000
+            ),
+            animated: false
+        )
+        return mapView
+    }
+
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        let desiredPins = pins.reduce(into: [String: CampusMapPin]()) { pinsByID, pin in
+            pinsByID[pin.id] = pin
+        }
+        let currentAnnotations = context.coordinator.annotations
+
+        for (id, annotation) in currentAnnotations where desiredPins[id] == nil {
+            mapView.removeAnnotation(annotation)
+            context.coordinator.annotations[id] = nil
+        }
+
+        for pin in pins {
+            if let annotation = context.coordinator.annotations[pin.id] {
+                annotation.title = pin.title
+                annotation.subtitle = pin.subtitle
+                annotation.coordinate = pin.coordinate
+            } else {
+                let annotation = CampusMapAnnotation(pin: pin)
+                context.coordinator.annotations[pin.id] = annotation
+                mapView.addAnnotation(annotation)
+            }
+        }
+    }
+
+    final class Coordinator: NSObject, MKMapViewDelegate {
+        var annotations: [String: CampusMapAnnotation] = [:]
+
+        func mapView(_ mapView: MKMapView, viewFor annotation: MKAnnotation) -> MKAnnotationView? {
+            guard let campusAnnotation = annotation as? CampusMapAnnotation else { return nil }
+            let identifier = "CampusMapMarker"
+            let view = (mapView.dequeueReusableAnnotationView(withIdentifier: identifier) as? MKMarkerAnnotationView)
+                ?? MKMarkerAnnotationView(annotation: campusAnnotation, reuseIdentifier: identifier)
+            view.annotation = campusAnnotation
+            view.markerTintColor = UIColor(campusAnnotation.kind.tint)
+            view.glyphImage = UIImage(systemName: campusAnnotation.kind.icon)
+            view.canShowCallout = true
+            return view
+        }
+    }
+}
+
+private final class CampusMapAnnotation: NSObject, MKAnnotation {
+    let id: String
+    let kind: CampusMapLayer
+    @objc dynamic var coordinate: CLLocationCoordinate2D
+    @objc dynamic var title: String?
+    @objc dynamic var subtitle: String?
+
+    init(pin: CampusMapPin) {
+        id = pin.id
+        kind = pin.kind
+        coordinate = pin.coordinate
+        title = pin.title
+        subtitle = pin.subtitle
+    }
+}
+
 private struct CampusMapLandmark {
     let id: String
     let title: String
     let detail: String
-    let query: String
+    let coordinate: CLLocationCoordinate2D
     let layer: CampusMapLayer
 
+    var pin: CampusMapPin {
+        CampusMapPin(
+            id: "landmark-\(id)",
+            title: title,
+            subtitle: detail,
+            coordinate: coordinate,
+            kind: layer
+        )
+    }
+
     static let defaults: [CampusMapLandmark] = [
-        CampusMapLandmark(id: "admin", title: "行政大樓", detail: "教務、行政與學生服務窗口。", query: "國立臺北大學 行政大樓", layer: .libraryAdmin),
-        CampusMapLandmark(id: "library", title: "圖書資訊大樓", detail: "圖書館、借閱與自習資源。", query: "國立臺北大學 圖書資訊大樓", layer: .libraryAdmin),
-        CampusMapLandmark(id: "business", title: "商學大樓", detail: "商學院教學與系所空間。", query: "國立臺北大學 商學大樓", layer: .teaching),
-        CampusMapLandmark(id: "humanities", title: "人文大樓", detail: "人文學院與通識課程空間。", query: "國立臺北大學 人文大樓", layer: .teaching),
-        CampusMapLandmark(id: "law", title: "法學大樓", detail: "法律學院與法政相關課程空間。", query: "國立臺北大學 法學大樓", layer: .teaching),
-        CampusMapLandmark(id: "social-science", title: "社會科學大樓", detail: "社會科學院教學與系所空間。", query: "國立臺北大學 社會科學大樓", layer: .teaching),
-        CampusMapLandmark(id: "public-affairs", title: "公共事務大樓", detail: "公共事務學院與相關課程空間。", query: "國立臺北大學 公共事務大樓", layer: .teaching),
-        CampusMapLandmark(id: "eecs", title: "電機資訊大樓", detail: "電機資訊相關系所與實作空間。", query: "國立臺北大學 電機資訊大樓", layer: .teaching),
-        CampusMapLandmark(id: "dorm", title: "學生宿舍", detail: "住宿生活與校內生活圈。", query: "國立臺北大學 學生宿舍", layer: .dormActivity),
-        CampusMapLandmark(id: "activity-center", title: "綜合體育館暨活動中心", detail: "體育課、活動與大型集會場域。", query: "國立臺北大學 綜合體育館", layer: .dormActivity)
+        CampusMapLandmark(id: "library", title: "圖書資訊大樓（圖書館）", detail: "國立臺北大學－圖書館。", coordinate: .init(latitude: 24.9435487, longitude: 121.3701189), layer: .libraryAdmin),
+        CampusMapLandmark(id: "admin", title: "行政大樓", detail: "郵局所在的行政大樓。", coordinate: .init(latitude: 24.9447200, longitude: 121.3712300), layer: .libraryAdmin),
+        CampusMapLandmark(id: "business", title: "商學大樓（商學院）", detail: "國立臺北大學－商學院。", coordinate: .init(latitude: 24.9453192, longitude: 121.3719642), layer: .teaching),
+        CampusMapLandmark(id: "humanities", title: "人文大樓（人文學院）", detail: "Innovative Chinese Language Teaching 學程所在。", coordinate: .init(latitude: 24.9459850, longitude: 121.3708720), layer: .teaching),
+        CampusMapLandmark(id: "law", title: "法學大樓（法律學院）", detail: "國立臺北大學三峽校區－法律學院。", coordinate: .init(latitude: 24.9441986, longitude: 121.3725827), layer: .teaching),
+        CampusMapLandmark(id: "social-science", title: "社會科學大樓（社科院）", detail: "College of Social Sciences。", coordinate: .init(latitude: 24.9443347, longitude: 121.3696480), layer: .teaching),
+        CampusMapLandmark(id: "public-affairs", title: "公共事務大樓（公院）", detail: "公共行政暨政策學系所在。", coordinate: .init(latitude: 24.9437820, longitude: 121.3718830), layer: .teaching),
+        CampusMapLandmark(id: "eecs", title: "音律電機資訊大樓（電資院）", detail: "Department of Electrical Engineering 所在。", coordinate: .init(latitude: 24.9427559, longitude: 121.3704139), layer: .teaching),
+        CampusMapLandmark(id: "dormitory-i", title: "學生宿舍（曉日、皓月、繁星樓）", detail: "一期學生宿舍區。", coordinate: .init(latitude: 24.9416900, longitude: 121.3691700), layer: .dormActivity),
+        CampusMapLandmark(id: "dormitory-ii", title: "辰曦樓", detail: "二期學生宿舍。", coordinate: .init(latitude: 24.9422600, longitude: 121.3684800), layer: .dormActivity),
+        CampusMapLandmark(id: "activity-center", title: "綜合體育館暨活動中心", detail: "體育課、活動與大型集會場域。", coordinate: .init(latitude: 24.9409400, longitude: 121.3687600), layer: .dormActivity)
     ]
 }
 
@@ -434,16 +460,16 @@ private struct CampusResource: Identifiable {
     let layer: CampusMapLayer
 
     static let defaults: [CampusResource] = [
-        CampusResource(id: "business", title: "商學大樓", detail: "商學院相關教學與系所空間。", layer: .teaching),
-        CampusResource(id: "humanities", title: "人文大樓", detail: "人文學院與通識課程常用教學空間。", layer: .teaching),
-        CampusResource(id: "law", title: "法學大樓", detail: "法律學院與法政相關教學空間。", layer: .teaching),
-        CampusResource(id: "admin", title: "行政大樓", detail: "教務、行政與學生常用服務窗口。", layer: .libraryAdmin),
-        CampusResource(id: "public-affairs", title: "公共事務大樓", detail: "公共事務學院與相關課程空間。", layer: .teaching),
-        CampusResource(id: "eecs", title: "電資大樓", detail: "電機資訊相關系所與實作空間。", layer: .teaching),
-        CampusResource(id: "library", title: "圖書資訊大樓", detail: "圖書館、借閱與自習資源。", layer: .libraryAdmin),
-        CampusResource(id: "social-science", title: "社會科學大樓", detail: "社會科學院相關教學與系所空間。", layer: .teaching),
-        CampusResource(id: "dorm", title: "學生宿舍", detail: "住宿生活與校內生活圈主要區域。", layer: .dormActivity),
-        CampusResource(id: "second-dorm", title: "第二期學生宿舍", detail: "宿舍生活與學生住宿服務區域。", layer: .dormActivity),
+        CampusResource(id: "business", title: "商學大樓（商學院）", detail: "商學院相關教學與系所空間。", layer: .teaching),
+        CampusResource(id: "humanities", title: "人文大樓（人文學院）", detail: "人文學院與通識課程常用教學空間。", layer: .teaching),
+        CampusResource(id: "law", title: "法學大樓（法律學院）", detail: "法律學院與法政相關教學空間。", layer: .teaching),
+        CampusResource(id: "admin", title: "行政大樓", detail: "郵局與教務、行政、學生常用服務窗口。", layer: .libraryAdmin),
+        CampusResource(id: "public-affairs", title: "公共事務大樓（公院）", detail: "公共事務學院與相關課程空間。", layer: .teaching),
+        CampusResource(id: "eecs", title: "音律電機資訊大樓（電資院）", detail: "電機資訊相關系所與實作空間。", layer: .teaching),
+        CampusResource(id: "library", title: "圖書資訊大樓（圖書館）", detail: "圖書館、借閱與自習資源。", layer: .libraryAdmin),
+        CampusResource(id: "social-science", title: "社會科學大樓（社科院）", detail: "社會科學院相關教學與系所空間。", layer: .teaching),
+        CampusResource(id: "dorm", title: "一期學生宿舍", detail: "曉日樓、皓月樓與繁星樓。", layer: .dormActivity),
+        CampusResource(id: "second-dorm", title: "二期學生宿舍（辰曦樓）", detail: "宿舍生活與學生住宿服務區域。", layer: .dormActivity),
         CampusResource(id: "huaide", title: "懷德/木師基地", detail: "校園圖標示之基地與活動延伸空間。", layer: .dormActivity),
         CampusResource(id: "chongyue", title: "崇越館", detail: "校園活動、課程或服務可能使用的場館。", layer: .dormActivity),
         CampusResource(id: "sports-center", title: "綜合體育館暨活動中心", detail: "體育課、活動與大型集會場域。", layer: .dormActivity),
