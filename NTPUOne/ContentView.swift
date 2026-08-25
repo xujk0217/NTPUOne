@@ -804,6 +804,48 @@ private struct CommunityTopicImageView: View {
     }
 }
 
+private struct CommunityTopicImageThumbnail: View {
+    let recordName: String
+    @StateObject private var loader = CommunityImageLoader()
+
+    var body: some View {
+        Group {
+            if let image = loader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else if loader.failed {
+                Image(systemName: "photo.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.quaternary)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(.quaternary)
+            }
+        }
+        .frame(width: 52, height: 52)
+        .clipShape(RoundedRectangle(cornerRadius: 9, style: .continuous))
+        .task(id: recordName) {
+            await loader.load(recordName: recordName)
+        }
+    }
+}
+
+private struct CommunityTopicThumbnailStrip: View {
+    let recordNames: [String]
+
+    var body: some View {
+        HStack(spacing: 6) {
+            ForEach(recordNames.prefix(CommunityImageService.maximumImagesPerTopic), id: \.self) { recordName in
+                CommunityTopicImageThumbnail(recordName: recordName)
+            }
+        }
+    }
+}
+
 private struct CommunityTopicImagesView: View {
     let recordNames: [String]
     @State private var previewIndex = 0
@@ -833,6 +875,18 @@ private struct CommunityTopicImagesView: View {
                 }
                 .frame(height: 300)
                 .tabViewStyle(.page(indexDisplayMode: .always))
+            }
+        }
+        .overlay(alignment: .topTrailing) {
+            if !recordNames.isEmpty {
+                Text("\(previewIndex + 1)/\(recordNames.count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(.black.opacity(0.58), in: Capsule())
+                    .padding(10)
+                    .allowsHitTesting(false)
             }
         }
         .fullScreenCover(isPresented: $showBrowser) {
@@ -875,7 +929,8 @@ private struct CommunityImageBrowserView: View {
                 ForEach(Array(recordNames.enumerated()), id: \.element) { index, recordName in
                     CommunityZoomableImagePage(
                         image: images[recordName],
-                        failed: failedRecordNames.contains(recordName)
+                        failed: failedRecordNames.contains(recordName),
+                        onDismiss: { dismiss() }
                     )
                     .tag(index)
                 }
@@ -973,11 +1028,13 @@ private struct CommunityImageBrowserView: View {
 private struct CommunityZoomableImagePage: View {
     let image: UIImage?
     let failed: Bool
+    let onDismiss: () -> Void
 
     @State private var scale: CGFloat = 1
     @State private var transientScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var transientOffset: CGSize = .zero
+    @State private var dismissOffset: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
@@ -990,8 +1047,10 @@ private struct CommunityZoomableImagePage: View {
                         .scaleEffect(scale * transientScale)
                         .offset(
                             x: offset.width + transientOffset.width,
-                            y: offset.height + transientOffset.height
+                            y: offset.height + transientOffset.height + dismissOffset
                         )
+                        .scaleEffect(1 - min(dismissOffset / 1_800, 0.08))
+                        .opacity(1 - min(dismissOffset / 900, 0.35))
                 } else if failed {
                     Label(String(localized: "community_image_load_failed"), systemImage: "photo.badge.exclamationmark")
                         .foregroundStyle(.white.opacity(0.85))
@@ -1004,7 +1063,15 @@ private struct CommunityZoomableImagePage: View {
             .contentShape(Rectangle())
             .clipped()
             .gesture(magnificationGesture)
-            .simultaneousGesture(dragGesture)
+            .modifier(
+                CommunityImagePageDragModifier(
+                    scale: $scale,
+                    offset: $offset,
+                    transientOffset: $transientOffset,
+                    dismissOffset: $dismissOffset,
+                    onDismiss: onDismiss
+                )
+            )
             .onTapGesture(count: 2) {
                 withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
                     if scale > 1 {
@@ -1030,20 +1097,50 @@ private struct CommunityZoomableImagePage: View {
             }
     }
 
+}
+
+private struct CommunityImagePageDragModifier: ViewModifier {
+    @Binding var scale: CGFloat
+    @Binding var offset: CGSize
+    @Binding var transientOffset: CGSize
+    @Binding var dismissOffset: CGFloat
+    let onDismiss: () -> Void
+
+    func body(content: Content) -> some View {
+        if scale > 1 {
+            content.highPriorityGesture(dragGesture)
+        } else {
+            content.simultaneousGesture(dragGesture)
+        }
+    }
+
     private var dragGesture: some Gesture {
         DragGesture()
             .onChanged { value in
-                guard scale > 1 else { return }
-                transientOffset = value.translation
+                if scale > 1 {
+                    transientOffset = value.translation
+                    dismissOffset = 0
+                } else if value.translation.height > 0,
+                          abs(value.translation.height) > abs(value.translation.width) {
+                    dismissOffset = value.translation.height
+                }
             }
             .onEnded { value in
-                guard scale > 1 else {
+                if scale > 1 {
+                    offset.width += value.translation.width
+                    offset.height += value.translation.height
                     transientOffset = .zero
                     return
                 }
-                offset.width += value.translation.width
-                offset.height += value.translation.height
-                transientOffset = .zero
+
+                let predictedDownwardDistance = value.predictedEndTranslation.height
+                if dismissOffset > 120 || predictedDownwardDistance > 220 {
+                    onDismiss()
+                } else {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                        dismissOffset = 0
+                    }
+                }
             }
     }
 }
@@ -2924,6 +3021,10 @@ private struct CommunityTopicRow: View {
                 .foregroundStyle(.secondary)
                 .lineLimit(2)
 
+            if !topic.imageRecordNames.isEmpty {
+                CommunityTopicThumbnailStrip(recordNames: topic.imageRecordNames)
+            }
+
             HStack(spacing: 10) {
                 Label(communityAuthorDisplayName(storedName: topic.authorName, authorDeviceId: topic.authorDeviceId, currentDeviceId: deviceId, currentNickname: nickname), systemImage: "person")
                 if topic.authorShowsBadge {
@@ -3329,6 +3430,8 @@ private struct CommunityTopicDetailView: View {
         .safeAreaInset(edge: .bottom) {
             topicDetailPinnedBar
         }
+        .navigationTitle(topic.category.title)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar { topicDetailToolbar }
         .onChange(of: defaultShowDepartment) { newValue in
             publishDepartment = newValue
