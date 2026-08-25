@@ -14,19 +14,30 @@ struct CampusMapView: View {
     @State private var transientImageScale: CGFloat = 1
     @State private var campusImageOffset: CGSize = .zero
     @State private var transientImageOffset: CGSize = .zero
+    @State private var landmarkPins: [CampusMapPin] = []
+    @State private var isLoadingLandmarks = false
 
     private let center = CLLocationCoordinate2D(latitude: 24.9424, longitude: 121.3682)
 
     private var restaurantPins: [CampusLivePin] {
         allFoods
             .filter { $0.lat != 0 && $0.lng != 0 }
-            .map { CampusLivePin(title: $0.store, subtitle: $0.time, coordinate: CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lng), kind: .restaurants) }
+            .map {
+                CampusLivePin(
+                    id: "restaurant-\($0.id ?? $0.store)-\($0.lat)-\($0.lng)",
+                    title: $0.store,
+                    subtitle: $0.time,
+                    coordinate: CLLocationCoordinate2D(latitude: $0.lat, longitude: $0.lng),
+                    kind: .restaurants
+                )
+            }
     }
 
     private var ubikePins: [CampusLivePin] {
         (ubikeManager.bikeDatas ?? []).compactMap { stop in
             guard let latitude = Double(stop.lat), let longitude = Double(stop.lng) else { return nil }
             return CampusLivePin(
+                id: "ubike-\(stop.sno)",
                 title: stop.sna.replacingOccurrences(of: "YouBike2.0_", with: ""),
                 subtitle: "可借 \(stop.sbi_quantity) / 可還 \(stop.bemp)",
                 coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
@@ -42,6 +53,21 @@ struct CampusMapView: View {
     private var visibleCampusResources: [CampusResource] {
         guard selectedLayer != .all else { return CampusResource.defaults }
         return CampusResource.defaults.filter { $0.layer == selectedLayer }
+    }
+
+    private var allMapPins: [CampusMapPin] {
+        landmarkPins + restaurantPins.map(CampusMapPin.init) + ubikePins.map(CampusMapPin.init)
+    }
+
+    private var visibleMapPins: [CampusMapPin] {
+        guard selectedLayer != .all else { return allMapPins }
+        return allMapPins.filter { $0.kind == selectedLayer }
+    }
+
+    private var availableLayers: [CampusMapLayer] {
+        [.all] + CampusMapLayer.allCases.dropFirst().filter { layer in
+            allMapPins.contains { $0.kind == layer }
+        }
     }
 
     var body: some View {
@@ -79,7 +105,7 @@ struct CampusMapView: View {
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 8) {
-                        ForEach(CampusMapLayer.allCases) { layer in
+                        ForEach(availableLayers) { layer in
                             Button {
                                 selectedLayer = layer
                             } label: {
@@ -104,18 +130,9 @@ struct CampusMapView: View {
         Section {
             if #available(iOS 17.0, *) {
                 Map(initialPosition: .camera(MapCamera(centerCoordinate: center, distance: 1800))) {
-                    if selectedLayer == .all || selectedLayer == .restaurants {
-                        ForEach(restaurantPins) { pin in
-                            Marker(pin.title, systemImage: "fork.knife", coordinate: pin.coordinate)
-                                .tint(.orange)
-                        }
-                    }
-
-                    if selectedLayer == .all || selectedLayer == .ubike {
-                        ForEach(ubikePins) { pin in
-                            Marker(pin.title, systemImage: "bicycle", coordinate: pin.coordinate)
-                                .tint(.green)
-                        }
+                    ForEach(visibleMapPins) { pin in
+                        Marker(pin.title, systemImage: pin.kind.icon, coordinate: pin.coordinate)
+                            .tint(pin.kind.tint)
                     }
                 }
                 .frame(height: 260)
@@ -257,6 +274,56 @@ struct CampusMapView: View {
         if dinnerManager.Food == nil { dinnerManager.loadF(whichDiet: "D") }
         if snackManager.Food == nil { snackManager.loadF(whichDiet: "M") }
         if ubikeManager.bikeDatas == nil { ubikeManager.fetchData() }
+        loadCampusLandmarks()
+    }
+
+    private func loadCampusLandmarks() {
+        guard landmarkPins.isEmpty, !isLoadingLandmarks else { return }
+        isLoadingLandmarks = true
+
+        let searchRegion = MKCoordinateRegion(
+            center: center,
+            latitudinalMeters: 2_400,
+            longitudinalMeters: 2_400
+        )
+        let campusCenter = CLLocation(latitude: center.latitude, longitude: center.longitude)
+
+        Task {
+            var foundPins: [CampusMapPin] = []
+            for landmark in CampusMapLandmark.defaults {
+                let request = MKLocalSearch.Request()
+                request.naturalLanguageQuery = landmark.query
+                request.region = searchRegion
+
+                do {
+                    let response = try await MKLocalSearch(request: request).start()
+                    guard let mapItem = response.mapItems.first(where: {
+                        campusCenter.distance(from: $0.placemark.location ?? campusCenter) < 1_600
+                    }) else {
+                        continue
+                    }
+                    let coordinate = mapItem.placemark.coordinate
+                    guard CLLocationCoordinate2DIsValid(coordinate) else { continue }
+                    foundPins.append(
+                        CampusMapPin(
+                            id: "landmark-\(landmark.id)",
+                            title: landmark.title,
+                            subtitle: landmark.detail,
+                            coordinate: coordinate,
+                            kind: landmark.layer
+                        )
+                    )
+                } catch {
+                    continue
+                }
+            }
+
+            landmarkPins = foundPins
+            isLoadingLandmarks = false
+            if !availableLayers.contains(selectedLayer) {
+                selectedLayer = .all
+            }
+        }
     }
 
 }
@@ -306,11 +373,58 @@ private enum CampusMapLayer: String, CaseIterable, Identifiable {
 }
 
 private struct CampusLivePin: Identifiable {
-    let id = UUID()
+    let id: String
     let title: String
     let subtitle: String
     let coordinate: CLLocationCoordinate2D
     let kind: CampusMapLayer
+}
+
+private struct CampusMapPin: Identifiable {
+    let id: String
+    let title: String
+    let subtitle: String
+    let coordinate: CLLocationCoordinate2D
+    let kind: CampusMapLayer
+
+    init(id: String, title: String, subtitle: String, coordinate: CLLocationCoordinate2D, kind: CampusMapLayer) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.coordinate = coordinate
+        self.kind = kind
+    }
+
+    init(_ livePin: CampusLivePin) {
+        self.init(
+            id: livePin.id,
+            title: livePin.title,
+            subtitle: livePin.subtitle,
+            coordinate: livePin.coordinate,
+            kind: livePin.kind
+        )
+    }
+}
+
+private struct CampusMapLandmark {
+    let id: String
+    let title: String
+    let detail: String
+    let query: String
+    let layer: CampusMapLayer
+
+    static let defaults: [CampusMapLandmark] = [
+        CampusMapLandmark(id: "admin", title: "行政大樓", detail: "教務、行政與學生服務窗口。", query: "國立臺北大學 行政大樓", layer: .libraryAdmin),
+        CampusMapLandmark(id: "library", title: "圖書資訊大樓", detail: "圖書館、借閱與自習資源。", query: "國立臺北大學 圖書資訊大樓", layer: .libraryAdmin),
+        CampusMapLandmark(id: "business", title: "商學大樓", detail: "商學院教學與系所空間。", query: "國立臺北大學 商學大樓", layer: .teaching),
+        CampusMapLandmark(id: "humanities", title: "人文大樓", detail: "人文學院與通識課程空間。", query: "國立臺北大學 人文大樓", layer: .teaching),
+        CampusMapLandmark(id: "law", title: "法學大樓", detail: "法律學院與法政相關課程空間。", query: "國立臺北大學 法學大樓", layer: .teaching),
+        CampusMapLandmark(id: "social-science", title: "社會科學大樓", detail: "社會科學院教學與系所空間。", query: "國立臺北大學 社會科學大樓", layer: .teaching),
+        CampusMapLandmark(id: "public-affairs", title: "公共事務大樓", detail: "公共事務學院與相關課程空間。", query: "國立臺北大學 公共事務大樓", layer: .teaching),
+        CampusMapLandmark(id: "eecs", title: "電機資訊大樓", detail: "電機資訊相關系所與實作空間。", query: "國立臺北大學 電機資訊大樓", layer: .teaching),
+        CampusMapLandmark(id: "dorm", title: "學生宿舍", detail: "住宿生活與校內生活圈。", query: "國立臺北大學 學生宿舍", layer: .dormActivity),
+        CampusMapLandmark(id: "activity-center", title: "綜合體育館暨活動中心", detail: "體育課、活動與大型集會場域。", query: "國立臺北大學 綜合體育館", layer: .dormActivity)
+    ]
 }
 
 private struct CampusResource: Identifiable {
