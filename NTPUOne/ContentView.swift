@@ -2239,7 +2239,7 @@ private struct CommunityView: View {
                 }
             )
         } label: {
-            CommunityTopicRow(topic: topic)
+            CommunityTopicRow(topic: topic, isLiked: manager.isLiked(topic))
         }
     }
 
@@ -2353,6 +2353,7 @@ private struct CommunityView: View {
 
 private struct CommunityTopicRow: View {
     let topic: CommunityTopic
+    var isLiked: Bool = false
     @AppStorage("commentDeviceId") private var deviceId: String = ""
     @AppStorage("commentNickname") private var nickname: String = ""
 
@@ -2390,7 +2391,11 @@ private struct CommunityTopicRow: View {
                 if !authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear).isEmpty {
                     Label(authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear), systemImage: "person.text.rectangle")
                 }
-                Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: "heart")
+                Label(
+                    String(format: String(localized: "community_like_count_format"), topic.likeCount),
+                    systemImage: isLiked ? "heart.fill" : "heart"
+                )
+                .foregroundStyle(isLiked ? .red : .secondary)
                 Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble")
             }
             .font(.caption2)
@@ -3448,18 +3453,26 @@ struct CommunityLikedTopicsView: View {
                     .font(.caption)
                     .foregroundStyle(.red)
             } else if manager.topics.isEmpty {
-                ContentUnavailableView(
-                    String(localized: "community_liked_topics_empty"),
-                    systemImage: "heart",
-                    description: Text(String(localized: "community_liked_topics_empty_detail"))
-                )
+                VStack(spacing: 8) {
+                    Image(systemName: "heart")
+                        .font(.title2)
+                        .foregroundStyle(.secondary)
+                    Text(String(localized: "community_liked_topics_empty"))
+                        .font(.headline)
+                    Text(String(localized: "community_liked_topics_empty_detail"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .multilineTextAlignment(.center)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 28)
                 .listRowBackground(Color.clear)
             } else {
                 ForEach(manager.topics) { topic in
                     NavigationLink {
                         CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager)
                     } label: {
-                        CommunityTopicRow(topic: topic)
+                        CommunityTopicRow(topic: topic, isLiked: true)
                     }
                 }
             }

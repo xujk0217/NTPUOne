@@ -1940,26 +1940,19 @@ struct LinkView: View {
     
     func handleURL(_ urlString: String) {
         self.urlString = urlString
-        if urlString == "https://past-exam.ntpu.cc" {
-            // Open in external browser
-            if let url = URL(string: urlString) {
-                if UIApplication.shared.canOpenURL(url) {
-                    UIApplication.shared.open(url)
-                } else {
-                    print("Cannot open URL: \(urlString)")
-                }
-            }
+        guard let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) else {
+            print("Cannot open URL: \(urlString)")
+            return
+        }
+
+        // iOS 的 Safari／PDF 檢視器對 PDF 的支援最完整；避免以舊式 view controller 取得方式呈現失敗。
+        if url.pathExtension.lowercased() == "pdf" || urlString == "https://past-exam.ntpu.cc" {
+            UIApplication.shared.open(url)
         } else {
             // Open in SafariViewController
-            if let url = URL(string: urlString) {
-                if UIApplication.shared.canOpenURL(url) {
-                    if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                        let safariVC = SFSafariViewController(url: url)
-                        topViewController.present(safariVC, animated: true, completion: nil)
-                    }
-                } else {
-                    print("Cannot open URL: \(urlString)")
-                }
+            if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                let safariVC = SFSafariViewController(url: url)
+                topViewController.present(safariVC, animated: true, completion: nil)
             }
         }
     }
