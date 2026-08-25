@@ -81,7 +81,6 @@ struct LinkView: View {
     @State private var recommendationFallbackCollectionName: String? = nil
     @State private var goTodayRestaurantDetail = false
     @AppStorage("todayHubRestaurantRecommendationCache") private var todayRestaurantRecommendationCache = ""
-    @AppStorage(NextCourseLiveActivityManager.isEnabledKey) private var isLiveActivityEnabled = true
     
     @State private var peekCourse: Course? = nil
     private let legacyCrawlerUpdateMessage = "請更新至最新版本以查看新的公告類型"
@@ -590,7 +589,6 @@ struct LinkView: View {
 
                     Spacer()
 
-                    todayHubLiveActivityToggle
                 }
 
                 VStack(spacing: 8) {
@@ -613,37 +611,6 @@ struct LinkView: View {
             .listRowInsets(.init(top: 8, leading: 0, bottom: 4, trailing: 0))
         }
         .listRowBackground(Color.clear)
-    }
-
-    private var todayHubLiveActivityToggle: some View {
-        Toggle(isOn: liveActivityBinding) {
-            Text(String(localized: "live_activity_toggle_label"))
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-        }
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .fixedSize()
-        .accessibilityLabel(Text(String(localized: "live_activity_toggle_accessibility")))
-    }
-
-    private var liveActivityBinding: Binding<Bool> {
-        Binding {
-            isLiveActivityEnabled
-        } set: { newValue in
-            setLiveActivityEnabled(newValue)
-        }
-    }
-
-    private func setLiveActivityEnabled(_ newValue: Bool) {
-        Task { @MainActor in
-            isLiveActivityEnabled = newValue
-            NextCourseLiveActivityManager.shared.setEnabled(
-                newValue,
-                courses: courseData.courses,
-                memos: memoManager.memos
-            )
-        }
     }
 
     private var todayRestaurantCard: some View {

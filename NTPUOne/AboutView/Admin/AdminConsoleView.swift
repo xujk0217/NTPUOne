@@ -48,11 +48,13 @@ struct AdminConsoleView: View {
                     }
                 }
 
-                Section("開發測試") {
-                    NavigationLink {
-                        AdminLiveActivityTestView()
-                    } label: {
-                        Label("即時課表測試", systemImage: "timer")
+                if NextCourseLiveActivityManager.isFeatureAvailable {
+                    Section("開發測試") {
+                        NavigationLink {
+                            AdminLiveActivityTestView()
+                        } label: {
+                            Label("即時課表測試", systemImage: "timer")
+                        }
                     }
                 }
             }

@@ -9,6 +9,8 @@ final class NextCourseLiveActivityManager {
     static let shared = NextCourseLiveActivityManager()
 
     nonisolated static let isEnabledKey = "nextCourseLiveActivityEnabled"
+    /// 目前先不對一般使用者開放即時課表；保留實作以便日後重新啟用。
+    nonisolated static let isFeatureAvailable = false
 
     private let activityID = "next-course"
     private let calendar = Calendar.current
@@ -27,7 +29,8 @@ final class NextCourseLiveActivityManager {
     private init() {}
 
     private var isEnabled: Bool {
-        UserDefaults.standard.object(forKey: Self.isEnabledKey) as? Bool ?? true
+        Self.isFeatureAvailable
+            && (UserDefaults.standard.object(forKey: Self.isEnabledKey) as? Bool ?? false)
     }
 
     /// 僅供管理後台驗證 Live Activity 的跨課切換；不會寫入使用者課表或通知。
@@ -48,6 +51,7 @@ final class NextCourseLiveActivityManager {
 
     /// 五分鐘後開始，共五堂，每堂十分鐘、堂間間隔五分鐘。
     func startAdminLiveActivityTest() {
+        guard Self.isFeatureAvailable else { return }
         clearAdminLiveActivityTest(restoreLiveActivitySetting: true)
 
         let now = Date()
@@ -140,11 +144,11 @@ final class NextCourseLiveActivityManager {
 
     func setEnabled(_ isEnabled: Bool, courses: [Course], memos: [Memo]) {
         clearAdminLiveActivityTest(restoreLiveActivitySetting: false)
-        UserDefaults.standard.set(isEnabled, forKey: Self.isEnabledKey)
+        UserDefaults.standard.set(Self.isFeatureAvailable && isEnabled, forKey: Self.isEnabledKey)
         latestCourses = courses
         latestMemos = memos
 
-        if isEnabled {
+        if Self.isFeatureAvailable && isEnabled {
             syncIfNeeded()
         } else {
             stop()
