@@ -33,6 +33,8 @@ struct NextCourseLiveActivityAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
         let course: NextCourseLiveActivitySnapshot?
         let nextCourse: NextCourseLiveActivitySnapshot?
+        /// 當天尚未結束的課程；可讓 Live Activity 在背景時自行跨課切換。
+        let upcomingCourses: [NextCourseLiveActivitySnapshot]?
         let todos: [NextCourseLiveActivityTodoSnapshot]
         let updatedAt: Date
     }

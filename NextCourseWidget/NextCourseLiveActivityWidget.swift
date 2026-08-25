@@ -55,8 +55,8 @@ struct NextCourseLiveActivityWidget: Widget {
                         Text("Refresh")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.secondary)
-                    } else if let course = context.state.displayCourse(at: timeline.date) {
-                        Text(course.startsAt, style: .time)
+            } else if let course = context.state.displayCourse(at: timeline.date) {
+                        Text(course.isInProgress(at: timeline.date) ? course.endsAt : course.startsAt, style: .timer)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.blue)
                     } else {
@@ -249,13 +249,19 @@ private struct NextCourseLiveActivityLockScreenView: View {
                             .foregroundStyle(Color.white.opacity(0.72))
                             .lineLimit(1)
                     } else {
-                        Text("Class time · \(timeRangeText(for: course))")
+                        Text(course.isInProgress(at: now) ? "Ends in" : "Starts in")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Color.cyan)
                             .lineLimit(1)
 
-                        ProgressView(timerInterval: course.startsAt...course.endsAt, countsDown: false)
-                            .tint(.cyan)
+                        if course.isInProgress(at: now) {
+                            ProgressView(timerInterval: course.startsAt...course.endsAt, countsDown: false)
+                                .tint(.cyan)
+                        } else {
+                            Text(course.startsAt, style: .timer)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Color.cyan)
+                        }
                     }
                 }
             } else {
@@ -287,7 +293,7 @@ private struct NextCourseLiveActivityLockScreenView: View {
     private var statusTitle: String {
         if isStale { return "Needs Refresh" }
         guard let course = state.displayCourse(at: now) else { return "Today" }
-        return "Course"
+        return course.isInProgress(at: now) ? "In class" : "Next class"
     }
 
     private func timeRangeText(for course: NextCourseLiveActivitySnapshot) -> String {
@@ -320,7 +326,7 @@ private struct NextCourseLiveActivityTimeView: View {
                 Text("Time")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
-                Text(course.startsAt, style: .time)
+                Text(course.isInProgress(at: now) ? course.endsAt : course.startsAt, style: .timer)
                     .font(.headline.weight(.bold))
                     .foregroundStyle(.blue)
             } else {
@@ -370,7 +376,11 @@ private struct NextCourseLiveActivityExpandedBottomView: View {
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                     if let course = state.displayCourse(at: now), !isStale {
-                        Text("Class time · \(formatTime(course.startsAt))-\(formatTime(course.endsAt))")
+                        Text(course.isInProgress(at: now) ? "Ends in" : "Starts in")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.blue)
+                            .lineLimit(1)
+                        Text(course.isInProgress(at: now) ? course.endsAt : course.startsAt, style: .timer)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.blue)
                             .lineLimit(1)
@@ -421,12 +431,12 @@ private struct NextCourseLiveActivityExpandedBottomView: View {
 @available(iOSApplicationExtension 16.1, *)
 private extension NextCourseLiveActivityAttributes.ContentState {
     func displayCourse(at now: Date = Date()) -> NextCourseLiveActivitySnapshot? {
-        if let course, now < course.endsAt {
-            return course.resolvedProgress(at: now)
-        }
+        let sequence = upcomingCourses?.isEmpty == false
+            ? upcomingCourses ?? []
+            : [course, nextCourse].compactMap { $0 }
 
-        if let nextCourse, now < nextCourse.endsAt {
-            return nextCourse.resolvedProgress(at: now)
+        if let course = sequence.first(where: { now < $0.endsAt }) {
+            return course.resolvedProgress(at: now)
         }
 
         return nil
@@ -435,12 +445,7 @@ private extension NextCourseLiveActivityAttributes.ContentState {
     func isDisplayStale(_ contextIsStale: Bool, at now: Date = Date()) -> Bool {
         guard contextIsStale else { return false }
 
-        if let course, now < course.endsAt {
-            return !course.isInProgress && now >= course.startsAt
-        }
-
-        if let nextCourse, now < nextCourse.endsAt { return false }
-        return true
+        return contextIsStale && displayCourse(at: now) == nil
     }
 }
 

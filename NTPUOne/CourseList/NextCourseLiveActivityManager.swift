@@ -140,6 +140,7 @@ final class NextCourseLiveActivityManager {
         let state = NextCourseLiveActivityAttributes.ContentState(
             course: timeline.course,
             nextCourse: timeline.nextCourse,
+            upcomingCourses: timeline.upcomingCourses,
             todos: todos,
             updatedAt: Date()
         )
@@ -247,6 +248,7 @@ final class NextCourseLiveActivityManager {
     private struct NextCourseTimeline {
         let course: NextCourseLiveActivitySnapshot?
         let nextCourse: NextCourseLiveActivitySnapshot?
+        let upcomingCourses: [NextCourseLiveActivitySnapshot]
         let nextRefreshAt: Date
     }
 
@@ -254,29 +256,27 @@ final class NextCourseLiveActivityManager {
         let candidates = courseCandidates(from: courses, now: now)
             .sorted { $0.startsAt < $1.startsAt }
 
-        if let current = candidates
-            .filter({ $0.startsAt <= now && now < $0.endsAt })
-            .min(by: { $0.endsAt < $1.endsAt }) {
-            let next = candidates.first { $0.startsAt > current.startsAt }
+        let remaining = candidates.filter { $0.endsAt > now }
+        if !remaining.isEmpty {
+            // 讓 Widget 在 App 進入背景後仍能依日期自行切換每一堂課，而不是只帶第一、二堂。
+            let snapshots = remaining.map { candidate in
+                snapshot(from: candidate, isInProgress: candidate.startsAt <= now && now < candidate.endsAt)
+            }
             return NextCourseTimeline(
-                course: snapshot(from: current, isInProgress: true),
-                nextCourse: next.map { snapshot(from: $0, isInProgress: false) },
-                nextRefreshAt: current.endsAt
+                course: snapshots.first,
+                nextCourse: snapshots.dropFirst().first,
+                upcomingCourses: snapshots,
+                // 不要在第一堂課開始／結束就標示 stale；跨日後前景刷新即可載入新一天的課表。
+                nextRefreshAt: nextDayStart(after: now)
             )
         }
 
-        if let next = candidates
-            .filter({ $0.startsAt > now })
-            .min(by: { $0.startsAt < $1.startsAt }) {
-            let following = candidates.first { $0.startsAt > next.startsAt }
-            return NextCourseTimeline(
-                course: snapshot(from: next, isInProgress: false),
-                nextCourse: following.map { snapshot(from: $0, isInProgress: false) },
-                nextRefreshAt: next.startsAt
-            )
-        }
-
-        return NextCourseTimeline(course: nil, nextCourse: nil, nextRefreshAt: nextDayStart(after: now))
+        return NextCourseTimeline(
+            course: nil,
+            nextCourse: nil,
+            upcomingCourses: [],
+            nextRefreshAt: nextDayStart(after: now)
+        )
     }
 
     private func courseCandidates(from courses: [Course], now: Date) -> [(course: Course, startsAt: Date, endsAt: Date)] {
