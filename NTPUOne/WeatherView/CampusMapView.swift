@@ -447,10 +447,10 @@ private struct CampusMapLandmark {
         CampusMapLandmark(id: "social-science", title: "社會科學大樓（社科院）", detail: "College of Social Sciences。", coordinate: .init(latitude: 24.9443347, longitude: 121.3696480), layer: .teaching),
         CampusMapLandmark(id: "public-affairs", title: "公共事務大樓（公院）", detail: "公共行政暨政策學系所在。", coordinate: .init(latitude: 24.9437820, longitude: 121.3718830), layer: .teaching),
         CampusMapLandmark(id: "eecs", title: "音律電機資訊大樓（電資院）", detail: "Department of Electrical Engineering 所在。", coordinate: .init(latitude: 24.9427559, longitude: 121.3704139), layer: .teaching),
-        CampusMapLandmark(id: "dorm-glorious-morn", title: "晨曦樓", detail: "Glorious Morn Building。", coordinate: .init(latitude: 24.9422600, longitude: 121.3684800), layer: .dormActivity),
-        CampusMapLandmark(id: "dorm-dawning-sun", title: "曉日樓", detail: "Dawning-Sun Building。", coordinate: .init(latitude: 24.9416900, longitude: 121.3691700), layer: .dormActivity),
-        CampusMapLandmark(id: "dorm-glistening-star", title: "皓月樓", detail: "Glistening-Star Building。", coordinate: .init(latitude: 24.9418700, longitude: 121.3693600), layer: .dormActivity),
-        CampusMapLandmark(id: "activity-center", title: "綜合體育館暨活動中心", detail: "體育課、活動與大型集會場域。", coordinate: .init(latitude: 24.9409400, longitude: 121.3687600), layer: .dormActivity)
+        CampusMapLandmark(id: "dorm-glorious-morn", title: "晨曦樓", detail: "Glorious Morn Building。", coordinate: .init(latitude: 24.9416120, longitude: 121.3676270), layer: .dormActivity),
+        CampusMapLandmark(id: "dorm-dawning-sun", title: "曉日樓", detail: "Dawning-Sun Building。", coordinate: .init(latitude: 24.9417720, longitude: 121.3682620), layer: .dormActivity),
+        CampusMapLandmark(id: "dorm-glistening-star", title: "皓月樓", detail: "Glistening-Star Building。", coordinate: .init(latitude: 24.9412490, longitude: 121.3678150), layer: .dormActivity),
+        CampusMapLandmark(id: "activity-center", title: "綜合體育館暨活動中心", detail: "國立台北大學三峽校區綜合體育館。", coordinate: .init(latitude: 24.9407560, longitude: 121.3657800), layer: .dormActivity)
     ]
 }
 
