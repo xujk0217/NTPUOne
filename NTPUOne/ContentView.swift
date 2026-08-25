@@ -925,17 +925,15 @@ private struct CommunityImageBrowserView: View {
         ZStack {
             Color.black.ignoresSafeArea()
 
-            TabView(selection: $selectedIndex) {
-                ForEach(Array(recordNames.enumerated()), id: \.element) { index, recordName in
-                    CommunityZoomableImagePage(
-                        image: images[recordName],
-                        failed: failedRecordNames.contains(recordName),
-                        onDismiss: { dismiss() }
-                    )
-                    .tag(index)
-                }
+            if let currentRecordName {
+                CommunityZoomableImagePage(
+                    image: images[currentRecordName],
+                    failed: failedRecordNames.contains(currentRecordName),
+                    onDismiss: { dismiss() },
+                    onPageChange: changePage
+                )
+                .id(currentRecordName)
             }
-            .tabViewStyle(.page(indexDisplayMode: .always))
         }
         .safeAreaInset(edge: .top) {
             HStack {
@@ -1023,18 +1021,28 @@ private struct CommunityImageBrowserView: View {
             saveMessage = nil
         }
     }
+
+    private func changePage(by offset: Int) {
+        let nextIndex = selectedIndex + offset
+        guard recordNames.indices.contains(nextIndex) else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedIndex = nextIndex
+        }
+    }
 }
 
 private struct CommunityZoomableImagePage: View {
     let image: UIImage?
     let failed: Bool
     let onDismiss: () -> Void
+    let onPageChange: (Int) -> Void
 
     @State private var scale: CGFloat = 1
     @State private var transientScale: CGFloat = 1
     @State private var offset: CGSize = .zero
     @State private var transientOffset: CGSize = .zero
     @State private var dismissOffset: CGFloat = 0
+    @State private var horizontalPageOffset: CGFloat = 0
 
     var body: some View {
         GeometryReader { proxy in
@@ -1046,7 +1054,7 @@ private struct CommunityZoomableImagePage: View {
                         .frame(width: proxy.size.width, height: proxy.size.height)
                         .scaleEffect(scale * transientScale)
                         .offset(
-                            x: offset.width + transientOffset.width,
+                            x: offset.width + transientOffset.width + horizontalPageOffset,
                             y: offset.height + transientOffset.height + dismissOffset
                         )
                         .scaleEffect(1 - min(dismissOffset / 1_800, 0.08))
@@ -1069,7 +1077,9 @@ private struct CommunityZoomableImagePage: View {
                     offset: $offset,
                     transientOffset: $transientOffset,
                     dismissOffset: $dismissOffset,
-                    onDismiss: onDismiss
+                    horizontalPageOffset: $horizontalPageOffset,
+                    onDismiss: onDismiss,
+                    onPageChange: onPageChange
                 )
             )
             .onTapGesture(count: 2) {
@@ -1104,7 +1114,9 @@ private struct CommunityImagePageDragModifier: ViewModifier {
     @Binding var offset: CGSize
     @Binding var transientOffset: CGSize
     @Binding var dismissOffset: CGFloat
+    @Binding var horizontalPageOffset: CGFloat
     let onDismiss: () -> Void
+    let onPageChange: (Int) -> Void
 
     func body(content: Content) -> some View {
         if scale > 1 {
@@ -1123,6 +1135,10 @@ private struct CommunityImagePageDragModifier: ViewModifier {
                 } else if value.translation.height > 0,
                           abs(value.translation.height) > abs(value.translation.width) {
                     dismissOffset = value.translation.height
+                    horizontalPageOffset = 0
+                } else if abs(value.translation.width) > abs(value.translation.height) {
+                    horizontalPageOffset = value.translation.width
+                    dismissOffset = 0
                 }
             }
             .onEnded { value in
@@ -1130,6 +1146,18 @@ private struct CommunityImagePageDragModifier: ViewModifier {
                     offset.width += value.translation.width
                     offset.height += value.translation.height
                     transientOffset = .zero
+                    return
+                }
+
+                if abs(value.translation.width) > abs(value.translation.height) {
+                    let pageChangeThreshold: CGFloat = 75
+                    let pageOffset = value.translation.width < -pageChangeThreshold ? 1 : (value.translation.width > pageChangeThreshold ? -1 : 0)
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.85)) {
+                        horizontalPageOffset = 0
+                    }
+                    if pageOffset != 0 {
+                        onPageChange(pageOffset)
+                    }
                     return
                 }
 
