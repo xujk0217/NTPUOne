@@ -22,6 +22,7 @@ final class NextCourseLiveActivityManager {
     private var adminLiveActivityTestCompletionTask: Task<Void, Never>?
     private var latestCourses: [Course] = []
     private var latestMemos: [Memo] = []
+    private var isApplicationActive = true
 
     private init() {}
 
@@ -120,6 +121,23 @@ final class NextCourseLiveActivityManager {
         syncIfNeeded()
     }
 
+    /// Live Activity 不使用遠端推播；App 在前景時才執行本機更新排程。
+    func setApplicationActive(_ isActive: Bool) {
+        isApplicationActive = isActive
+
+        if isActive {
+            syncIfNeeded()
+        } else {
+            syncGeneration += 1
+            syncTask?.cancel()
+            syncTask = nil
+            rolloverTask?.cancel()
+            rolloverTask = nil
+            periodicRefreshTask?.cancel()
+            periodicRefreshTask = nil
+        }
+    }
+
     func setEnabled(_ isEnabled: Bool, courses: [Course], memos: [Memo]) {
         clearAdminLiveActivityTest(restoreLiveActivitySetting: false)
         UserDefaults.standard.set(isEnabled, forKey: Self.isEnabledKey)
@@ -143,6 +161,7 @@ final class NextCourseLiveActivityManager {
             stop()
             return
         }
+        guard isApplicationActive else { return }
         ensurePeriodicRefresh()
 
         let timeline = adminLiveActivityTest
@@ -197,7 +216,7 @@ final class NextCourseLiveActivityManager {
     }
 
     private func ensurePeriodicRefresh() {
-        guard periodicRefreshTask == nil else { return }
+        guard isApplicationActive, periodicRefreshTask == nil else { return }
         let interval = periodicRefreshInterval
 
         periodicRefreshTask = Task { [weak self] in
@@ -215,7 +234,7 @@ final class NextCourseLiveActivityManager {
     }
 
     private func periodicRefreshTick() {
-        guard isEnabled else {
+        guard isEnabled, isApplicationActive else {
             periodicRefreshTask?.cancel()
             periodicRefreshTask = nil
             return
@@ -326,6 +345,7 @@ final class NextCourseLiveActivityManager {
 
     @available(iOS 16.1, *)
     private func scheduleRollover(after boundary: Date, generation: Int) {
+        guard isApplicationActive else { return }
         rolloverTask = Task { [weak self] in
             guard let self else { return }
             let refreshDate = boundary.addingTimeInterval(self.rolloverLeeway)
@@ -337,7 +357,7 @@ final class NextCourseLiveActivityManager {
                 return
             }
 
-            guard generation == self.syncGeneration else { return }
+            guard generation == self.syncGeneration, self.isApplicationActive else { return }
             self.syncIfNeeded()
         }
     }
@@ -371,8 +391,7 @@ final class NextCourseLiveActivityManager {
             course: snapshots.first,
             nextCourse: snapshots.dropFirst().first,
             upcomingCourses: snapshots,
-            // 與正式模式相同，跨課切換交由 Widget 的時間軸自行處理。
-            nextRefreshAt: nextDayStart(after: now)
+            nextRefreshAt: nextRefreshBoundary(for: snapshots, now: now)
         )
     }
 
@@ -390,8 +409,7 @@ final class NextCourseLiveActivityManager {
                 course: snapshots.first,
                 nextCourse: snapshots.dropFirst().first,
                 upcomingCourses: snapshots,
-                // 不要在第一堂課開始／結束就標示 stale；跨日後前景刷新即可載入新一天的課表。
-                nextRefreshAt: nextDayStart(after: now)
+                nextRefreshAt: nextRefreshBoundary(for: snapshots, now: now)
             )
         }
 
@@ -401,6 +419,16 @@ final class NextCourseLiveActivityManager {
             upcomingCourses: [],
             nextRefreshAt: nextDayStart(after: now)
         )
+    }
+
+    private func nextRefreshBoundary(
+        for snapshots: [NextCourseLiveActivitySnapshot],
+        now: Date
+    ) -> Date {
+        guard let current = snapshots.first else { return nextDayStart(after: now) }
+        if now < current.startsAt { return current.startsAt }
+        if now < current.endsAt { return current.endsAt }
+        return nextDayStart(after: now)
     }
 
     private func courseCandidates(from courses: [Course], now: Date) -> [(course: Course, startsAt: Date, endsAt: Date)] {

@@ -83,11 +83,15 @@ struct ContentView: View {
             if !hasCompletedFirstRunOnboarding {
                 showFirstRunOnboarding = true
             }
+            NextCourseLiveActivityManager.shared.setApplicationActive(true)
             refreshLiveActivity()
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
+                NextCourseLiveActivityManager.shared.setApplicationActive(true)
                 refreshLiveActivity()
+            } else {
+                NextCourseLiveActivityManager.shared.setApplicationActive(false)
             }
         }
     }

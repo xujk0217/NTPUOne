@@ -383,13 +383,18 @@ struct NTPUOneApp: App {
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
+                NextCourseLiveActivityManager.shared.setApplicationActive(true)
                 adFree.refresh()   // 回到前景時刷新到期狀態
                 WidgetCenter.shared.reloadAllTimelines()  // 刷新所有 Widget
                 courseData.refreshNextCourseLiveActivity()
                 if K.Community.notificationsEnabled {
                     CommunityNotificationFallbackService.shared.refresh(source: "foreground")
                 }
-            } else if phase == .background {
+            } else {
+                NextCourseLiveActivityManager.shared.setApplicationActive(false)
+            }
+
+            if phase == .background {
                 if K.Community.notificationsEnabled {
                     AppDelegate.scheduleCommunityNotificationRefresh()
                 }
