@@ -1096,6 +1096,9 @@
 "community_title" = "Community";
 "community_profile_title" = "Community Identity";
 "community_my_content_title" = "My Community Content";
+"community_liked_topics_title" = "Liked Topics";
+"community_liked_topics_empty" = "No liked topics yet";
+"community_liked_topics_empty_detail" = "Topics you like while signed in appear here.";
 "community_default_user_format" = "User%@";
 "community_category_all" = "All";
 "community_category_food" = "Food";

@@ -2695,8 +2695,9 @@ private struct CommunityTopicDetailView: View {
                                 Button(action: toggleLike) {
                                     Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: isLiked ? "heart.fill" : "heart")
                                         .foregroundStyle(isLiked ? Color.red : Color.secondary)
-                                }
-                                .buttonStyle(.borderless)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(!canToggleLike)
                             }
                             if topic.isEdited {
                                 Text(String(localized: "community_edited_label"))
@@ -2759,6 +2760,7 @@ private struct CommunityTopicDetailView: View {
                         .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
                     }
                     .buttonStyle(.plain)
+                    .disabled(!canToggleLike)
                 }
             }
 
@@ -3054,6 +3056,10 @@ private struct CommunityTopicDetailView: View {
             }
         }
     }
+
+    private var canToggleLike: Bool {
+        onToggleLike != nil && Auth.auth().currentUser != nil
+    }
 }
 
 private enum CommunityManagedContentEditItem: Identifiable, Equatable {
@@ -3344,6 +3350,123 @@ private final class CommunityMyContentManager: ObservableObject {
 struct CommunityMyContentView: View {
     var body: some View {
         CommunityMyContentListView()
+    }
+}
+
+private final class CommunityLikedTopicsManager: ObservableObject {
+    @Published var topics: [CommunityTopic] = []
+    @Published var isLoading = false
+    @Published var errorMessage: String?
+
+    private let db = Firestore.firestore()
+
+    func load() {
+        guard let user = Auth.auth().currentUser else {
+            topics = []
+            errorMessage = String(localized: "community_google_sign_in_required_error")
+            return
+        }
+
+        isLoading = true
+        errorMessage = nil
+        db.collection("communityUserLikes")
+            .document(user.uid)
+            .collection("topics")
+            .order(by: "likedAt", descending: true)
+            .getDocuments { [weak self] snapshot, error in
+                guard let self else { return }
+                if let error {
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.errorMessage = communityErrorMessage(error)
+                    }
+                    return
+                }
+
+                let orderedIDs = snapshot?.documents.map(\.documentID) ?? []
+                guard !orderedIDs.isEmpty else {
+                    DispatchQueue.main.async {
+                        self.isLoading = false
+                        self.topics = []
+                    }
+                    return
+                }
+
+                let batches = stride(from: 0, to: orderedIDs.count, by: 30).map {
+                    Array(orderedIDs[$0..<min($0 + 30, orderedIDs.count)])
+                }
+                let group = DispatchGroup()
+                let lock = NSLock()
+                var loadedTopics: [String: CommunityTopic] = [:]
+                var loadError: Error?
+
+                for batch in batches {
+                    group.enter()
+                    self.db.collection("communityTopics")
+                        .whereField(FieldPath.documentID(), in: batch)
+                        .getDocuments { snapshot, error in
+                            lock.lock()
+                            defer {
+                                lock.unlock()
+                                group.leave()
+                            }
+                            if let error {
+                                loadError = error
+                                return
+                            }
+                            for document in snapshot?.documents ?? [] {
+                                if let topic = CommunityTopic.from(document: document) {
+                                    loadedTopics[topic.id] = topic
+                                }
+                            }
+                        }
+                }
+
+                group.notify(queue: .main) {
+                    self.isLoading = false
+                    if let loadError {
+                        self.errorMessage = communityErrorMessage(loadError)
+                        return
+                    }
+                    self.topics = orderedIDs.compactMap { loadedTopics[$0] }.filter { !$0.isDeleted }
+                }
+            }
+    }
+}
+
+struct CommunityLikedTopicsView: View {
+    @StateObject private var manager = CommunityLikedTopicsManager()
+    @StateObject private var subscriptionManager = CommunitySubscriptionManager()
+
+    var body: some View {
+        List {
+            if manager.isLoading {
+                ProgressView()
+                    .frame(maxWidth: .infinity, alignment: .center)
+            } else if let errorMessage = manager.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            } else if manager.topics.isEmpty {
+                ContentUnavailableView(
+                    String(localized: "community_liked_topics_empty"),
+                    systemImage: "heart",
+                    description: Text(String(localized: "community_liked_topics_empty_detail"))
+                )
+                .listRowBackground(Color.clear)
+            } else {
+                ForEach(manager.topics) { topic in
+                    NavigationLink {
+                        CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager)
+                    } label: {
+                        CommunityTopicRow(topic: topic)
+                    }
+                }
+            }
+        }
+        .navigationTitle(String(localized: "community_liked_topics_title"))
+        .navigationBarTitleDisplayMode(.inline)
+        .onAppear { manager.load() }
     }
 }
 

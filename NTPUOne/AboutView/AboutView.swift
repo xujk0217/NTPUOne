@@ -312,6 +312,18 @@ private struct AccountCenterView: View {
                     )
                 }
 
+                if isSignedIn {
+                    NavigationLink {
+                        CommunityLikedTopicsView()
+                    } label: {
+                        rowLabel(
+                            title: String(localized: "community_liked_topics_title"),
+                            systemImage: "heart.fill",
+                            tint: .red
+                        )
+                    }
+                }
+
                 NavigationLink {
                     CommentRewardInfoView()
                 } label: {

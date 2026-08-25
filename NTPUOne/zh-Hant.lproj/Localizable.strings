@@ -1096,6 +1096,9 @@
 "community_title" = "交流區";
 "community_profile_title" = "交流身份";
 "community_my_content_title" = "我的交流內容";
+"community_liked_topics_title" = "我按讚的文章";
+"community_liked_topics_empty" = "還沒有按讚的文章";
+"community_liked_topics_empty_detail" = "登入後按過愛心的交流文章會顯示在這裡。";
 "community_default_user_format" = "使用者%@";
 "community_category_all" = "全部";
 "community_category_food" = "美食";
