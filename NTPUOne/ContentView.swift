@@ -14,6 +14,7 @@ import FirebaseAuth
 import GoogleSignIn
 import CloudKit
 import PhotosUI
+import Photos
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
@@ -583,7 +584,7 @@ private struct CommunityTopic: Identifiable, Equatable, Hashable {
 @MainActor
 final class CommunityImageService {
     static let shared = CommunityImageService()
-    nonisolated static let maximumUploadBytes = 2 * 1024 * 1024
+    nonisolated static let maximumUploadBytes = 5 * 1024 * 1024
     nonisolated static let maximumImageDimension: CGFloat = 2_048
     nonisolated static let maximumImagesPerTopic = 3
 
@@ -805,21 +806,256 @@ private struct CommunityTopicImageView: View {
 
 private struct CommunityTopicImagesView: View {
     let recordNames: [String]
+    @State private var previewIndex = 0
+    @State private var showBrowser = false
 
     var body: some View {
-        if recordNames.count == 1, let recordName = recordNames.first {
-            CommunityTopicImageView(recordName: recordName)
-        } else if !recordNames.isEmpty {
-            TabView {
-                ForEach(recordNames, id: \.self) { recordName in
-                    CommunityTopicImageView(recordName: recordName)
-                        .padding(.horizontal, 2)
+        Group {
+            if recordNames.count == 1, let recordName = recordNames.first {
+                CommunityTopicImageView(recordName: recordName)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        previewIndex = 0
+                        showBrowser = true
+                    }
+            } else if !recordNames.isEmpty {
+                TabView(selection: $previewIndex) {
+                    ForEach(Array(recordNames.enumerated()), id: \.element) { index, recordName in
+                        CommunityTopicImageView(recordName: recordName)
+                            .padding(.horizontal, 2)
+                            .tag(index)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                previewIndex = index
+                                showBrowser = true
+                            }
+                        }
                 }
+                .frame(height: 300)
+                .tabViewStyle(.page(indexDisplayMode: .always))
             }
-            .frame(height: 300)
-            .tabViewStyle(.page(indexDisplayMode: .always))
+        }
+        .fullScreenCover(isPresented: $showBrowser) {
+            CommunityImageBrowserView(recordNames: recordNames, initialIndex: previewIndex)
         }
     }
+}
+
+private struct CommunityImageBrowserView: View {
+    @Environment(\.dismiss) private var dismiss
+    let recordNames: [String]
+    let initialIndex: Int
+
+    @State private var selectedIndex: Int
+    @State private var images: [String: UIImage] = [:]
+    @State private var failedRecordNames = Set<String>()
+    @State private var showShareSheet = false
+    @State private var saveMessage: String?
+
+    init(recordNames: [String], initialIndex: Int) {
+        self.recordNames = recordNames
+        self.initialIndex = initialIndex
+        _selectedIndex = State(initialValue: min(max(initialIndex, 0), max(recordNames.count - 1, 0)))
+    }
+
+    private var currentRecordName: String? {
+        guard recordNames.indices.contains(selectedIndex) else { return nil }
+        return recordNames[selectedIndex]
+    }
+
+    private var currentImage: UIImage? {
+        currentRecordName.flatMap { images[$0] }
+    }
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $selectedIndex) {
+                ForEach(Array(recordNames.enumerated()), id: \.element) { index, recordName in
+                    CommunityZoomableImagePage(
+                        image: images[recordName],
+                        failed: failedRecordNames.contains(recordName)
+                    )
+                    .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: .always))
+        }
+        .safeAreaInset(edge: .top) {
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.headline.weight(.bold))
+                        .frame(width: 42, height: 42)
+                        .background(.ultraThinMaterial, in: Circle())
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+
+                Text("\(selectedIndex + 1) / \(recordNames.count)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+        }
+        .safeAreaInset(edge: .bottom) {
+            HStack(spacing: 12) {
+                Button {
+                    showShareSheet = true
+                } label: {
+                    Label(String(localized: "community_image_share"), systemImage: "square.and.arrow.up")
+                }
+                .disabled(currentImage == nil)
+
+                Button {
+                    saveCurrentImage()
+                } label: {
+                    Label(String(localized: "community_image_save"), systemImage: "arrow.down.to.line.compact")
+                }
+                .disabled(currentImage == nil)
+            }
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(.ultraThinMaterial, in: Capsule())
+            .padding(.bottom, 12)
+        }
+        .sheet(isPresented: $showShareSheet) {
+            if let currentImage {
+                CommunityActivitySheet(items: [currentImage])
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if let saveMessage {
+                Text(saveMessage)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9)
+                    .background(.black.opacity(0.75), in: Capsule())
+                    .padding(.bottom, 92)
+            }
+        }
+        .task {
+            await loadImages()
+        }
+    }
+
+    private func loadImages() async {
+        for recordName in recordNames where images[recordName] == nil && !failedRecordNames.contains(recordName) {
+            do {
+                images[recordName] = try await CommunityImageService.shared.image(recordName: recordName)
+            } catch {
+                failedRecordNames.insert(recordName)
+            }
+        }
+    }
+
+    private func saveCurrentImage() {
+        guard let currentImage else { return }
+        UIImageWriteToSavedPhotosAlbum(currentImage, nil, nil, nil)
+        saveMessage = String(localized: "community_image_saved")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            saveMessage = nil
+        }
+    }
+}
+
+private struct CommunityZoomableImagePage: View {
+    let image: UIImage?
+    let failed: Bool
+
+    @State private var scale: CGFloat = 1
+    @State private var transientScale: CGFloat = 1
+    @State private var offset: CGSize = .zero
+    @State private var transientOffset: CGSize = .zero
+
+    var body: some View {
+        GeometryReader { proxy in
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .scaleEffect(scale * transientScale)
+                        .offset(
+                            x: offset.width + transientOffset.width,
+                            y: offset.height + transientOffset.height
+                        )
+                } else if failed {
+                    Label(String(localized: "community_image_load_failed"), systemImage: "photo.badge.exclamationmark")
+                        .foregroundStyle(.white.opacity(0.85))
+                } else {
+                    ProgressView()
+                        .tint(.white)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+            .contentShape(Rectangle())
+            .clipped()
+            .gesture(magnificationGesture)
+            .simultaneousGesture(dragGesture)
+            .onTapGesture(count: 2) {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) {
+                    if scale > 1 {
+                        scale = 1
+                        offset = .zero
+                    } else {
+                        scale = 2.5
+                    }
+                }
+            }
+        }
+    }
+
+    private var magnificationGesture: some Gesture {
+        MagnificationGesture()
+            .onChanged { value in
+                transientScale = value
+            }
+            .onEnded { value in
+                scale = min(max(scale * value, 1), 4)
+                transientScale = 1
+                if scale == 1 { offset = .zero }
+            }
+    }
+
+    private var dragGesture: some Gesture {
+        DragGesture()
+            .onChanged { value in
+                guard scale > 1 else { return }
+                transientOffset = value.translation
+            }
+            .onEnded { value in
+                guard scale > 1 else {
+                    transientOffset = .zero
+                    return
+                }
+                offset.width += value.translation.width
+                offset.height += value.translation.height
+                transientOffset = .zero
+            }
+    }
+}
+
+private struct CommunityActivitySheet: UIViewControllerRepresentable {
+    let items: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: items, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }
 
 struct CommentIdentityBar: View {

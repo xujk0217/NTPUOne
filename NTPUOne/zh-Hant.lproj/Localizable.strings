@@ -1159,10 +1159,13 @@
 "community_image_replace" = "更換圖片";
 "community_image_remove" = "移除圖片";
 "community_image_preparing" = "正在處理圖片…";
-"community_image_footer" = "每篇最多 3 張；每張都會自動縮圖與壓縮至不超過 2 MB，上傳需要登入 iCloud。";
+"community_image_footer" = "每篇最多 3 張；每張都會自動縮圖與壓縮至不超過 5 MB，上傳需要登入 iCloud。";
 "community_image_edit_footer" = "圖片為選填；可刪除原圖或補傳新圖，儲存後才會套用變更，每篇最多 3 張。";
 "community_image_invalid" = "無法讀取這張圖片";
-"community_image_too_large" = "圖片壓縮後仍超過 2 MB，請改選其他圖片";
+"community_image_too_large" = "圖片壓縮後仍超過 5 MB，請改選其他圖片";
+"community_image_share" = "分享";
+"community_image_save" = "儲存照片";
+"community_image_saved" = "已儲存到照片圖庫";
 "community_image_too_many" = "每篇貼文最多只能保留或上傳 3 張圖片";
 "community_image_icloud_required" = "上傳圖片需要先登入 iCloud";
 "community_image_load_failed" = "圖片載入失敗";
