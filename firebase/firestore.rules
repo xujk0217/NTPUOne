@@ -643,6 +643,12 @@ service cloud.firestore {
       allow delete: if isAdminOrDeveloper();
     }
 
+    // App 首頁／常用連結中的行事曆，所有使用者皆可讀取；僅管理員可維護連結。
+    match /calendar/{calendarId} {
+      allow read: if true;
+      allow write: if isAdminOrDeveloper();
+    }
+
     match /bug/{bugId} {
       allow create: if isValidFeedbackSubmission();
       allow read, delete: if isAdminOrDeveloper();
