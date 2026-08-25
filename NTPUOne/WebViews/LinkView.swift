@@ -1945,8 +1945,7 @@ struct LinkView: View {
             return
         }
 
-        // iOS 的 Safari／PDF 檢視器對 PDF 的支援最完整；避免以舊式 view controller 取得方式呈現失敗。
-        if url.pathExtension.lowercased() == "pdf" || urlString == "https://past-exam.ntpu.cc" {
+        if urlString == "https://past-exam.ntpu.cc" {
             UIApplication.shared.open(url)
         } else {
             // Open in SafariViewController

@@ -11,7 +11,7 @@ struct NextCourseLiveActivityWidget: Widget {
                     .activityBackgroundTint(.black)
                     .activitySystemActionForegroundColor(.white)
             } else {
-                TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+                TimelineView(.explicit(context.state.transitionDates())) { timeline in
                     NextCourseLiveActivityLockScreenView(
                         state: context.state,
                         isStale: context.state.isDisplayStale(activityIsStale(context), at: timeline.date),
@@ -24,7 +24,7 @@ struct NextCourseLiveActivityWidget: Widget {
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+                    TimelineView(.explicit(context.state.transitionDates())) { timeline in
                         NextCourseLiveActivityTimeView(
                             course: context.state.displayCourse(at: timeline.date),
                             isStale: context.state.isDisplayStale(activityIsStale(context), at: timeline.date),
@@ -38,7 +38,7 @@ struct NextCourseLiveActivityWidget: Widget {
                 }
 
                 DynamicIslandExpandedRegion(.bottom) {
-                    TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+                    TimelineView(.explicit(context.state.transitionDates())) { timeline in
                         NextCourseLiveActivityExpandedBottomView(
                             state: context.state,
                             isStale: context.state.isDisplayStale(activityIsStale(context), at: timeline.date),
@@ -50,7 +50,7 @@ struct NextCourseLiveActivityWidget: Widget {
                 Image(systemName: "book.closed")
                     .foregroundStyle(.blue)
             } compactTrailing: {
-                TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+                TimelineView(.explicit(context.state.transitionDates())) { timeline in
                     if context.state.isDisplayStale(activityIsStale(context), at: timeline.date) {
                         Text("Refresh")
                             .font(.caption2.weight(.bold))
@@ -100,7 +100,7 @@ private struct NextCourseLiveActivityAdaptiveView: View {
     @Environment(\.activityFamily) private var activityFamily
 
     var body: some View {
-        TimelineView(.periodic(from: Date(), by: 1)) { timeline in
+        TimelineView(.explicit(context.state.transitionDates())) { timeline in
             let resolvedStale = context.state.isDisplayStale(activityIsStale(context), at: timeline.date)
             switch activityFamily {
             case .small:
@@ -430,6 +430,17 @@ private struct NextCourseLiveActivityExpandedBottomView: View {
 
 @available(iOSApplicationExtension 16.1, *)
 private extension NextCourseLiveActivityAttributes.ContentState {
+    /// 課前、上課與下課是唯一會改變版面的時間點；倒數文字由系統自行動態更新。
+    func transitionDates(after now: Date = Date()) -> [Date] {
+        let sequence = upcomingCourses?.isEmpty == false
+            ? upcomingCourses ?? []
+            : [course, nextCourse].compactMap { $0 }
+
+        return Array(Set(sequence.flatMap { [$0.startsAt, $0.endsAt] }))
+            .filter { $0 > now }
+            .sorted()
+    }
+
     func displayCourse(at now: Date = Date()) -> NextCourseLiveActivitySnapshot? {
         let sequence = upcomingCourses?.isEmpty == false
             ? upcomingCourses ?? []

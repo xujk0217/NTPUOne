@@ -90,7 +90,7 @@ struct CommonLinksView: View {
     }
     
     private func openURL(_ urlString: String) {
-        if urlString == "https://past-exam.ntpu.cc" || URL(string: urlString)?.pathExtension.lowercased() == "pdf" {
+        if urlString == "https://past-exam.ntpu.cc" {
             // 用外部瀏覽器開啟
             if let url = URL(string: urlString) {
                 UIApplication.shared.open(url)
