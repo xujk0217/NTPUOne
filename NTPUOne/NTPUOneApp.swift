@@ -16,6 +16,7 @@ import FirebaseMessaging
 import FirebaseFirestore
 import FirebaseAuth
 import GoogleMobileAds
+import AppTrackingTransparency
 import UserNotifications
 import Network
 import WidgetKit
@@ -79,8 +80,8 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         MonitorNetworkConnection()
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
-        GADMobileAds.sharedInstance().start(completionHandler: nil)
         GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
+        startGoogleMobileAdsAfterTrackingAuthorization()
         WidgetCenter.shared.reloadAllTimelines()
         UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
@@ -97,6 +98,28 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         }
 
         return true
+    }
+
+    /// 只有使用者完成 ATT 選擇後才初始化廣告 SDK，讓 IDFA 的使用符合 Apple 規範。
+    private func startGoogleMobileAdsAfterTrackingAuthorization() {
+        let startAds = {
+            GADMobileAds.sharedInstance().start(completionHandler: nil)
+        }
+
+        guard #available(iOS 14.5, *) else {
+            startAds()
+            return
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+            guard ATTrackingManager.trackingAuthorizationStatus == .notDetermined else {
+                startAds()
+                return
+            }
+            ATTrackingManager.requestTrackingAuthorization { _ in
+                DispatchQueue.main.async { startAds() }
+            }
+        }
     }
 
     func application(_ application: UIApplication, open url: URL, options: [UIApplication.OpenURLOptionsKey: Any] = [:]) -> Bool {

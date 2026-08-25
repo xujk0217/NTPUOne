@@ -53,6 +53,8 @@
 	</dict>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>NSUserTrackingUsageDescription</key>
+	<string>允許後可使用裝置識別碼提供較符合您興趣的廣告，並衡量廣告成效。</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
