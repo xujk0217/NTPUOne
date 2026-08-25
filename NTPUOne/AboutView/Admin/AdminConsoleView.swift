@@ -47,8 +47,68 @@ struct AdminConsoleView: View {
                         Label("功能回報管理", systemImage: "sparkles")
                     }
                 }
+
+                Section("開發測試") {
+                    NavigationLink {
+                        AdminLiveActivityTestView()
+                    } label: {
+                        Label("即時課表測試", systemImage: "timer")
+                    }
+                }
             }
             .navigationTitle("管理後台")
+        }
+    }
+}
+
+private struct AdminLiveActivityTestView: View {
+    @State private var isRunning = NextCourseLiveActivityManager.shared.isAdminLiveActivityTestRunning
+
+    var body: some View {
+        Form {
+            Section {
+                if isRunning {
+                    if let startsAt = NextCourseLiveActivityManager.shared.adminLiveActivityTestStartsAt,
+                       let endsAt = NextCourseLiveActivityManager.shared.adminLiveActivityTestEndsAt {
+                        LabeledContent("第一堂開始") {
+                            Text(startsAt, style: .time)
+                        }
+                        LabeledContent("預計結束") {
+                            Text(endsAt, style: .time)
+                        }
+                    }
+
+                    Label("測試進行中", systemImage: "record.circle.fill")
+                        .foregroundStyle(.orange)
+
+                    Button("停止並恢復真實課表", role: .destructive) {
+                        NextCourseLiveActivityManager.shared.stopAdminLiveActivityTest()
+                        isRunning = false
+                    }
+                } else {
+                    Button {
+                        NextCourseLiveActivityManager.shared.startAdminLiveActivityTest()
+                        isRunning = true
+                    } label: {
+                        Label("開始即時課表測試", systemImage: "play.fill")
+                    }
+                }
+            } header: {
+                Text("測試流程")
+            } footer: {
+                Text("開始後五分鐘出現第一堂測試課程，共五堂；每堂十分鐘、堂間五分鐘。測試不會修改既有課表、通知或 Firebase 資料。若原本關閉即時動態，測試結束後會自動還原。")
+            }
+        }
+        .navigationTitle("即時課表測試")
+        .task(id: isRunning) {
+            guard isRunning else { return }
+            while !Task.isCancelled && isRunning {
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+                isRunning = NextCourseLiveActivityManager.shared.isAdminLiveActivityTestRunning
+            }
+        }
+        .onAppear {
+            isRunning = NextCourseLiveActivityManager.shared.isAdminLiveActivityTestRunning
         }
     }
 }

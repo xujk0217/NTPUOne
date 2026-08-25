@@ -18,6 +18,8 @@ final class NextCourseLiveActivityManager {
     private var syncTask: Task<Void, Never>?
     private var rolloverTask: Task<Void, Never>?
     private var periodicRefreshTask: Task<Void, Never>?
+    private var adminLiveActivityTest: AdminLiveActivityTest?
+    private var adminLiveActivityTestCompletionTask: Task<Void, Never>?
     private var latestCourses: [Course] = []
     private var latestMemos: [Memo] = []
 
@@ -25,6 +27,81 @@ final class NextCourseLiveActivityManager {
 
     private var isEnabled: Bool {
         UserDefaults.standard.object(forKey: Self.isEnabledKey) as? Bool ?? true
+    }
+
+    /// 僅供管理後台驗證 Live Activity 的跨課切換；不會寫入使用者課表或通知。
+    var isAdminLiveActivityTestRunning: Bool {
+        guard let test = adminLiveActivityTest else { return false }
+        return Date() < test.endsAt
+    }
+
+    var adminLiveActivityTestStartsAt: Date? {
+        guard isAdminLiveActivityTestRunning else { return nil }
+        return adminLiveActivityTest?.startsAt
+    }
+
+    var adminLiveActivityTestEndsAt: Date? {
+        guard isAdminLiveActivityTestRunning else { return nil }
+        return adminLiveActivityTest?.endsAt
+    }
+
+    /// 五分鐘後開始，共五堂，每堂十分鐘、堂間間隔五分鐘。
+    func startAdminLiveActivityTest() {
+        clearAdminLiveActivityTest(restoreLiveActivitySetting: true)
+
+        let now = Date()
+        let firstStart = now.addingTimeInterval(5 * 60)
+        let courseDuration: TimeInterval = 10 * 60
+        let interval: TimeInterval = 15 * 60
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+
+        let snapshots = (0..<5).map { index in
+            let startsAt = firstStart.addingTimeInterval(TimeInterval(index) * interval)
+            let endsAt = startsAt.addingTimeInterval(courseDuration)
+            return NextCourseLiveActivitySnapshot(
+                courseID: "admin-live-activity-test-\(index + 1)",
+                name: "測試課程 \(index + 1)",
+                day: "Live Activity 測試",
+                startTime: formatter.string(from: startsAt),
+                location: "測試教室",
+                teacher: "系統測試",
+                startsAt: startsAt,
+                endsAt: endsAt,
+                isInProgress: false
+            )
+        }
+
+        guard let endsAt = snapshots.last?.endsAt else { return }
+        let wasEnabled = isEnabled
+        if !wasEnabled {
+            UserDefaults.standard.set(true, forKey: Self.isEnabledKey)
+        }
+
+        adminLiveActivityTest = AdminLiveActivityTest(
+            snapshots: snapshots,
+            startsAt: firstStart,
+            endsAt: endsAt,
+            restoreLiveActivitySetting: !wasEnabled
+        )
+        syncIfNeeded()
+
+        adminLiveActivityTestCompletionTask = Task { [weak self] in
+            guard let self else { return }
+            let delay = max(0, endsAt.timeIntervalSinceNow + self.rolloverLeeway)
+            do {
+                try await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            } catch {
+                return
+            }
+            self.completeAdminLiveActivityTestIfNeeded()
+        }
+    }
+
+    func stopAdminLiveActivityTest() {
+        guard adminLiveActivityTest != nil else { return }
+        clearAdminLiveActivityTest(restoreLiveActivitySetting: true)
+        syncIfNeeded()
     }
 
     func sync(with courses: [Course]) {
@@ -44,6 +121,7 @@ final class NextCourseLiveActivityManager {
     }
 
     func setEnabled(_ isEnabled: Bool, courses: [Course], memos: [Memo]) {
+        clearAdminLiveActivityTest(restoreLiveActivitySetting: false)
         UserDefaults.standard.set(isEnabled, forKey: Self.isEnabledKey)
         latestCourses = courses
         latestMemos = memos
@@ -56,13 +134,20 @@ final class NextCourseLiveActivityManager {
     }
 
     private func syncIfNeeded() {
+        if adminLiveActivityTest != nil, !isAdminLiveActivityTestRunning {
+            completeAdminLiveActivityTestIfNeeded()
+            return
+        }
+
         guard isEnabled else {
             stop()
             return
         }
         ensurePeriodicRefresh()
 
-        let timeline = nextCourseTimeline(from: latestCourses)
+        let timeline = adminLiveActivityTest
+            .map { adminLiveActivityTestTimeline(from: $0) }
+            ?? nextCourseTimeline(from: latestCourses)
         let todos = urgentTodayTodos(from: latestMemos)
         syncGeneration += 1
         let generation = syncGeneration
@@ -91,6 +176,23 @@ final class NextCourseLiveActivityManager {
         Task { [weak self] in
             guard let self else { return }
             await self.end(Activity<NextCourseLiveActivityAttributes>.activities)
+        }
+    }
+
+    private func completeAdminLiveActivityTestIfNeeded() {
+        guard adminLiveActivityTest != nil else { return }
+        clearAdminLiveActivityTest(restoreLiveActivitySetting: true)
+        syncIfNeeded()
+    }
+
+    private func clearAdminLiveActivityTest(restoreLiveActivitySetting: Bool) {
+        let test = adminLiveActivityTest
+        adminLiveActivityTest = nil
+        adminLiveActivityTestCompletionTask?.cancel()
+        adminLiveActivityTestCompletionTask = nil
+
+        if restoreLiveActivitySetting, test?.restoreLiveActivitySetting == true {
+            UserDefaults.standard.set(false, forKey: Self.isEnabledKey)
         }
     }
 
@@ -250,6 +352,28 @@ final class NextCourseLiveActivityManager {
         let nextCourse: NextCourseLiveActivitySnapshot?
         let upcomingCourses: [NextCourseLiveActivitySnapshot]
         let nextRefreshAt: Date
+    }
+
+    private struct AdminLiveActivityTest {
+        let snapshots: [NextCourseLiveActivitySnapshot]
+        let startsAt: Date
+        let endsAt: Date
+        let restoreLiveActivitySetting: Bool
+    }
+
+    private func adminLiveActivityTestTimeline(from test: AdminLiveActivityTest, now: Date = Date()) -> NextCourseTimeline {
+        let remaining = test.snapshots.filter { $0.endsAt > now }
+        let snapshots = remaining.map { snapshot in
+            snapshot.withProgress(snapshot.startsAt <= now && now < snapshot.endsAt)
+        }
+
+        return NextCourseTimeline(
+            course: snapshots.first,
+            nextCourse: snapshots.dropFirst().first,
+            upcomingCourses: snapshots,
+            // 與正式模式相同，跨課切換交由 Widget 的時間軸自行處理。
+            nextRefreshAt: nextDayStart(after: now)
+        )
     }
 
     private func nextCourseTimeline(from courses: [Course], now: Date = Date()) -> NextCourseTimeline {
