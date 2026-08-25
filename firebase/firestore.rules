@@ -219,6 +219,20 @@ service cloud.firestore {
         && request.resource.data.starNum >= resource.data.starNum;
     }
 
+    function hasValidCommunityImageRecordNames() {
+      return !request.resource.data.keys().hasAny(['imageRecordNames'])
+        || (request.resource.data.imageRecordNames is list
+          && request.resource.data.imageRecordNames.size() >= 1
+          && request.resource.data.imageRecordNames.size() <= 3
+          && isValidCommunityStringUpTo(request.resource.data.imageRecordNames[0], 200)
+          && (request.resource.data.imageRecordNames.size() < 2
+            || isValidCommunityStringUpTo(request.resource.data.imageRecordNames[1], 200))
+          && (request.resource.data.imageRecordNames.size() < 3
+            || isValidCommunityStringUpTo(request.resource.data.imageRecordNames[2], 200))
+          && request.resource.data.keys().hasAny(['imageRecordName'])
+          && request.resource.data.imageRecordName == request.resource.data.imageRecordNames[0]);
+    }
+
     function isAllowedTopicCreate() {
       return request.resource.data.keys().hasOnly([
         'title',
@@ -234,7 +248,8 @@ service cloud.firestore {
         'createdAt',
         'replyCount',
         'likeCount',
-        'imageRecordName'
+        'imageRecordName',
+        'imageRecordNames'
       ])
         && isValidCommunityStringUpTo(request.resource.data.title, 120)
         && isValidCommunityStringUpTo(request.resource.data.body, 4000)
@@ -250,6 +265,7 @@ service cloud.firestore {
         && isValidCommunityBadgeLevel(request.resource.data.authorBadgeLevel)
         && (!request.resource.data.keys().hasAny(['imageRecordName'])
           || isValidCommunityStringUpTo(request.resource.data.imageRecordName, 200))
+        && hasValidCommunityImageRecordNames()
         && request.resource.data.replyCount == 0
         && request.resource.data.likeCount == 0;
     }

@@ -518,7 +518,11 @@ private struct CommunityTopic: Identifiable, Equatable, Hashable {
     var isDeleted: Bool = false
     var replyCount: Int
     var likeCount: Int = 0
-    var imageRecordName: String?
+    var imageRecordNames: [String] = []
+
+    var imageRecordName: String? {
+        imageRecordNames.first
+    }
 
     var isEdited: Bool {
         !isDeleted && updatedAt != nil
@@ -543,6 +547,13 @@ private struct CommunityTopic: Identifiable, Equatable, Hashable {
         }
 
         let timestamp = data["createdAt"] as? Timestamp
+        let legacyImageRecordName = (data["imageRecordName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let storedImageRecordNames = (data["imageRecordNames"] as? [String]) ?? []
+        let imageRecordNames = Array(
+            (storedImageRecordNames.isEmpty ? legacyImageRecordName.map { [$0] } ?? [] : storedImageRecordNames)
+                .filter { !$0.isEmpty }
+                .prefix(3)
+        )
         return CommunityTopic(
             id: id,
             title: title,
@@ -560,7 +571,7 @@ private struct CommunityTopic: Identifiable, Equatable, Hashable {
             isDeleted: data["isDeleted"] as? Bool ?? false,
             replyCount: data["replyCount"] as? Int ?? 0,
             likeCount: data["likeCount"] as? Int ?? 0,
-            imageRecordName: (data["imageRecordName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+            imageRecordNames: imageRecordNames
         )
     }
 }
@@ -570,6 +581,7 @@ final class CommunityImageService {
     static let shared = CommunityImageService()
     static let maximumUploadBytes = 2 * 1024 * 1024
     static let maximumImageDimension: CGFloat = 2_048
+    static let maximumImagesPerTopic = 3
 
     enum ImageError: LocalizedError {
         case invalidImage
@@ -592,8 +604,9 @@ final class CommunityImageService {
 
     private var database: CKDatabase { container.publicCloudDatabase }
 
-    static func recordName(for topicID: String) -> String {
-        "community-topic-\(topicID)"
+    static func recordName(for topicID: String, index: Int = 0) -> String {
+        let baseName = "community-topic-\(topicID)"
+        return index == 0 ? baseName : "\(baseName)-\(index)"
     }
 
     func preparedJPEG(from sourceData: Data) throws -> Data {
@@ -621,11 +634,27 @@ final class CommunityImageService {
         throw ImageError.imageTooLarge
     }
 
-    func uploadJPEG(_ data: Data, topicID: String, ownerUID: String) async throws -> String {
-        guard data.count <= Self.maximumUploadBytes else { throw ImageError.imageTooLarge }
+    func uploadJPEGs(_ dataList: [Data], topicID: String, ownerUID: String) async throws -> [String] {
+        guard dataList.count <= Self.maximumImagesPerTopic else { throw ImageError.imageTooLarge }
+        guard dataList.allSatisfy({ $0.count <= Self.maximumUploadBytes }) else { throw ImageError.imageTooLarge }
+        guard !dataList.isEmpty else { return [] }
         guard try await iCloudAccountIsAvailable() else { throw ImageError.iCloudUnavailable }
 
-        let recordName = Self.recordName(for: topicID)
+        var uploadedRecordNames: [String] = []
+        do {
+            for (index, data) in dataList.enumerated() {
+                let recordName = Self.recordName(for: topicID, index: index)
+                try await uploadJPEG(data, recordName: recordName, topicID: topicID, ownerUID: ownerUID)
+                uploadedRecordNames.append(recordName)
+            }
+            return uploadedRecordNames
+        } catch {
+            await deleteImages(recordNames: uploadedRecordNames)
+            throw error
+        }
+    }
+
+    private func uploadJPEG(_ data: Data, recordName: String, topicID: String, ownerUID: String) async throws {
         let temporaryURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(recordName)-\(UUID().uuidString).jpg")
         try data.write(to: temporaryURL, options: .atomic)
@@ -641,7 +670,6 @@ final class CommunityImageService {
         if let image = UIImage(data: data) {
             cache.setObject(image, forKey: recordName as NSString)
         }
-        return recordName
     }
 
     func image(recordName: String) async throws -> UIImage {
@@ -656,8 +684,18 @@ final class CommunityImageService {
         return image
     }
 
-    func deleteImage(topicID: String) async {
-        let recordName = Self.recordName(for: topicID)
+    func deleteImages(topicID: String) async {
+        let recordNames = (0..<Self.maximumImagesPerTopic).map { Self.recordName(for: topicID, index: $0) }
+        await deleteImages(recordNames: recordNames)
+    }
+
+    private func deleteImages(recordNames: [String]) async {
+        for recordName in recordNames {
+            await deleteImage(recordName: recordName)
+        }
+    }
+
+    private func deleteImage(recordName: String) async {
         do {
             _ = try await database.deleteRecord(withID: CKRecord.ID(recordName: recordName))
             cache.removeObject(forKey: recordName as NSString)
@@ -722,6 +760,25 @@ private struct CommunityTopicImageView: View {
         }
         .task(id: recordName) {
             await loader.load(recordName: recordName)
+        }
+    }
+}
+
+private struct CommunityTopicImagesView: View {
+    let recordNames: [String]
+
+    var body: some View {
+        if recordNames.count == 1, let recordName = recordNames.first {
+            CommunityTopicImageView(recordName: recordName)
+        } else if !recordNames.isEmpty {
+            TabView {
+                ForEach(recordNames, id: \.self) { recordName in
+                    CommunityTopicImageView(recordName: recordName)
+                        .padding(.horizontal, 2)
+                }
+            }
+            .frame(height: 300)
+            .tabViewStyle(.page(indexDisplayMode: .always))
         }
     }
 }
@@ -2099,7 +2156,7 @@ private final class CommunityTopicManager: ObservableObject {
             }
     }
 
-    func addTopic(title: String, body: String, category: CommunityCategory, authorName: String, deviceId: String, publishDepartment: Bool, publishYear: Bool, publishBadge: Bool, imageData: Data?, completion: ((Error?) -> Void)? = nil) {
+    func addTopic(title: String, body: String, category: CommunityCategory, authorName: String, deviceId: String, publishDepartment: Bool, publishYear: Bool, publishBadge: Bool, imageDataList: [Data], completion: ((Error?) -> Void)? = nil) {
         do {
             let user = try requireCommunityUser()
             let defaults = UserDefaults.standard
@@ -2108,7 +2165,7 @@ private final class CommunityTopicManager: ObservableObject {
             let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
             let trimmedBody = body.trimmingCharacters(in: .whitespacesAndNewlines)
 
-            let commitTopic: (String?) -> Void = { [weak self] imageRecordName in
+            let commitTopic: ([String]) -> Void = { [weak self] imageRecordNames in
                 guard let self else { return }
                 let now = FieldValue.serverTimestamp()
                 let batch = self.db.batch()
@@ -2138,17 +2195,20 @@ private final class CommunityTopicManager: ObservableObject {
                     "updatedAt": now,
                     "isDeleted": false
                 ]
-                if let imageRecordName {
-                    publicData["imageRecordName"] = imageRecordName
-                    ownerData["imageRecordName"] = imageRecordName
+                if let firstImageRecordName = imageRecordNames.first {
+                    // 保留單張欄位，讓尚未支援三張圖片的舊版仍可顯示第一張。
+                    publicData["imageRecordName"] = firstImageRecordName
+                    publicData["imageRecordNames"] = imageRecordNames
+                    ownerData["imageRecordName"] = firstImageRecordName
+                    ownerData["imageRecordNames"] = imageRecordNames
                 }
 
                 batch.setData(publicData, forDocument: topicRef)
                 batch.setData(ownerData, forDocument: ownerRef)
                 batch.commit { [weak self] error in
-                    if error != nil, imageRecordName != nil {
+                    if error != nil, !imageRecordNames.isEmpty {
                         Task { @MainActor in
-                            await CommunityImageService.shared.deleteImage(topicID: topicRef.documentID)
+                            await CommunityImageService.shared.deleteImages(topicID: topicRef.documentID)
                         }
                     }
                     DispatchQueue.main.async {
@@ -2158,22 +2218,22 @@ private final class CommunityTopicManager: ObservableObject {
                 }
             }
 
-            if let imageData {
+            if !imageDataList.isEmpty {
                 Task { @MainActor [weak self] in
                     do {
-                        let recordName = try await CommunityImageService.shared.uploadJPEG(
-                            imageData,
+                        let recordNames = try await CommunityImageService.shared.uploadJPEGs(
+                            imageDataList,
                             topicID: topicRef.documentID,
                             ownerUID: user.uid
                         )
-                        commitTopic(recordName)
+                        commitTopic(recordNames)
                     } catch {
                         self?.errorMessage = communityErrorMessage(error)
                         completion?(error)
                     }
                 }
             } else {
-                commitTopic(nil)
+                commitTopic([])
             }
         } catch {
             DispatchQueue.main.async {
@@ -2593,9 +2653,14 @@ private struct CommunityTopicRow: View {
                 )
                 .foregroundStyle(isLiked ? .red : .secondary)
                 Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble")
-                if topic.imageRecordName != nil {
-                    Image(systemName: "photo")
-                        .accessibilityLabel(String(localized: "community_image_attached"))
+                if !topic.imageRecordNames.isEmpty {
+                    Label("\(topic.imageRecordNames.count)", systemImage: "photo")
+                        .accessibilityLabel(
+                            String(
+                                format: String(localized: "community_image_count_format"),
+                                topic.imageRecordNames.count
+                            )
+                        )
                 }
             }
             .font(.caption2)
@@ -2603,6 +2668,12 @@ private struct CommunityTopicRow: View {
         }
         .padding(.vertical, 6)
     }
+}
+
+private struct CommunityPreparedImage: Identifiable {
+    let id = UUID()
+    let data: Data
+    let preview: UIImage
 }
 
 private struct CommunityComposerView: View {
@@ -2625,11 +2696,11 @@ private struct CommunityComposerView: View {
     @State private var publishBadge = true
     @State private var didLoadDisclosureDefaults = false
     @State private var isSubmitting = false
-    @State private var isPreparingImage = false
+    @State private var isPreparingImages = false
     @State private var submitErrorMessage: String?
-    @State private var selectedPhotoItem: PhotosPickerItem?
-    @State private var selectedImageData: Data?
-    @State private var selectedImagePreview: UIImage?
+    @State private var selectedPhotoItems: [PhotosPickerItem] = []
+    @State private var preparedImages: [CommunityPreparedImage] = []
+    @State private var imagePreparationGeneration = UUID()
 
     private enum ComposerField { case title, body }
     @FocusState private var focusedField: ComposerField?
@@ -2640,7 +2711,7 @@ private struct CommunityComposerView: View {
     }
 
     private var canSubmit: Bool {
-        submitBlockReason == nil && !isSubmitting && !isPreparingImage
+        submitBlockReason == nil && !isSubmitting && !isPreparingImages
     }
 
     private var submitBlockReason: LocalizedStringResource? {
@@ -2751,8 +2822,8 @@ private struct CommunityComposerView: View {
                 }
                 loadDisclosureDefaultsIfNeeded()
             }
-            .onChange(of: selectedPhotoItem) { item in
-                prepareSelectedImage(item)
+            .onChange(of: selectedPhotoItems) { items in
+                prepareSelectedImages(items)
             }
             .alert(String(localized: "community_action_failed_title"), isPresented: submitErrorBinding) {
                 Button(String(localized: "ok"), role: .cancel) { submitErrorMessage = nil }
@@ -2763,29 +2834,56 @@ private struct CommunityComposerView: View {
     }
 
     private var imagePickerButtonTitle: String {
-        String(localized: selectedImageData == nil ? "community_image_select" : "community_image_replace")
+        if preparedImages.isEmpty {
+            return String(localized: "community_images_select")
+        }
+        return String(
+            format: String(localized: "community_images_selected_count_format"),
+            preparedImages.count,
+            CommunityImageService.maximumImagesPerTopic
+        )
     }
 
     private var imagePickerSection: some View {
         Section {
-            if let selectedImagePreview {
-                Image(uiImage: selectedImagePreview)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(maxWidth: .infinity, maxHeight: 260)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-
-                Button(String(localized: "community_image_remove"), role: .destructive) {
-                    removeSelectedImage()
+            if !preparedImages.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 12) {
+                        ForEach(Array(preparedImages.enumerated()), id: \.element.id) { index, preparedImage in
+                            Image(uiImage: preparedImage.preview)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 180, height: 150)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(alignment: .topTrailing) {
+                                    Button {
+                                        removeSelectedImage(at: index)
+                                    } label: {
+                                        Image(systemName: "xmark.circle.fill")
+                                            .font(.title2)
+                                            .symbolRenderingMode(.palette)
+                                            .foregroundStyle(.white, .black.opacity(0.65))
+                                            .padding(6)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(String(localized: "community_image_remove"))
+                                }
+                        }
+                    }
                 }
             }
 
-            PhotosPicker(selection: $selectedPhotoItem, matching: .images, photoLibrary: .shared()) {
+            PhotosPicker(
+                selection: $selectedPhotoItems,
+                maxSelectionCount: CommunityImageService.maximumImagesPerTopic,
+                matching: .images,
+                photoLibrary: .shared()
+            ) {
                 Label(imagePickerButtonTitle, systemImage: "photo.on.rectangle")
             }
-            .disabled(isSubmitting || isPreparingImage)
+            .disabled(isSubmitting || isPreparingImages)
 
-            if isPreparingImage {
+            if isPreparingImages {
                 HStack(spacing: 8) {
                     ProgressView()
                     Text(String(localized: "community_image_preparing"))
@@ -2800,10 +2898,10 @@ private struct CommunityComposerView: View {
         }
     }
 
-    private func removeSelectedImage() {
-        selectedPhotoItem = nil
-        selectedImageData = nil
-        selectedImagePreview = nil
+    private func removeSelectedImage(at index: Int) {
+        guard selectedPhotoItems.indices.contains(index), preparedImages.indices.contains(index) else { return }
+        preparedImages.remove(at: index)
+        selectedPhotoItems.remove(at: index)
     }
 
     private var submitErrorBinding: Binding<Bool> {
@@ -2823,27 +2921,40 @@ private struct CommunityComposerView: View {
         didLoadDisclosureDefaults = true
     }
 
-    private func prepareSelectedImage(_ item: PhotosPickerItem?) {
-        guard let item else { return }
-        isPreparingImage = true
+    private func prepareSelectedImages(_ items: [PhotosPickerItem]) {
+        let generation = UUID()
+        imagePreparationGeneration = generation
+        guard !items.isEmpty else {
+            preparedImages = []
+            isPreparingImages = false
+            return
+        }
+
+        isPreparingImages = true
         submitErrorMessage = nil
 
         Task { @MainActor in
-            defer { isPreparingImage = false }
             do {
-                guard let originalData = try await item.loadTransferable(type: Data.self) else {
-                    throw CommunityImageService.ImageError.invalidImage
+                var newPreparedImages: [CommunityPreparedImage] = []
+                for item in items.prefix(CommunityImageService.maximumImagesPerTopic) {
+                    try Task.checkCancellation()
+                    guard let originalData = try await item.loadTransferable(type: Data.self) else {
+                        throw CommunityImageService.ImageError.invalidImage
+                    }
+                    let preparedData = try CommunityImageService.shared.preparedJPEG(from: originalData)
+                    guard let preview = UIImage(data: preparedData) else {
+                        throw CommunityImageService.ImageError.invalidImage
+                    }
+                    newPreparedImages.append(CommunityPreparedImage(data: preparedData, preview: preview))
                 }
-                let preparedData = try CommunityImageService.shared.preparedJPEG(from: originalData)
-                guard let preview = UIImage(data: preparedData) else {
-                    throw CommunityImageService.ImageError.invalidImage
-                }
-                selectedImageData = preparedData
-                selectedImagePreview = preview
+                guard imagePreparationGeneration == generation else { return }
+                preparedImages = newPreparedImages
+                isPreparingImages = false
             } catch {
-                selectedPhotoItem = nil
-                selectedImageData = nil
-                selectedImagePreview = nil
+                guard imagePreparationGeneration == generation else { return }
+                selectedPhotoItems = []
+                preparedImages = []
+                isPreparingImages = false
                 submitErrorMessage = communityErrorMessage(error)
             }
         }
@@ -2854,7 +2965,7 @@ private struct CommunityComposerView: View {
         if deviceId.isEmpty { deviceId = UUID().uuidString }
         submitErrorMessage = nil
         isSubmitting = true
-        manager.addTopic(title: title, body: topicBody, category: category, authorName: CommunityProfileManager.currentNicknameDisplayName(), deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge, imageData: selectedImageData) { error in
+        manager.addTopic(title: title, body: topicBody, category: category, authorName: CommunityProfileManager.currentNicknameDisplayName(), deviceId: deviceId, publishDepartment: publishDepartment, publishYear: publishYear, publishBadge: publishBadge, imageDataList: preparedImages.map(\.data)) { error in
             isSubmitting = false
             if let error {
                 submitErrorMessage = String(format: String(localized: "community_publish_failed_format"), communityErrorMessage(error))
@@ -2972,8 +3083,8 @@ private struct CommunityTopicDetailView: View {
                         .font(.title3.weight(.semibold))
                     Text(topic.body)
                         .font(.body)
-                    if let imageRecordName = topic.imageRecordName {
-                        CommunityTopicImageView(recordName: imageRecordName)
+                    if !topic.imageRecordNames.isEmpty {
+                        CommunityTopicImagesView(recordNames: topic.imageRecordNames)
                     }
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 8) {
@@ -3540,7 +3651,7 @@ private final class CommunityMyContentManager: ObservableObject {
             batch.commit { [weak self] error in
                 if error == nil {
                     Task { @MainActor in
-                        await CommunityImageService.shared.deleteImage(topicID: topic.topicId)
+                        await CommunityImageService.shared.deleteImages(topicID: topic.topicId)
                     }
                 }
                 DispatchQueue.main.async { self?.finishMutation(error: error) }
