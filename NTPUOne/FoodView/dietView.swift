@@ -501,23 +501,18 @@ struct dietView: View {
 
     func toggleStar() {
         let target = !isStar
+        let previousStarNum = store.starNum
         isStar = target
-        let db = Firestore.firestore()
-        let docRef = db.collection(currCollectName!).document(store.id!)
+        guard target || previousStarNum > 0 else { return }
 
-        docRef.getDocument { document, _ in
-            guard let document, document.exists,
-                  var storeData = try? document.data(as: FDetail.self) else { return }
-            let newValue = max(0, storeData.starNum + (target ? 1 : -1))
-            storeData.starNum = newValue
-            do {
-                try docRef.setData(from: storeData) { _ in
-                    DispatchQueue.main.async {
-                        store.starNum = newValue
-                    }
-                }
-            } catch {
-                print(error)
+        let delta: Double = target ? 1 : -1
+        store.starNum = max(0, previousStarNum + delta)
+        FManager.incrementStar(collectionName: currCollectName!, id: store.id!, delta: delta) { error in
+            guard let error else { return }
+            print("incrementStar failed: \(error)")
+            DispatchQueue.main.async {
+                store.starNum = previousStarNum
+                isStar = !target
             }
         }
     }
@@ -591,7 +586,7 @@ struct dietView: View {
 
 struct noMapDietView: View {
     @EnvironmentObject var adFree: AdFreeService
-    let store: FDetail?
+    @State private var store: FDetail?
     let currCollectName: String?
     
     @State private var isStar = false
@@ -629,6 +624,11 @@ struct noMapDietView: View {
     @State private var editingBody: String = ""
     @State private var commentToDelete: StoreComment? = nil
     @State private var showDeleteConfirm = false
+
+    init(store: FDetail?, currCollectName: String?) {
+        _store = State(initialValue: store)
+        self.currCollectName = currCollectName
+    }
 
     var body: some View {
         NavigationStack {
@@ -832,19 +832,18 @@ extension noMapDietView{
     
     func toggleStar() {
         let target = !isStar
+        let previousStarNum = store!.starNum
         isStar = target
-        let db = Firestore.firestore()
-        let docRef = db.collection(currCollectName!).document(store!.id!)
+        guard target || previousStarNum > 0 else { return }
 
-        docRef.getDocument { document, _ in
-            guard let document, document.exists,
-                  var storeData = try? document.data(as: FDetail.self) else { return }
-            let newValue = max(0, storeData.starNum + (target ? 1 : -1))
-            storeData.starNum = newValue
-            do {
-                try docRef.setData(from: storeData)
-            } catch {
-                print(error)
+        let delta: Double = target ? 1 : -1
+        store!.starNum = max(0, previousStarNum + delta)
+        FManager.incrementStar(collectionName: currCollectName!, id: store!.id!, delta: delta) { error in
+            guard let error else { return }
+            print("incrementStar failed: \(error)")
+            DispatchQueue.main.async {
+                store!.starNum = previousStarNum
+                isStar = !target
             }
         }
     }

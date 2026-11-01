@@ -83,11 +83,20 @@ class FManager: ObservableObject {
     
     /// 原子遞增星數（支援 +/−，多人同時操作不會彼此覆蓋）
     func incrementStar(diet: String, id: String, delta: Double) {
-        let col = getCollectionName(for: diet)
-        db.collection(col).document(id).updateData([
+        Self.incrementStar(collectionName: getCollectionName(for: diet), id: id, delta: delta)
+    }
+
+    static func incrementStar(
+        collectionName: String,
+        id: String,
+        delta: Double,
+        completion: ((Error?) -> Void)? = nil
+    ) {
+        Firestore.firestore().collection(collectionName).document(id).updateData([
             K.FStoreF.starField: FieldValue.increment(delta)
         ]) { err in
             if let err = err { print("incrementStar failed: \(err)") }
+            completion?(err)
         }
     }
 
