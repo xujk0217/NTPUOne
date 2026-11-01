@@ -217,7 +217,7 @@ struct CourseGetView: View {
     
     @ObservedObject var courseData: CourseData
     
-    @ObservedObject var courseYearManager = CourseYearManager()
+    @StateObject private var courseYearManager = CourseYearManager()
     
     @State var showingSheet = false
     
@@ -245,6 +245,7 @@ struct CourseGetView: View {
     @Binding var isPresented: Bool
 
     var body: some View {
+        RemoteConfigFeatureGate(feature: .courseSearch) {
         NavigationStack {
             VStack {
                 List {
@@ -369,6 +370,7 @@ struct CourseGetView: View {
                 courseYearManager.loadYear()
         }
             .navigationTitle(String(localized: "course_search"))
+        }
         }
     }
     

@@ -15,6 +15,7 @@ import FirebaseInAppMessagingInternal
 import FirebaseMessaging
 import FirebaseFirestore
 import FirebaseAuth
+import FirebaseRemoteConfig
 import GoogleMobileAds
 import AppTrackingTransparency
 import UserNotifications
@@ -23,6 +24,210 @@ import WidgetKit
 import FirebaseAppCheck
 import GoogleSignIn
 import StoreKit
+
+
+enum RemoteConfigFeature {
+    case community
+    case restaurant
+    case courseSearch
+
+    var maintenanceTitle: String {
+        switch self {
+        case .community: return "交流區維護中"
+        case .restaurant: return "餐廳功能維護中"
+        case .courseSearch: return "課程搜尋維護中"
+        }
+    }
+}
+
+/// 集中管理 Remote Config 的預設值、初次抓取與 realtime 更新。
+/// 所有開關僅控制 SwiftUI 顯示，不會變更 Firestore 規則或資料。
+final class RemoteConfigManager: ObservableObject {
+    static let shared = RemoteConfigManager()
+
+    private enum Key {
+        static let maintenanceEnabled = "maintenance_enabled"
+        static let maintenanceTitle = "maintenance_title"
+        static let maintenanceMessage = "maintenance_message"
+        static let communityEnabled = "community_enabled"
+        static let communityDisabledMessage = "community_disabled_message"
+        static let restaurantEnabled = "restaurant_enabled"
+        static let restaurantDisabledMessage = "restaurant_disabled_message"
+        static let courseSearchEnabled = "course_search_enabled"
+        static let courseSearchDisabledMessage = "course_search_disabled_message"
+    }
+
+    private let defaultValues: [String: NSObject] = [
+        Key.maintenanceEnabled: false as NSNumber,
+        Key.maintenanceTitle: "系統維護中" as NSString,
+        Key.maintenanceMessage: "目前正在進行系統維護，請稍後再試。" as NSString,
+        Key.communityEnabled: true as NSNumber,
+        Key.communityDisabledMessage: "交流區目前暫時維護中，請稍後再試。" as NSString,
+        Key.restaurantEnabled: true as NSNumber,
+        Key.restaurantDisabledMessage: "餐廳功能目前暫時維護中，請稍後再試。" as NSString,
+        Key.courseSearchEnabled: true as NSNumber,
+        Key.courseSearchDisabledMessage: "課程搜尋目前暫時維護中，請稍後再試。" as NSString
+    ]
+
+    private var remoteConfig: RemoteConfig?
+    private var updateRegistration: ConfigUpdateListenerRegistration?
+    private var hasStarted = false
+
+    @Published private(set) var maintenanceEnabled = false
+    @Published private(set) var maintenanceTitle = "系統維護中"
+    @Published private(set) var maintenanceMessage = "目前正在進行系統維護，請稍後再試。"
+    @Published private(set) var communityEnabled = true
+    @Published private(set) var communityDisabledMessage = "交流區目前暫時維護中，請稍後再試。"
+    @Published private(set) var restaurantEnabled = true
+    @Published private(set) var restaurantDisabledMessage = "餐廳功能目前暫時維護中，請稍後再試。"
+    @Published private(set) var courseSearchEnabled = true
+    @Published private(set) var courseSearchDisabledMessage = "課程搜尋目前暫時維護中，請稍後再試。"
+
+    private init() {}
+
+    func start() {
+        guard !hasStarted, FirebaseApp.app() != nil else { return }
+        hasStarted = true
+
+        let remoteConfig = RemoteConfig.remoteConfig()
+        remoteConfig.setDefaults(defaultValues)
+
+        let settings = RemoteConfigSettings()
+        #if DEBUG
+        settings.minimumFetchInterval = 0
+        #else
+        settings.minimumFetchInterval = 12 * 60 * 60
+        #endif
+        remoteConfig.configSettings = settings
+        self.remoteConfig = remoteConfig
+
+        applyActiveValues()
+        remoteConfig.fetchAndActivate { [weak self] _, error in
+            if let error {
+                print("Remote Config fetch failed: \(error.localizedDescription)")
+                return
+            }
+            self?.applyActiveValues()
+        }
+
+        updateRegistration = remoteConfig.addOnConfigUpdateListener { [weak self] _, error in
+            if let error {
+                print("Remote Config realtime update failed: \(error.localizedDescription)")
+                return
+            }
+
+            remoteConfig.activate { _, activationError in
+                if let activationError {
+                    print("Remote Config activation failed: \(activationError.localizedDescription)")
+                    return
+                }
+                self?.applyActiveValues()
+            }
+        }
+    }
+
+    deinit {
+        updateRegistration?.remove()
+    }
+
+    func isEnabled(_ feature: RemoteConfigFeature) -> Bool {
+        switch feature {
+        case .community: return communityEnabled
+        case .restaurant: return restaurantEnabled
+        case .courseSearch: return courseSearchEnabled
+        }
+    }
+
+    func disabledMessage(for feature: RemoteConfigFeature) -> String {
+        switch feature {
+        case .community: return communityDisabledMessage
+        case .restaurant: return restaurantDisabledMessage
+        case .courseSearch: return courseSearchDisabledMessage
+        }
+    }
+
+    private func applyActiveValues() {
+        guard let remoteConfig else { return }
+
+        let values = (
+            remoteConfig.configValue(forKey: Key.maintenanceEnabled).boolValue,
+            remoteConfig.configValue(forKey: Key.maintenanceTitle).stringValue ?? "系統維護中",
+            remoteConfig.configValue(forKey: Key.maintenanceMessage).stringValue ?? "目前正在進行系統維護，請稍後再試。",
+            remoteConfig.configValue(forKey: Key.communityEnabled).boolValue,
+            remoteConfig.configValue(forKey: Key.communityDisabledMessage).stringValue ?? "交流區目前暫時維護中，請稍後再試。",
+            remoteConfig.configValue(forKey: Key.restaurantEnabled).boolValue,
+            remoteConfig.configValue(forKey: Key.restaurantDisabledMessage).stringValue ?? "餐廳功能目前暫時維護中，請稍後再試。",
+            remoteConfig.configValue(forKey: Key.courseSearchEnabled).boolValue,
+            remoteConfig.configValue(forKey: Key.courseSearchDisabledMessage).stringValue ?? "課程搜尋目前暫時維護中，請稍後再試。"
+        )
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.maintenanceEnabled = values.0
+            self.maintenanceTitle = values.1
+            self.maintenanceMessage = values.2
+            self.communityEnabled = values.3
+            self.communityDisabledMessage = values.4
+            self.restaurantEnabled = values.5
+            self.restaurantDisabledMessage = values.6
+            self.courseSearchEnabled = values.7
+            self.courseSearchDisabledMessage = values.8
+        }
+    }
+}
+
+struct MaintenanceView: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "wrench.and.screwdriver.fill")
+                .font(.system(size: 42))
+                .foregroundStyle(.orange)
+            Text(title)
+                .font(.title2.bold())
+            Text(message)
+                .font(.body)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+        .padding(32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+    }
+}
+
+struct FeatureMaintenanceView: View {
+    let title: String
+    let message: String
+
+    var body: some View {
+        MaintenanceView(title: title, message: message)
+    }
+}
+
+struct RemoteConfigFeatureGate<Content: View>: View {
+    @EnvironmentObject private var remoteConfigManager: RemoteConfigManager
+    private let feature: RemoteConfigFeature
+    private let content: Content
+
+    init(feature: RemoteConfigFeature, @ViewBuilder content: () -> Content) {
+        self.feature = feature
+        self.content = content()
+    }
+
+    var body: some View {
+        if remoteConfigManager.isEnabled(feature) {
+            content
+        } else {
+            FeatureMaintenanceView(
+                title: feature.maintenanceTitle,
+                message: remoteConfigManager.disabledMessage(for: feature)
+            )
+        }
+    }
+}
 
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate, MessagingDelegate {
@@ -58,6 +263,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         
         FirebaseApp.configure()
+        RemoteConfigManager.shared.start()
         
         AppCheck.appCheck().token(forcingRefresh: true) { token, error in
             if token != nil {
@@ -68,15 +274,6 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                 print("❌ AppCheck failed: Unknown error")
             }
         }
-        
-        AppCheck.appCheck().token(forcingRefresh: true) { tokenResult, error in
-            if tokenResult?.token != nil {
-                print("✅ App Check token available")
-            } else if let error = error {
-                print("❌ Failed to get App Check token: \(error.localizedDescription)")
-            }
-        }
-
         
         MonitorNetworkConnection()
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
@@ -367,6 +564,7 @@ struct NTPUOneApp: App {
     let persistenceController = PersistenceController.shared
     @StateObject private var adFree = AdFreeService.shared
     @StateObject private var courseData: CourseData
+    @StateObject private var remoteConfigManager = RemoteConfigManager.shared
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
@@ -376,10 +574,17 @@ struct NTPUOneApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                .environmentObject(courseData)
-                .environmentObject(adFree)
+            Group {
+                if remoteConfigManager.maintenanceEnabled {
+                    MaintenanceView(title: remoteConfigManager.maintenanceTitle, message: remoteConfigManager.maintenanceMessage)
+                } else {
+                    ContentView()
+                        .environment(\.managedObjectContext, persistenceController.container.viewContext)
+                        .environmentObject(courseData)
+                        .environmentObject(adFree)
+                }
+            }
+            .environmentObject(remoteConfigManager)
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {

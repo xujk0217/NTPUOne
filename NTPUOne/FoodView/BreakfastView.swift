@@ -18,6 +18,8 @@ struct BreakfastView: View {
     @State private var selectedFilter: FoodListFilter = .popular
 
     var body: some View {
+        RemoteConfigFeatureGate(feature: .restaurant) {
+        Group {
         if let Food = fManager.Food {
             let displayedFoods = FoodFiltering.filteredFoods(Food, filter: selectedFilter, userLocation: nil)
             NavigationStack {
@@ -92,15 +94,13 @@ struct BreakfastView: View {
                         }
                     }
                 }
-            }.onAppear {
-                fManager.loadF(whichDiet: "B")
             }
         } else {
             Text(String(localized: "loading"))
-                .onAppear {
-                    fManager.loadF(whichDiet: "B")
-                }
             ProgressView()
+        }
+        }
+        .task { fManager.loadF(whichDiet: "B") }
         }
     }
 }

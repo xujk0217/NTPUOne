@@ -36,6 +36,7 @@ struct RandomFoodView: View {
     }
 
     var body: some View {
+        RemoteConfigFeatureGate(feature: .restaurant) {
         NavigationStack {
             VStack {
                 List {
@@ -51,7 +52,6 @@ struct RandomFoodView: View {
                     .onChange(of: whichDiet) { newValue in
                         selectedRestaurant = nil // 清除中獎店家
                         resetTrigger = true      // 觸發轉盤歸位
-                        fManager.loadF(whichDiet: newValue)
                     }
 
                 } header: {
@@ -158,10 +158,12 @@ struct RandomFoodView: View {
                     }
                 }
                 .onAppear {
-                    fManager.loadF(whichDiet: whichDiet)
                     if let list = fManager.Food {
                         selectedIDs = Set(list.compactMap { $0.id })
                     }
+                }
+                .task(id: whichDiet) {
+                    fManager.loadF(whichDiet: whichDiet)
                 }
                 .onChange(of: fManager.Food) { newList in
                     if let list = newList {
@@ -180,6 +182,7 @@ struct RandomFoodView: View {
                 NavigationLink(destination: dinnerView(), isActive: $goDinner) { EmptyView() }.hidden()
                 NavigationLink(destination: MSView(), isActive: $goMidnightSnack) { EmptyView() }.hidden()
             }
+        }
         }
     }
 

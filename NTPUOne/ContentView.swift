@@ -57,7 +57,10 @@ struct ContentView: View {
                 Text(String(localized: "timetable"))
             }.tag(2)
 
-            CommunityView().tabItem {
+            RemoteConfigFeatureGate(feature: .community) {
+                CommunityView()
+            }
+            .tabItem {
                 Image(systemName: "bubble.left.and.bubble.right")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "community_title"))
@@ -2544,7 +2547,9 @@ private final class CommunityTopicManager: ObservableObject {
     deinit { listener?.remove() }
 
     func loadTopics() {
-        listener?.remove()
+        // The manager is kept alive by the view, so repeated onAppear calls
+        // should keep the existing realtime stream instead of opening a new one.
+        guard listener == nil else { return }
         loadLikedTopicIDs()
         isLoading = true
 
@@ -2680,7 +2685,9 @@ private final class CommunityReplyManager: ObservableObject {
     deinit { listener?.remove() }
 
     func loadReplies() {
-        listener?.remove()
+        // Replies are already updated by the active listener. Avoid paying for
+        // another initial snapshot when this view appears again.
+        guard listener == nil else { return }
         isLoading = true
 
         listener = db.collection("communityTopics")
