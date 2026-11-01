@@ -10,7 +10,7 @@
 | --- | --- | --- |
 | 0 | 架構、資料流與建置基準 | 完成 |
 | 1 | Moodle 登入、本人課程／作業／提交狀態 | 核心真實 API 已打通；完整狀態及學期對應驗收尚未完成 |
-| 2 | 校務登入、本人實際選課代碼與相容性 | 公開登入已查證、安全工具已備妥；等待開發者本機登入驗證 |
+| 2 | 校務登入、本人實際選課代碼與相容性 | 新版 session 與正式查詢入口已確認；已讀到 6 筆選課列，學期／課號相容性仍待驗證 |
 | 3 | 重用課程查詢、一鍵匯入且不破壞原課表 | 未開始；依賴 Phase 2 |
 | 4 | Moodle 作業整合既有 Memo | 未開始；依賴 Phase 1 真實資料 |
 | 5 | 遠端提交狀態與本機完成確認／通知 | 未開始；依賴 Phase 4 |
@@ -129,22 +129,28 @@
 
 - `scripts/academic_probe.py`：公開設定、登入、Keychain token、本人課程與有限作業探測、學期 metadata 調查。
 - `scripts/AcademicProbeKeychain.swift`：不啟用雲端同步的本機 Keychain helper，敏感值僅經內部管線傳遞。
-- `tests/test_academic_probe.py`／`tests/test_sis_probe.py`：目前 27 個離線安全／契約檢查通過，exit code 0；合成回應不是 live 串接證據。
+- `tests/test_academic_probe.py`／`tests/test_sis_probe.py`：新增動態選單與橋接目的地保護檢查；合成回應不是 live 串接證據。
 - `.gitignore` 排除 Postman 原檔名稱、Python 快取與 `.academic-local/`；沒有複製原始 collection 或敏感 response。
 - 操作與錯誤處理見 [ACADEMIC_API_TESTING.md](ACADEMIC_API_TESTING.md)。
 
-## Phase 2：獨立公開登入調查
+## Phase 2：獨立校務登入與選課入口調查
 
 - 舊版 `https://ohs01.ntpu.edu.tw/student_new.htm`：HTTP 200，公開頁面有指向歷史登入 handler 的導覽，另含查學號表單；頁面有動態 JavaScript，不能把靜態 form 當作全部登入流程。
 - GET 舊版 `/pls/pm/stud_system.login`：HTTP 200，只有 32 bytes，沒有可驗證的個人資料；此結果不能視為登入成功。
 - 新版 `https://my.ntpu.edu.tw/login`：HTTP 200，實際 POST form 指向同站 `/login`，欄位為當次 `_token`、`username`、`password`，另有舊版系統導覽。公開頁面與 JS 未觀測到明確 JSON 選課 API；不能因此推論登入後沒有 SSO 或沒有 API。
 - 已建立 `scripts/sis_probe.py`：只使用新版當次表單與記憶體 Cookie jar；確認 session 後才存 Keychain。跨站導向、互動驗證、未知表單會停止；不讀 Postman、不查成績、不自動點選未知導覽。
-- 已提供開發者本機隱藏輸入指令；尚未確認本人校務登入、本人實際選課清單、正式課號與現有 CourseGet 相容性。
+- 開發者已完成本機當次登入，回報 `school_session_observation`（HTTP 200、`session_evidence=true`）及 `fresh_school_session_saved_to_keychain`；後續本機工具重新載入 session，確認非登入頁且有登出入口。這仍不是姓名／學號的本人身分核對。
+- 登入頁面的 `var arr` JSON 與 `.service-menu` 使用 `data-url`／`data-index`；選課入口不是一般 `href`，先前 `redacted_academic_routes=[]` 不代表沒有選課功能。只解析 JSON，不執行頁面 JavaScript。
+- 實際選單「選課清單」的 project 為 10，目的地 `/pls/univer/u0001.query_all_course.judge?func=3_m`；「選課系統」及其他 `func` 不執行。
+- 校方 JS 先 GET 新版 `/get-projects/10?url=...`，取得 `{form_url,base_url,formData:{id,pw},...}`，再 POST 至校方 `/pls/pm/stud_system.signin`，最後 GET 選課清單。`formData` 含登入資料，不能輸出或寫檔；也不存入 Keychain、App 資料庫或 Firebase。
+- 自動安全審查最初拒絕跨主機憑證轉送，原因為未有對該目的地的明確授權。開發者隨後明確授權 cof 的指定 signin 與唯讀清單；實際 bridge HTTP 200、6 個暫存 Cookie，清單 HTTP 200、12,744 bytes，表格 1 列標題加 6 列資料。正式學期、本人識別及公開課號的對應尚未完成。
+- 後續校方描述先切換為 `ohs01.ntpu.edu.tw`（開發者另行明確授權），再切換為 `ohs02.ntpu.edu.tw`；工具因不符合當時的目的地白名單停止，沒有傳送登入資料至未授權主機。不能將這種格式變動當成空課表。
+- `sis_probe.py navigation` 只驗證同站選單及橋接描述，輸出固定安全欄位；不會將登入資料轉送到 bridge。橋接原始回應、選課 HTML 與 Cookie 都未寫檔。
 
 ## 下一步與停止條件
 
 Phase 1 補齊來源狀態與學期對應的可靠性驗收。不能把 60 門 Moodle timeline 課程直接匯入，也不能把限量 API 探測誤認為完整同步；在階段 gate 通過前不開始 Moodle 待辦整合。
 
-Phase 2 等待開發者在自己的 Terminal 完成當次新版校務登入測試。若無可靠 session 或需官方瀏覽器／額外授權，停止該路徑並記錄限制。在本人選課資料未確認前，不建立課表匯入按鈕、不改寫原課表。
+Phase 2 繼續核對校方動態橋接目的地、本人選課清單的學期／課號，以及公開 CourseGet 的相容性。若目的地未授權、session 失效或 schema 改變即停止。在本人選課資料未確認前，不建立課表匯入按鈕、不改寫原課表。
 
 Phase 3–8 未開始。原有 Course／Memo ID、資料模型、UI、通知、Widget 與 Live Activity 程式均未修改。

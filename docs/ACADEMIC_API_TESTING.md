@@ -62,15 +62,22 @@ python3 scripts/sis_probe.py login
 # 僅重新查看同一個 Keychain session 是否仍有登入後頁面證據
 python3 scripts/sis_probe.py inspect
 
+# 辨識官方動態選課選單與橋接描述，不執行跨主機登入
+python3 scripts/sis_probe.py navigation
+
 # 僅刪除本機保存的 session
 python3 scripts/sis_probe.py logout-local
 ```
 
-此工具只使用 `https://my.ntpu.edu.tw`。先 GET 當次 `/login`，從目前的 POST form 取得 `_token`，以當次記憶體 Cookie jar 提交 `_token`、`username`、`password`。它不重放 Postman，也不呼叫舊系統的成績網址。
+CLI 的 `login`、`inspect`、`navigation` 只請求 `https://my.ntpu.edu.tw`。先 GET 當次 `/login`，從目前的 POST form 取得 `_token`，以當次記憶體 Cookie jar 提交 `_token`、`username`、`password`。它不重放 Postman，也不呼叫舊系統的成績網址。
 
 只接受 HTTPS 同站且符合限制的登入導向；跨站 SSO、307／308、互動驗證或未知登入頁面會停止，需要開發者／校方確認正式流程。登入後以「非登入頁、沒有帳密表單、存在登出入口」作為 session 證據，不能單憑此宣稱本人身分或正式選課清單已驗證。
 
 保存的 Cookie 限定新版站台、位於 Keychain；不將 session 上傳至 Firebase。`inspect` 沒有自動點擊導覽連結，也不查成績、課表或畢業規則。未知的個人 API 需在取得正式文件或可靠的授權觀察後，才能逐步加入。
+
+`navigation` 只接受官方 JSON 中名稱為「選課清單」、project 10 且為固定唯讀 URL 的項目，再以官方頁面既有方式讀取 `/get-projects/10` 描述。`formData` 是敏感登入資料，不能貼出原始 JSON。診斷只輸出已通過白名單的橋接路徑及 `bridge_credentials_forwarded=false`；未知主機、登入／清單主機不一致、額外欄位或非預期功能都停止。
+
+內部 `read_course_list` 僅供已明確授權的本機調查呼叫，使用獨立、暫存 Cookie jar；只 POST 驗證過的 signin，接著 GET 對應同主機 `func=3_m`。不跟隨任何 redirect，不將舊校務 Cookie 保存至 Keychain。它不是 App 登入或正式課表匯入功能。
 
 ## 離線工具測試
 

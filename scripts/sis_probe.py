@@ -16,6 +16,12 @@ import urllib.request
 from academic_probe import Keychain, ProbeError, emit, secret_input
 
 ORIGIN = "https://my.ntpu.edu.tw"
+COURSE_LIST = "https://ohs01.ntpu.edu.tw/pls/univer/u0001.query_all_course.judge?func=3_m"
+BRIDGE_LOGIN = "https://cof.ntpu.edu.tw/pls/pm/stud_system.signin"
+BRIDGE_COURSE_LIST = "https://cof.ntpu.edu.tw/pls/univer/u0001.query_all_course.judge?func=3_m"
+BRIDGE_ROUTES = {BRIDGE_LOGIN: BRIDGE_COURSE_LIST,
+    "https://ohs01.ntpu.edu.tw/pls/pm/stud_system.signin": COURSE_LIST}
+PROJECT_PATH = "/get-projects/10?" + urllib.parse.urlencode({"url": COURSE_LIST})
 
 
 def same_origin(url):
@@ -64,11 +70,14 @@ class Session:
             urllib.request.HTTPCookieProcessor(self.cookies), SchoolRedirect())
 
     def request(self, path, fields=None):
-        if path not in ("/", "/login") or (fields is not None and path != "/login"):
+        if path not in ("/", "/login", PROJECT_PATH) or (fields is not None and path != "/login"):
             raise ProbeError("school_endpoint_not_verified")
+        headers = {"User-Agent": "NTPUOne-Local-Academic-Probe/0.1"}
+        if path == PROJECT_PATH:
+            headers.update({"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"})
         request = urllib.request.Request(ORIGIN + path,
             data=urllib.parse.urlencode(fields).encode() if fields is not None else None,
-            headers={"User-Agent": "NTPUOne-Local-Academic-Probe/0.1"})
+            headers=headers)
         try:
             with self.opener.open(request, timeout=25) as response:
                 body = response.read(2 * 1024 * 1024 + 1)
@@ -103,10 +112,129 @@ class Session:
             for c in self.cookies if c.domain.lstrip(".") == "my.ntpu.edu.tw"]}
 
 
+class BridgeNoRedirect(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, *args, **kwargs):
+        raise ProbeError("school_bridge_redirect_requires_review")
+
+
+def read_course_list(descriptor):
+    """Only the two exact validated endpoints; cookies disappear with this call."""
+    descriptor = bridge_descriptor(json.dumps(descriptor))
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}),
+        urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()), BridgeNoRedirect())
+    own_id = descriptor["formData"]["id"]
+    try:
+        for login in (True, False):
+            request = urllib.request.Request(descriptor["form_url"] if login else descriptor["base_url"],
+                data=urllib.parse.urlencode(descriptor["formData"]).encode() if login else None,
+                headers={"User-Agent": "NTPUOne-Local-Academic-Probe/0.1"})
+            with opener.open(request, timeout=25) as response:
+                raw = response.read(2 * 1024 * 1024 + 1)
+                if len(raw) > 2 * 1024 * 1024:
+                    raise ProbeError("school_response_too_large")
+                charset = response.headers.get_content_charset() or "big5"
+                body = raw.decode(charset, errors="replace")
+                if not login:
+                    return response.status, body, own_id
+            descriptor["formData"].clear()
+    except urllib.error.HTTPError as error:
+        raise ProbeError("school_bridge_http_error", error.code) from None
+    except (urllib.error.URLError, OSError):
+        raise ProbeError("school_bridge_network_or_tls_error") from None
+    finally:
+        descriptor["formData"].clear()
+
+
+class CoursePage(HTMLParser):
+    """Private cell values remain in memory; callers choose safe diagnostics."""
+    def __init__(self):
+        super().__init__()
+        self.rows, self.links, self.text = [], [], []
+        self.row = self.cell = None
+        self.hidden = 0
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag in ("script", "style"):
+            self.hidden += 1
+        if tag == "tr":
+            self.row = []
+        if tag in ("th", "td"):
+            self.cell = []
+        if tag == "a" and attrs.get("href"):
+            self.links.append(attrs["href"])
+
+    def handle_endtag(self, tag):
+        if tag in ("script", "style"):
+            self.hidden = max(0, self.hidden - 1)
+        if tag in ("td", "th") and self.cell is not None:
+            if self.row is not None:
+                self.row.append(" ".join(" ".join(self.cell).split()))
+            self.cell = None
+        if tag == "tr" and self.row is not None:
+            self.rows.append(self.row)
+            self.row = None
+
+    def handle_data(self, data):
+        if self.hidden:
+            return
+        self.text.append(data)
+        if self.cell is not None:
+            self.cell.append(data)
+
+
 def parsed(text):
     result = Page()
     result.feed(text)
     return result
+
+
+def verified_course_menu(text):
+    """Read JSON embedded by the portal, never evaluate page JavaScript."""
+    match = re.search(r"\bvar arr\s*=\s*(\[.*?\]);", text, re.S)
+    try:
+        items = json.loads(match.group(1)) if match else None
+    except (ValueError, TypeError):
+        raise ProbeError("school_menu_schema_unverified") from None
+    if not isinstance(items, list) or len(items) > 1000:
+        raise ProbeError("school_menu_schema_unverified")
+    matches = [item for item in items if isinstance(item, dict) and
+               item.get("page_name") == "選課清單" and item.get("project_id") == 10 and
+               item.get("url") == COURSE_LIST]
+    if len(matches) != 1:
+        raise ProbeError("school_course_menu_unverified")
+    return matches[0]
+
+
+def bridge_descriptor(text):
+    """Validate only; credentials must never appear in diagnostic output."""
+    try:
+        value = json.loads(text)
+    except (ValueError, TypeError):
+        raise ProbeError("school_bridge_schema_unverified") from None
+    if (not isinstance(value, dict) or not isinstance(value.get("form_url"), str) or
+            value.get("form_url") not in BRIDGE_ROUTES or
+            value.get("base_url") != BRIDGE_ROUTES[value["form_url"]] or
+            not isinstance(value.get("formData"), dict) or
+            set(value["formData"]) != {"id", "pw"} or
+            not all(isinstance(v, str) and v for v in value["formData"].values())):
+        raise ProbeError("school_bridge_schema_unverified")
+    return value
+
+
+def navigation_observation(client, text):
+    verified_course_menu(text)
+    status, _, body = client.request(PROJECT_PATH)
+    descriptor = bridge_descriptor(body)
+    # This command deliberately stops before sending formData to the bridge host.
+    login, destination = descriptor["form_url"], descriptor["base_url"]
+    descriptor["formData"].clear()
+    descriptor = body = None
+    emit("school_course_navigation_verified", http_status=status,
+         course_menu="選課清單", bridge_login=login,
+         readonly_destination=destination,
+         bridge_credentials_forwarded=False, official_enrolment_verified=False,
+         phase_2_complete=False)
 
 
 def confirmed_session(url, page):
@@ -139,7 +267,7 @@ def summary(status, url, page):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["login", "inspect", "logout-local"])
+    parser.add_argument("action", choices=["login", "inspect", "navigation", "logout-local"])
     parser.add_argument("--profile", default="default", help="Local alias, not student number")
     args = parser.parse_args()
     account = hashlib.sha256((ORIGIN + ":" + args.profile).encode()).hexdigest()
@@ -180,6 +308,8 @@ def main():
                 summary(status, url, page)
                 if not confirmed_session(url, page):
                     raise ProbeError("school_session_expired_or_unverified")
+                if args.action == "navigation":
+                    navigation_observation(client, text)
         return 0
     except ProbeError as error:
         emit("school_probe_stopped", diagnostic=error.code, http_status=error.status, phase_2_complete=False)
