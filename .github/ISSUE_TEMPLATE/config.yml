@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: 安全漏洞：請先閱讀私下回報方式
+    url: https://github.com/xujk0217/NTPUOne/security/policy
+    about: 請勿在公開 Issue 揭露有效憑證、個資或可直接利用的漏洞細節。
+  - name: 授權、合作與著作權聯絡
+    url: https://github.com/xujk0217/NTPUOne/blob/main/docs/RIGHTS.md
+    about: 商業使用、改作、重新發行及權利通知請先確認使用範圍。
