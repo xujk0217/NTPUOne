@@ -32,6 +32,7 @@ struct BackTrafficView: View {
             VStack {
                 if let bikeDatas = bikeManager.bikeDatas {
                         List {
+                            BikeStatusView(manager: bikeManager)
                             Section{
                                 Text(String(localized: "upgrade_ios_for_map"))
                             } header: {
@@ -48,7 +49,7 @@ struct BackTrafficView: View {
                                                     .font(.title.bold())
                                                 VStack {
                                                     HStack {
-                                                        Text(stop.sna.substring(from: 11))
+                                                        Text(stop.displayName)
                                                         Spacer()
                                                     }
                                                     HStack {
@@ -79,6 +80,7 @@ struct BackTrafficView: View {
                                 Text(String(localized: "update_every_5_min"))
                             }
                         }
+                        .refreshable { await bikeManager.refresh() }
                         .navigationTitle("Traffic")
                         .toolbarBackground(.hidden, for: .navigationBar)
                     if !adFree.isAdFree{
@@ -91,11 +93,11 @@ struct BackTrafficView: View {
                     }
                 } else {
                     VStack {
-                        Text(String(localized: "loading"))
-                        ProgressView()
-                            .onAppear {
-                                bikeManager.fetchData()
-                            }
+                        if bikeManager.errorMessage != nil {
+                            BikeStatusView(manager: bikeManager)
+                        } else {
+                            ProgressView(String(localized: "loading"))
+                        }
                     }
                 }
             }

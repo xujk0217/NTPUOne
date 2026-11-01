@@ -1,63 +1,83 @@
-//
-//  UbikeManager.swift
-//  NTPUOne
-//
-//  Created by 許君愷 on 2024/6/24.
-//
-
 import Foundation
+import SwiftUI
 
-class UbikeManager: ObservableObject{
-    
+class UbikeManager: ObservableObject {
     @Published var bikeDatas: [UBResults]?
     @Published var errorMessage: String?
-    
-    func fetchData(){
-        if let url = URL(string: "https://data.ntpc.gov.tw/api/datasets/010E5B15-3823-4B20-B401-B1CF000550C5/json?page=0&size=230"){
-            let session = URLSession(configuration: .default)
-            let task = session.dataTask(with: url) { data, response, error in
-                if let error = error {
-                    print("❌ Ubike fetch error: \(error.localizedDescription)")
-                    DispatchQueue.main.async {
-                        self.errorMessage = "網路錯誤: \(error.localizedDescription)"
-                    }
-                    return
-                }
-                
-                if let httpResponse = response as? HTTPURLResponse {
-                    print("📡 Ubike API status code: \(httpResponse.statusCode)")
-                }
-                
-                let decoder = JSONDecoder()
-                if let safeData = data{
-                    do{
-                        let results = try decoder.decode([UBResults].self, from: safeData)
-                        print("✅ Ubike data decoded, total: \(results.count)")
-                        
-                        // 检查数组范围
-                        if results.count >= 222 {
-                            let subset = Array(results[169..<222])
-                            DispatchQueue.main.async{
-                                self.bikeDatas = subset
-                                print("✅ Ubike data set successfully, count: \(subset.count)")
-                            }
-                        } else {
-                            print("⚠️ Not enough data, got \(results.count), need at least 222")
-                            // 如果数据不够，就使用全部数据
-                            DispatchQueue.main.async{
-                                self.bikeDatas = results
-                                print("✅ Using all available data: \(results.count)")
-                            }
-                        }
-                    }catch{
-                        print("❌ Ubike decode error: \(error)")
-                        DispatchQueue.main.async {
-                            self.errorMessage = "資料格式錯誤: \(error.localizedDescription)"
-                        }
-                    }
-                }
+    @Published private(set) var isLoading = false
+    @Published private(set) var lastUpdated: Date?
+
+    private var task: Task<Void, Never>?
+
+    /// Fetch every page before filtering. Station positions in the feed are not stable.
+    func fetchData() {
+        guard !isLoading else { return }
+        isLoading = true
+        errorMessage = nil
+        task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.isLoading = false }
+            do {
+                let stations = try await Self.fetchAllStations()
+                self.bikeDatas = stations.filter { $0.isNearNTPU }
+                    .sorted { $0.distanceFromNTPU < $1.distanceFromNTPU }
+                self.lastUpdated = Date()
+            } catch {
+                // Keep the last successful snapshot when a refresh fails.
+                self.errorMessage = "YouBike 資料更新失敗：\(error.localizedDescription)"
             }
-            task.resume()
+        }
+    }
+
+    @MainActor
+    func refresh() async {
+        fetchData()
+        await task?.value
+    }
+
+    static func fetchAllStations(session: URLSession = .shared) async throws -> [UBResults] {
+        let pageSize = 500
+        var stations: [String: UBResults] = [:]
+        // A bound also prevents a malformed API that repeats pages from looping forever.
+        for page in 0..<100 {
+            let url = URL(string: "https://data.ntpc.gov.tw/api/datasets/010E5B15-3823-4B20-B401-B1CF000550C5/json?page=\(page)&size=\(pageSize)")!
+            var request = URLRequest(url: url)
+            request.timeoutInterval = 30
+            let (data, response) = try await session.data(for: request)
+            guard let response = response as? HTTPURLResponse,
+                  (200..<300).contains(response.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+            let batch = try JSONDecoder().decode([UBResults].self, from: data)
+            if batch.isEmpty {
+                guard !stations.isEmpty else { throw URLError(.cannotParseResponse) }
+                return Array(stations.values)
+            }
+            let previousCount = stations.count
+            for station in batch { stations[station.sno] = station }
+            guard stations.count > previousCount else { throw URLError(.cannotParseResponse) }
+        }
+        throw URLError(.dataLengthExceedsMaximum)
+    }
+}
+
+
+struct BikeStatusView: View {
+    @ObservedObject var manager: UbikeManager
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            if let message = manager.errorMessage {
+                Text(message).foregroundStyle(.secondary)
+                Button("重新載入") { manager.fetchData() }
+                    .disabled(manager.isLoading)
+            } else if manager.isLoading {
+                ProgressView("更新站點資料中…")
+            }
+            if let updated = manager.lastUpdated {
+                Text("更新時間：\(updated.formatted(date: .omitted, time: .shortened))・校區中心 2 公里內")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
         }
     }
 }

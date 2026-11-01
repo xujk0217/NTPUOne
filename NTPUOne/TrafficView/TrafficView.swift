@@ -37,12 +37,13 @@ struct TrafficView: View {
             VStack {
                 if let bikeDatas = bikeManager.bikeDatas {
                         List {
+                            BikeStatusView(manager: bikeManager)
                             Section {
                                 VStack {
                                     if let bikeDatas = bikeManager.bikeDatas {
                                         Map(position: $position, selection: $selectionResult) {
                                             ForEach(bikeDatas) { stop in
-                                                let title = stop.sna.substring(from: 11)
+                                                let title = stop.displayName
                                                 let coordinate = CLLocationCoordinate2D(latitude: Double(stop.lat)!, longitude: Double(stop.lng)!)
                                                 Marker("\(title)-(\(stop.sbi_quantity)/\(stop.tot_quantity))", systemImage: "bicycle", coordinate: coordinate)
                                             }
@@ -66,7 +67,7 @@ struct TrafficView: View {
                                                     .font(.title.bold())
                                                 VStack {
                                                     HStack {
-                                                        Text(stop.sna.substring(from: 11))
+                                                        Text(stop.displayName)
                                                         Spacer()
                                                     }
                                                     HStack {
@@ -105,6 +106,7 @@ struct TrafficView: View {
                                 .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                             }
                         }
+                        .refreshable { await bikeManager.refresh() }
                         .navigationTitle("Traffic")
                         .toolbarBackground(.hidden, for: .navigationBar)
                 } else {

@@ -47,7 +47,7 @@ struct bikeView: View {
                             .font(.title.bold())
                         VStack {
                             HStack {
-                                Text(Bike.sna.substring(from: 11))
+                                Text(Bike.displayName)
                                 Spacer()
                             }
                             HStack {
@@ -70,7 +70,7 @@ struct bikeView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .navigationTitle(Bike.sna.substring(from: 11))
+            .navigationTitle(Bike.displayName)
         }
     }
 }
@@ -90,7 +90,7 @@ extension bikeView {
     var mapView: some View {
         VStack {
             Map(position: $position, selection: $selectionResult) {
-                Marker("\(Bike.sna.substring(from: 11))-(\(Bike.sbi_quantity)/\(Bike.tot_quantity))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(Bike.lat)!, longitude: Double(Bike.lng)!))
+                Marker("\(Bike.displayName)-(\(Bike.sbi_quantity)/\(Bike.tot_quantity))", systemImage: "bicycle", coordinate: CLLocationCoordinate2D(latitude: Double(Bike.lat)!, longitude: Double(Bike.lng)!))
             }
             .mapStyle(.standard(elevation: .realistic))
         }

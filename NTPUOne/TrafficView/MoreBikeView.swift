@@ -1,120 +1,50 @@
-//
-//  MoreBikeView.swift
-//  NTPUOne
-//
-//  Created by 許君愷 on 2024/6/24.
-//
-
 import SwiftUI
 
 struct MoreBikeView: View {
-    
-    @StateObject var bikeManager = UbikeManager()
+    @StateObject private var bikeManager = UbikeManager()
     @EnvironmentObject var adFree: AdFreeService
-    
-    // adview
-    @State private var adHeight: CGFloat = 100
-    @State private var rowWidth: CGFloat = 0
-    
-    var body: some View {
-        VStack {
-            if let bikeDatas = bikeManager.bikeDatas {
-                NavigationStack{
-                        VStack {
-                            List {
-                                Section {
-                                    ForEach(bikeManager.bikeDatas!) { stop in
-                                        if !(isNTPU(sno: stop.sno)){
-                                            if #available(iOS 17.0, *) {
-                                                NavigationLink(destination: bikeView(Bike: stop)){
-                                                    HStack{
-                                                        Text(stop.tot_quantity)
-                                                            .font(.title.bold())
-                                                        VStack{
-                                                            HStack {
-                                                                Text(stop.sna.substring(from: 11))
-                                                                Spacer()
-                                                            }
-                                                            HStack{
-                                                                Image(systemName: "bicycle")
-                                                                Text(stop.sbi_quantity)
-                                                                Spacer()
-                                                                Image(systemName: "baseball.diamond.bases")
-                                                                Text(stop.bemp)
-                                                                Spacer()
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            } else {
-                                                // Fallback on earlier versions
-                                                NavigationLink(destination: noMapBikeView(Bike: stop)){
-                                                    HStack{
-                                                        Text(stop.tot_quantity)
-                                                            .font(.title.bold())
-                                                        VStack{
-                                                            HStack {
-                                                                Text(stop.sna.substring(from: 11))
-                                                                Spacer()
-                                                            }
-                                                            HStack{
-                                                                Image(systemName: "bicycle")
-                                                                Text(stop.sbi_quantity)
-                                                                Spacer()
-                                                                Image(systemName: "baseball.diamond.bases")
-                                                                Text(stop.bemp)
-                                                                Spacer()
-                                                            }
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                } header: {
-                                    HStack {
-                                        Text("Ubike")
-                                        Spacer()
-                                    }
-                                }
-                                // Native 廣告 Section
-                                if !adFree.isAdFree {
-                                    Section {
-                                        NativeAdSectionView(style: .compact)
-                                            .frame(height: 140)
-                                    }
-                                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                                }
-                            }.scrollContentBackground(.hidden)
-                                .background(Color.gray.opacity(0.1))
-                        }
-                        .navigationTitle("More ubike")
-                        .onAppear {
-                            bikeManager.fetchData()
-                        }
-                    }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Text("Loading...")
-                    .onAppear {
-                        bikeManager.fetchData()
-                    }
-                ProgressView()
-            }
-        }.onAppear {
-            bikeManager.fetchData()
-        }
-    }
-    func isNTPU(sno: String) -> Bool{
-        for i in K.Bike.NTPUBikeNum{
-            if i == sno{
-                return true
-            }
-        }
-        return false
-    }
-}
 
-#Preview {
-    MoreBikeView()
+    var body: some View {
+        Group {
+            if let stations = bikeManager.bikeDatas {
+                List {
+                    BikeStatusView(manager: bikeManager)
+                    Section("北大周邊 YouBike（\(stations.filter { !K.Bike.NTPUBikeNum.contains($0.sno) }.count) 站）") {
+                        ForEach(stations.filter { !K.Bike.NTPUBikeNum.contains($0.sno) }) { stop in
+                            if #available(iOS 17.0, *) {
+                                NavigationLink(destination: bikeView(Bike: stop)) { stationRow(stop) }
+                            } else {
+                                NavigationLink(destination: noMapBikeView(Bike: stop)) { stationRow(stop) }
+                            }
+                        }
+                    }
+                    if !adFree.isAdFree {
+                        Section {
+                            NativeAdSectionView(style: .compact).frame(height: 140)
+                        }.listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                    }
+                }
+                .refreshable { await bikeManager.refresh() }
+            } else if bikeManager.errorMessage != nil {
+                BikeStatusView(manager: bikeManager).padding()
+            } else {
+                ProgressView(String(localized: "loading"))
+            }
+        }
+        .navigationTitle("北大周邊 YouBike")
+        .onAppear { bikeManager.fetchData() }
+    }
+
+    private func stationRow(_ stop: UBResults) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(stop.displayName)
+            HStack {
+                Label(stop.sbi_quantity, systemImage: "bicycle")
+                Spacer()
+                Label(stop.bemp, systemImage: "baseball.diamond.bases")
+                Spacer()
+                Text("\(Int(stop.distanceFromNTPU)) 公尺")
+            }.font(.caption).foregroundStyle(.secondary)
+        }
+    }
 }
