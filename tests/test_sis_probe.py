@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 import sys
 import unittest
+from unittest.mock import patch
+import urllib.parse
 import urllib.request
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -13,6 +15,55 @@ import sis_probe
 
 
 class SISProbeChecks(unittest.TestCase):
+    def enrolment_html(self, student="SYNTHETIC_ID", term="1"):
+        headers = ["", "科目名稱(與組別)", "核課資訊", "授課老師", "上課時間@教室",
+                   "類別", "學分/時數", "開課系級", "備註"]
+        row = ["", "Synthetic Course(U1234)", "已核准", "Synthetic Teacher", "一1@Room", "", "3/3", "", ""]
+        return ('<table>' + ''.join('<tr>' + ''.join('<td>' + x + '</td>' for x in r) + '</tr>'
+                                   for r in (headers, row)) + '</table>' +
+                '<a href="../univer/course_check_m.dt_e?stud_no=' + student + '&year1=115&term1=' + term + '">確認</a>')
+
+    def test_enrolment_requires_own_identity_term_and_exact_headers(self):
+        result = sis_probe.verified_enrolment(self.enrolment_html(), "SYNTHETIC_ID")
+        self.assertEqual((result["year"], result["term"], result["courses"][0]["code"]), ("115", "1", "U1234"))
+        for text in (self.enrolment_html(student="OTHER_ID"), self.enrolment_html(term="3"),
+                     self.enrolment_html().replace("核課資訊", "Unknown Header"),
+                     self.enrolment_html().replace("(U1234)", "(UNKNOWN)")):
+            with self.assertRaises(academic_probe.ProbeError):
+                sis_probe.verified_enrolment(text, "SYNTHETIC_ID")
+
+    def test_ambiguous_terms_and_duplicate_course_codes_stop_import_gate(self):
+        text = self.enrolment_html()
+        row = text[text.index('<tr>', text.index('</tr>')):text.index('</table>')]
+        for changed in (text.replace('</table>', row + '</table>'), text +
+                        '<a href="../univer/course_check_m.dt_e?stud_no=SYNTHETIC_ID&year1=114&term1=2">舊學期</a>'):
+            with self.assertRaises(academic_probe.ProbeError):
+                sis_probe.verified_enrolment(changed, "SYNTHETIC_ID")
+
+    def test_only_live_verified_approved_state_passes_selection_gate(self):
+        for state in ("退選", "停修", "加退選中", "未知", ""):
+            with self.assertRaises(academic_probe.ProbeError) as error:
+                sis_probe.verified_enrolment(self.enrolment_html().replace("已核准", state), "SYNTHETIC_ID")
+            self.assertEqual(error.exception.code, "school_selection_state_requires_review")
+
+    def test_catalog_receives_only_public_course_query_parameters(self):
+        requests = []
+        row = [""] * 15
+        for index, value in {3: "U1234", 7: "Synthetic Course", 8: "Teacher", 13: "Schedule"}.items():
+            row[index] = value
+        body = ('<table><tr>' + ''.join('<td>' + x + '</td>' for x in row) + '</tr></table>').encode('big5')
+        class Opener:
+            def open(self, request, timeout):
+                requests.append(request)
+                return io.BytesIO(body)
+        with patch.object(sis_probe.urllib.request, 'build_opener', return_value=Opener()):
+            result = sis_probe.catalog_compatibility(sis_probe.verified_enrolment(self.enrolment_html(), "SYNTHETIC_ID"))
+        self.assertEqual(result, 1)
+        fields = urllib.parse.parse_qs(requests[0].data.decode(), keep_blank_values=True)
+        self.assertEqual(set(fields), {"qYear", "qTerm", "courseno", "cour", "teach", "week", "seq1", "seq2"})
+        self.assertNotIn("SYNTHETIC_ID", requests[0].data.decode())
+        self.assertFalse(requests[0].has_header('Cookie'))
+
     def menu(self, **changes):
         item = dict(page_name="選課清單", project_id=10, url=sis_probe.COURSE_LIST)
         item.update(changes)

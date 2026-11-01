@@ -206,6 +206,74 @@ def verified_course_menu(text):
     return matches[0]
 
 
+def verified_enrolment(text, own_id):
+    page = CoursePage()
+    page.feed(text)
+    headers = ["", "科目名稱(與組別)", "核課資訊", "授課老師", "上課時間@教室",
+               "類別", "學分/時數", "開課系級", "備註"]
+    if not page.rows or page.rows[0] != headers or len(page.rows) > 301:
+        raise ProbeError("school_enrolment_schema_unverified")
+    terms = set()
+    for link in page.links:
+        part = urllib.parse.urlsplit(link)
+        if part.scheme or part.netloc or part.path != "../univer/course_check_m.dt_e":
+            continue
+        query = urllib.parse.parse_qs(part.query)
+        if query.get("stud_no") != [own_id]:
+            raise ProbeError("school_enrolment_identity_mismatch")
+        year, term = query.get("year1", []), query.get("term1", [])
+        if len(year) != 1 or len(term) != 1 or not re.fullmatch(r"1\d{2}", year[0]) or term[0] not in ("1", "2"):
+            raise ProbeError("school_enrolment_term_unverified")
+        terms.add((year[0], term[0]))
+    if len(terms) != 1:
+        raise ProbeError("school_enrolment_term_unverified")
+    courses = []
+    for row in page.rows[1:]:
+        if len(row) != len(headers):
+            raise ProbeError("school_enrolment_schema_unverified")
+        match = re.search(r"\(([A-Z]\d{4})\)\s*$", row[1])
+        if not match:
+            raise ProbeError("school_course_code_unverified")
+        # Only this state has been observed live. Unknown/withdrawn/pending rows
+        # cannot silently join an import candidate list.
+        if row[2] != "已核准":
+            raise ProbeError("school_selection_state_requires_review")
+        courses.append(dict(code=match[1], name=row[1][:match.start()].strip(),
+                            selection_info=row[2], teacher=row[3], schedule=row[4]))
+    if not courses or len({c["code"] for c in courses}) != len(courses):
+        raise ProbeError("school_course_list_empty_or_duplicate")
+    year, term = next(iter(terms))
+    return dict(year=year, term=term, courses=courses)
+
+
+def catalog_compatibility(enrolment):
+    """Audit existing CourseGet's column contract; not an App import parser."""
+    opener = urllib.request.build_opener(urllib.request.ProxyHandler({}), BridgeNoRedirect())
+    endpoint = "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.queryByKeyword"
+    checked = 0
+    for course in enrolment["courses"]:
+        fields = dict(qYear=enrolment["year"], qTerm=enrolment["term"], courseno=course["code"],
+                      cour="", teach="", week="", seq1="A", seq2="M")
+        request = urllib.request.Request(endpoint, data=urllib.parse.urlencode(fields).encode(),
+            headers={"User-Agent": "NTPUOne-Local-Academic-Probe/0.1"})
+        try:
+            with opener.open(request, timeout=25) as response:
+                raw = response.read(2 * 1024 * 1024 + 1)
+                if len(raw) > 2 * 1024 * 1024:
+                    raise ProbeError("catalog_response_too_large")
+        except urllib.error.HTTPError as error:
+            raise ProbeError("catalog_http_error", error.code) from None
+        except (urllib.error.URLError, OSError):
+            raise ProbeError("catalog_network_or_tls_error") from None
+        page = CoursePage()
+        page.feed(raw.decode("big5", errors="replace"))
+        matches = [row for row in page.rows if len(row) >= 15 and row[3] == course["code"]]
+        if not matches or any(not row[7] or not row[8] or not row[13] for row in matches):
+            raise ProbeError("catalog_courseget_contract_unverified")
+        checked += 1
+    return checked
+
+
 def bridge_descriptor(text):
     """Validate only; credentials must never appear in diagnostic output."""
     try:
@@ -267,7 +335,7 @@ def summary(status, url, page):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("action", choices=["login", "inspect", "navigation", "logout-local"])
+    parser.add_argument("action", choices=["login", "inspect", "navigation", "catalog-verify", "logout-local"])
     parser.add_argument("--profile", default="default", help="Local alias, not student number")
     args = parser.parse_args()
     account = hashlib.sha256((ORIGIN + ":" + args.profile).encode()).hexdigest()
@@ -310,6 +378,24 @@ def main():
                     raise ProbeError("school_session_expired_or_unverified")
                 if args.action == "navigation":
                     navigation_observation(client, text)
+                elif args.action == "catalog-verify":
+                    verified_course_menu(text)
+                    _, _, descriptor_body = client.request(PROJECT_PATH)
+                    descriptor = bridge_descriptor(descriptor_body)
+                    descriptor_body = None
+                    try:
+                        status, course_body, own_id = read_course_list(descriptor)
+                    finally:
+                        descriptor["formData"].clear()
+                    enrolment = verified_enrolment(course_body, own_id)
+                    course_body = own_id = None
+                    checked = catalog_compatibility(enrolment)
+                    emit("school_enrolment_catalog_verified", http_status=status,
+                         identity_verified=True, academic_year=enrolment["year"], term=enrolment["term"],
+                         course_count=len(enrolment["courses"]), catalog_matched_courses=checked,
+                         official_enrolment_verified=True, selection_states_verified=True,
+                         courseget_column_contract_verified=True, phase_2_complete=True,
+                         app_import_implemented=False, timetable_written=False)
         return 0
     except ProbeError as error:
         emit("school_probe_stopped", diagnostic=error.code, http_status=error.status, phase_2_complete=False)

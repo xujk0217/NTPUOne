@@ -65,6 +65,9 @@ python3 scripts/sis_probe.py inspect
 # 辨識官方動態選課選單與橋接描述，不執行跨主機登入
 python3 scripts/sis_probe.py navigation
 
+# 僅限已明確授權的 cof／ohs01 signin 與同主機選課清單；不寫入 App
+python3 scripts/sis_probe.py catalog-verify
+
 # 僅刪除本機保存的 session
 python3 scripts/sis_probe.py logout-local
 ```
@@ -78,6 +81,10 @@ CLI 的 `login`、`inspect`、`navigation` 只請求 `https://my.ntpu.edu.tw`。
 `navigation` 只接受官方 JSON 中名稱為「選課清單」、project 10 且為固定唯讀 URL 的項目，再以官方頁面既有方式讀取 `/get-projects/10` 描述。`formData` 是敏感登入資料，不能貼出原始 JSON。診斷只輸出已通過白名單的橋接路徑及 `bridge_credentials_forwarded=false`；未知主機、登入／清單主機不一致、額外欄位或非預期功能都停止。
 
 內部 `read_course_list` 僅供已明確授權的本機調查呼叫，使用獨立、暫存 Cookie jar；只 POST 驗證過的 signin，接著 GET 對應同主機 `func=3_m`。不跟隨任何 redirect，不將舊校務 Cookie 保存至 Keychain。它不是 App 登入或正式課表匯入功能。
+
+`catalog-verify` 先確認新版 session 與官方選單，再依同一流程讀取個人選課清單。它要求頁面中確認單連結的本人識別與登入橋接一致、只有單一學年學期、代碼唯一且每列都為已實測的「已核准」；不自動追蹤確認單連結。接著以學年／學期／代碼查公開 CourseGet 目錄，只比較現有欄位契約。公開站使用全新的無 Cookie opener，不接收校務登入資料。回報 `school_enrolment_catalog_verified` 表示這份學期清單與欄位檢查成功，**不表示 App 匯入、歷史學期、多時段解析或其他功能已完成**。
+
+目前主機白名單僅有 `cof.ntpu.edu.tw`、`ohs01.ntpu.edu.tw` 的指定路徑及 `func=3_m`。校方可能回傳其他 ohs 主機；此時停止是預期行為，需要該目的地的明確授權及程式白名單更新。不得將描述中的任意 URL 或使用者提供的歷史 `date1` 直接帶入執行。
 
 ## 離線工具測試
 
