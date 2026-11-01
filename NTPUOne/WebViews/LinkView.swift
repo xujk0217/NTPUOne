@@ -1829,7 +1829,11 @@ struct LinkView: View {
                     disclosureGroup(for: webs)
                 } else if webs.id == 4 {
                     if let calendar = webManager.Calendar {
-                        webLinks(for: webManager.Calendar!)
+                        webLinks(for: calendar)
+                        if let message = webManager.calendarErrorMessage {
+                            Text(message).font(.caption).foregroundStyle(.secondary)
+                            Button("重新載入行事曆") { webManager.refreshCalendar() }
+                        }
                     } else {
                         Section {
                             VStack {

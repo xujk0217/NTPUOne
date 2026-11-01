@@ -24,9 +24,18 @@ struct WebData: Identifiable, Decodable{
 }
 
 class WebManager: ObservableObject{
+    static let officialCalendar = WebData(
+        id: "official-calendar", title: "臺北大學官方行事曆（最新版本）", image: "calendar",
+        url: "https://new.ntpu.edu.tw/oaa/files?descent=true&inline=1&tag=%E8%A1%8C%E4%BA%8B%E6%9B%86"
+    )
+    private static var cachedCalendar: [WebData]?
+    private static var cacheDate: Date?
+
     private var db = Firestore.firestore()
+    private var isLoadingCalendar = false
     
-    @Published var Calendar: [WebData]?
+    @Published var Calendar: [WebData]? = [WebManager.officialCalendar]
+    @Published private(set) var calendarErrorMessage: String?
     
     @Published var websArray:[WebsArray] = [
         WebsArray(id: 0, title: String(localized: "web_main_site"), webs: [
@@ -86,31 +95,47 @@ class WebManager: ObservableObject{
         ]),
     ]
     
-    func createData(){
-        var collectName = "calendar"
+    func createData() { loadCalendar(forceRefresh: false) }
+    func refreshCalendar() { loadCalendar(forceRefresh: true) }
 
-        db.collection(collectName)
-            .order(by: "id")
-            .addSnapshotListener { querySnapshot, error in
-                if let e = error {
-                    print("There is an issue: \(e)")
+    private func loadCalendar(forceRefresh: Bool) {
+        if !forceRefresh, let cached = Self.cachedCalendar, let date = Self.cacheDate,
+           Date().timeIntervalSince(date) < 300 {
+            Calendar = cached
+            return
+        }
+        guard !isLoadingCalendar else { return }
+        isLoadingCalendar = true
+        calendarErrorMessage = nil
+
+        db.collection("calendar").getDocuments(source: .server) { [weak self] snapshot, error in
+            guard let self else { return }
+            let links = snapshot?.documents.compactMap { doc -> WebData? in
+                let fields = doc.data()
+                guard let title = fields["title"] as? String, !title.isEmpty,
+                      let rawURL = fields["url"] as? String,
+                      let url = URL(string: rawURL),
+                      url.scheme?.lowercased() == "https", url.host != nil else { return nil }
+                let id = (fields["id"] as? String)
+                    ?? (fields["id"] as? NSNumber)?.stringValue ?? doc.documentID
+                return WebData(id: id, title: title, image: fields["image"] as? String ?? "calendar", url: rawURL)
+            }.sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending } ?? []
+
+            DispatchQueue.main.async {
+                self.isLoadingCalendar = false
+                if error != nil || links.isEmpty {
+                    // Never leave an endless spinner or an empty calendar section.
+                    self.Calendar = Self.cachedCalendar ?? [Self.officialCalendar]
+                    self.calendarErrorMessage = "行事曆清單暫時無法更新，可先開啟官方行事曆。"
                 } else {
-                    if let snapshotDocuments = querySnapshot?.documents {
-                        print("success get calender")
-                        var newCal = [WebData]()
-                        for doc in snapshotDocuments {
-                            do {
-                                var cald = try doc.data(as: WebData.self)
-                                newCal.append(cald)
-                            } catch {
-                                print("Error decoding document: \(error)")
-                            }
-                        }
-                        DispatchQueue.main.async {
-                            self.Calendar = newCal
-                        }
-                    }
+                    var uniqueURLs = Set<String>()
+                    let result = (links + [Self.officialCalendar]).filter { uniqueURLs.insert($0.url).inserted }
+                    Self.cachedCalendar = result
+                    Self.cacheDate = Date()
+                    self.Calendar = result
+                    self.calendarErrorMessage = nil
                 }
             }
+        }
     }
 }

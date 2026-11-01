@@ -9,7 +9,7 @@ import SwiftUI
 import SafariServices
 
 struct CommonLinksView: View {
-    @ObservedObject var webManager = WebManager()
+    @StateObject private var webManager = WebManager()
     @EnvironmentObject var adFree: AdFreeService
     
     var body: some View {
@@ -22,12 +22,15 @@ struct CommonLinksView: View {
                         } else if webs.id == 4 {
                             if let calendar = webManager.Calendar {
                                 webLinks(for: calendar)
+                                if let message = webManager.calendarErrorMessage {
+                                    Text(message).font(.caption).foregroundStyle(.secondary)
+                                    Button("重新載入行事曆") { webManager.refreshCalendar() }
+                                }
                             } else {
                                 Section {
                                     VStack {
                                         ProgressView("Loading...")
                                             .progressViewStyle(CircularProgressViewStyle())
-                                            .onAppear(perform: webManager.createData)
                                     }
                                 } footer: {
                                     Text(String(localized: "connecting_check_network"))
