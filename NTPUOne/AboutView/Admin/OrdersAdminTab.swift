@@ -49,15 +49,20 @@ struct OrdersAdminTab: View {
             case .other: return "3"
             }
         }
+
+        var orderFilter: OrderManager.OrderFilter {
+            switch self {
+            case .all: return .all
+            case .event: return .event
+            case .post: return .post
+            case .other: return .other
+            }
+        }
     }
 
     // 篩選 + 搜尋
     var filtered: [Order] {
         var result = manager.order ?? []
-
-        if let wantedTag = selectedTag.tagValue {
-            result = result.filter { $0.tag == wantedTag }
-        }
 
         if !searchText.isEmpty {
             let q = searchText.lowercased()
@@ -213,7 +218,13 @@ struct OrdersAdminTab: View {
                     .foregroundStyle(.secondary)
             }
         }
-        .onAppear { manager.loadOrder() }
+        .task { manager.startListening(filter: selectedTag.orderFilter) }
+        .onChange(of: selectedTag) { newValue in
+            manager.startListening(filter: newValue.orderFilter)
+        }
+        .onDisappear {
+            manager.stopListening()
+        }
         
         // 爬蟲頁面
         .sheet(isPresented: $showCrawlerSheet) {

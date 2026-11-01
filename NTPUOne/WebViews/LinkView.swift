@@ -16,7 +16,7 @@ import MapKit
 import Firebase
 
 struct LinkView: View {
-    @ObservedObject var webManager = WebManager()
+    @StateObject private var webManager = WebManager()
     @StateObject private var orderManager = OrderManager()
     @StateObject private var todayFoodManager = FManager()
     @EnvironmentObject var adFree: AdFreeService
@@ -858,12 +858,16 @@ struct LinkView: View {
                     }
                 }
                 .onAppear {
+                    orderManager.startListening(filter: .all)
                     nextCourseOnAppear = nextUpcomingCourse()
                     webManager.createData()
                     memoManager.loadMemosFromCoreData()
                     greetingText = buildGreeting()
                     refreshTodayRestaurantRecommendation()
                     if weatherManager.weatherDatas == nil { weatherManager.fetchData() }
+                }
+                .onDisappear {
+                    orderManager.stopListening()
                 }
                 .onChange(of: todayFoodManager.Food) { _ in
                     updateTodayRestaurantRecommendation()
@@ -1792,7 +1796,6 @@ struct LinkView: View {
                         .padding(.vertical, 8)
                     } else {
                         DemoView
-                            .onAppear(perform: orderManager.loadOrder)
                     }
 
                     if !filteredEventFavorites.isEmpty {
@@ -1810,7 +1813,6 @@ struct LinkView: View {
                     VStack {
                         ProgressView("Loading...")
                             .progressViewStyle(CircularProgressViewStyle())
-                            .onAppear(perform: orderManager.loadOrder)
                     }
                 } footer: {
                     Text(String(localized: "connecting_check_network"))

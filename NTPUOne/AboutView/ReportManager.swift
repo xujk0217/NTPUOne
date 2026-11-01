@@ -12,9 +12,13 @@ import FirebaseFirestoreSwift
 final class BugManager: ObservableObject {
     @Published var items: [BugReport] = []
     private let db = Firestore.firestore()
+    private var listener: ListenerRegistration?
+
+    deinit { listener?.remove() }
 
     func load() {
-        db.collection(K.FStoreR.collectionNameBug)
+        guard listener == nil else { return }
+        listener = db.collection(K.FStoreR.collectionNameBug)
             .order(by: K.FStoreR.issueField) // 也可改 orderBy dateField
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self, let docs = snapshot?.documents else { return }
@@ -42,9 +46,13 @@ final class BugManager: ObservableObject {
 final class FeatureManager: ObservableObject {
     @Published var items: [FeatureRequest] = []
     private let db = Firestore.firestore()
+    private var listener: ListenerRegistration?
+
+    deinit { listener?.remove() }
 
     func load() {
-        db.collection(K.FStoreR.collectionNameFt)
+        guard listener == nil else { return }
+        listener = db.collection(K.FStoreR.collectionNameFt)
             .order(by: K.FStoreR.issueField) // 或改 dateField
             .addSnapshotListener { [weak self] snapshot, error in
                 guard let self, let docs = snapshot?.documents else { return }

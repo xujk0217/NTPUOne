@@ -71,6 +71,8 @@ class CommentManager: ObservableObject {
     private let db = Firestore.firestore()
     private var listener: ListenerRegistration?
     private var ownerListener: ListenerRegistration?
+    private var listeningCollection: String?
+    private var listeningStoreID: String?
 
     init() {}
 
@@ -96,7 +98,13 @@ class CommentManager: ObservableObject {
 
     func loadComments(collection: String, storeId: String) {
         guard !collection.isEmpty, !storeId.isEmpty else { return }
+        guard listener == nil || listeningCollection != collection || listeningStoreID != storeId else {
+            return
+        }
+
         listener?.remove()
+        listeningCollection = collection
+        listeningStoreID = storeId
         observeOwnedRestaurantComments(collection: collection, storeId: storeId)
         isLoading = true
 

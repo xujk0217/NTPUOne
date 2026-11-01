@@ -10,82 +10,71 @@ import SwiftUI
 import FirebaseFirestore
 
 class OrderManager: ObservableObject {
+    enum OrderFilter: Equatable {
+        case all
+        case event
+        case post
+        case other
+
+        var tagValue: String? {
+            switch self {
+            case .all: return nil
+            case .event: return "1"
+            case .post: return "2"
+            case .other: return "3"
+            }
+        }
+    }
+
     @Published var order: [Order]?
     @Published var eventN: Int = 0
     @Published var postN: Int = 0
     @Published var otherN: Int = 0
     
     private var db = Firestore.firestore()
+    private var listener: ListenerRegistration?
+    private var activeFilter: OrderFilter?
+
+    deinit {
+        listener?.remove()
+    }
     
     func loadOrder() {
-        db.collection(K.FStoreOr.collectionName)
+        startListening(filter: .all)
+    }
+
+    func startListening(filter: OrderFilter) {
+        guard activeFilter != filter || listener == nil else { return }
+
+        listener?.remove()
+        activeFilter = filter
+        order = nil
+
+        var query: Query = db.collection(K.FStoreOr.collectionName)
+        if let tag = filter.tagValue {
+            query = query.whereField(K.FStoreOr.tagField, isEqualTo: tag)
+        }
+
+        listener = query
             .order(by: K.FStoreOr.dateField)
             .addSnapshotListener { [weak self] querySnapshot, error in
-                guard let self = self else { return }
-                if let e = error {
-                    print("There is an issue: \(e)")
+                guard let self else { return }
+                if let error {
+                    print("There is an issue: \(error)")
                     return
                 }
-
-                if let snapshotDocuments = querySnapshot?.documents {
-                    print("success get order")
-                    var newOrders: [Order] = []
-                    var ev = 0, po = 0, ot = 0
-
-                    for doc in snapshotDocuments {
-                        let data = doc.data()
-
-                        // 既有必填
-                        guard
-                            let message = data[K.FStoreOr.messageField] as? String,
-                            let name = data[K.FStoreOr.nameField] as? String,
-                            let url = data[K.FStoreOr.urlField] as? String,
-                            let tag = data[K.FStoreOr.tagField] as? String
-                        else {
-                            print("order firebase fail")
-                            continue
-                        }
-
-                        // 新欄位：若不存在就給預設
-                        let time = (data[K.FStoreOr.timeField] as? String) ?? ""
-                        let email = (data[K.FStoreOr.emailField] as? String) ?? ""
-                        let date = (data[K.FStoreOr.dateField] as? Double)
-                                   ?? Date().timeIntervalSince1970
-
-                        var o = Order(
-                            message: message,
-                            name: name,
-                            url: url,
-                            tag: tag,
-                            time: time,
-                            email: email,
-                            date: date
-                        )
-                        o.id = doc.documentID  // ✅ 設定 documentID
-
-                        switch o.tag {
-                        case "1": ev += 1
-                        case "2": po += 1
-                        default:  ot += 1
-                        }
-                        newOrders.append(o)
-                    }
-
-                    print("event: \(ev)")
-                    print("post: \(po)")
-                    print("other: \(ot)")
-                    DispatchQueue.main.async {
-                        self.eventN = ev
-                        self.postN  = po
-                        self.otherN = ot
-                        self.order  = newOrders
-                    }
-                }
+                self.handleOrdersSnapshot(querySnapshot?.documents ?? [], filter: filter)
             }
     }
 
+    func stopListening() {
+        listener?.remove()
+        listener = nil
+        activeFilter = nil
+    }
+
     private func handleOrdersSnapshot(_ snapshotDocuments: [QueryDocumentSnapshot],
-                                          filterTag: String?) {
+                                      filter: OrderFilter) {
             var newOrders: [Order] = []
             var e = 0, p = 0, o = 0
 
@@ -124,67 +113,40 @@ class OrderManager: ObservableObject {
                 default:  o += 1
                 }
 
-                // 客端過濾：若指定 filterTag，僅加入該類
-                if filterTag == nil || tag == filterTag {
-                    newOrders.append(order)
-                }
+                newOrders.append(order)
             }
 
             print("event: \(e)  post: \(p)  other: \(o)")
             DispatchQueue.main.async {
-                self.eventN = e
-                self.postN  = p
-                self.otherN = o
+                if filter == .all {
+                    self.eventN = e
+                    self.postN = p
+                    self.otherN = o
+                } else {
+                    switch filter {
+                    case .event: self.eventN = newOrders.count
+                    case .post: self.postN = newOrders.count
+                    case .other: self.otherN = newOrders.count
+                    case .all: break
+                    }
+                }
                 self.order  = newOrders
             }
         }
 
         // 活動 (tag = "1")
         func loadOrderEvent() {
-            db.collection(K.FStoreOr.collectionName)
-                .order(by: K.FStoreOr.dateField)
-                .addSnapshotListener { [weak self] querySnapshot, error in
-                    guard let self = self else { return }
-                    if let e = error {
-                        print("There is an issue: \(e)")
-                        return
-                    }
-                    guard let docs = querySnapshot?.documents else { return }
-                    print("success get order event")
-                    self.handleOrdersSnapshot(docs, filterTag: "1")
-                }
+            startListening(filter: .event)
         }
 
         // 貼文 (tag = "2")
         func loadOrderPost() {
-            db.collection(K.FStoreOr.collectionName)
-                .order(by: K.FStoreOr.dateField)
-                .addSnapshotListener { [weak self] querySnapshot, error in
-                    guard let self = self else { return }
-                    if let e = error {
-                        print("There is an issue: \(e)")
-                        return
-                    }
-                    guard let docs = querySnapshot?.documents else { return }
-                    print("success get order post")
-                    self.handleOrdersSnapshot(docs, filterTag: "2")
-                }
+            startListening(filter: .post)
         }
 
         // 其他 (tag = "3" 或非 1/2)
         func loadOrderOther() {
-            db.collection(K.FStoreOr.collectionName)
-                .order(by: K.FStoreOr.dateField)
-                .addSnapshotListener { [weak self] querySnapshot, error in
-                    guard let self = self else { return }
-                    if let e = error {
-                        print("There is an issue: \(e)")
-                        return
-                    }
-                    guard let docs = querySnapshot?.documents else { return }
-                    print("success get order other")
-                    self.handleOrdersSnapshot(docs, filterTag: "3")
-                }
+            startListening(filter: .other)
         }
     func updateOrder(docID: String, message: String, name: String, url: String, tag: String, time: String, email: String) {
             db.collection(K.FStoreOr.collectionName)
