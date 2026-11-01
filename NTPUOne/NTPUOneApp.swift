@@ -25,7 +25,6 @@ import FirebaseAppCheck
 import GoogleSignIn
 import StoreKit
 
-
 enum RemoteConfigFeature {
     case community
     case restaurant
@@ -236,27 +235,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         "\(Bundle.main.bundleIdentifier ?? "com.xujk.NTPUOne").communityNotificationRefresh"
     }
     
-    lazy var persistentContainer: NSPersistentCloudKitContainer = {
-        let container = NSPersistentCloudKitContainer(name: "CourseModel")
-        
-        // 使用App Group共享路径
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite") {
-            let storeDescription = NSPersistentStoreDescription(url: storeURL)
-            storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
-            container.persistentStoreDescriptions = [storeDescription]
-        }
-        
-        container.loadPersistentStores(completionHandler: { (storeDescription, error) in
-            if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
-            } else {
-                print("✅ Persistent store loaded at: \(storeDescription.url?.path ?? "unknown")")
-            }
-        })
-        return container
-    }()
-    
+    var persistentContainer: NSPersistentCloudKitContainer {
+        CoreDataManager.shared.persistentContainer
+    }
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         
         AppCheck.setAppCheckProviderFactory(MyAppCheckProviderFactory())
@@ -462,18 +444,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
 
-    func saveContext () {
-        let context = PersistenceController.shared.container.viewContext
-        if context.hasChanges {
-            do {
-                try context.save()
-            } catch {
-                let nserror = error as NSError
-                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
-            }
-        }
+    func saveContext() {
+        CoreDataManager.shared.saveContext()
     }
-    
+
     func MonitorNetworkConnection() {
         let monitor = NWPathMonitor()
         let queue = DispatchQueue(label: "Monitor")
@@ -509,53 +483,10 @@ class MyAppCheckProviderFactory: NSObject, AppCheckProviderFactory {
   }
 }
 
-//struct PersistenceController {
-//    static let shared = PersistenceController()
-//
-//    let container: NSPersistentCloudKitContainer
-//
-//    init() {
-//        container = NSPersistentCloudKitContainer(name: "CourseModel")
-//        // 使用 App Group 的 URL 配置 Core Data 存储
-//        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-//        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
-//        
-//        // 配置 Persistent Store Description
-//        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
-//        container.persistentStoreDescriptions = [storeDescription]
-//        
-//        container.loadPersistentStores { _, error in
-//            if let error = error as NSError? {
-//                fatalError("Unresolved error \(error), \(error.userInfo)")
-//            }
-//        }
-//        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-//    }
-//}
-
+/// Compatibility wrapper for existing callers; the App now has a single store owner.
 class PersistenceController {
     static let shared = PersistenceController()
-
-    let container: NSPersistentCloudKitContainer
-
-    init() {
-        container = NSPersistentCloudKitContainer(name: "CourseModel")
-        
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
-        
-        let storeDescription = storeURL.map(NSPersistentStoreDescription.init(url:)) ?? NSPersistentStoreDescription()
-        storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
-
-        container.persistentStoreDescriptions = [storeDescription]
-
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
-            }
-        }
-        container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-    }
+    var container: NSPersistentCloudKitContainer { CoreDataManager.shared.persistentContainer }
 }
 
 @main
@@ -563,35 +494,57 @@ struct NTPUOneApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
     let persistenceController = PersistenceController.shared
     @StateObject private var adFree = AdFreeService.shared
-    @StateObject private var courseData: CourseData
+    @StateObject private var persistence = CoreDataManager.shared
+    @State private var reloadToken = UUID()
     @StateObject private var remoteConfigManager = RemoteConfigManager.shared
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
-        self._courseData = StateObject(wrappedValue: CourseData(context: PersistenceController.shared.container.viewContext))
         incrementLaunchCount()
     }
 
     var body: some Scene {
         WindowGroup {
             Group {
-                if remoteConfigManager.maintenanceEnabled {
-                    MaintenanceView(title: remoteConfigManager.maintenanceTitle, message: remoteConfigManager.maintenanceMessage)
+                if let error = persistence.loadError {
+                    VStack(spacing: 16) {
+                        Image(systemName: "externaldrive.badge.exclamationmark").font(.largeTitle)
+                        Text("資料暫時無法開啟").font(.headline)
+                        Text(error).font(.subheadline).multilineTextAlignment(.center)
+                        Button("重新嘗試") { persistence.retryLoading() }.buttonStyle(.borderedProminent)
+                    }.padding()
+                } else if !persistence.isReady {
+                    ProgressView("正在載入資料…")
+                } else if remoteConfigManager.maintenanceEnabled {
+                    MaintenanceView(
+                        title: remoteConfigManager.maintenanceTitle,
+                        message: remoteConfigManager.maintenanceMessage
+                    )
                 } else {
-                    ContentView()
+                    LoadedAppContent()
+                        .id(reloadToken)
                         .environment(\.managedObjectContext, persistenceController.container.viewContext)
-                        .environmentObject(courseData)
                         .environmentObject(adFree)
                 }
             }
             .environmentObject(remoteConfigManager)
+            .alert("資料尚未儲存", isPresented: Binding(
+                get: { persistence.operationError != nil },
+                set: { if !$0 { persistence.operationError = nil } }
+            )) {
+                Button("再試一次") {
+                    if persistence.saveContext() { reloadToken = UUID() }
+                }
+                Button("稍後再試", role: .cancel) { }
+            } message: {
+                Text(persistence.operationError ?? "")
+            }
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
                 NextCourseLiveActivityManager.shared.setApplicationActive(true)
                 adFree.refresh()   // 回到前景時刷新到期狀態
                 WidgetCenter.shared.reloadAllTimelines()  // 刷新所有 Widget
-                courseData.refreshNextCourseLiveActivity()
                 if K.Community.notificationsEnabled {
                     CommunityNotificationFallbackService.shared.refresh(source: "foreground")
                 }
@@ -626,5 +579,20 @@ struct NTPUOneApp: App {
             .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
             SKStoreReviewController.requestReview(in: scene)
         }
+    }
+}
+
+
+/// Created only after the persistent store loads, including after a successful retry.
+private struct LoadedAppContent: View {
+    @StateObject private var courseData = CourseData(context: CoreDataManager.shared.persistentContainer.viewContext)
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some View {
+        ContentView()
+            .environmentObject(courseData)
+            .onChange(of: scenePhase) { phase in
+                if phase == .active { courseData.refreshNextCourseLiveActivity() }
+            }
     }
 }

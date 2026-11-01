@@ -1,53 +1,85 @@
-//
-//  CoreDataManager.swift
-//  NTPUOne
-//
-//  Created by 許君愷 on 2024/8/17.
-//
-
 import Foundation
 import CoreData
+import Combine
 
-class CoreDataManager {
-    static let shared = CoreDataManager()
+/// One store and one context for the App. Failures never delete or replace user data.
+final class CoreDataManager: ObservableObject {
+    static let shared = CoreDataManager(storeURL: FileManager.default
+        .containerURL(forSecurityApplicationGroupIdentifier: "group.NTPUOne.NextCourseWidget")?
+        .appendingPathComponent("shared.sqlite"))
 
     let persistentContainer: NSPersistentCloudKitContainer
+    @Published private(set) var isReady = false
+    @Published private(set) var loadError: String?
+    @Published var operationError: String?
 
-    private init() {
-        persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel")
-        
-        // 使用App Group共享路径
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        if let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite") {
-            let storeDescription = NSPersistentStoreDescription(url: storeURL)
-            storeDescription.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
-            
-            // 啟用自動輕量級遷移，確保資料不會遺失
-            storeDescription.setOption(true as NSNumber, forKey: NSMigratePersistentStoresAutomaticallyOption)
-            storeDescription.setOption(true as NSNumber, forKey: NSInferMappingModelAutomaticallyOption)
-            
-            persistentContainer.persistentStoreDescriptions = [storeDescription]
+    init(storeURL: URL?, model: NSManagedObjectModel? = nil, cloudSyncEnabled: Bool = true) {
+        if let model {
+            persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel", managedObjectModel: model)
+        } else {
+            persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel")
         }
-        
-        persistentContainer.loadPersistentStores { (description, error) in
-            if let error = error {
-                fatalError("Unable to load persistent stores: \(error)")
+        guard let storeURL else {
+            persistentContainer.persistentStoreDescriptions = []
+            loadError = "無法存取共用資料空間。請確認裝置儲存空間及 App 權限，稍後再試。"
+            return
+        }
+        let description = NSPersistentStoreDescription(url: storeURL)
+        // Finish loading before any view model fetches or schedules notifications.
+        description.shouldAddStoreAsynchronously = false
+        description.shouldMigrateStoreAutomatically = true
+        description.shouldInferMappingModelAutomatically = true
+        description.setOption(true as NSNumber, forKey: NSPersistentHistoryTrackingKey)
+        description.setOption(true as NSNumber, forKey: NSPersistentStoreRemoteChangeNotificationPostOptionKey)
+        if cloudSyncEnabled {
+            description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
+        }
+        persistentContainer.persistentStoreDescriptions = [description]
+        persistentContainer.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
+        retryLoading()
+    }
+
+    func retryLoading() {
+        guard !isReady, persistentContainer.persistentStoreDescriptions.first?.url != nil else { return }
+        loadError = nil
+        persistentContainer.loadPersistentStores { [self] _, error in
+            if let error {
+                loadError = "無法開啟課表與備忘錄資料。原始資料已保留，請確認儲存空間後重試。\n\(error.localizedDescription)"
             } else {
-                print("✅ CoreDataManager store loaded at: \(description.url?.path ?? "unknown")")
+                isReady = true
+                loadError = nil
             }
         }
     }
 
-    func saveContext() {
-        let context = persistentContainer.viewContext
-        if context.hasChanges {
+    @discardableResult
+    func saveContext(_ context: NSManagedObjectContext? = nil) -> Bool {
+        let context = context ?? persistentContainer.viewContext
+        var success = true
+        context.performAndWait {
+            guard context.hasChanges else { return }
             do {
                 try context.save()
             } catch {
-                let nserror = error as NSError
-                fatalError("Unresolved error \(nserror), \(nserror.userInfo)")
+                success = false
+                reportOperationError(error)
+                // Keep pending changes so the user can retry; do not rollback silently.
             }
+        }
+        if success {
+            if Thread.isMainThread { operationError = nil }
+            else { DispatchQueue.main.async { self.operationError = nil } }
+        }
+        return success
+    }
+
+    func reportOperationError(_ error: Error) {
+        let message = "變更尚未儲存，請確認儲存空間後重試。關閉 App 可能會遺失本次未儲存的變更。\n\(error.localizedDescription)"
+        if Thread.isMainThread {
+            operationError = message
+        } else {
+            DispatchQueue.main.async { self.operationError = message }
         }
     }
 }
-

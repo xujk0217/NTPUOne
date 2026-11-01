@@ -35,19 +35,6 @@ struct MemoWidgetProvider: TimelineProvider {
     }
     
     private func fetchMemos() -> [MemoEntity] {
-        let container = NSPersistentCloudKitContainer(name: "CourseModel")
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
-        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
-        container.persistentStoreDescriptions = [storeDescription]
-        
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                print("Error loading persistent store: \(error)")
-            }
-        }
-        
-        let context = container.viewContext
         let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
         
         // 只獲取未完成的備忘錄
@@ -60,7 +47,7 @@ struct MemoWidgetProvider: TimelineProvider {
         ]
         
         do {
-            var result = try context.fetch(request)
+            var result = try WidgetPersistence.fetch(request)
             
             // 後處理排序：將沒有截止日期的任務移到最後，並保持優先級排序
             result.sort { memo1, memo2 in
@@ -92,25 +79,12 @@ struct MemoWidgetProvider: TimelineProvider {
     static func getCourseName(for courseId: String?) -> String? {
         guard let courseId = courseId, !courseId.isEmpty else { return nil }
         
-        let container = NSPersistentCloudKitContainer(name: "CourseModel")
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
-        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
-        container.persistentStoreDescriptions = [storeDescription]
-        
-        container.loadPersistentStores { _, error in
-            if let error = error as NSError? {
-                print("Error loading persistent store: \(error)")
-            }
-        }
-        
-        let context = container.viewContext
         let request: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", courseId)
         request.fetchLimit = 1
         
         do {
-            let result = try context.fetch(request)
+            let result = try WidgetPersistence.fetch(request)
             return result.first?.name
         } catch {
             print("Error fetching course: \(error)")

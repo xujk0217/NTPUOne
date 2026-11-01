@@ -142,7 +142,7 @@ class MemoManager: ObservableObject {
         }
         
         if hasChanges {
-            try? viewContext.save()
+            CoreDataManager.shared.saveContext(viewContext)
             print("🧹 Cleaned up expired reminder rules")
         }
     }
@@ -199,6 +199,7 @@ class MemoManager: ObservableObject {
             scheduleNotification(for: memo)
             print("Success: Added memo '\(memo.title)'")
         } catch {
+            CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to save memo - \(error.localizedDescription)")
         }
     }
@@ -227,6 +228,7 @@ class MemoManager: ObservableObject {
                 print("Success: Updated memo '\(memo.title)'")
             }
         } catch {
+            CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to update memo - \(error.localizedDescription)")
         }
     }
@@ -253,6 +255,7 @@ class MemoManager: ObservableObject {
                 print("Success: Deleted memo '\(memo.title)'")
             }
         } catch {
+            CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to delete memo - \(error.localizedDescription)")
         }
     }

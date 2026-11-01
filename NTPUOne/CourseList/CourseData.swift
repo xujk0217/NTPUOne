@@ -302,6 +302,7 @@ class CourseData: ObservableObject {
             print("Success: All courses deleted from Core Data and notifications cleared.")
             refreshNextCourseLiveActivity()
         } catch {
+            CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to delete all courses - \(error.localizedDescription)")
         }
     }
@@ -325,6 +326,7 @@ class CourseData: ObservableObject {
             try viewContext.save()
             print("Success: Context saved successfully.")
         } catch {
+            CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to save context - \(error.localizedDescription)")
         }
     }

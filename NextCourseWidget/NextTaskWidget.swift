@@ -88,28 +88,13 @@ struct NextTaskProvider: TimelineProvider {
     }
     
     private func fetchAllTasks() -> [MemoEntity] {
-        let container = NSPersistentCloudKitContainer(name: "CourseModel")
-        let appGroupIdentifier = "group.NTPUOne.NextCourseWidget"
-        let storeURL = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?.appendingPathComponent("shared.sqlite")
-        let storeDescription = NSPersistentStoreDescription(url: storeURL!)
-        container.persistentStoreDescriptions = [storeDescription]
-        
-        container.loadPersistentStores { storeDescription, error in
-            if let error = error as NSError? {
-                fatalError("Unresolved error \(error), \(error.userInfo)")
-            } else {
-                print("Persistent store loaded: \(storeDescription)")
-            }
-        }
-        
-        let context = container.viewContext
         let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
         
         // 只獲取未完成的任務
         request.predicate = NSPredicate(format: "status != %@", "已完成")
         
         do {
-            let result = try context.fetch(request)
+            let result = try WidgetPersistence.fetch(request)
             print("Fetched \(result.count) tasks from Core Data.")
             return result
         } catch {
