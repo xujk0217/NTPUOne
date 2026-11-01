@@ -52,3 +52,6 @@ fastlane/test_output
 *.DS_Store
 *.swp
 *~
+
+# AI agent working directory
+.omo/
