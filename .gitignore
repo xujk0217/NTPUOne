@@ -55,3 +55,9 @@ fastlane/test_output
 
 # AI agent working directory
 .omo/
+
+# Local academic API verification
+__pycache__/
+*.py[cod]
+.academic-local/
+NTPU.postman_collection.json
