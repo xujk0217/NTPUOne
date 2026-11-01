@@ -9,8 +9,8 @@
 | Phase | 目標 | 狀態 |
 | --- | --- | --- |
 | 0 | 架構、資料流與建置基準 | 完成 |
-| 1 | Moodle 登入、本人課程／作業／提交狀態 | 準備唯讀驗證，尚未通過驗收 |
-| 2 | 校務登入、本人實際選課代碼與相容性 | 未完成；可獨立研究公開登入入口 |
+| 1 | Moodle 登入、本人課程／作業／提交狀態 | 核心真實 API 已打通；完整狀態及學期對應驗收尚未完成 |
+| 2 | 校務登入、本人實際選課代碼與相容性 | 公開登入已查證、安全工具已備妥；等待開發者本機登入驗證 |
 | 3 | 重用課程查詢、一鍵匯入且不破壞原課表 | 未開始；依賴 Phase 2 |
 | 4 | Moodle 作業整合既有 Memo | 未開始；依賴 Phase 1 真實資料 |
 | 5 | 遠端提交狀態與本機完成確認／通知 | 未開始；依賴 Phase 4 |
@@ -88,8 +88,63 @@
 - 本次未執行真機 UI、CloudKit production 同步、遠端資料寫入或 schema 修改。
 - 暫存建置紀錄：`/private/tmp/ntpuone-academic-baseline-build.log`。測試重跑步驟見 [tests/README.md](../tests/README.md)。
 
+## Phase 1：真實 Moodle 驗證結果
+
+### 已完成的實際驗證
+
+1. 無憑證 GET 首頁與 `/login/index.php`：HTTP 200，登入表單包含當次 `logintoken`、`username`、`password`；本次沒有發現 CAPTCHA 字樣，但這不保證帳號、網段或後續狀態永遠沒有互動驗證。
+2. POST `/lib/ajax/service.php?info=tool_mobile_get_public_config`，body 為 `[{index:0, methodname:tool_mobile_get_public_config, args:{}}]`：HTTP 200、`error=false`。實際 `enablewebservices=1`、`enablemobilewebservice=1`、`typeoflogin=1`。Moodle 官方常數中 1 代表 App 內登入，不是強制 browser 模式。
+3. 無帳密 POST `/login/token.php`：HTTP 200，但 JSON `errorcode=missingparam`，未登入。
+4. 無 token POST `/webservice/rest/server.php`，指定 `core_webservice_get_site_info`：HTTP 200，但 `errorcode=invalidtoken`，未登入。
+5. 開發者親自在自己的 Terminal 以隱藏輸入執行 `scripts/academic_probe.py login`，回報 `identity_verified_token_saved_to_keychain`；後續本機工具確實從 Keychain 讀取 token 並核對本人 userid 成功。AI 沒有接收或保存開發者輸入的帳號密碼。
+6. `core_webservice_get_site_info` 實際回傳本人身分與 375 個可用函式的目錄；下表列出的查詢函式皆有列入。只記錄 schema、布林結果與數量，不記錄個人欄位值。
+7. 課程 timeline 以 `classification=inprogress`、`limit=50`、`offset` 分頁，實際收到 50、10、0 筆，共 60 門已註冊的 Moodle 課程。60 門全部 `enddate=0`，因此不能以該分類等同本學期正式選課。
+8. 60 門課都有名稱及同站課程連結；其中 6 門在 `fullname`、`shortname`、`idnumber` 各有 115-1 線索。工具以至少兩欄吻合篩出候選，但仍標記 `semester_mapping_verified=false`，尚未與校務正式選課核對。
+9. 對這 6 門候選課讀取作業，實際回傳 11 筆 assignment；本次依限量設定讀取其中 10 筆本人提交狀態，均觀測到 `lastattempt.submission.status=submitted`。沒有提交作業、修改成績或更新任何 App 待辦。
+10. macOS Keychain 實際寫入／讀取／刪除臨時隨機值測試通過；此測試值不是學校 token，不作為登入成功證據。
+
+### 已實測 API 與結構
+
+| Endpoint／function | Authentication／參數 | 實際觀測／限制 |
+| --- | --- | --- |
+| POST `/login/token.php` | 本機隱藏輸入 `username`、`password`；`service=moodle_mobile_app` | 開發者當次登入取得可用 token；僅 token 與本人 userid 存 Keychain，不保存密碼、privatetoken 或 Cookie |
+| POST `/webservice/rest/server.php` → `core_webservice_get_site_info` | POST body `wstoken`、`wsfunction`、`moodlewsrestformat=json` | 本人 userid、functions、站台欄位；每次重查本人身分，不能只憑 token 非空就通過 |
+| 同上 → `core_course_get_enrolled_courses_by_timeline_classification` | 本人 token；`classification=inprogress`、`limit`、`offset` | `{courses:[{id,fullname,shortname,idnumber,startdate,enddate,viewurl,...}],nextoffset}`；沒有校務正式選課狀態 |
+| 同上 → `mod_assign_get_assignments` | 本人 token；`courseids[0]` 由剛回傳的本人課程 id 取得 | `{courses:[{id,assignments:[{id,cmid,name,intro,duedate,submissiondrafts,teamsubmission,requireallteammemberssubmit,...}]}],warnings}`；deadline 0／延期及團體設定須分別處理 |
+| 同上 → `mod_assign_get_submission_status` | 本人 token；`assignid` 由該課實際回傳取得，不傳他人 userid | `lastattempt.submission.status`、`lastattempt.graded`、`gradingstatus`、`feedback` 等；只記錄型別與受限狀態，成績值不輸出 |
+| 同上 → `core_calendar_get_action_events_by_timesort` | 伺服器目錄宣告可用 | 尚未實際讀取，不宣稱已驗證；Quiz／Forum 也尚未驗證 |
+
+所有帶 token 的請求都使用 HTTPS POST body，不把 token 加到 URL；只允許選定的唯讀函式。工具遇到 redirect、未知身分、未知 schema、警告或分頁重複即停止。個人 API 原始回應未納入 Git。
+
+### 提交狀態的驗收界線
+
+- `submitted` 與 `graded` 分開觀察；分數存在、逾期或 draft 都不會觸發本機完成。
+- `new`、`draft`、`submitted`、`reopened` 只作來源狀態；未知值顯示 unknown，不回退為完成。
+- 個人與團體 submission 分開，尚未驗證的團體規則／全員確認不可推論已完成。
+- 本人這次樣本只觀測到 submitted；草稿、重開、未提交、延期、Quiz／Forum 及團體提交情境尚未有本人的 live 樣本。
+- 逾期是 deadline／延期與目前時間的另一個面向；不能把過期直接當未提交或把有評分當已提交。
+- 所以目前是「核心真實 API 已打通」，不是 Phase 1 完整驗收完成；尚未建立 App 端 Moodle Service／同步資料模型，也沒有修改待辦 UI。
+
+### 工具與安全檢查
+
+- `scripts/academic_probe.py`：公開設定、登入、Keychain token、本人課程與有限作業探測、學期 metadata 調查。
+- `scripts/AcademicProbeKeychain.swift`：不啟用雲端同步的本機 Keychain helper，敏感值僅經內部管線傳遞。
+- `tests/test_academic_probe.py`／`tests/test_sis_probe.py`：目前 27 個離線安全／契約檢查通過，exit code 0；合成回應不是 live 串接證據。
+- `.gitignore` 排除 Postman 原檔名稱、Python 快取與 `.academic-local/`；沒有複製原始 collection 或敏感 response。
+- 操作與錯誤處理見 [ACADEMIC_API_TESTING.md](ACADEMIC_API_TESTING.md)。
+
+## Phase 2：獨立公開登入調查
+
+- 舊版 `https://ohs01.ntpu.edu.tw/student_new.htm`：HTTP 200，公開頁面有指向歷史登入 handler 的導覽，另含查學號表單；頁面有動態 JavaScript，不能把靜態 form 當作全部登入流程。
+- GET 舊版 `/pls/pm/stud_system.login`：HTTP 200，只有 32 bytes，沒有可驗證的個人資料；此結果不能視為登入成功。
+- 新版 `https://my.ntpu.edu.tw/login`：HTTP 200，實際 POST form 指向同站 `/login`，欄位為當次 `_token`、`username`、`password`，另有舊版系統導覽。公開頁面與 JS 未觀測到明確 JSON 選課 API；不能因此推論登入後沒有 SSO 或沒有 API。
+- 已建立 `scripts/sis_probe.py`：只使用新版當次表單與記憶體 Cookie jar；確認 session 後才存 Keychain。跨站導向、互動驗證、未知表單會停止；不讀 Postman、不查成績、不自動點選未知導覽。
+- 已提供開發者本機隱藏輸入指令；尚未確認本人校務登入、本人實際選課清單、正式課號與現有 CourseGet 相容性。
+
 ## 下一步與停止條件
 
-Phase 1 先做無憑證的站台／Mobile service 探測與安全本機工具。需要開發者輸入憑證時，不要求將密碼貼到聊天；提供本機隱藏輸入流程。未取得本人真實課程、作業及可靠提交狀態前，不標記 Phase 1 完成、不開始 Moodle 待辦整合。
+Phase 1 補齊來源狀態與學期對應的可靠性驗收。不能把 60 門 Moodle timeline 課程直接匯入，也不能把限量 API 探測誤認為完整同步；在階段 gate 通過前不開始 Moodle 待辦整合。
 
-Phase 2 可獨立研究舊／新版系統的公開登入流程，但在登入及本人選課資料未確認前，不建立課表匯入按鈕、不改寫原課表。
+Phase 2 等待開發者在自己的 Terminal 完成當次新版校務登入測試。若無可靠 session 或需官方瀏覽器／額外授權，停止該路徑並記錄限制。在本人選課資料未確認前，不建立課表匯入按鈕、不改寫原課表。
+
+Phase 3–8 未開始。原有 Course／Memo ID、資料模型、UI、通知、Widget 與 Live Activity 程式均未修改。
