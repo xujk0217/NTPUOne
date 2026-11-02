@@ -18,6 +18,8 @@
 | 7 | 成績、排名、畢業門檻 | 三種校務真實頁經同份 Swift parser 驗證；App 顯示靜態安全報表，不猜 GPA／畢業資格 |
 | 8 | 跨頁、Widget／Live Activity | 使用既有 Course／Memo 路徑重新整理；尚待真機通知與多裝置驗收 |
 
+完整檢查範圍見 [本次驗證紀錄](ACADEMIC_VALIDATION_2026-11-02.md)。
+
 ## 本次 App 實作與查證
 
 新增 AcademicPolicy、AcademicAPI、CourseCatalogService、AcademicSyncStore、AcademicViews。沿用原有主 Tab、Core Data schema 與私人資料操作。Google 登入後可略過學校連結；帳密／token 限本機 Keychain，來源快取受檔案保護並排除備份，按 Google uid 隔離。

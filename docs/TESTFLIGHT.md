@@ -26,3 +26,14 @@ scripts/testflight.sh upload
 6. Widget、Live Activity、背景返回、通知權限關閉與重新啟用。
 
 校方若改用尚未授權的 ohs 主機，連結會停止。不要以反覆輸入密碼重試處理未知主機。
+
+## 本次發布結果（2026-11-02）
+
+- 1.4.0（build 12）簽章封存成功，App 與 Widget build 一致。
+- Xcode 上傳套件先查到已存在 build 11，自動調整為 12；已核對實際 IPA 的兩個 bundle 皆為 12，專案設定亦已同步。
+- xcodebuild 最終回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序 exit code 0。這表示 Apple 已接收上傳，尚未透過 App Store Connect 驗證處理完成、內部群組分配或實際可下載。
+- [App Store Connect TestFlight](https://appstoreconnect.apple.com/apps/6550918004/testflight/ios) 可查看後續處理及測試群組。依 [Apple 說明](https://developer.apple.com/help/app-store-connect/manage-builds/view-builds-and-metadata/)，處理成功才會進入可測試狀態。
+- 本機可重用封存：`.academic-local/TestFlight/NTPUOne.xcarchive`，為 build 12；早期 build 2 封存另行保留。封存與上傳日誌不納入 Git。
+- 上傳有第三方 framework 缺少對應 dSYM 的警告，包含部分 Google 廣告、Firebase 與 gRPC 相依框架。Apple 仍接受本次套件；這些框架的崩潰堆疊符號解析可能不完整，後續應由相依套件供應的相符符號處理，不能用自行偽造的 dSYM 取代。
+
+後續內部測試由 build 13 接續，不需每次調整行銷版本。外部測試仍依 Apple TestFlight App Review 規則處理。
