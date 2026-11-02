@@ -67,6 +67,92 @@ class CreditShape(HTMLParser):
             self.box[self.credit].append(data)
 
 
+class CategoryShape(HTMLParser):
+    """Summarise the exact category selectors used by the App, without values."""
+    def __init__(self):
+        super().__init__()
+        self.stack = []
+        self.section = None
+        self.item = None
+        self.item_depth = None
+        self.span = None
+        self.span_depth = None
+        self.footer = None
+        self.footer_depth = None
+        self.hidden_depth = None
+        self.metrics = []
+        self.footers = []
+        self.scripts = []
+        self.script = None
+        self.script_depth = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag in {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}:
+            return
+        attrs = dict(attrs)
+        classes = set(attrs.get("class", "").split())
+        self.stack.append((tag, attrs.get("id", ""), classes))
+        depth = len(self.stack)
+        if "lang-en-US" in classes and self.hidden_depth is None:
+            self.hidden_depth = depth
+        if tag == "script":
+            self.script, self.script_depth = [], depth
+        if tag == "section" and attrs.get("id") in {"required", "option", "common", "other"}:
+            self.section = attrs["id"]
+        if self.section and self.hidden_depth is None:
+            if "collapse_col_item" in classes and any("collapse_ul_header" in node[2] for node in self.stack):
+                self.item, self.item_depth = [], depth
+            if self.item is not None and tag == "span" and self.span is None:
+                self.span, self.span_depth = [], depth
+            if "collapse_ul_footer" in classes:
+                self.footer, self.footer_depth = [], depth
+
+    def handle_startendtag(self, tag, attrs):
+        if tag not in {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}:
+            self.handle_starttag(tag, attrs)
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        if not self.stack or tag not in [node[0] for node in self.stack]:
+            return
+        while self.stack and self.stack[-1][0] != tag:
+            self.handle_endtag(self.stack[-1][0])
+        depth = len(self.stack)
+        if self.span_depth == depth:
+            self.item.append("".join(self.span))
+            self.span = self.span_depth = None
+        if self.item_depth == depth:
+            self.metrics.append({"section": self.section,
+                "span_count": len(self.item),
+                "spans": [numeric_shape(value) for value in self.item[:8]]})
+            self.item = self.item_depth = None
+        if self.footer_depth == depth:
+            self.footers.append({"section": self.section, "shape": numeric_shape(" ".join(self.footer))})
+            self.footer = self.footer_depth = None
+        if self.script_depth == depth:
+            text = "".join(self.script)
+            if re.search(r"credit|學分", text, re.I):
+                self.scripts.append({"has_division_by_10_or_100": bool(re.search(r"/\s*(?:10|100)(?![0-9])", text)),
+                    "uses_decimal_formatting": bool(re.search(r"toFixed|parseFloat", text)),
+                    "uses_integer_parsing": "parseInt" in text})
+            self.script = self.script_depth = None
+        if self.hidden_depth == depth:
+            self.hidden_depth = None
+        if tag == "section" and self.stack[-1][1] == self.section:
+            self.section = None
+        self.stack.pop()
+
+    def handle_data(self, data):
+        if self.script is not None:
+            self.script.append(data)
+        if self.hidden_depth is not None:
+            return
+        if self.span is not None:
+            self.span.append(data)
+        if self.footer is not None:
+            self.footer.append(data)
+
+
 def numeric_shape(value):
     """Never include actual numbers or unrecognised text in diagnostics."""
     value = " ".join(value.split())
@@ -155,8 +241,11 @@ def main():
         page.feed(html)
         if not page.results or not any(item["section"] == "tag_total" for item in page.results):
             raise ProbeError("school_graduation_schema_unverified")
-        emit("graduation_credit_shape", boxes=page.results, actual_values_hidden=True,
-             raw_page_saved=False, session_saved=False)
+        category = CategoryShape()
+        category.feed(html)
+        emit("graduation_credit_shape", boxes=page.results, category_metrics=category.metrics,
+             category_footers=category.footers, credit_script_flags=category.scripts,
+             actual_values_hidden=True, raw_page_saved=False, session_saved=False)
         return 0
     except ProbeError as error:
         emit("graduation_diagnostic_stopped", diagnostic=error.code, http_status=error.status)

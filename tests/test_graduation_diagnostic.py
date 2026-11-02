@@ -22,6 +22,23 @@ class GraduationDiagnosticTests(unittest.TestCase):
         self.assertNotIn('123', json.dumps(parser.results))
         self.assertNotIn('128', json.dumps(parser.results))
 
+    def test_category_metrics_and_script_flags_are_private(self):
+        parser = diagnostic.CategoryShape()
+        parser.feed("""<html><script>var credit = parseFloat('999') / 10;</script>
+        <section id='required'><div class='collapse_ul_header'>
+        <div class='collapse_col_item'><span>已修</span><span>123</span></div>
+        <div class='lang-en-US'><div class='collapse_col_item'><span>English</span><span>999</span></div></div>
+        </div><div class='collapse_ul_footer'>total <b>128</b><br>11</div></section></html>""")
+        self.assertEqual(len(parser.metrics), 1)
+        self.assertEqual(parser.metrics[0]['span_count'], 2)
+        self.assertEqual(parser.metrics[0]['spans'][1]['digit_lengths'], [3])
+        self.assertEqual(parser.footers[0]['shape']['digit_lengths'], [3, 2])
+        self.assertTrue(parser.scripts[0]['has_division_by_10_or_100'])
+        self.assertTrue(parser.scripts[0]['uses_decimal_formatting'])
+        result = json.dumps([parser.metrics, parser.footers, parser.scripts])
+        for secret in ('123', '128', '999', '已修'):
+            self.assertNotIn(secret, result)
+
     def test_bridge_restricts_host_and_readonly_target(self):
         good = {'form_url': 'https://ohs01.ntpu.edu.tw/pls/pm/stud_system.signin',
                 'base_url': 'https://ohs01.ntpu.edu.tw/pls/univer/query_all_course.judge?func=9_m',
