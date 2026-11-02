@@ -272,7 +272,7 @@ struct SchoolReport: Codable, Identifiable {
     var html: String?
     var id: String { kind.rawValue }
     var isNative: Bool { sections?.isEmpty == false }
-    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 3) }
+    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 4) }
     func migrated() throws -> SchoolReport {
         if isNative { return self }
         guard let html else { throw AcademicError.invalidResponse }
@@ -293,7 +293,7 @@ enum AcademicReportParser {
         case .graduation: sections = try graduation(document)
         }
         guard !sections.isEmpty, Set(sections.map(\.id)).count == sections.count else { throw AcademicError.unsupported }
-        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 3, html: nil)
+        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 4, html: nil)
     }
     private static func text(_ node: Element, _ selector: String) throws -> String {
         try node.select(selector).first()?.text().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -361,7 +361,58 @@ enum AcademicReportParser {
     }
     private static func graduation(_ document: Document) throws -> [AcademicReportSection] {
         var output: [AcademicReportSection] = []
-        // Keep school values verbatim; do not invent an overall eligibility calculation.
+        // Read the school's own summary card; do not add or infer credits ourselves.
+        let headings = try document.select(".row_progress .grid_stat_item_title")
+        for (label, id) in [("已累計總學分", "summary_total"), ("系必修", "summary_required"),
+                            ("系選修", "summary_option"), ("其他學分", "summary_other")] {
+            let matches = try headings.filter { try $0.text().trimmingCharacters(in: .whitespacesAndNewlines) == label }
+            guard matches.count <= 1 else { throw AcademicError.unsupported }
+            guard let heading = matches.first else { continue }
+            var container = heading.parent()
+            while let current = container, !current.hasClass("flex_item_col") { container = current.parent() }
+            guard let container else { throw AcademicError.unsupported }
+            let boxes = try container.select(".credit_box")
+            guard boxes.count == 1, let box = boxes.first else { throw AcademicError.unsupported }
+            let values = try box.select(".main_credit")
+            let value: String
+            var fallbackContext = ""
+            if values.count == 1, let main = values.first {
+                value = try main.text().trimmingCharacters(in: .whitespacesAndNewlines)
+            } else if values.isEmpty {
+                // Accept only a single number, optionally followed by one / target.
+                let raw = try box.text().trimmingCharacters(in: .whitespacesAndNewlines)
+                let pattern = id == "summary_total" ? "^[0-9]+(?:\\.[0-9]+)?$" : "^[0-9]+(?:\\.[0-9]+)?(?:\\s*/\\s*[0-9]+(?:\\.[0-9]+)?)?$"
+                guard raw.range(of: pattern, options: .regularExpression) != nil else { throw AcademicError.unsupported }
+                let parts = raw.split(separator: "/", maxSplits: 1).map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                value = parts[0]
+                if parts.count == 2 { fallbackContext = "/ " + parts[1] }
+            } else { throw AcademicError.unsupported }
+            guard !value.isEmpty else { throw AcademicError.unsupported }
+            let officialContext = try text(container, id == "summary_total" ? ".credit_count" : ".total_credit")
+            let context = officialContext.isEmpty ? fallbackContext : officialContext
+            var section = AcademicReportSection(id: id, title: label)
+            section.fields.append(.init(id: "\(id).value", label: label, value: value,
+                                        detail: context.isEmpty ? nil : context))
+            output.append(section)
+        }
+        // These status rows are school statements, not an app eligibility calculation.
+        let requirementTitles = ["外語能力指標檢核", "校定程式設計能力", "學分學程、微學程"]
+        var requirementFields: [AcademicReportField] = []
+        for (index, row) in try document.select(".item_ul > .item_li").enumerated() {
+            let label = try text(row, ".item_title")
+            guard requirementTitles.contains(where: { label.hasPrefix($0) }) else { continue }
+            let full = try row.text()
+            guard full.hasPrefix(label) else { continue }
+            let status = String(full.dropFirst(label.count)).trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !status.isEmpty, !requirementFields.contains(where: { $0.label == label }) else { continue }
+            requirementFields.append(.init(id: "requirements.\(index)", label: label, value: status))
+        }
+        if !requirementFields.isEmpty {
+            var section = AcademicReportSection(id: "requirements", title: "畢業條件")
+            section.fields = requirementFields
+            output.append(section)
+        }
+        // Category values are independent of the accumulated total.
         for (id, title) in [("tag_total", "校訂必修學分"), ("tag_chinese", "國文"), ("tag_english", "英文"), ("tag_pe", "體育"), ("tag_general", "通識"), ("mini_general", "通識分類")] {
             guard let node = try document.select("#\(id)").first() else { continue }
             var section = AcademicReportSection(id: id, title: title)

@@ -152,21 +152,43 @@ import Darwin
             let cumulative = try AcademicReportParser.parse("<div class='container my-2'><h6>累計成績</h6><div class=card><div class='card-body datasheets'><ul class=datarows><li>平均成績：87</li></ul></div></div></div>", kind: .rank)
             try require(cumulative.sections?.first?.title == "累計成績", "cumulative rank card has no semester strong")
             try require(rankReport.sections?.first?.fields.count == 2 && rankReport.sections?.first?.fields.last?.value == "3 / 30", "rank fixed class contract")
-            let graduationHTML = "<div id=tag_total><div class=credit_box><div class=main_credit>100</div><div class=total_credit>128</div></div></div>" + ["required", "option", "common", "other"].map { id in
+            let summaryHTML = """
+            <div class='row_progress'>
+              <div class='flex_item_col'><div><div class='grid_stat_item_title'>已累計總學分</div><div class='credit_count'>(123 = 50 + 25 + 38 + 10)</div></div><div class='credit_box'><div class='main_credit'>123</div></div></div>
+              <div class='flex_item_col'><div class='grid_stat_item_title'>系必修</div><div class='credit_box'><div class='main_credit'>50</div><div class='total_credit'>/ 60</div></div></div>
+              <div class='flex_item_col'><div class='grid_stat_item_title'>系選修</div><div class='credit_box'><div class='main_credit'>25</div></div></div>
+              <div class='flex_item_col'><div class='grid_stat_item_title'>其他學分</div><div class='credit_box'><div class='main_credit'>10</div></div></div>
+              <ul class='item_ul'><li class='item_li'><div><div class='item_title'>外語能力指標檢核</div><div>未處理</div></div></li></ul>
+            </div>
+            """
+            let graduationHTML = summaryHTML + "<div id=tag_total><div class=credit_box><div class=main_credit>100</div><div class=total_credit>128</div></div></div>" + ["required", "option", "common", "other"].map { id in
                 "<section id='\(id)'><div class=collapse_title>\(id)</div><div class=collapse_ul_header><div class=collapse_col_item><span>應修</span><span>3</span></div></div><li class=subject_li><div class=subject_title>Synthetic Course</div><div class=subject_state>已修</div></li></section>"
             }.joined()
             let graduation = try AcademicReportParser.parse(graduationHTML, kind: .graduation)
-            try require(graduation.sections?.count == 5 && graduation.sections?.last?.subjects.count == 1, "graduation IDs and subject rows")
-            try require(graduation.sections?.first?.title == "校訂必修學分", "tag_total is the general-education category, not cumulative credits")
-            try require(graduation.sections?.first?.fields.first?.value == "100", "three-digit credits remain intact")
-            try require(graduation.sections?.first?.fields.first?.detail == "128", "separate credit values and requirements, never concatenate")
+            try require(graduation.sections?.count == 10 && graduation.sections?.last?.subjects.count == 1, "graduation IDs and subject rows")
+            try require(graduation.sections?.first(where: { $0.id == "tag_total" })?.title == "校訂必修學分", "tag_total is the general-education category, not cumulative credits")
+            try require(graduation.sections?.first(where: { $0.id == "tag_total" })?.fields.first?.value == "100", "three-digit credits remain intact")
+            try require(graduation.sections?.first(where: { $0.id == "tag_total" })?.fields.first?.detail == "128", "separate credit values and requirements, never concatenate")
+            let totalSection = graduation.sections?.first(where: { $0.id == "summary_total" })
+            try require(totalSection?.fields.first?.value == "123", "cumulative total comes from its own card, not the category")
+            try require(graduation.sections?.first(where: { $0.id == "requirements" })?.fields.first?.value == "未處理", "official requirement status preserved")
+            let fallback = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "<div class='main_credit'>123</div>", with: "<div>123</div>"), kind: .graduation)
+            try require(fallback.sections?.first(where: { $0.id == "summary_total" })?.fields.first?.value == "123", "single-number total box without inner class")
+            let requiredFallback = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "<div class='main_credit'>50</div><div class='total_credit'>/ 60</div>", with: "<div>50 / 60</div>"), kind: .graduation)
+            try require(requiredFallback.sections?.first(where: { $0.id == "summary_required" })?.fields.first?.value == "50" && requiredFallback.sections?.first(where: { $0.id == "summary_required" })?.fields.first?.detail == "/ 60", "summary fallback keeps numerator and target separate")
+
+            try rejects { _ = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "<div class='main_credit'>123</div>", with: "<div>123 50</div>"), kind: .graduation) }
+
+            try require(totalSection?.fields.first?.detail == "(123 = 50 + 25 + 38 + 10)", "school's expression is retained")
+            try require(graduation.sections?.first(where: { $0.id == "summary_required" })?.fields.first?.detail == "/ 60", "required credit target")
+            try rejects { _ = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "<div class='row_progress'>", with: "<div class='row_progress'>" + summaryHTML), kind: .graduation) }
             try require(graduation.isCurrent, "new graduation parser revision")
             var legacyGraduation = graduation; legacyGraduation.parserVersion = 2
             try require(legacyGraduation.isNative && !legacyGraduation.isCurrent, "legacy concatenated graduation cache must refresh before display")
             let graduationRoundTrip = try JSONDecoder().decode(SchoolReport.self, from: JSONEncoder().encode(graduation))
-            try require(graduationRoundTrip.sections?.first?.fields.first?.detail == "128" && graduationRoundTrip.isCurrent, "credit detail survives protected cache")
+            try require(graduationRoundTrip.sections?.first(where: { $0.id == "tag_total" })?.fields.first?.detail == "128" && graduationRoundTrip.isCurrent, "credit detail survives protected cache")
             let decimalGraduation = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: ">100<", with: ">12.5<"), kind: .graduation)
-            try require(decimalGraduation.sections?.first?.fields.first?.value == "12.5", "decimal credits must not be rounded or truncated")
+            try require(decimalGraduation.sections?.first(where: { $0.id == "tag_total" })?.fields.first?.value == "12.5", "decimal credits must not be rounded or truncated")
 
             try rejects { _ = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "id='required'", with: "id='changed'"), kind: .graduation) }
             try require(AcademicMemoMergePolicy.content(existing: "", previous: nil, incoming: "source") == "source", "legacy empty notes receive source")
