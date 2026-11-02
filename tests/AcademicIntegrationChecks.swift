@@ -161,6 +161,14 @@ import Darwin
               <ul class='item_ul'><li class='item_li'><div><div class='item_title'>外語能力指標檢核</div><div>未處理</div></div></li></ul>
             </div>
             """
+            let unsortedTerms = ["113學年度 · 第1學期", "累計成績", "112學年度 · 第2學期", "112學年度 · 第1學期", "114學年度 · 第一學期", "114學年度 · 下學期"].enumerated().map { index, title in
+                AcademicReportSection(id: String(index), title: title)
+            }
+            let orderedTerms = AcademicReportOrdering.sorted(unsortedTerms)
+            try require(orderedTerms.map(\.id) == ["3", "2", "0", "4", "5", "1"], "school year and semester tabs must sort chronologically")
+            try require(AcademicReportOrdering.latestTerm(unsortedTerms)?.id == "5", "default stays on latest semester rather than cumulative")
+            let shortTerms = [AcademicReportSection(id: "b", title: "112-2"), AcademicReportSection(id: "a", title: "112-1")]
+            try require(AcademicReportOrdering.sorted(shortTerms).map(\.id) == ["a", "b"], "short year-semester format")
             let graduationHTML = summaryHTML + "<div id=tag_total><div class=credit_box><div class=main_credit>100</div><div class=total_credit>128</div></div></div>" + ["required", "option", "common", "other"].map { id in
                 "<section id='\(id)'><div class=collapse_title>\(id)</div><div class=collapse_ul_header><div class=collapse_col_item><span>應修</span><span>3</span></div></div><li class=subject_li><div class=subject_title>Synthetic Course</div><div class=subject_state>已修</div></li></section>"
             }.joined()

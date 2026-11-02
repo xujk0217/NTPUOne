@@ -441,7 +441,7 @@ struct AcademicSchoolReportView: View {
     private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind && $0.isCurrent } }
     private var sections: [AcademicReportSection] { report?.sections ?? [] }
     private var selectedSection: AcademicReportSection? {
-        sections.first { $0.id == selectedSectionID } ?? sections.last
+        sections.first { $0.id == selectedSectionID } ?? AcademicReportOrdering.latestTerm(sections)
     }
     var body: some View {
         ScrollView {
@@ -504,7 +504,7 @@ struct AcademicSchoolReportView: View {
     private var termPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
-                ForEach(sections.reversed()) { section in
+                ForEach(AcademicReportOrdering.sorted(sections)) { section in
                     let selected = section.id == selectedSection?.id
                     Button { selectedSectionID = section.id } label: {
                         Text(section.title).font(.subheadline.weight(selected ? .semibold : .regular))

@@ -263,6 +263,43 @@ struct AcademicReportSection: Codable, Identifiable {
     var subjects: [AcademicReportSubject] = []
     var notes: [String] = []
 }
+/// Stable chronological ordering for school year/semester tabs.
+enum AcademicReportOrdering {
+    private static func dateKey(_ title: String) -> (Int, Int)? {
+        let yearPattern = #"(?<![0-9])([0-9]{2,4})(?![0-9])"#
+        guard let yearMatch = try? NSRegularExpression(pattern: yearPattern).firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+              let yearRange = Range(yearMatch.range(at: 1), in: title), let year = Int(title[yearRange]) else { return nil }
+        let termPattern = #"第\s*([12一二])\s*學期|([12一二])\s*學期|[-/]\s*([12])(?![0-9])|上學期|下學期"#
+        guard let termMatch = try? NSRegularExpression(pattern: termPattern).firstMatch(in: title, range: NSRange(title.startIndex..., in: title)),
+              let termRange = Range(termMatch.range, in: title) else { return nil }
+        let term = String(title[termRange])
+        if term.contains("1") || term.contains("一") || term.contains("上") { return (year, 1) }
+        if term.contains("2") || term.contains("二") || term.contains("下") { return (year, 2) }
+        return nil
+    }
+    static func sorted(_ sections: [AcademicReportSection]) -> [AcademicReportSection] {
+        sections.enumerated().sorted { lhs, rhs in
+            let left = dateKey(lhs.element.title), right = dateKey(rhs.element.title)
+            switch (left, right) {
+            case let (.some(a), .some(b)):
+                if a.0 != b.0 { return a.0 < b.0 }
+                if a.1 != b.1 { return a.1 < b.1 }
+                return lhs.offset < rhs.offset
+            case (.some, .none): return true
+            case (.none, .some): return false
+            case (.none, .none):
+                let leftCumulative = lhs.element.title.contains("累計")
+                let rightCumulative = rhs.element.title.contains("累計")
+                return leftCumulative == rightCumulative ? lhs.offset < rhs.offset : !leftCumulative
+            }
+        }.map(\.element)
+    }
+    static func latestTerm(_ sections: [AcademicReportSection]) -> AcademicReportSection? {
+        let ordered = sorted(sections)
+        return ordered.last(where: { dateKey($0.title) != nil }) ?? ordered.first
+    }
+}
+
 struct SchoolReport: Codable, Identifiable {
     var kind: SchoolReportKind
     var checkedAt: Date
