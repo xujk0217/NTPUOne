@@ -15,6 +15,11 @@ enum AcademicError: LocalizedError {
 }
 
 enum AcademicPolicy {
+    /// A missing local cache may be rebuilt, but an existing identity must never be replaced.
+    static func acceptsRestoredIdentity(_ verified: String, cached: String?, otherService: String? = nil) -> Bool {
+        !verified.isEmpty && (cached == nil || cached == verified) && (otherService == nil || otherService == verified)
+    }
+
     static func currentTerm(at date: Date = Date()) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!

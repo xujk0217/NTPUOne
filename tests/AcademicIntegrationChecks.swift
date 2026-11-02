@@ -17,6 +17,11 @@ import Darwin
             "</table><a href='../univer/course_check_m.dt_e?stud_no=\(student)&year1=115&term1=\(term)'>Confirm</a>"
     }
     static func main() async {
+        precondition(AcademicPolicy.acceptsRestoredIdentity("verified-fixture", cached: nil))
+        precondition(AcademicPolicy.acceptsRestoredIdentity("verified-fixture", cached: nil, otherService: "verified-fixture"))
+        precondition(!AcademicPolicy.acceptsRestoredIdentity("different-fixture", cached: "verified-fixture"))
+        precondition(!AcademicPolicy.acceptsRestoredIdentity("different-fixture", cached: nil, otherService: "verified-fixture"))
+        precondition(!AcademicPolicy.acceptsRestoredIdentity("", cached: nil))
         var stage = "offline"
         do {
             if CommandLine.arguments.contains(where: { $0.hasPrefix("--live-") }) {
@@ -147,6 +152,17 @@ import Darwin
             try require(migrated.isNative && migrated.html == nil && migrated.checkedAt == old.checkedAt, "first-open legacy cache migration")
             try rejects { _ = try AcademicReportParser.parse("<h1>成績</h1><table><tr><td>unknown</td></tr></table>", kind: .grades) }
             try rejects { _ = try SchoolAPI.parseReport(reportHTML, identity: "OTHER", kind: .grades) }
+            let gpaHTML = reportHTML.replacingOccurrences(of: "</table>", with: """
+            <tfoot><tr class='lang lang-zh-TW'><td>平均成績</td><td>20</td><td>86.5</td><td>21</td><td>88.1</td></tr>
+            <tr class='lang lang-en-US'><td class='text-center'><strong>Average (GPA)</strong></td><td>20</td><td class='text-center'>86.5 (3.7)</td><td>21</td><td class='text-center'>88.1 (3.9)</td></tr></tfoot></table>
+            """)
+            let gpaReport = try SchoolAPI.parseReport(gpaHTML, identity: "SYNTHETIC", kind: .grades)
+            try require(gpaReport.parserVersion == 5 && gpaReport.isCurrent, "GPA parser cache version")
+            try require(gpaReport.sections?.first?.fields.first?.value == "86.5 (3.7)", "official GPA footer retained before language cleanup")
+            try require(gpaReport.sections?.last?.fields.first?.value == "88.1 (3.9)", "GPA semester values remain separate")
+            try require(gpaReport.sections?.first?.fields.first?.label == "學期平均／GPA", "native GPA label")
+            var staleGrade = report; staleGrade.parserVersion = 4
+            try require(!staleGrade.isCurrent, "old grade cache must refresh for GPA")
             let rankHTML = "<div class='container my-2'><h6>測試學年</h6><div class='card'><div class='datasheets'><strong>第一學期</strong><ul class='datarows'><li>平均成績：87</li><li>排名：3 / 30</li></ul></div></div></div>"
             let rankReport = try AcademicReportParser.parse(rankHTML, kind: .rank)
             let cumulative = try AcademicReportParser.parse("<div class='container my-2'><h6>累計成績</h6><div class=card><div class='card-body datasheets'><ul class=datarows><li>平均成績：87</li></ul></div></div></div>", kind: .rank)

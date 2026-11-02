@@ -4,13 +4,13 @@ import SwiftSoup
 enum CourseCatalogService {
     static let endpoint = URL(string: "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.queryByKeyword")!
 
-    static func request(year: String, term: String, code: String) -> URLRequest {
+    static func request(year: String, term: String, code: String, keyword: String = "") -> URLRequest {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = 30
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
         var body = URLComponents()
-        body.queryItems = ["qYear": year, "qTerm": term, "courseno": code, "cour": "", "teach": "", "week": "", "seq1": "A", "seq2": "M"]
+        body.queryItems = ["qYear": year, "qTerm": term, "courseno": code, "cour": keyword, "teach": "", "week": "", "seq1": "A", "seq2": "M"]
             .sorted(by: { $0.key < $1.key }).map { URLQueryItem(name: $0.key, value: $0.value) }
         request.httpBody = body.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B").data(using: .utf8)
         return request
@@ -22,12 +22,12 @@ enum CourseCatalogService {
         return html
     }
 
-    static func search(year: String, term: String, code: String) async throws -> [CourseG] {
+    static func search(year: String, term: String, code: String, keyword: String = "") async throws -> [CourseG] {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.httpCookieStorage = nil
         let session = URLSession(configuration: configuration)
         defer { session.finishTasksAndInvalidate() }
-        let (data, response) = try await session.data(for: request(year: year, term: term, code: code))
+        let (data, response) = try await session.data(for: request(year: year, term: term, code: code, keyword: keyword))
         guard let response = response as? HTTPURLResponse, response.statusCode == 200,
               response.url?.host == endpoint.host, data.count <= 2_097_152 else { throw AcademicError.invalidResponse }
         return try parse(try decode(data))

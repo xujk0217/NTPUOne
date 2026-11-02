@@ -56,6 +56,31 @@ final class AcademicHTTP: NSObject, URLSessionTaskDelegate {
             ["/", "/login"].contains(url?.path ?? "") && [301, 302, 303].contains(response.statusCode)
         completionHandler(allowed ? request : nil)
     }
+    // Only URLs returned by Moodle content APIs may reach this method. Tokens
+    // stay in the ephemeral request; redirects, caches and diagnostics are disabled.
+    func moodleFile(_ value: String, token: String) async throws -> Data {
+        guard var parts = URLComponents(string: value), parts.scheme == "https",
+              parts.host == "lms3.ntpu.edu.tw", parts.port == nil, parts.user == nil, parts.password == nil,
+              parts.path.hasPrefix("/webservice/pluginfile.php/"), parts.fragment == nil,
+              !parts.path.split(separator: "/").contains(where: { $0 == "." || $0 == ".." }),
+              (parts.queryItems ?? []).allSatisfy({ $0.name == "forcedownload" }) else { throw AcademicError.unsupported }
+        parts.queryItems = (parts.queryItems ?? []) + [URLQueryItem(name: "token", value: token)]
+        guard let url = parts.url else { throw AcademicError.unsupported }
+        var request = URLRequest(url: url); request.timeoutInterval = 30
+        let (bytes, response) = try await session.bytes(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              !((http.mimeType ?? "").lowercased().contains("text/html")),
+              http.expectedContentLength <= 20 * 1024 * 1024 else { throw AcademicError.invalidResponse }
+        var data = Data()
+        for try await byte in bytes {
+            guard data.count < 20 * 1024 * 1024 else { throw AcademicError.invalidResponse }
+            data.append(byte)
+        }
+        guard !data.isEmpty else { throw AcademicError.invalidResponse }
+        if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           object["errorcode"] != nil || object["exception"] != nil { throw AcademicError.invalidResponse }
+        return data
+    }
     func request(_ url: URL, fields: [String: String]? = nil) async throws -> (Data, HTTPURLResponse) {
         let portal = url.host == "my.ntpu.edu.tw" && ["/", "/login", "/get-projects/10"].contains(url.path)
         let moodle = url.host == "lms3.ntpu.edu.tw" && ["/login/token.php", "/webservice/rest/server.php"].contains(url.path)
@@ -190,7 +215,7 @@ final class MoodleAPI {
     }
 
     struct Resource: Decodable, Identifiable {
-        struct Attachment: Decodable { var filename: String }
+        struct Attachment: Decodable { var filename: String; var fileurl: String?; var type: String?; var content: String?; var mimetype: String? }
         var id: Int; var name: String; var modname: String; var url: String?; var contents: [Attachment]?; var description: String?
     }
     struct ContentSection: Decodable, Identifiable { var id: Int; var name: String; var modules: [Resource]; var summary: String? }
@@ -309,7 +334,7 @@ struct SchoolReport: Codable, Identifiable {
     var html: String?
     var id: String { kind.rawValue }
     var isNative: Bool { sections?.isEmpty == false }
-    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 4) }
+    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 4) && (kind != .grades || parserVersion == 5) }
     func migrated() throws -> SchoolReport {
         if isNative { return self }
         guard let html else { throw AcademicError.invalidResponse }
@@ -322,15 +347,19 @@ enum AcademicReportParser {
     static func parse(_ html: String, kind: SchoolReportKind, checkedAt: Date = Date()) throws -> SchoolReport {
         guard html.utf8.count <= 8_388_608 else { throw AcademicError.invalidResponse }
         let document = try SwiftSoup.parse(html)
-        try document.select("script,style,form,input,button,iframe,object,.lang-en-US").remove()
+        try document.select("script,style,form,input,button,iframe,object").remove()
+        // The school publishes the GPA-labelled summary in the English footer.
+        // Capture its exact values before removing duplicate translated content.
+        let officialFooters = kind == .grades ? try gradeFooters(document) : [:]
+        try document.select(".lang-en-US").remove()
         let sections: [AcademicReportSection]
         switch kind {
-        case .grades: sections = try grades(document)
+        case .grades: sections = try grades(document, officialFooters: officialFooters)
         case .rank: sections = try ranks(document)
         case .graduation: sections = try graduation(document)
         }
         guard !sections.isEmpty, Set(sections.map(\.id)).count == sections.count else { throw AcademicError.unsupported }
-        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 4, html: nil)
+        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: kind == .grades ? 5 : 4, html: nil)
     }
     private static func text(_ node: Element, _ selector: String) throws -> String {
         try node.select(selector).first()?.text().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -338,7 +367,23 @@ enum AcademicReportParser {
     private static func distinct(_ values: [String]) -> [String] {
         var seen = Set<String>(); return values.filter { !$0.isEmpty && seen.insert($0).inserted }
     }
-    private static func grades(_ document: Document) throws -> [AcademicReportSection] {
+    private static func gradeFooters(_ document: Document) throws -> [String: String] {
+        var values: [String: String] = [:]
+        for (index, card) in try document.select(".card.my-4").enumerated() {
+            guard let table = try card.select("table.table-striped").first() else { continue }
+            for row in try table.select("tfoot > tr.lang-en-US") {
+                let cells = try row.select("td")
+                guard cells.count == 5,
+                      try cells[0].text().range(of: "GPA|績點", options: [.regularExpression, .caseInsensitive]) != nil else { continue }
+                for semester in 1...2 {
+                    let raw = try cells[semester * 2].text().trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !raw.isEmpty { values["grades.\(index).\(semester)"] = raw }
+                }
+            }
+        }
+        return values
+    }
+    private static func grades(_ document: Document, officialFooters: [String: String]) throws -> [AcademicReportSection] {
         var output: [AcademicReportSection] = []
         for (index, card) in try document.select(".card.my-4").enumerated() {
             let year = try text(card, ".card-title")
@@ -366,6 +411,9 @@ enum AcademicReportParser {
                             section.fields.append(.init(id: "\(section.id).summary.\(rowIndex)", label: label, value: value))
                         }
                     }
+                }
+                if let raw = officialFooters[section.id] {
+                    section.fields.insert(.init(id: "\(section.id).officialGPA", label: "學期平均／GPA", value: raw, detail: "校方頁尾原值，未自行換算"), at: 0)
                 }
                 if !section.subjects.isEmpty || !section.fields.isEmpty { output.append(section) }
             }

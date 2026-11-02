@@ -45,6 +45,7 @@ struct AcademicCache: Codable {
     var year: String?
     var term: String?
     var lastSemesterHint: String?
+    var catalogIncomplete: Bool?
     var schoolCheckedAt: Date?
     var moodleCheckedAt: Date?
     var moodleUser: Int?
@@ -69,6 +70,18 @@ final class AcademicSyncStore: ObservableObject {
     @Published var showConnection = false
     private(set) var moodleWebDataStore = WKWebsiteDataStore.nonPersistent()
     var sourceScope: String { "\(uid):\(cache.moodleUser ?? -1)" }
+    var schoolConnectionStatus: String {
+        if requiresSchoolLogin { return "學生資訊系統：需要重新登入" }
+        if schoolLinked && cache.schoolIdentity != nil && cache.schoolCheckedAt != nil {
+            return cache.catalogIncomplete == true ? "學生資訊系統：課號已核對，課程資訊待更新" : "學生資訊系統：已同步"
+        }
+        return schoolLinked ? "學生資訊系統：已保存帳號，等待同步" : "學生資訊系統：尚未連結"
+    }
+    var moodleConnectionStatus: String {
+        if requiresMoodleLogin { return "Moodle：需要重新登入" }
+        if moodleLinked && cache.moodleUser != nil && cache.moodleCheckedAt != nil { return "Moodle：已同步" }
+        return moodleLinked ? "Moodle：已保存登入資料，等待同步" : "Moodle：尚未連結"
+    }
     private var authHandle: AuthStateDidChangeListenerHandle?
     private var generation = UUID()
     private var lastAttempt: Date?
@@ -114,7 +127,13 @@ final class AcademicSyncStore: ObservableObject {
         do {
             let url = try cacheURL()
             if FileManager.default.fileExists(atPath: url.path) {
-                cache = try JSONDecoder().decode(AcademicCache.self, from: Data(contentsOf: url))
+                do { cache = try JSONDecoder().decode(AcademicCache.self, from: Data(contentsOf: url)) }
+                catch {
+                    // Keep the unreadable protected file for recovery; do not permanently disable reconnect.
+                    let backup = url.deletingPathExtension().appendingPathExtension("recovery-" + UUID().uuidString)
+                    try FileManager.default.moveItem(at: url, to: backup)
+                    cache = AcademicCache(); message = "本機快取需重新建立，正在重新核對學校資料。"
+                }
             }
             schoolLinked = try AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school")) != nil
             moodleLinked = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle")) != nil
@@ -135,8 +154,18 @@ final class AcademicSyncStore: ObservableObject {
         if error is CancellationError { return }
         message = (error as? AcademicError)?.localizedDescription ?? "連線暫時失敗，已保留原有資料，稍後可重新整理。"
     }
+    func savedSchoolUsername() -> String? {
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid else { return nil }
+        return (try? AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school")))?.username
+    }
+    /// Read only after the user chooses AI sign-in; never return credentials across App accounts.
+    func savedSchoolCredentialForAI() -> SchoolCredential? {
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, schoolLinked else { return nil }
+        return try? AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school"))
+    }
     func connectSchool(username: String, password: String) async -> Bool {
-        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return false }
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy else { return false }
+        storageAvailable = true
         busy = true; message = nil
         let epoch = generation
         defer { if epoch == generation { busy = false } }
@@ -149,32 +178,53 @@ final class AcademicSyncStore: ObservableObject {
             guard cache.schoolIdentity == nil || cache.schoolIdentity == identity else { throw AcademicError.identityChanged }
             if moodleLinked, let moodle = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle")),
                let previousIdentity = moodle.schoolIdentity, previousIdentity != identity { throw AcademicError.identityChanged }
-            let catalog = try await fetchCatalog(enrolment, epoch: epoch)
-            try check(epoch)
+            // A successful identity check is independent of the public course catalog.
             try AcademicKeychain.save(credential, account: credentialKey("school"))
-            cache.schoolIdentity = identity; cache.year = enrolment.year; cache.term = enrolment.term
-            cache.lastSemesterHint = AcademicPolicy.currentTerm()
-            cache.courses = catalog; cache.schoolCheckedAt = Date()
-            try persist(); schoolLinked = true; requiresSchoolLogin = false
-            message = "已取得 \(catalog.count) 門已核准課程；請先檢查課表預覽，再決定是否匯入。"
+            cache.schoolIdentity = identity
+            try persist(); schoolLinked = true; requiresSchoolLogin = false; resetRetry("school")
+            do {
+                let catalog = try await fetchCatalog(enrolment, epoch: epoch)
+                try check(epoch)
+                cache.year = enrolment.year; cache.term = enrolment.term
+                cache.lastSemesterHint = AcademicPolicy.currentTerm()
+                cache.courses = catalog; cache.schoolCheckedAt = Date(); try persist()
+                message = cache.catalogIncomplete == true ? "已核對 \(catalog.count) 門正式課號；部分課程名稱或時段暫時無法取得，不影響 Moodle 核對。" : "已取得 \(catalog.count) 門已核准課程，可在課表編輯中匯入。"
+            } catch {
+                try check(epoch); show(error)
+            }
             await refreshReports(api: api, credential: credential, epoch: epoch, force: true)
             return true
         } catch { if epoch == generation { show(error) }; return false }
     }
     private func fetchCatalog(_ enrolment: SchoolEnrolment, epoch: UUID) async throws -> [AcademicCachedCourse] {
         var result: [AcademicCachedCourse] = []
+        var incomplete = false
         for row in enrolment.courses {
-            let matches = try await CourseCatalogService.search(year: enrolment.year, term: enrolment.term, code: row.code).filter { $0.courseno == row.code }
-            try check(epoch)
-            guard matches.count == 1, let course = matches.first else { throw AcademicError.unsupported }
-            result.append(.init(code: row.code, name: course.courseName, teacher: course.teacher,
-                                schedule: course.scheduleText ?? "\(course.time) \(course.location)"))
+            do {
+                let matches = try await CourseCatalogService.search(year: enrolment.year, term: enrolment.term, code: row.code).filter { $0.courseno == row.code }
+                try check(epoch)
+                guard matches.count == 1, let course = matches.first else { throw AcademicError.unsupported }
+                result.append(.init(code: row.code, name: course.courseName, teacher: course.teacher,
+                                    schedule: course.scheduleText ?? "\(course.time) \(course.location)"))
+            } catch {
+                try check(epoch)
+                // The signed-in official enrolment already proves the course code.
+                // A public-catalog failure must not prevent Moodle matching or report sync.
+                incomplete = true
+                if cache.year == enrolment.year, cache.term == enrolment.term, let old = cache.courses.first(where: { $0.code == row.code }) {
+                    result.append(old)
+                } else {
+                    result.append(.init(code: row.code, name: "課程 \(row.code)（資訊待更新）", teacher: "", schedule: ""))
+                }
+            }
         }
         guard !result.isEmpty else { throw AcademicError.invalidResponse }
+        cache.catalogIncomplete = incomplete
         return result
     }
     func connectMoodle(username: String, password: String) async -> Bool {
-        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return false }
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy else { return false }
+        storageAvailable = true
         busy = true; message = nil
         let epoch = generation
         defer { if epoch == generation { busy = false } }
@@ -206,7 +256,9 @@ final class AcademicSyncStore: ObservableObject {
         } catch { show(error) }
     }
     func refresh(force: Bool = false) async {
-        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable, schoolLinked || moodleLinked else { return }
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, schoolLinked || moodleLinked else { return }
+        if force { storageAvailable = true }
+        guard storageAvailable else { return }
         if !force, !AcademicPolicy.needsRefresh(last: lastAttempt, interval: 60) { return }
         busy = true; lastAttempt = Date()
         let epoch = generation
@@ -214,18 +266,22 @@ final class AcademicSyncStore: ObservableObject {
         message = nil
         let schoolAPI = SchoolAPI()
         let semesterChanged = cache.lastSemesterHint != AcademicPolicy.currentTerm()
-        if schoolLinked, !requiresSchoolLogin, force || retryAllowed("school"),
-           force || AcademicPolicy.needsRefresh(last: cache.schoolCheckedAt, interval: 30 * 86400) || semesterChanged {
+        if schoolLinked, force || !requiresSchoolLogin, force || retryAllowed("school"),
+           force || AcademicPolicy.needsRefresh(last: cache.schoolCheckedAt, interval: 30 * 86400) || semesterChanged || cache.catalogIncomplete == true {
             do {
                 guard let credential = try AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school")) else { throw AcademicError.loginRequired }
                 let enrolment = try await schoolAPI.enrolment(credential)
                 try check(epoch)
-                guard AcademicKeychain.key(enrolment.identity) == cache.schoolIdentity else { throw AcademicError.identityChanged }
+                let identity = AcademicKeychain.key(enrolment.identity)
+                let moodle = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle"))
+                guard AcademicPolicy.acceptsRestoredIdentity(identity, cached: cache.schoolIdentity, otherService: moodle?.schoolIdentity) else { throw AcademicError.identityChanged }
+                cache.schoolIdentity = identity; requiresSchoolLogin = false; try persist()
                 let catalog = try await fetchCatalog(enrolment, epoch: epoch)
                 try check(epoch)
                 cache.courses = catalog; cache.year = enrolment.year; cache.term = enrolment.term
                 cache.lastSemesterHint = AcademicPolicy.currentTerm()
-                cache.schoolCheckedAt = Date(); try persist(); resetRetry("school")
+                cache.schoolCheckedAt = Date(); try persist()
+                if cache.catalogIncomplete == true { backOff("school") } else { resetRetry("school") }
             } catch {
                 guard epoch == generation else { return }
                 if case AcademicError.loginRequired = error { requiresSchoolLogin = true }
@@ -234,9 +290,9 @@ final class AcademicSyncStore: ObservableObject {
             }
         }
         guard epoch == generation else { return }
-        if moodleLinked, !requiresMoodleLogin, force || retryAllowed("moodle"),
+        if moodleLinked, force || !requiresMoodleLogin, force || retryAllowed("moodle"),
            force || AcademicPolicy.needsRefresh(last: cache.moodleCheckedAt, interval: 300) {
-            do { try await refreshMoodle(epoch: epoch); resetRetry("moodle") }
+            do { try await refreshMoodle(epoch: epoch); requiresMoodleLogin = false; resetRetry("moodle") }
             catch {
                 guard epoch == generation else { return }
                 if case AcademicError.loginRequired = error { requiresMoodleLogin = true }
@@ -315,11 +371,13 @@ final class AcademicSyncStore: ObservableObject {
             message = "請先連結校務系統，核對正式學期與課號後再同步 Moodle 作業。"; return
         }
         guard let credential = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle")),
-              credential.userID == cache.moodleUser else { throw AcademicError.loginRequired }
+              (cache.moodleUser == nil || credential.userID == cache.moodleUser) else { throw AcademicError.loginRequired }
         let api = MoodleAPI()
         let allCourses = try await api.courses(credential)
         try check(epoch)
-        guard api.verifiedSchoolIdentity == cache.schoolIdentity else { throw AcademicError.identityChanged }
+        guard let verified = api.verifiedSchoolIdentity,
+              AcademicPolicy.acceptsRestoredIdentity(verified, cached: cache.schoolIdentity, otherService: credential.schoolIdentity) else { throw AcademicError.identityChanged }
+        cache.moodleUser = credential.userID
         let courseCodes = Set(cache.courses.map(\.code))
         let termPattern = try NSRegularExpression(pattern: "(?:^|[^0-9])\(year)[-_]?\(term)(?:[^0-9]|$)")
         func matchesTerm(_ course: MoodleCourse) -> Bool {
@@ -509,6 +567,27 @@ final class AcademicSyncStore: ObservableObject {
             existing: data.courses.map { .init(id: $0.id, name: $0.name, day: $0.day,
                 period: (Course.TimeSlot.allCases.firstIndex(of: $0.timeSlot) ?? -1) + 1, fingerprint: snapshot($0)) },
             sourceIDs: Set(cache.courseRecords[sourceKey(course.code)] ?? []), previous: cache.courseSnapshots)
+    }
+    func previewMoodleFile(_ attachment: MoodleAPI.Resource.Attachment, course: MoodleCourse) async throws -> URL {
+        guard let remote = attachment.fileurl, !uid.isEmpty, Auth.auth().currentUser?.uid == uid,
+              let credential = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle")) else { throw AcademicError.loginRequired }
+        let epoch = generation
+        let api = MoodleAPI()
+        guard try await api.courses(credential).contains(where: { $0.id == course.id }),
+              api.verifiedSchoolIdentity == cache.schoolIdentity else { throw AcademicError.identityChanged }
+        try check(epoch)
+        let data = try await api.http.moodleFile(remote, token: credential.token)
+        try check(epoch)
+        let filename = String(URL(fileURLWithPath: attachment.filename).lastPathComponent.prefix(120))
+        guard !filename.isEmpty, filename != ".", filename != ".." else { throw AcademicError.invalidResponse }
+        var folder = FileManager.default.temporaryDirectory.appendingPathComponent("AcademicPreview-" + UUID().uuidString, isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.protectionKey: FileProtectionType.complete])
+        do {
+            var values = URLResourceValues(); values.isExcludedFromBackup = true; try folder.setResourceValues(values)
+            let file = folder.appendingPathComponent(filename)
+            try data.write(to: file, options: [.atomic, .completeFileProtection])
+            return file
+        } catch { try? FileManager.default.removeItem(at: folder); throw error }
     }
     func courseContent(_ course: MoodleCourse) async throws -> ([MoodleAPI.ContentSection], [MoodleAPI.Announcement]) {
         let epoch = generation
