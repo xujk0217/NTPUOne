@@ -23,6 +23,9 @@ READ_FUNCTIONS = frozenset({
     "core_course_get_enrolled_courses_by_timeline_classification",
     "mod_assign_get_assignments", "mod_assign_get_submission_status",
     "core_calendar_get_action_events_by_timesort",
+    "core_course_get_contents", "mod_forum_get_forums_by_courses",
+    "mod_forum_get_forum_discussions", "gradereport_user_get_grade_items",
+    "mod_quiz_get_quizzes_by_courses",
 })
 ERROR_CODES = frozenset({
     "invalidlogin", "invalidtoken", "missingparam", "invalidparameter",

@@ -22,6 +22,13 @@ BRIDGE_COURSE_LIST = "https://cof.ntpu.edu.tw/pls/univer/u0001.query_all_course.
 BRIDGE_ROUTES = {BRIDGE_LOGIN: BRIDGE_COURSE_LIST,
     "https://ohs01.ntpu.edu.tw/pls/pm/stud_system.signin": COURSE_LIST}
 PROJECT_PATH = "/get-projects/10?" + urllib.parse.urlencode({"url": COURSE_LIST})
+ACADEMIC_TARGETS = {
+    "grades": COURSE_LIST.replace("func=3_m", "func=5_m"),
+    "rank": COURSE_LIST.replace("func=3_m", "func=8_m"),
+    "graduation": "https://ohs01.ntpu.edu.tw/pls/univer/query_all_course.judge?func=9_m",
+}
+ACADEMIC_PROJECT_PATHS = {"/get-projects/10?" + urllib.parse.urlencode({"url": target})
+                          for target in ACADEMIC_TARGETS.values()}
 
 
 def same_origin(url):
@@ -70,10 +77,10 @@ class Session:
             urllib.request.HTTPCookieProcessor(self.cookies), SchoolRedirect())
 
     def request(self, path, fields=None):
-        if path not in ("/", "/login", PROJECT_PATH) or (fields is not None and path != "/login"):
+        if path not in {"/", "/login", PROJECT_PATH} | ACADEMIC_PROJECT_PATHS or (fields is not None and path != "/login"):
             raise ProbeError("school_endpoint_not_verified")
         headers = {"User-Agent": "NTPUOne-Local-Academic-Probe/0.1"}
-        if path == PROJECT_PATH:
+        if path == PROJECT_PATH or path in ACADEMIC_PROJECT_PATHS:
             headers.update({"Accept": "application/json", "X-Requested-With": "XMLHttpRequest"})
         request = urllib.request.Request(ORIGIN + path,
             data=urllib.parse.urlencode(fields).encode() if fields is not None else None,

@@ -102,3 +102,11 @@ python3 -m unittest discover -s tests -p 'test_*probe.py' -v
 - [Assignment／submission status 契約](https://github.com/moodle/moodle/blob/MOODLE_39_STABLE/mod/assign/externallib.php)
 
 參考來源用來理解 API 語義，不代表已確認北大站台的精確 Moodle 版本，也不代表校方提供額外的服務或批次存取授權。
+
+## App 同份 Swift 服務驗證（2026-11-02）
+
+新增檢查入口見 [tests/README.md](../tests/README.md)。離線測試與真實查證分開。真實測試模式只接受管線 stdin，禁止 Terminal 手動貼憑證，且只回報數量／階段代碼。不要把 token 放進 argv、檔案、URL 或 Git。
+
+同份 Swift 選課 parser 與公開目錄已驗證 6 門課／14 節；成績、排名、畢業進度三份真實頁通過身分及內容契約。Moodle 公告、教材與成績使用 core_course_get_contents、mod_forum_get_forum_discussions、gradereport_user_get_grade_items；成績必須明確傳入已由 site info 驗證的本人 userid。課程總計 itemname 可以為 null。
+
+App 支援已核對的唯讀 func=3_m／5_m／8_m／9_m，各自使用固定官方路徑，主機仍只有 cof／ohs01。CLI 早期的 inspect／navigation 指令維持較小範圍。CLI 與 App Keychain service 不共用，App 仍需由本人連結一次。
