@@ -16,6 +16,7 @@
 | Widget／Live Activity | 課表、下一堂課及待辦資訊；依系統與功能條件提供 |
 | 校園生活 | 餐廳資料與留言、校園地圖、天氣與周邊 YouBike |
 | 交流區 | 學校 Google 帳號登入、主題、回覆、圖片與本人內容管理 |
+| 校務／Moodle（測試中） | 本人課表匯入預覽、作業同步、公告教材、成績與排名、畢業門檻預覽 |
 
 這是原始碼實作範圍，實際可用性受 App 發布版本、系統版本、遠端功能開關及外部服務影響。交流區雲端推播目前停用，課表與備忘錄本地提醒另外處理。
 
@@ -74,6 +75,8 @@ xcodebuild -project NTPUOne.xcodeproj -scheme NTPUOne \
 
 ## 維護資訊
 
+- [校務與 Moodle 實作進度](docs/ACADEMIC_INTEGRATION_PROGRESS.md)：區分真實 API 查證與尚待實機驗收。
+- [TestFlight 發布流程](docs/TESTFLIGHT.md)：內部測試封存與上傳。
 - [最近修正與驗證紀錄](docs/fixes-2026-11-02.md)
 - [上線檢查快照](docs/release-readiness-2026-11-02.md)
 - [YouBike 站點快照](docs/youbike-stations-2026-11-02.md)：App 會動態抓取，快照數量不代表即時營運狀態。
