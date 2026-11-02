@@ -246,6 +246,7 @@ struct AcademicReportField: Codable, Identifiable {
     var id: String
     var label: String
     var value: String
+    var detail: String? = nil
 }
 struct AcademicReportSubject: Codable, Identifiable {
     var id: String
@@ -266,10 +267,12 @@ struct SchoolReport: Codable, Identifiable {
     var kind: SchoolReportKind
     var checkedAt: Date
     var sections: [AcademicReportSection]?
+    var parserVersion: Int? = nil
     // Decode old build-12 caches only. New responses never store HTML.
     var html: String?
     var id: String { kind.rawValue }
     var isNative: Bool { sections?.isEmpty == false }
+    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 2) }
     func migrated() throws -> SchoolReport {
         if isNative { return self }
         guard let html else { throw AcademicError.invalidResponse }
@@ -290,7 +293,7 @@ enum AcademicReportParser {
         case .graduation: sections = try graduation(document)
         }
         guard !sections.isEmpty, Set(sections.map(\.id)).count == sections.count else { throw AcademicError.unsupported }
-        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, html: nil)
+        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 2, html: nil)
     }
     private static func text(_ node: Element, _ selector: String) throws -> String {
         try node.select(selector).first()?.text().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -364,7 +367,10 @@ enum AcademicReportParser {
             var section = AcademicReportSection(id: id, title: title)
             for (index, box) in try node.select(".credit_box").enumerated() {
                 let main = try text(box, ".main_credit"), total = try text(box, ".total_credit")
-                if !main.isEmpty { section.fields.append(.init(id: "\(id).\(index)", label: index == 0 ? "校方進度" : "分類進度", value: [main, total].filter { !$0.isEmpty }.joined(separator: " · "))) }
+                if !main.isEmpty {
+                    section.fields.append(.init(id: "\(id).\(index)", label: index == 0 ? "學分進度" : "分類進度",
+                        value: main, detail: total.isEmpty ? nil : total))
+                }
             }
             if !section.fields.isEmpty { output.append(section) }
         }

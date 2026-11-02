@@ -263,7 +263,7 @@ final class AcademicSyncStore: ObservableObject {
             let source = "reports.\(kind.rawValue)"
             if !force && !retryAllowed(source) { continue }
             let previous = cache.reports?.first { $0.kind == kind }
-            if !force && previous?.isNative == true && !AcademicPolicy.needsRefresh(last: previous?.checkedAt, interval: 86400) { continue }
+            if !force && previous?.isCurrent == true && !AcademicPolicy.needsRefresh(last: previous?.checkedAt, interval: 86400) { continue }
             do {
                 let report = try await api.report(kind, credential: credential, expectedIdentity: identity)
                 try check(epoch)
@@ -298,7 +298,7 @@ final class AcademicSyncStore: ObservableObject {
     }
     func prepareReport(_ kind: SchoolReportKind) async {
         await migrateCachedReports()
-        guard cache.reports?.contains(where: { $0.kind == kind && $0.isNative }) != true else { return }
+        guard cache.reports?.contains(where: { $0.kind == kind && $0.isCurrent }) != true else { return }
         await refreshReport(kind)
     }
     func refreshReport(_ kind: SchoolReportKind) async {

@@ -157,6 +157,16 @@ import Darwin
             }.joined()
             let graduation = try AcademicReportParser.parse(graduationHTML, kind: .graduation)
             try require(graduation.sections?.count == 5 && graduation.sections?.last?.subjects.count == 1, "graduation IDs and subject rows")
+            try require(graduation.sections?.first?.fields.first?.value == "100", "three-digit credits remain intact")
+            try require(graduation.sections?.first?.fields.first?.detail == "128", "separate credit values and requirements, never concatenate")
+            try require(graduation.isCurrent, "new graduation parser revision")
+            var legacyGraduation = graduation; legacyGraduation.parserVersion = nil
+            try require(legacyGraduation.isNative && !legacyGraduation.isCurrent, "legacy concatenated graduation cache must refresh before display")
+            let graduationRoundTrip = try JSONDecoder().decode(SchoolReport.self, from: JSONEncoder().encode(graduation))
+            try require(graduationRoundTrip.sections?.first?.fields.first?.detail == "128" && graduationRoundTrip.isCurrent, "credit detail survives protected cache")
+            let decimalGraduation = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: ">100<", with: ">12.5<"), kind: .graduation)
+            try require(decimalGraduation.sections?.first?.fields.first?.value == "12.5", "decimal credits must not be rounded or truncated")
+
             try rejects { _ = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "id='required'", with: "id='changed'"), kind: .graduation) }
             try require(AcademicMemoMergePolicy.content(existing: "", previous: nil, incoming: "source") == "source", "legacy empty notes receive source")
             try require(AcademicMemoMergePolicy.content(existing: "source", previous: "source", incoming: "new") == "new", "source-managed notes refresh")
