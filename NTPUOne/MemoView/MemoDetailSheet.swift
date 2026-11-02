@@ -51,18 +51,21 @@ struct MemoDetailSheet: View {
                             .foregroundColor(.secondary)
                     }
                     
-                    // 課程連結
-                    if let courseLink = memo.courseLink,
-                       let courseName = courseData.courses.first(where: { $0.id == courseLink })?.name {
-                        HStack {
-                            Image(systemName: "book.closed")
-                                .foregroundColor(.blue)
-                            Text(courseName)
-                                .font(.subheadline)
+                }
+                Section("連結課程") {
+                    Picker("這是哪一堂課的作業", selection: Binding(get: { memo.courseLink }, set: { id in
+                        var updated = memo; updated.courseLink = id; updated.updatedAt = Date()
+                        memoManager.updateMemo(updated)
+                        if let saved = memoManager.memos.first(where: { $0.id == memo.id }) { memo = saved }
+                    })) {
+                        Text("不連結課程").tag(nil as String?)
+                        ForEach(courseOptions) { course in Text(course.name).tag(course.id as String?) }
+                        if let id = memo.courseLink, !courseOptions.contains(where: { $0.id == id }) {
+                            Text("原課程（已移除）").tag(id as String?)
                         }
                     }
                 }
-                
+
                 // 時間資訊
                 Section(String(localized: "time_section")) {
                     if let planAt = memo.planAt {
@@ -293,6 +296,14 @@ struct MemoDetailSheet: View {
         .presentationDetents([.medium, .large])
     }
     
+    private var courseOptions: [Course] {
+        var seen = Set<String>()
+        return courseData.courses.sorted { a, b in
+            if a.id == memo.courseLink { return b.id != memo.courseLink }
+            if b.id == memo.courseLink { return false }
+            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        }.filter { seen.insert($0.name + ":" + $0.teacher).inserted }
+    }
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM/dd HH:mm"

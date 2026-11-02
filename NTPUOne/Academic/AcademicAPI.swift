@@ -242,12 +242,157 @@ enum SchoolReportKind: String, CaseIterable, Codable, Identifiable {
     var function: String { switch self { case .grades: return "5_m"; case .rank: return "8_m"; case .graduation: return "9_m" } }
     var path: String { self == .graduation ? "/pls/univer/query_all_course.judge" : "/pls/univer/u0001.query_all_course.judge" }
 }
+struct AcademicReportField: Codable, Identifiable {
+    var id: String
+    var label: String
+    var value: String
+}
+struct AcademicReportSubject: Codable, Identifiable {
+    var id: String
+    var title: String
+    var category: String?
+    var credits: String?
+    var grade: String?
+    var details: [String]
+}
+struct AcademicReportSection: Codable, Identifiable {
+    var id: String
+    var title: String
+    var fields: [AcademicReportField] = []
+    var subjects: [AcademicReportSubject] = []
+    var notes: [String] = []
+}
 struct SchoolReport: Codable, Identifiable {
     var kind: SchoolReportKind
-    var html: String
     var checkedAt: Date
+    var sections: [AcademicReportSection]?
+    // Decode old build-12 caches only. New responses never store HTML.
+    var html: String?
     var id: String { kind.rawValue }
+    var isNative: Bool { sections?.isEmpty == false }
+    func migrated() throws -> SchoolReport {
+        if isNative { return self }
+        guard let html else { throw AcademicError.invalidResponse }
+        return try AcademicReportParser.parse(html, kind: kind, checkedAt: checkedAt)
+    }
 }
+
+/// Contracts observed on the authenticated school pages; no page rendering or JavaScript.
+enum AcademicReportParser {
+    static func parse(_ html: String, kind: SchoolReportKind, checkedAt: Date = Date()) throws -> SchoolReport {
+        guard html.utf8.count <= 8_388_608 else { throw AcademicError.invalidResponse }
+        let document = try SwiftSoup.parse(html)
+        try document.select("script,style,form,input,button,iframe,object,.lang-en-US").remove()
+        let sections: [AcademicReportSection]
+        switch kind {
+        case .grades: sections = try grades(document)
+        case .rank: sections = try ranks(document)
+        case .graduation: sections = try graduation(document)
+        }
+        guard !sections.isEmpty, Set(sections.map(\.id)).count == sections.count else { throw AcademicError.unsupported }
+        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, html: nil)
+    }
+    private static func text(_ node: Element, _ selector: String) throws -> String {
+        try node.select(selector).first()?.text().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+    private static func distinct(_ values: [String]) -> [String] {
+        var seen = Set<String>(); return values.filter { !$0.isEmpty && seen.insert($0).inserted }
+    }
+    private static func grades(_ document: Document) throws -> [AcademicReportSection] {
+        var output: [AcademicReportSection] = []
+        for (index, card) in try document.select(".card.my-4").enumerated() {
+            let year = try text(card, ".card-title")
+            guard !year.isEmpty, let table = try card.select("table.table-striped").first() else { throw AcademicError.unsupported }
+            let headers = try table.select("tr").filter { try $0.select("th").count == 6 }
+            guard let header = headers.first, try header.select("th").map({ try $0.text() }) == ["類別", "科目名稱", "學分", "成績", "學分", "成績"] else { throw AcademicError.unsupported }
+            for semester in 1...2 {
+                let selector = ".sem\(semester)bg"
+                var section = AcademicReportSection(id: "grades.\(index).\(semester)", title: "\(year) · 第\(semester)學期")
+                for (rowIndex, row) in try table.select("tr").enumerated() {
+                    let cells = try row.select("td")
+                    guard !cells.isEmpty else { continue }
+                    let values = try row.select("td\(selector)").map { try $0.text() }
+                    if cells.count == 6, cells[1].hasClass("text-left") {
+                        guard values.count == 2 else { throw AcademicError.unsupported }
+                        if values.allSatisfy({ $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) { continue }
+                        let title = try cells[1].text()
+                        guard !title.isEmpty else { throw AcademicError.unsupported }
+                        section.subjects.append(.init(id: "\(section.id).\(rowIndex)", title: title,
+                            category: try cells[0].text(), credits: values[0], grade: values[1], details: []))
+                    } else if !values.isEmpty {
+                        let label = try cells.filter { !$0.hasClass("sem1bg") && !$0.hasClass("sem2bg") }.map { try $0.text() }.joined(separator: " ")
+                        let value = values.joined(separator: " / ")
+                        if !label.isEmpty && !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            section.fields.append(.init(id: "\(section.id).summary.\(rowIndex)", label: label, value: value))
+                        }
+                    }
+                }
+                if !section.subjects.isEmpty || !section.fields.isEmpty { output.append(section) }
+            }
+        }
+        return output
+    }
+    private static func ranks(_ document: Document) throws -> [AcademicReportSection] {
+        var output: [AcademicReportSection] = []
+        for (index, card) in try document.select(".container.my-2 > .card").enumerated() {
+            var heading = try card.previousElementSibling()
+            while let element = heading, element.tagName() != "h6" { heading = try element.previousElementSibling() }
+            let year = try heading?.text() ?? ""
+            guard !year.isEmpty else { throw AcademicError.unsupported }
+            for (termIndex, sheet) in try card.select(".datasheets").enumerated() {
+                let term = try text(sheet, "strong")
+                guard !term.isEmpty || sheet.hasClass("card-body") else { throw AcademicError.unsupported }
+                var section = AcademicReportSection(id: "rank.\(index).\(termIndex)", title: term.isEmpty ? year : "\(year) · \(term)")
+                for (rowIndex, row) in try sheet.select("ul.datarows > li").enumerated() {
+                    let value = try row.text()
+                    guard !value.isEmpty else { continue }
+                    let parts = value.components(separatedBy: CharacterSet(charactersIn: "：:"))
+                    let label = parts.count > 1 ? parts[0] : (rowIndex == 0 ? "成績資訊" : "排名資訊")
+                    section.fields.append(.init(id: "\(section.id).\(rowIndex)", label: label,
+                        value: parts.count > 1 ? parts.dropFirst().joined(separator: "：").trimmingCharacters(in: .whitespacesAndNewlines) : value))
+                }
+                if !section.fields.isEmpty { output.append(section) }
+            }
+        }
+        return output
+    }
+    private static func graduation(_ document: Document) throws -> [AcademicReportSection] {
+        var output: [AcademicReportSection] = []
+        // Keep school values verbatim; do not invent an overall eligibility calculation.
+        for (id, title) in [("tag_total", "總學分"), ("tag_chinese", "國文"), ("tag_english", "英文"), ("tag_pe", "體育"), ("tag_general", "通識"), ("mini_general", "通識分類")] {
+            guard let node = try document.select("#\(id)").first() else { continue }
+            var section = AcademicReportSection(id: id, title: title)
+            for (index, box) in try node.select(".credit_box").enumerated() {
+                let main = try text(box, ".main_credit"), total = try text(box, ".total_credit")
+                if !main.isEmpty { section.fields.append(.init(id: "\(id).\(index)", label: index == 0 ? "校方進度" : "分類進度", value: [main, total].filter { !$0.isEmpty }.joined(separator: " · "))) }
+            }
+            if !section.fields.isEmpty { output.append(section) }
+        }
+        for id in ["required", "option", "common", "other"] {
+            guard let node = try document.select("section#\(id)").first() else { throw AcademicError.unsupported }
+            let title = try text(node, ".collapse_title")
+            guard !title.isEmpty else { throw AcademicError.unsupported }
+            var section = AcademicReportSection(id: id, title: title)
+            section.notes = distinct(try node.select(".collapse_info .illus_text").map { try $0.text() })
+            for (index, item) in try node.select(".collapse_ul_header .collapse_col_item").enumerated() {
+                let values = try item.select("span").map { try $0.text() }
+                guard values.count == 2 else { throw AcademicError.unsupported }
+                section.fields.append(.init(id: "\(id).metric.\(index)", label: values[0], value: values[1]))
+            }
+            for (index, row) in try node.select(".subject_li").enumerated() {
+                let name = try text(row, ".subject_title")
+                guard !name.isEmpty else { throw AcademicError.unsupported }
+                let details = distinct(try row.select(".subject_state").map { try $0.text() })
+                section.subjects.append(.init(id: "\(id).subject.\(index)", title: name, category: nil, credits: nil, grade: nil, details: details))
+            }
+            let sums = distinct(try node.select(".collapse_ul_footer").map { try $0.text() })
+            section.notes += sums
+            output.append(section)
+        }
+        return output
+    }
+}
+
 final class SchoolAPI {
     let http = AcademicHTTP()
     deinit { http.close() }
@@ -308,23 +453,7 @@ final class SchoolAPI {
     }
     static func parseReport(_ html: String, identity: String, kind: SchoolReportKind) throws -> SchoolReport {
         guard !identity.isEmpty, html.range(of: "(?<![0-9])" + NSRegularExpression.escapedPattern(for: identity) + "(?![0-9])", options: .regularExpression) != nil else { throw AcademicError.identityChanged }
-        let document = try SwiftSoup.parse(html)
-        let text = try document.text()
-        switch kind {
-        case .grades:
-            guard text.contains("成績"), text.contains("學分數"), try document.select("tr").count > 1 else { throw AcademicError.unsupported }
-        case .rank:
-            guard text.contains("排名"), try !document.select("h6").isEmpty() else { throw AcademicError.unsupported }
-        case .graduation:
-            guard text.contains("學分"), text.contains("畢業"), try !document.select("section").isEmpty() else { throw AcademicError.unsupported }
-        }
-        try document.select("script,style,iframe,frame,object,embed,form,input,button,link,meta,base,img").remove()
-        for anchor in try document.select("a") { try anchor.removeAttr("href") }
-        let whitelist = try Whitelist.relaxed().addTags("section").addAttributes(":all", "class")
-        guard let clean = try SwiftSoup.clean(try document.body()?.html() ?? "", whitelist), !clean.isEmpty else { throw AcademicError.unsupported }
-        let csp = "default-src 'none'; script-src 'none'; style-src 'unsafe-inline'; img-src 'none'; connect-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'none'"
-        let output = "<html><head><meta name='viewport' content='width=device-width, initial-scale=1'><meta http-equiv='Content-Security-Policy' content=\"\(csp)\"><style>body{font:16px -apple-system;padding:12px;color:#202124;background:#fff;overflow-wrap:anywhere}table{border-collapse:collapse;display:block;overflow:auto;width:100%}td,th{border:1px solid #ddd;padding:8px}h1,h2,h3,h6{font-size:19px;margin-top:24px}section,.card{padding:12px;margin:10px 0;border:1px solid #ddd;border-radius:12px}li{margin:6px 0}.row{margin:12px 0}p{line-height:1.6}</style></head><body>\(clean)</body></html>"
-        return .init(kind: kind, html: output, checkedAt: Date())
+        return try AcademicReportParser.parse(html, kind: kind)
     }
     static func parseEnrolment(_ html: String, identity: String) throws -> SchoolEnrolment {
         let page = try SwiftSoup.parse(html)

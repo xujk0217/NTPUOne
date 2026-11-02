@@ -11,78 +11,88 @@ struct AcademicConnectionView: View {
     @State private var moodleUsername = ""
     @State private var moodlePassword = ""
     @State private var confirmUnlink = false
+    @State private var loggingIn: String?
+    @State private var editingSchool = false
+    @State private var editingMoodle = false
     var body: some View {
         Form {
             if academic.uid.isEmpty {
                 Section { Text("請先在「我的」登入 Google 帳號，再連結學校資料。") }
             } else {
                 Section {
-                    Text("連結後，App 開啟時更新作業；課表來源每 30 天檢查一次，也可隨時手動更新。")
-                    Text("學校帳密與 token 只存這台裝置的 Keychain，不上傳 Firebase，也不交給 Google。已匯入的課程與待辦會沿用 App 原有的私人 iCloud 同步。")
-                        .font(.caption).foregroundStyle(.secondary)
+                    Text("連結學校帳號，讓課表與作業保持更新。")
+                    DisclosureGroup("登入資料與隱私") {
+                        Text("登入資料只保存在這台裝置的 Keychain；已匯入的課程與備忘錄沿用私人 iCloud 同步。")
+                        Text("校務登入送往 my.ntpu.edu.tw，官方橋接限 cof.ntpu.edu.tw／ohs01.ntpu.edu.tw；Moodle 帳密只送往 lms3.ntpu.edu.tw，驗證後只保存 token。")
+                    }.font(.caption).foregroundStyle(.secondary)
                 }
                 Section("學生資訊系統") {
                     Label(academic.schoolLinked ? "已連結" : "尚未連結", systemImage: academic.schoolLinked ? "checkmark.shield" : "person.badge.key")
-                    TextField("新版校務帳號", text: $schoolUsername).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username)
-                    SecureField("新版校務密碼", text: $schoolPassword).textContentType(.password)
-                    Button("驗證並在本機保存校務登入資料") {
+                    if academic.schoolLinked && !editingSchool {
+                        Button("重新登入") { editingSchool = true }
+                    } else {
+                    TextField("新版校務帳號", text: $schoolUsername).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username).disabled(academic.busy || loggingIn != nil)
+                    SecureField("新版校務密碼", text: $schoolPassword).textContentType(.password).disabled(academic.busy || loggingIn != nil)
+                    Button {
+                        loggingIn = "school"
                         let username = schoolUsername, password = schoolPassword
-                        schoolPassword = ""
-                        Task { await academic.connectSchool(username: username, password: password) }
-                    }.disabled(academic.busy || schoolUsername.isEmpty || schoolPassword.isEmpty)
-                    Text("送往 my.ntpu.edu.tw；校方登入橋接目前限 cof.ntpu.edu.tw／ohs01.ntpu.edu.tw。只讀取已核准選課、成績、排名與畢業學分，不執行加退選。其他目的地會停止連線。")
+                        Task {
+                            if await academic.connectSchool(username: username, password: password) { schoolPassword = ""; editingSchool = false }
+                            loggingIn = nil
+                        }
+                    } label: {
+                        HStack {
+                            if loggingIn == "school" { ProgressView() }
+                            Text(loggingIn == "school" ? "正在登入校務系統…" : "登入校務系統")
+                        }
+                    }.disabled(academic.busy || loggingIn != nil || schoolUsername.isEmpty || schoolPassword.isEmpty)
+                    }
+                    Text("使用新版學生資訊系統帳號。只讀取個人資料，不會執行選課操作。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Moodle 數位學苑") {
                     Label(academic.moodleLinked ? "已連結" : "尚未連結", systemImage: academic.moodleLinked ? "checkmark.shield" : "person.badge.key")
-                    TextField("Moodle 帳號", text: $moodleUsername).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username)
-                    SecureField("Moodle 密碼", text: $moodlePassword).textContentType(.password)
-                    Button("連結 Moodle 並將作業同步至待辦") {
+                    if academic.moodleLinked && !editingMoodle {
+                        Button("重新登入") { editingMoodle = true }
+                    } else {
+                    TextField("Moodle 帳號", text: $moodleUsername).textInputAutocapitalization(.never).autocorrectionDisabled().textContentType(.username).disabled(academic.busy || loggingIn != nil)
+                    SecureField("Moodle 密碼", text: $moodlePassword).textContentType(.password).disabled(academic.busy || loggingIn != nil)
+                    Button {
+                        loggingIn = "moodle"
                         let username = moodleUsername, password = moodlePassword
-                        moodlePassword = ""
-                        Task { await academic.connectMoodle(username: username, password: password) }
-                    }.disabled(academic.busy || moodleUsername.isEmpty || moodlePassword.isEmpty)
-                    Text("這組帳密只送往 lms3.ntpu.edu.tw，驗證後只保存 token。請先完成校務連結，以正式課號核對本學期作業。")
+                        Task {
+                            if await academic.connectMoodle(username: username, password: password) { moodlePassword = ""; editingMoodle = false }
+                            loggingIn = nil
+                        }
+                    } label: {
+                        HStack {
+                            if loggingIn == "moodle" { ProgressView() }
+                            Text(loggingIn == "moodle" ? "正在登入 Moodle…" : "登入 Moodle")
+                        }
+                    }.disabled(academic.busy || loggingIn != nil || moodleUsername.isEmpty || moodlePassword.isEmpty)
+                    }
+                    Text("登入後將本學期作業加入備忘錄，保留你修改過的內容；請先完成校務登入以核對課號。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 AcademicStatusSection()
-                if academic.schoolLinked {
-                    Section("本人成績與畢業門檻") {
-                        ForEach(SchoolReportKind.allCases) { kind in
-                            NavigationLink(kind.title) { AcademicSchoolReportView(kind: kind) }
-                        }
-                    }
-                }
-                if academic.schoolLinked {
-                    AcademicCoursePreviewSection()
-                }
-                if academic.moodleLinked {
-                    AcademicCompletionSection()
-                    Section("課程公告與教材") {
-                        ForEach(academic.cache.moodleCourses ?? []) { course in
-                            NavigationLink(course.fullname) { AcademicCourseContentView(course: course) }
-                        }
-                    }
-                    Section("Moodle 作業") {
-                        ForEach(academic.cache.tasks) { task in
-                            NavigationLink { AcademicTaskView(task: task) } label: {
-                                VStack(alignment: .leading) {
-                                    Text(task.title)
-                                    Text(task.courseName).font(.caption).foregroundStyle(.secondary)
-                                }
-                            }
-                        }
-                    }
-                }
-                if academic.schoolLinked || academic.moodleLinked {
-                    Section {
-                        Button("解除學校連結", role: .destructive) { confirmUnlink = true }.disabled(academic.busy)
-                    } footer: { Text("解除本機連結會停止同步並移除本機憑證，保留已匯入課表及待辦。") }
-                }
+
             }
         }
         .navigationTitle("學校帳號與同步")
-        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+        .onDisappear { schoolPassword = ""; moodlePassword = "" }
+        .onChange(of: academic.uid) { _ in
+            schoolUsername = ""; schoolPassword = ""; moodleUsername = ""; moodlePassword = ""
+        }
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } }
+            ToolbarItem(placement: .navigationBarLeading) {
+                if academic.schoolLinked || academic.moodleLinked {
+                    Menu { Button("解除學校連結", role: .destructive) { confirmUnlink = true } }
+                    label: { Image(systemName: "ellipsis.circle").accessibilityLabel("帳號選項") }
+                    .disabled(academic.busy || loggingIn != nil)
+                }
+            }
+        }
         .confirmationDialog("解除這台裝置的學校連結？", isPresented: $confirmUnlink, titleVisibility: .visible) {
             Button("解除連結", role: .destructive) { academic.unlink() }
         }
@@ -256,86 +266,106 @@ struct AcademicTaskView: View {
     }
 }
 
-struct AcademicHomeSection: View {
+struct AcademicCourseImportView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     var body: some View {
-        if !academic.uid.isEmpty {
-            Section {
-                NavigationLink { AcademicConnectionView() } label: {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Label("學校帳號與同步", systemImage: "graduationcap")
-                        if academic.busy { Text("正在更新…").font(.caption).foregroundStyle(.secondary) }
-                        else if let date = academic.cache.moodleCheckedAt {
-                            Text("作業上次更新 \(date.formatted(date: .omitted, time: .shortened))").font(.caption).foregroundStyle(.secondary)
-                        } else { Text("連結校務與 Moodle，整合作業及課表").font(.caption).foregroundStyle(.secondary) }
-                        if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary).lineLimit(2) }
-                    }
-                }
-                if academic.schoolLinked {
-                    ForEach(SchoolReportKind.allCases) { kind in
-                        NavigationLink { AcademicSchoolReportView(kind: kind) } label: {
-                            Label(kind.title, systemImage: kind == .graduation ? "checklist" : "chart.bar")
-                        }
-                    }
-                }
+        List {
+            if academic.schoolLinked {
+                AcademicStatusSection()
+                AcademicCoursePreviewSection()
+            } else {
+                Section { NavigationLink("登入學校帳號") { AcademicConnectionView() } }
             }
-            AcademicCompletionSection()
-        }
+        }.navigationTitle("校務課表匯入")
+    }
+}
+
+struct AcademicGradesView: View {
+    @State private var selection: SchoolReportKind = .grades
+    var body: some View {
+        VStack(spacing: 0) {
+            Picker("成績資訊", selection: $selection) {
+                Text("學期成績").tag(SchoolReportKind.grades)
+                Text("成績排名").tag(SchoolReportKind.rank)
+            }.pickerStyle(.segmented).padding()
+            AcademicSchoolReportView(kind: selection).id(selection)
+        }.navigationTitle("成績與排名")
     }
 }
 
 struct AcademicSchoolReportView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     let kind: SchoolReportKind
-    private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind } }
+    private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind && $0.isNative } }
     var body: some View {
-        VStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                if let report { Text("校務資料更新：\(report.checkedAt.formatted())").font(.caption) }
-                if let error = academic.reportErrors[kind] { Text(error).font(.caption).foregroundStyle(.orange) }
-                if kind == .graduation {
-                    Text("依校務系統的學分歸類及門檻提供預覽；正式畢業資格仍以學校審查為準。未自行假設或換算通識、跨域及其他門檻。")
-                        .font(.caption).foregroundStyle(.secondary)
-                } else {
-                    Text("顯示校方公布的本人成績與排名；未公布的項目不推算，未提供的 GPA 不自行換算。")
-                        .font(.caption).foregroundStyle(.secondary)
+        List {
+            Section {
+                if !academic.schoolLinked {
+                    NavigationLink("登入學校帳號以更新資料") { AcademicConnectionView() }
                 }
-                Button("重新整理\(kind.title)") { Task { await academic.refreshReport(kind) } }.disabled(academic.busy || !academic.schoolLinked)
-                if academic.busy { ProgressView() }
-            }.frame(maxWidth: .infinity, alignment: .leading).padding()
-            if let report {
-                StaticAcademicReport(html: report.html).id(academic.uid + report.id + report.checkedAt.description)
-                    .privacySensitive()
-            } else {
-                VStack(spacing: 12) {
-                    Image(systemName: "doc.text").font(.largeTitle)
-                    Text("尚未取得校務報表").font(.headline)
-                    Text("請先連結學生資訊系統，再重新整理；資料格式尚未核對時會保留空白。")
-                        .font(.subheadline).foregroundStyle(.secondary)
-                }.padding().frame(maxWidth: .infinity, maxHeight: .infinity)
+                if let report { Text("更新：\(report.checkedAt.formatted())").font(.caption).foregroundStyle(.secondary) }
+                if let error = academic.reportErrors[kind] {
+                    Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                }
+                if academic.busy { ProgressView("正在更新學校資料…") }
+                Button("重新整理") { Task { await academic.refreshReport(kind) } }
+                    .disabled(academic.busy || !academic.schoolLinked)
+            } footer: {
+                Text(kind == .graduation ? "門檻與學分分類依校方資料顯示，正式畢業資格以學校審查為準。" : "成績與排名依校方公布資料顯示；尚未公布的數值不自行推算。")
             }
-        }.navigationTitle(kind.title)
+            if let sections = report?.sections {
+                ForEach(sections) { section in
+                    Section {
+                        ForEach(section.fields) { field in
+                            LabeledContent(field.label, value: field.value.isEmpty ? "尚未公布" : field.value)
+                        }
+                        ForEach(Array(section.notes.enumerated()), id: \.offset) { _, note in
+                            Text(note).font(.caption).foregroundStyle(.secondary)
+                        }
+                        if kind == .graduation && !section.subjects.isEmpty {
+                            DisclosureGroup("課程明細（\(section.subjects.count)）") {
+                                ForEach(section.subjects) { subject in AcademicReportSubjectRow(subject: subject) }
+                            }
+                        } else {
+                            ForEach(section.subjects) { subject in AcademicReportSubjectRow(subject: subject) }
+                        }
+                    } header: { Text(section.title) }
+                }
+            } else if !academic.busy {
+                Section {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label("尚無可顯示的資料", systemImage: "doc.text")
+                        Text("請登入學校帳號並重新整理。暫時無法更新時，會保留上次成功的資料。")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }
+        .privacySensitive()
+        .navigationTitle(kind == .graduation ? kind.title : "成績與排名")
+        .task(id: academic.uid + ":" + kind.rawValue) { await academic.prepareReport(kind) }
     }
 }
 
-/// Already sanitised, static local HTML only: no JavaScript, remote loads, forms or navigation.
-struct StaticAcademicReport: UIViewRepresentable {
-    let html: String
-    func makeCoordinator() -> Coordinator { Coordinator() }
-    func makeUIView(context: Context) -> WKWebView {
-        let configuration = WKWebViewConfiguration()
-        configuration.websiteDataStore = .nonPersistent()
-        configuration.defaultWebpagePreferences.allowsContentJavaScript = false
-        let view = WKWebView(frame: .zero, configuration: configuration)
-        view.navigationDelegate = context.coordinator
-        view.loadHTMLString(html, baseURL: nil)
-        return view
-    }
-    func updateUIView(_ view: WKWebView, context: Context) {}
-    final class Coordinator: NSObject, WKNavigationDelegate {
-        func webView(_ webView: WKWebView, decidePolicyFor action: WKNavigationAction, decisionHandler: @escaping (WKNavigationActionPolicy) -> Void) {
-            decisionHandler(action.request.url?.absoluteString == "about:blank" ? .allow : .cancel)
-        }
+private struct AcademicReportSubjectRow: View {
+    let subject: AcademicReportSubject
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(subject.title).font(.subheadline.weight(.medium))
+                Spacer(minLength: 8)
+                if let grade = subject.grade {
+                    Text(grade.isEmpty ? "尚未公布" : grade).font(.headline).monospacedDigit()
+                }
+            }
+            HStack(spacing: 12) {
+                if let category = subject.category, !category.isEmpty { Text(category) }
+                if let credits = subject.credits, !credits.isEmpty { Text("\(credits) 學分") }
+            }.font(.caption).foregroundStyle(.secondary)
+            ForEach(Array(subject.details.enumerated()), id: \.offset) { _, detail in
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+        }.padding(.vertical, 3)
     }
 }
 

@@ -91,3 +91,17 @@ enum AcademicImportPolicy {
         return row.name == name ? .link(row.id) : .conflict
     }
 }
+
+/// Keep private notes after the user edits the imported description.
+enum AcademicMemoMergePolicy {
+    static func content(existing: String, previous: String?, incoming: String) -> String {
+        if let previous { return existing == previous ? incoming : existing }
+        if existing.isEmpty { return incoming }
+        if incoming.isEmpty || existing.contains(incoming) { return existing }
+        return existing + "\n\nMoodle 作業說明\n" + incoming
+    }
+    static func courseName(_ name: String) -> String {
+        name.replacingOccurrences(of: #"[（(][A-Z]\d{4}[）)]\s*$"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}

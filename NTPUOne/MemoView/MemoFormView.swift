@@ -48,11 +48,16 @@ struct MemoFormView: View {
     // 去重複的課程列表（只保留不同名稱的課程）
     private var uniqueCourses: [Course] {
         var seenNames = Set<String>()
-        return courseData.courses.filter { course in
-            if seenNames.contains(course.name) {
+        return courseData.courses.sorted { a, b in
+            if a.id == selectedCourseId { return b.id != selectedCourseId }
+            if b.id == selectedCourseId { return false }
+            return a.id < b.id
+        }.filter { course in
+            let key = course.name + ":" + course.teacher
+            if seenNames.contains(key) {
                 return false
             } else {
-                seenNames.insert(course.name)
+                seenNames.insert(key)
                 return true
             }
         }
@@ -159,7 +164,7 @@ struct MemoFormView: View {
                         Text(String(localized: "no_course_link"))
                             .tag(nil as String?)
                         
-                        ForEach(uniqueCourses, id: \.name) { course in
+                        ForEach(uniqueCourses, id: \.id) { course in
                             Text(course.name)
                                 .tag(course.id as String?)
                         }

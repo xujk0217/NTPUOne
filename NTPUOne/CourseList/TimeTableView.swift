@@ -30,7 +30,7 @@ struct TimeTableView: View {
         NavigationStack {
             ScrollView{
                 VStack {
-                    NavigationLink { AcademicConnectionView() } label: {
+                    NavigationLink { AcademicCourseImportView() } label: {
                         Label("校務課表預覽與重新整理", systemImage: "arrow.clockwise")
                     }.padding(.top)
                     if isEdit{

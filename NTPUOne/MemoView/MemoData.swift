@@ -78,6 +78,7 @@ struct Memo: Identifiable, Equatable {
     enum TagType: String, CaseIterable, Identifiable {
         case activity = "活動"
         case homework = "作業"
+        case moodle = "Moodle"
         case exam = "考試"
         case meeting = "會議"
         case reminder = "提醒"
@@ -89,6 +90,7 @@ struct Memo: Identifiable, Equatable {
             switch self {
             case .activity: return String(localized: "tag_type_activity")
             case .homework: return String(localized: "tag_type_homework")
+            case .moodle: return "Moodle"
             case .exam: return String(localized: "tag_type_exam")
             case .meeting: return String(localized: "tag_type_meeting")
             case .reminder: return String(localized: "tag_type_reminder")
@@ -100,6 +102,7 @@ struct Memo: Identifiable, Equatable {
             switch self {
             case .activity: return "party.popper"
             case .homework: return "doc.text"
+            case .moodle: return "graduationcap"
             case .exam: return "pencil.and.list.clipboard"
             case .meeting: return "person.3"
             case .reminder: return "bell"
@@ -111,6 +114,7 @@ struct Memo: Identifiable, Equatable {
             switch self {
             case .activity: return .orange
             case .homework: return .blue
+            case .moodle: return .indigo
             case .exam: return .red
             case .meeting: return .purple
             case .reminder: return .yellow

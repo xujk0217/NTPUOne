@@ -26,6 +26,8 @@ struct AcademicMemoRecord: Codable {
     var acknowledgedVersion: String?
     var managedCourseLink: Bool? = nil
     var lastCourseLink: String? = nil
+    var lastContent: String? = nil
+    var lastTagType: String? = nil
 }
 struct AcademicCachedCourse: Codable, Identifiable {
     var code: String
@@ -114,7 +116,7 @@ final class AcademicSyncStore: ObservableObject {
             schoolLinked = try AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school")) != nil
             moodleLinked = try AcademicKeychain.load(MoodleCredential.self, account: credentialKey("moodle")) != nil
         } catch { storageAvailable = false; message = AcademicError.storage.localizedDescription }
-        Task { await refresh() }
+        Task { await migrateCachedReports(); reconcileImportedMemos(); await refresh() }
     }
     func offerConnectionIfNeeded() {
         guard !uid.isEmpty, !cache.prompted, storageAvailable else { return }
@@ -130,8 +132,8 @@ final class AcademicSyncStore: ObservableObject {
         if error is CancellationError { return }
         message = (error as? AcademicError)?.localizedDescription ?? "連線暫時失敗，已保留原有資料，稍後可重新整理。"
     }
-    func connectSchool(username: String, password: String) async {
-        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return }
+    func connectSchool(username: String, password: String) async -> Bool {
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return false }
         busy = true; message = nil
         let epoch = generation
         defer { if epoch == generation { busy = false } }
@@ -153,7 +155,8 @@ final class AcademicSyncStore: ObservableObject {
             try persist(); schoolLinked = true; requiresSchoolLogin = false
             message = "已取得 \(catalog.count) 門已核准課程；請先檢查課表預覽，再決定是否匯入。"
             await refreshReports(api: api, credential: credential, epoch: epoch, force: true)
-        } catch { if epoch == generation { show(error) } }
+            return true
+        } catch { if epoch == generation { show(error) }; return false }
     }
     private func fetchCatalog(_ enrolment: SchoolEnrolment, epoch: UUID) async throws -> [AcademicCachedCourse] {
         var result: [AcademicCachedCourse] = []
@@ -167,8 +170,8 @@ final class AcademicSyncStore: ObservableObject {
         guard !result.isEmpty else { throw AcademicError.invalidResponse }
         return result
     }
-    func connectMoodle(username: String, password: String) async {
-        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return }
+    func connectMoodle(username: String, password: String) async -> Bool {
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, storageAvailable else { return false }
         busy = true; message = nil
         let epoch = generation
         defer { if epoch == generation { busy = false } }
@@ -180,8 +183,9 @@ final class AcademicSyncStore: ObservableObject {
             try AcademicKeychain.save(credential, account: credentialKey("moodle"))
             cache.moodleUser = credential.userID; cache.moodleCheckedAt = nil
             try persist(); moodleLinked = true; requiresMoodleLogin = false
-            try await refreshMoodle(epoch: epoch)
-        } catch { if epoch == generation { show(error) } }
+            do { try await refreshMoodle(epoch: epoch) } catch { show(error) }
+            return true
+        } catch { if epoch == generation { show(error) }; return false }
     }
     func unlink() {
         guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy else { return }
@@ -256,7 +260,7 @@ final class AcademicSyncStore: ObservableObject {
             let source = "reports.\(kind.rawValue)"
             if !force && !retryAllowed(source) { continue }
             let previous = cache.reports?.first { $0.kind == kind }
-            if !force && !AcademicPolicy.needsRefresh(last: previous?.checkedAt, interval: 86400) { continue }
+            if !force && previous?.isNative == true && !AcademicPolicy.needsRefresh(last: previous?.checkedAt, interval: 86400) { continue }
             do {
                 let report = try await api.report(kind, credential: credential, expectedIdentity: identity)
                 try check(epoch)
@@ -270,6 +274,29 @@ final class AcademicSyncStore: ObservableObject {
                 if case AcademicError.loginRequired = error { requiresSchoolLogin = true; return }
             }
         }
+    }
+    private func migrateCachedReports() async {
+        let epoch = generation
+        let previous = cache.reports ?? []
+        guard previous.contains(where: { !$0.isNative }) else { return }
+        // Build 12 stored static HTML. Parse it away from first presentation/the main actor.
+        let converted = await Task.detached(priority: .utility) {
+            previous.compactMap { try? $0.migrated() }
+        }.value
+        guard epoch == generation, Auth.auth().currentUser?.uid == uid else { return }
+        var reports = cache.reports ?? []
+        for report in converted {
+            if let index = reports.firstIndex(where: { $0.kind == report.kind && !$0.isNative && $0.checkedAt == report.checkedAt }) {
+                reports[index] = report
+            }
+        }
+        cache.reports = reports
+        do { try persist() } catch { show(error) }
+    }
+    func prepareReport(_ kind: SchoolReportKind) async {
+        await migrateCachedReports()
+        guard cache.reports?.contains(where: { $0.kind == kind && $0.isNative }) != true else { return }
+        await refreshReport(kind)
     }
     func refreshReport(_ kind: SchoolReportKind) async {
         guard Auth.auth().currentUser?.uid == uid, !busy, schoolLinked, storageAvailable else { return }
@@ -339,6 +366,22 @@ final class AcademicSyncStore: ObservableObject {
         let a = Array(hex)
         return [String(a[0..<8]), String(a[8..<12]), String(a[12..<16]), String(a[16..<20]), String(a[20..<32])].joined(separator: "-")
     }
+    private func matchingCourseLink(_ task: AcademicRemoteTask) -> String? {
+        guard let data = courseData else { return nil }
+        if let id = cache.courseRecords[sourceKey(task.courseCode)]?.first(where: { id in data.courses.contains { $0.id == id } }) { return id }
+        guard let source = cache.courses.first(where: { $0.code == task.courseCode }) else { return nil }
+        let matches = data.courses.filter {
+            AcademicMemoMergePolicy.courseName($0.name) == AcademicMemoMergePolicy.courseName(source.name) &&
+            (source.teacher.isEmpty || $0.teacher.isEmpty || $0.teacher == source.teacher)
+        }
+        guard Set(matches.map(\.teacher)).count <= 1 else { return nil }
+        return matches.sorted { $0.id < $1.id }.first?.id
+    }
+    func reconcileImportedMemos() {
+        guard Auth.auth().currentUser?.uid == uid, !busy, let user = cache.moodleUser else { return }
+        do { try mergeTasks(cache.tasks.filter { $0.sourceMissing != true }, userID: user); try persist() }
+        catch { show(error) }
+    }
     private func mergeTasks(_ remote: [AcademicRemoteTask], userID: Int) throws {
         guard let manager = memoManager, let context = manager.viewContext, !context.hasChanges else { throw AcademicError.storage }
         var nextRecords = cache.memoRecords
@@ -347,15 +390,15 @@ final class AcademicSyncStore: ObservableObject {
             let key = memoKey(task, userID: userID), old = nextRecords[key]
             let id = old?.memoID ?? stableID("moodle:\(key)")
             let existing = manager.memos.first { $0.id == id }
-            let sourceCourseLink = cache.courseRecords[sourceKey(task.courseCode)]?.first(where: { linkedID in
-                courseData?.courses.contains(where: { $0.id == linkedID }) == true
-            })
+            let sourceCourseLink = matchingCourseLink(task)
             if old != nil && existing == nil { continue } // User-deleted: never recreate.
             if var memo = existing {
                 if let old {
                     let previous = memo
-                    if old.managedCourseLink == true && memo.courseLink == old.lastCourseLink { memo.courseLink = sourceCourseLink }
+                    if (old.managedCourseLink == true || (old.managedCourseLink == nil && memo.courseLink == nil)) && memo.courseLink == old.lastCourseLink { memo.courseLink = sourceCourseLink }
                     if memo.title == old.lastTitle { memo.title = task.title }
+                    memo.content = AcademicMemoMergePolicy.content(existing: memo.content, previous: old.lastContent, incoming: task.description)
+                    if memo.tagType.rawValue == (old.lastTagType ?? Memo.TagType.homework.rawValue) { memo.tagType = .moodle }
                     if memo.dueAt == old.lastDue {
                         memo.dueAt = task.due
                         memo.reminderRules = memo.reminderRules.compactMap { rule in
@@ -373,7 +416,8 @@ final class AcademicSyncStore: ObservableObject {
                     }
                 }
             } else {
-                var memo = Memo.create(title: task.title, tagType: .homework, dueAt: task.due)
+                var memo = Memo.create(title: task.title, tagType: .moodle, dueAt: task.due)
+                memo.content = task.description
                 memo.id = id; memo.disableAutoDueReminder = true
                 if let due = task.due {
                     memo.reminderRules = [3 * 86400, 86400, 1800].map { interval in
@@ -386,7 +430,8 @@ final class AcademicSyncStore: ObservableObject {
             guard manager.memos.contains(where: { $0.id == id }) else { throw AcademicError.storage }
             nextRecords[key] = .init(memoID: id, lastTitle: task.title, lastDue: task.due,
                                      acknowledgedVersion: old?.acknowledgedVersion,
-                                     managedCourseLink: old?.managedCourseLink ?? (existing == nil), lastCourseLink: sourceCourseLink)
+                                     managedCourseLink: old?.managedCourseLink ?? (existing?.courseLink == nil), lastCourseLink: sourceCourseLink,
+                                     lastContent: task.description, lastTagType: Memo.TagType.moodle.rawValue)
         }
         cache.memoRecords = nextRecords
     }

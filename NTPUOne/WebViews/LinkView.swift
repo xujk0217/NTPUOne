@@ -19,6 +19,7 @@ struct LinkView: View {
     @StateObject private var webManager = WebManager()
     @StateObject private var orderManager = OrderManager()
     @StateObject private var todayFoodManager = FManager()
+    @EnvironmentObject private var academic: AcademicSyncStore
     @EnvironmentObject var adFree: AdFreeService
     @ObservedObject private var rewardedAd = RewardedAdManager.shared
     @State private var showAdConfirm = false
@@ -787,8 +788,16 @@ struct LinkView: View {
     private var quickFeaturesSection: some View {
         Section {
             LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+                if !academic.uid.isEmpty {
+                    NavigationLink { AcademicGradesView() } label: {
+                        featureCard(icon: "chart.bar", title: "成績與排名", iconColor: .blue)
+                    }.buttonStyle(.plain)
+                    NavigationLink { AcademicSchoolReportView(kind: .graduation) } label: {
+                        featureCard(icon: "graduationcap", title: "畢業門檻", iconColor: .indigo)
+                    }.buttonStyle(.plain)
+                }
                 let favorites = studentImpactStore.quickFeatures.filter(\.isFavorite)
-                if favorites.isEmpty {
+                if favorites.isEmpty && academic.uid.isEmpty {
                     Text(String(localized: "quick_features_empty"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -824,7 +833,6 @@ struct LinkView: View {
             VStack {
                 List {
                     todayHubSection
-                    AcademicHomeSection()
                     orderSection
                     quickFeaturesSection
                     // Native 廣告 Section
