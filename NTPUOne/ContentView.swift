@@ -20,9 +20,10 @@ struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var courseData: CourseData
+    @EnvironmentObject private var adFree: AdFreeService
     
     @ObservedObject var webManager = WebManager()
-    @ObservedObject var bikeManager = UbikeManager()
+    @StateObject private var bikeManager = UbikeManager()
     @ObservedObject var weatherManager = WeatherManager()
     @StateObject private var orderManager = OrderManager()
     @ObservedObject var fManager = FManager()
@@ -31,6 +32,7 @@ struct ContentView: View {
     
     @State var selectedTab = 0
     @State private var showFirstRunOnboarding = false
+    @State private var aiPage: AIAppPage?
     @StateObject private var academic = AcademicSyncStore()
     
     init() {
@@ -39,6 +41,11 @@ struct ContentView: View {
     }
     
     var body: some View {
+        FloatingAIContainer(accountID: academic.uid, contextProvider: { request in
+            await AIContextService.make(request, academic: academic, courses: courseData.courses,
+                                        memos: memoManager.memos, bikes: bikeManager)
+        }, hasSavedSchoolAccount: academic.schoolLinked,
+           credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage) {
         TabView(selection: $selectedTab) {
             LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).tabItem {
                 Image(systemName: "house")
@@ -73,9 +80,20 @@ struct ContentView: View {
                 Text(String(localized: "my"))
             }.tag(4)
         }
+        }
+        .id(academic.uid)
         .environmentObject(academic)
+        .sheet(item: $aiPage) { page in
+            NavigationStack {
+                aiDestination(page)
+                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { aiPage = nil } } }
+            }
+            .environmentObject(academic)
+            .environmentObject(courseData)
+            .environmentObject(adFree)
+        }
         .sheet(isPresented: $academic.showConnection) {
-            NavigationStack { AcademicConnectionView().environmentObject(academic) }
+            NavigationStack { AcademicConnectionPromptView().environmentObject(academic) }
         }
         .onChange(of: academic.uid) { _ in
             if hasCompletedFirstRunOnboarding { academic.offerConnectionIfNeeded() }
@@ -107,6 +125,40 @@ struct ContentView: View {
             } else {
                 NextCourseLiveActivityManager.shared.setApplicationActive(false)
             }
+        }
+    }
+
+    private func openAIPage(_ page: AIAppPage) {
+        guard aiPage == nil else { return }
+        switch page {
+        case .home: selectedTab = 0
+        case .memo: selectedTab = 1
+        case .timetable: selectedTab = 2
+        case .community: selectedTab = 3
+        case .profile: selectedTab = 4
+        default: aiPage = page
+        }
+    }
+    @ViewBuilder private func aiDestination(_ page: AIAppPage) -> some View {
+        switch page {
+        case .schoolAccount: AcademicConnectionView()
+        case .grades: AcademicGradesView()
+        case .graduation: AcademicSchoolReportView(kind: .graduation)
+        case .announcements: SchoolPostView(memoManager: memoManager, courseData: courseData)
+        case .links: CommonLinksView()
+        case .bikes:
+            if #available(iOS 17.0, *) { TrafficView() } else { BackTrafficView() }
+        case .campusMap: CampusMapView()
+        case .checklist: NewStudentChecklistView()
+        case .breakfast: BreakfastView()
+        case .lunch: LunchView()
+        case .dinner: dinnerView()
+        case .midnight: MSView()
+        case .courseSearch: CourseGetView(courseData: courseData, isPresented: Binding(get: { aiPage != nil }, set: { if !$0 { aiPage = nil } }))
+        case .privacy: PrivacyDataControlsView()
+        case .feedback: FeaturesView()
+        case .bugReport: ReportBugView()
+        default: EmptyView()
         }
     }
 

@@ -7,6 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA1300000000000000000009 /* MarkdownThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000009 /* MarkdownThirdPartyNotices.txt */; };
+		AA1300000000000000000008 /* markdown-renderer.bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000008 /* markdown-renderer.bundle.js */; };
+		AA1300000000000000000007 /* AILoginDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000007 /* AILoginDiagnostics.swift */; };
+		AA1300000000000000000006 /* AIContextService.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000006 /* AIContextService.swift */; };
+		AA1300000000000000000005 /* AIDataPolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000005 /* AIDataPolicy.swift */; };
+		AA1200000000000000000001 /* FloatingAIView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000003 /* FloatingAIView.swift */; };
+		AA1200000000000000000002 /* NTPUAIWebBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000004 /* NTPUAIWebBridge.swift */; };
 		3F24B5B52C37E83A00FEADFA /* RewardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F24B5B42C37E83A00FEADFA /* RewardView.swift */; };
 		3F59B81C2C670E8D00AFB700 /* LinkView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B81B2C670E8D00AFB700 /* LinkView.swift */; };
 		3F59B81E2C6710E500AFB700 /* LifeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F59B81D2C6710E500AFB700 /* LifeView.swift */; };
@@ -168,6 +175,13 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA1200000000000000000009 /* MarkdownThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = AIAssistant/MarkdownThirdPartyNotices.txt; sourceTree = "<group>"; };
+		AA1200000000000000000008 /* markdown-renderer.bundle.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = AIAssistant/markdown-renderer.bundle.js; sourceTree = "<group>"; };
+		AA1200000000000000000007 /* AILoginDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AILoginDiagnostics.swift; sourceTree = "<group>"; };
+		AA1200000000000000000006 /* AIContextService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AIContextService.swift; sourceTree = "<group>"; };
+		AA1200000000000000000005 /* AIDataPolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AIDataPolicy.swift; sourceTree = "<group>"; };
+		AA1200000000000000000003 /* FloatingAIView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/FloatingAIView.swift; sourceTree = "<group>"; };
+		AA1200000000000000000004 /* NTPUAIWebBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/NTPUAIWebBridge.swift; sourceTree = "<group>"; };
 		3F24B5B42C37E83A00FEADFA /* RewardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RewardView.swift; sourceTree = "<group>"; };
 		3F59B81B2C670E8D00AFB700 /* LinkView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LinkView.swift; sourceTree = "<group>"; };
 		3F59B81D2C6710E500AFB700 /* LifeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LifeView.swift; sourceTree = "<group>"; };
@@ -418,6 +432,13 @@
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95082F5D1000001A1697 /* CommunityNotificationFallbackService.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				AA1200000000000000000003 /* FloatingAIView.swift */,
+				AA1200000000000000000007 /* AILoginDiagnostics.swift */,
+				AA1200000000000000000006 /* AIContextService.swift */,
+				AA1200000000000000000005 /* AIDataPolicy.swift */,
+				AA1200000000000000000008 /* markdown-renderer.bundle.js */,
+				AA1200000000000000000009 /* MarkdownThirdPartyNotices.txt */,
+				AA1200000000000000000004 /* NTPUAIWebBridge.swift */,
 				3F9062D42C2EF79600B9F24A /* Launch Screen.storyboard */,
 				3F9062CF2C2D718700B9F24A /* Ads */,
 				3F59B8282C675A6200AFB700 /* CourseList */,
@@ -742,6 +763,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AA1300000000000000000009 /* MarkdownThirdPartyNotices.txt in Resources */,
+				AA1300000000000000000008 /* markdown-renderer.bundle.js in Resources */,
 				3FB338152F5C3DDA00D1E31C /* Localizable.strings in Resources */,
 				3FB338162F5C3DDA00D1E31C /* Localizable.strings in Resources */,
 				3F8F950F2C290C27001A1697 /* Preview Assets.xcassets in Resources */,
@@ -811,6 +834,11 @@
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95092F5D1000001A1697 /* CommunityNotificationFallbackService.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
+				AA1200000000000000000001 /* FloatingAIView.swift in Sources */,
+				AA1300000000000000000007 /* AILoginDiagnostics.swift in Sources */,
+				AA1300000000000000000006 /* AIContextService.swift in Sources */,
+				AA1300000000000000000005 /* AIDataPolicy.swift in Sources */,
+				AA1200000000000000000002 /* NTPUAIWebBridge.swift in Sources */,
 				3FB337972F3A393000D1E31C /* MemoEntity+CoreDataClass.swift in Sources */,
 				3FB337982F3A393000D1E31C /* MemoEntity+CoreDataProperties.swift in Sources */,
 				3F9062D72C32B3D100B9F24A /* dietView.swift in Sources */,

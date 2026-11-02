@@ -13,8 +13,15 @@ class PostManager: ObservableObject {
     
     // 發送 GraphQL 請求並更新 publications 數據
     func fetchPublications() {
-        let publishAt = getCurrentISO8601String()
-        let unPublishAt = getCurrentISO8601String() 
+        Task { @MainActor in
+            do { publications = try await Self.loadPublications() }
+            catch { /* Keep the last successful result. */ }
+        }
+    }
+
+    static func loadPublications() async throws -> [Publication] {
+        let publishAt = ISO8601DateFormatter().string(from: Date())
+        let unPublishAt = publishAt
         
         let query = """
             {
@@ -67,7 +74,7 @@ class PostManager: ObservableObject {
             }
             """
         
-        guard let url = URL(string: "https://api-carrier.ntpu.edu.tw/strapi") else { return }
+        guard let url = URL(string: "https://api-carrier.ntpu.edu.tw/strapi") else { throw URLError(.badURL) }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -78,20 +85,14 @@ class PostManager: ObservableObject {
         let body: [String: Any] = ["query": query]
         request.httpBody = try? JSONSerialization.data(withJSONObject: body)
         
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            guard let data = data else {
-                print("Error: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
-            
-            if let decodedResponse = try? JSONDecoder().decode(GraphQLResponse.self, from: data) {
-                DispatchQueue.main.async {
-                    self.publications = decodedResponse.data.publications
-                }
-            } else {
-                print("Failed to decode response")
-            }
-        }.resume()
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.timeoutIntervalForRequest = 20
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let (data, response) = try await session.data(for: request)
+        guard let http = response as? HTTPURLResponse, http.statusCode == 200,
+              http.url?.host == url.host, data.count <= 4_194_304 else { throw URLError(.badServerResponse) }
+        return try JSONDecoder().decode(GraphQLResponse.self, from: data).data.publications
     }
     
     func getCurrentISO8601String() -> String {

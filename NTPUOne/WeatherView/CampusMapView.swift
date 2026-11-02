@@ -478,3 +478,15 @@ private struct CampusResource: Identifiable {
         CampusResource(id: "sports", title: "運動休閒設施", detail: "操場、球場與戶外活動設施群。", layer: .dormActivity)
     ]
 }
+
+
+/// Public campus reference data; no location permission or personal location is used.
+enum CampusAIContext {
+    static var text: String {
+        let landmarks = CampusMapLandmark.defaults.map {
+            "\($0.title)｜\($0.detail)｜\($0.coordinate.latitude),\($0.coordinate.longitude)"
+        }
+        let resources = CampusResource.defaults.map { "\($0.title)｜\($0.detail)" }
+        return "校園設施（App 內建靜態資料，開放時間需另確認）\n" + (landmarks + resources).joined(separator: "\n")
+    }
+}

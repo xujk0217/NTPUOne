@@ -1,0 +1,12 @@
+'use strict';
+const vm = require('node:vm');
+const fs = require('node:fs');
+const assert = require('node:assert/strict');
+const context = vm.createContext({});
+vm.runInContext(fs.readFileSync('NTPUOne/AIAssistant/markdown-renderer.bundle.js', 'utf8'), context);
+const render = context.NTPUMarkdown.md.render.bind(context.NTPUMarkdown.md);
+const html = render('**粗體**\n\n|甲|乙|\n|-|-|\n|1|2|\n\n$$x^2$$\n\n```js\nconst x=1;\n```\n\n<script>alert(1)</script>\n\n[unsafe](javascript:alert(1))');
+for (const value of ['<strong>', '<table>', '<math', '<pre>']) assert.ok(html.includes(value), value);
+assert.ok(!html.includes('<script>'));
+assert.ok(!html.includes('href="javascript:'));
+console.log('AI Markdown tables, math, code and HTML safety: PASS');
