@@ -42,9 +42,19 @@ scripts/testflight.sh upload
 
 - 本輪 [介面修正](ACADEMIC_UX_BUILD13.md) 已封存並上傳 1.4.0（13）；實際 IPA 的 App 與 Widget 皆已核對為 13。
 - xcodebuild 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序 exit code 0；尚未查證 Apple 後續處理、群組分配或實際可下載。
-- 最新封存為 `.academic-local/TestFlight/NTPUOne.xcarchive`（13）；舊 build 12 與原自動調整為 12 的 build 2 封存均保留。若解析 build 12 的 crash，須按 UUID 選用正確 dSYM，而非只看封存檔名稱。
+- build 13 封存為 `.academic-local/TestFlight/NTPUOne-build13.xcarchive`（13）；舊 build 12 與原自動調整為 12 的 build 2 封存均保留。若解析 build 12 的 crash，須按 UUID 選用正確 dSYM，而非只看封存檔名稱。
 - 主 App 執行檔與自身 dSYM 的 UUID 相符；第三方套件仍有缺少 dSYM 的上傳警告。
 - 三種真實校務頁皆通過原生 parser、舊快取與備註保留回歸檢查通過、37 項 Python 工具測試通過、Release 編譯與簽章 Archive 成功。
 - 本機三台已配對裝置皆無可用連線，沒有取得當次閃退紀錄。移除 WebView 與改善首次載入不等於已證實閃退根因，仍需 build 13 的實機冷啟動測試。
 
-下一次有程式修改的測試版由 build 14 接續。
+本輪後續修改使用 build 14，見下方紀錄。
+
+## build 14 發布結果（2026-11-02）
+
+- [本輪三項修正](ACADEMIC_UX_BUILD14.md) 的完整封存已上傳為 1.4.0（14），實際 IPA 的主 App 與 Widget 皆已核對為 14。
+- xcodebuild 最終回報 `Uploaded NTPUOne`／`EXPORT SUCCEEDED`，程序 exit code 0。Apple 後續處理、內部測試群組與實際可下載狀態尚未查證。
+- 最新完整封存為 `.academic-local/TestFlight/NTPUOne.xcarchive`（14）。本輪兩份中間封存未上傳，檔名已標記 `not-uploaded`；未將中間版本用於發布。
+- 已完成狀態與提醒遷移離線回歸、37 項探測工具測試、真實 Moodle API 型別驗證、最終簽章 Archive。首頁互斥導覽、通知實際送達與課程配對仍須手機驗收。
+- 第三方 framework 的部分 dSYM 警告仍存在，未阻擋這次上傳。
+
+後續有程式修改的測試版從 build 15 接續。

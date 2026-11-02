@@ -32,3 +32,7 @@
 Python 探測工具 37 項測試通過。最終簽章封存與上傳狀態見 TESTFLIGHT.md。
 
 仍需 TestFlight 實機驗收：首頁一次點擊只開一頁、手動課程配對、設定提醒後舊排程清除、實際通知送達、網路延遲時快速切換頁籤、各種真實提交狀態。未宣稱已完成以上裝置端驗收。
+
+## 發布結果
+
+1.4.0（14）完整簽章封存與 TestFlight 上傳成功（Uploaded NTPUOne／EXPORT SUCCEEDED，exit 0）。主 App 與 Widget 實際上傳版本均為 14。尚待 Apple 處理與實機操作驗收。
