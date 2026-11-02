@@ -23,4 +23,4 @@ python3 -m unittest discover -s tests -p 'test_*probe.py' -q
 python3 scripts/run_academic_checks.py --swiftsoup-path /path/to/trusted/SwiftSoup
 ```
 
-Swift 檢查直接編譯 App 的 API、政策與共用課程 parser，使用合成資料驗證本人／學期／核准狀態、報表清理、時段範圍與歧義拒絕、匯入保留原 UUID／手動修改、完成建議與快取時鐘等契約。SwiftSoup 請使用 Xcode 已解析的可信套件目錄。測試不寫正式資料庫，也不代表 iOS 端到端登入／CloudKit／通知已驗收。
+Swift 檢查直接編譯 App 的 API、政策與共用課程 parser，使用合成資料驗證本人／學期／核准狀態、原生報表 selector／雙語／學期隔離／累計排名、舊快取遷移、私人備註保留、時段範圍與歧義拒絕、匯入保留原 UUID／手動修改、完成建議與快取時鐘等契約。SwiftSoup 請使用 Xcode 已解析的可信套件目錄。測試不寫正式資料庫，也不代表 iOS 端到端登入／CloudKit／通知已驗收。

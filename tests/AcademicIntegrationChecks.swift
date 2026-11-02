@@ -72,7 +72,7 @@ import Darwin
                 struct Input: Decodable { var html: String; var identity: String; var kind: SchoolReportKind }
                 let input = try JSONDecoder().decode(Input.self, from: FileHandle.standardInput.readDataToEndOfFile())
                 let report = try SchoolAPI.parseReport(input.html, identity: input.identity, kind: input.kind)
-                print("LIVE_SWIFT_REPORT kind=\(input.kind.rawValue) sanitised_bytes=\(report.html.utf8.count)")
+                print("LIVE_SWIFT_REPORT kind=\(input.kind.rawValue) native_sections=\(report.sections?.count ?? 0) subjects=\(report.sections?.reduce(0) { $0 + $1.subjects.count } ?? 0)")
                 return
             }
             let rows = try AcademicMeeting.parse("每週二3~4 Room A\n每週四7、9 Room B")
@@ -125,11 +125,44 @@ import Darwin
             let gradeJSON = #"{"id":1,"itemname":null,"gradeformatted":"-","gradeishidden":false}"#
             let grade = try JSONDecoder().decode(MoodleAPI.Grade.self, from: Data(gradeJSON.utf8))
             try require(grade.itemname == nil, "Moodle course total may have a null item name")
-            let reportHTML = "<div>本人 SYNTHETIC 成績 學分數</div><table><tr><td>Header</td></tr><tr><td>Value</td></tr></table><script>UNTRUSTED_SCRIPT</script><img src='https://example.org/track' onerror='steal()'><a href='https://example.org/'>Link</a>"
+            let reportHTML = """
+            <div>本人 SYNTHETIC 成績 學分數</div>
+            <div class='card my-4'><div class='card-title'><span class='lang lang-zh-TW'>測試學年</span><span class='lang lang-en-US'>English duplicate</span></div>
+            <table class='table table-striped'><tr><th>類別</th><th>科目名稱</th><th>學分</th><th>成績</th><th>學分</th><th>成績</th></tr>
+            <tr><td>必修</td><td class='text-left'>Synthetic Course</td><td class='sem1bg'>3</td><td class='sem1bg'>A</td><td class='sem2bg'></td><td class='sem2bg'></td></tr>
+            <tr><td colspan=2>學期平均</td><td class='sem1bg' colspan=2>87</td><td class='sem2bg' colspan=2></td></tr></table></div>
+            <script>UNTRUSTED_SCRIPT</script><iframe src='https://example.org'></iframe>
+            """
             let report = try SchoolAPI.parseReport(reportHTML, identity: "SYNTHETIC", kind: .grades)
-            try require(!report.html.contains("UNTRUSTED_SCRIPT") && !report.html.contains("onerror") && !report.html.contains("example.org"), "report active content or exfiltration")
-            try require(report.html.contains("script-src 'none'") && report.html.contains("form-action 'none'"), "report CSP")
+            try require(report.html == nil && report.isNative, "new report must not retain/render HTML")
+            try require(report.sections?.count == 1 && report.sections?.first?.subjects.count == 1, "semester isolation and absent semester")
+            try require(report.sections?.first?.subjects.first?.grade == "A", "grade cell contract")
+            try require(report.sections?.first?.fields.first?.value == "87", "official summary value")
+            let encoded = try JSONEncoder().encode(report)
+            let encodedText = String(decoding: encoded, as: UTF8.self)
+            try require(!encodedText.contains("UNTRUSTED_SCRIPT") && !encodedText.contains("example.org") && !encodedText.contains("English duplicate"), "structured report only")
+            let oldJSON = try JSONSerialization.data(withJSONObject: ["kind": "grades", "html": reportHTML, "checkedAt": 1.0])
+            let old = try JSONDecoder().decode(SchoolReport.self, from: oldJSON)
+            let migrated = try old.migrated()
+            try require(migrated.isNative && migrated.html == nil && migrated.checkedAt == old.checkedAt, "first-open legacy cache migration")
+            try rejects { _ = try AcademicReportParser.parse("<h1>成績</h1><table><tr><td>unknown</td></tr></table>", kind: .grades) }
             try rejects { _ = try SchoolAPI.parseReport(reportHTML, identity: "OTHER", kind: .grades) }
+            let rankHTML = "<div class='container my-2'><h6>測試學年</h6><div class='card'><div class='datasheets'><strong>第一學期</strong><ul class='datarows'><li>平均成績：87</li><li>排名：3 / 30</li></ul></div></div></div>"
+            let rankReport = try AcademicReportParser.parse(rankHTML, kind: .rank)
+            let cumulative = try AcademicReportParser.parse("<div class='container my-2'><h6>累計成績</h6><div class=card><div class='card-body datasheets'><ul class=datarows><li>平均成績：87</li></ul></div></div></div>", kind: .rank)
+            try require(cumulative.sections?.first?.title == "累計成績", "cumulative rank card has no semester strong")
+            try require(rankReport.sections?.first?.fields.count == 2 && rankReport.sections?.first?.fields.last?.value == "3 / 30", "rank fixed class contract")
+            let graduationHTML = "<div id=tag_total><div class=credit_box><div class=main_credit>100</div><div class=total_credit>128</div></div></div>" + ["required", "option", "common", "other"].map { id in
+                "<section id='\(id)'><div class=collapse_title>\(id)</div><div class=collapse_ul_header><div class=collapse_col_item><span>應修</span><span>3</span></div></div><li class=subject_li><div class=subject_title>Synthetic Course</div><div class=subject_state>已修</div></li></section>"
+            }.joined()
+            let graduation = try AcademicReportParser.parse(graduationHTML, kind: .graduation)
+            try require(graduation.sections?.count == 5 && graduation.sections?.last?.subjects.count == 1, "graduation IDs and subject rows")
+            try rejects { _ = try AcademicReportParser.parse(graduationHTML.replacingOccurrences(of: "id='required'", with: "id='changed'"), kind: .graduation) }
+            try require(AcademicMemoMergePolicy.content(existing: "", previous: nil, incoming: "source") == "source", "legacy empty notes receive source")
+            try require(AcademicMemoMergePolicy.content(existing: "source", previous: "source", incoming: "new") == "new", "source-managed notes refresh")
+            try require(AcademicMemoMergePolicy.content(existing: "private edit", previous: "source", incoming: "new") == "private edit", "private notes survive")
+            try require(AcademicMemoMergePolicy.content(existing: "private", previous: nil, incoming: "source").hasPrefix("private\n"), "legacy private notes preserved")
+            try require(AcademicMemoMergePolicy.courseName("Synthetic Course(U1234)") == "Synthetic Course", "catalog course matching")
             print("PASS: academic safety, real App parsers, semester, scheduling and completion checks")
         } catch {
             // No raw service error or response: live payloads may contain private data.
