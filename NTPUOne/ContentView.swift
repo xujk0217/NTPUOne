@@ -40,7 +40,7 @@ struct ContentView: View {
     
     var body: some View {
         TabView(selection: $selectedTab) {
-            LinkView(courseData: courseData, memoManager: memoManager).tabItem {
+            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).tabItem {
                 Image(systemName: "house")
                     .environment(\.symbolVariants, .none)
                 Text("Main")

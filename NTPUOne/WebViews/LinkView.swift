@@ -17,7 +17,7 @@ import Firebase
 
 struct LinkView: View {
     @StateObject private var webManager = WebManager()
-    @StateObject private var orderManager = OrderManager()
+    @ObservedObject var orderManager: OrderManager
     @StateObject private var todayFoodManager = FManager()
     @EnvironmentObject private var academic: AcademicSyncStore
     @EnvironmentObject var adFree: AdFreeService
@@ -93,54 +93,14 @@ struct LinkView: View {
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
 
-    // greeting
-    @AppStorage("commentNickname") private var nickname: String = ""
-    @State private var greetingText = ""
-
     // 初始化 MemoManager
-    init(courseData: CourseData, memoManager: MemoManager) {
+    init(orderManager: OrderManager, courseData: CourseData, memoManager: MemoManager) {
+        self.orderManager = orderManager
         self.courseData = courseData
         self.memoManager = memoManager
     }
     
     // MARK: - 子視圖
-
-    private func buildGreeting() -> String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        let station = weatherManager.weatherDatas?.records.Station.first
-        let weather = station?.WeatherElement.Weather ?? ""
-        let temp = Double(station?.WeatherElement.AirTemperature ?? "") ?? 20.0
-        let name = nickname.isEmpty ? "" : " \(nickname)"
-        let isRain = ntpuWeatherContainsRain(weather)
-        let isCold = temp < 14
-        let isHot = temp >= 33
-        let isWarm = !isRain && temp >= 20 && temp <= 27
-
-        var candidates: [String] = []
-
-        switch hour {
-        case 5..<9:  candidates += [String(localized: "greeting_morning_1 \(name)"), String(localized: "greeting_morning_2 \(name)")]
-        case 9..<12: candidates += [String(localized: "greeting_late_morning_1 \(name)"), String(localized: "greeting_late_morning_2 \(name)")]
-        case 12..<14: candidates += [String(localized: "greeting_noon_1 \(name)"), String(localized: "greeting_noon_2 \(name)")]
-        case 14..<18: candidates += [String(localized: "greeting_afternoon_1 \(name)"), String(localized: "greeting_afternoon_2 \(name)")]
-        case 18..<22: candidates += [String(localized: "greeting_evening_1 \(name)"), String(localized: "greeting_evening_2 \(name)")]
-        default:     candidates += [String(localized: "greeting_night_1 \(name)"), String(localized: "greeting_night_2 \(name)")]
-        }
-
-        if isRain { candidates += [String(localized: "greeting_rain_1 \(name)"), String(localized: "greeting_rain_2 \(name)")] }
-        if isCold  { candidates += [String(localized: "greeting_cold_1 \(name)"), String(localized: "greeting_cold_2 \(Int(temp)) \(name)")] }
-        if isHot   { candidates += [String(localized: "greeting_hot_1 \(name)"), String(localized: "greeting_hot_2 \(Int(temp)) \(name)")] }
-        if isWarm  { candidates += [String(localized: "greeting_warm_1 \(name)"), String(localized: "greeting_warm_2 \(name)")] }
-
-        candidates += [
-            String(localized: "greeting_general_1 \(name)"),
-            String(localized: "greeting_general_2 \(name)"),
-            String(localized: "greeting_general_3 \(name)"),
-            String(localized: "greeting_general_4 \(name)")
-        ]
-
-        return candidates.randomElement() ?? String(localized: "greeting_welcome \(name)")
-    }
 
     // 天气 Toolbar 按钮
     @ViewBuilder
@@ -857,15 +817,7 @@ struct LinkView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
-                        VStack(spacing: 1) {
-                            Text("NTPU one")
-                                .font(.headline.bold())
-                            if !greetingText.isEmpty {
-                                Text(greetingText)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
+                        Text("NTPU one").font(.headline.bold())
                     }
                 }
                 .navigationDestination(isPresented: Binding(get: { academicDestination != nil }, set: { if !$0 { academicDestination = nil } })) {
@@ -880,7 +832,6 @@ struct LinkView: View {
                     nextCourseOnAppear = nextUpcomingCourse()
                     webManager.createData()
                     memoManager.loadMemosFromCoreData()
-                    greetingText = buildGreeting()
                     refreshTodayRestaurantRecommendation()
                     if weatherManager.weatherDatas == nil { weatherManager.fetchData() }
                 }
@@ -889,12 +840,6 @@ struct LinkView: View {
                 }
                 .onChange(of: todayFoodManager.Food) { _ in
                     updateTodayRestaurantRecommendation()
-                }
-                .onChange(of: weatherManager.weatherDatas?.records.Station.first?.WeatherElement.AirTemperature) { _ in
-                    greetingText = buildGreeting()
-                }
-                .onChange(of: nickname) { _ in
-                    greetingText = buildGreeting()
                 }
                 .sheet(isPresented: $showWebView) {
                     if let urlString = urlString {
@@ -1961,12 +1906,12 @@ struct LinkView: View {
         let orders = filteredAnnouncementOrders
         // 計算含 native ad 的總頁數（每 3 個廣播後插入 1 個 native ad）
         let nativeAdInterval = 3
-        let nativeAdCount = orders.count >= nativeAdInterval ? orders.count / nativeAdInterval : 0
+        let nativeAdCount = !adFree.isAdFree && orders.count >= nativeAdInterval ? orders.count / nativeAdInterval : 0
         let totalPages = orders.count + nativeAdCount
 
         return TabView(selection: $startIndex) {
             ForEach(0..<totalPages, id: \.self) { pageIndex in
-                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let nativeAdsBefore = !adFree.isAdFree ? pageIndex / (nativeAdInterval + 1) : 0
                 let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
                 Group {
                     if isNativeAdPage && !adFree.isAdFree {
@@ -2014,7 +1959,7 @@ struct LinkView: View {
                 }
             }
         }
-        .onChange(of: orders.count) { _ in
+        .onChange(of: totalPages) { _ in
             startIndex = 0
         }
     }
@@ -2024,12 +1969,12 @@ struct LinkView: View {
         let orders = orderManager.order ?? []
         let filtered = orders.filter { $0.tag == "1" }  // 活動
         let nativeAdInterval = 3
-        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let nativeAdCount = !adFree.isAdFree && filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
         let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexE) {
             ForEach(0..<totalPages, id: \.self) { pageIndex in
-                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let nativeAdsBefore = !adFree.isAdFree ? pageIndex / (nativeAdInterval + 1) : 0
                 let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
                 Group {
                     if isNativeAdPage && !adFree.isAdFree {
@@ -2074,7 +2019,7 @@ struct LinkView: View {
             guard totalPages > 1 else { return }
             withAnimation { startIndexE = (startIndexE + 1) % totalPages }
         }
-        .onChange(of: filtered.count) { _ in
+        .onChange(of: totalPages) { _ in
             startIndexE = 0
         }
     }
@@ -2083,12 +2028,12 @@ struct LinkView: View {
         let orders = orderManager.order ?? []
         let filtered = orders.filter { $0.tag == "2" }  // 社團
         let nativeAdInterval = 3
-        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let nativeAdCount = !adFree.isAdFree && filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
         let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexP) {
             ForEach(0..<totalPages, id: \.self) { pageIndex in
-                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let nativeAdsBefore = !adFree.isAdFree ? pageIndex / (nativeAdInterval + 1) : 0
                 let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
                 Group {
                     if isNativeAdPage && !adFree.isAdFree {
@@ -2133,7 +2078,7 @@ struct LinkView: View {
             guard totalPages > 1 else { return }
             withAnimation { startIndexP = (startIndexP + 1) % totalPages }
         }
-        .onChange(of: filtered.count) { _ in
+        .onChange(of: totalPages) { _ in
             startIndexP = 0
         }
     }
@@ -2142,12 +2087,12 @@ struct LinkView: View {
         let orders = orderManager.order ?? []
         let filtered = orders.filter { $0.tag == "3" }  // 其他
         let nativeAdInterval = 3
-        let nativeAdCount = filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
+        let nativeAdCount = !adFree.isAdFree && filtered.count >= nativeAdInterval ? filtered.count / nativeAdInterval : 0
         let totalPages = filtered.count + nativeAdCount
 
         return TabView(selection: $startIndexO) {
             ForEach(0..<totalPages, id: \.self) { pageIndex in
-                let nativeAdsBefore = nativeAdInterval > 0 ? pageIndex / (nativeAdInterval + 1) : 0
+                let nativeAdsBefore = !adFree.isAdFree ? pageIndex / (nativeAdInterval + 1) : 0
                 let isNativeAdPage = nativeAdInterval > 0 && (pageIndex + 1) % (nativeAdInterval + 1) == 0
                 Group {
                     if isNativeAdPage && !adFree.isAdFree {
@@ -2192,7 +2137,7 @@ struct LinkView: View {
             guard totalPages > 1 else { return }
             withAnimation { startIndexO = (startIndexO + 1) % totalPages }
         }
-        .onChange(of: filtered.count) { _ in
+        .onChange(of: totalPages) { _ in
             startIndexO = 0
         }
     }
