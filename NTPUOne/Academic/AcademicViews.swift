@@ -502,20 +502,27 @@ struct AcademicSchoolReportView: View {
         }
     }
     private var termPicker: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(AcademicReportOrdering.sorted(sections)) { section in
-                    let selected = section.id == selectedSection?.id
-                    Button { selectedSectionID = section.id } label: {
-                        Text(section.title).font(.subheadline.weight(selected ? .semibold : .regular))
-                            .padding(.horizontal, 14).padding(.vertical, 11)
-                            .foregroundStyle(selected ? Color.white : Color.primary)
-                            .background(selected ? Color.indigo : Color(.secondarySystemGroupedBackground), in: Capsule())
-                    }.buttonStyle(.plain)
-                        .accessibilityAddTraits(selected ? .isSelected : [])
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(AcademicReportOrdering.sorted(sections)) { section in
+                        let selected = section.id == selectedSection?.id
+                        Button { selectedSectionID = section.id } label: {
+                            Text(section.title).font(.subheadline.weight(selected ? .semibold : .regular))
+                                .padding(.horizontal, 14).padding(.vertical, 11)
+                                .foregroundStyle(selected ? Color.white : Color.primary)
+                                .background(selected ? Color.indigo : Color(.secondarySystemGroupedBackground), in: Capsule())
+                        }.buttonStyle(.plain)
+                            .id(section.id)
+                            .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
                 }
+            }.accessibilityLabel("選擇學期")
+            .task(id: selectedSection?.id) {
+                await Task.yield()
+                if let id = selectedSection?.id { proxy.scrollTo(id, anchor: .trailing) }
             }
-        }.accessibilityLabel("選擇學期")
+        }
     }
     @ViewBuilder private var graduationContent: some View {
         if let total = sections.first(where: { $0.id == "summary_total" }) {
