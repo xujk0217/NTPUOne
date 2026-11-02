@@ -163,6 +163,33 @@ import Darwin
             try require(AcademicMemoMergePolicy.content(existing: "private edit", previous: "source", incoming: "new") == "private edit", "private notes survive")
             try require(AcademicMemoMergePolicy.content(existing: "private", previous: nil, incoming: "source").hasPrefix("private\n"), "legacy private notes preserved")
             try require(AcademicMemoMergePolicy.courseName("Synthetic Course(U1234)") == "Synthetic Course", "catalog course matching")
+            try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: false) == true, "submitted imports completed immediately")
+            for status in ["new", "draft", "reopened"] {
+                try require(AcademicCompletionPolicy.completed(status: status, isTeam: false) == false, "unsubmitted/reopened restores incomplete")
+            }
+            try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: true) == nil, "unverified group completion stays manual")
+            try require(AcademicCompletionPolicy.completed(status: "unknown", isTeam: false) == nil, "unknown must not reset completion")
+            try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: false, missing: true) == nil, "missing source must not change completion")
+            let due = Date(timeIntervalSince1970: 2_000_000_000)
+            let legacy = AcademicReminderPolicy.legacyOffsets.map { offset in
+                AcademicReminderSnapshot(id: "academic.\(offset)", triggerAt: due.addingTimeInterval(-Double(offset)), enabled: true, isDefaultKind: true)
+            }
+            let migratedReminders = AcademicReminderPolicy.plan(current: legacy, previousOffsets: AcademicReminderPolicy.legacyOffsets,
+                previousDue: due, due: due, targetOffsets: [5 * 86400], isNew: false)
+            try require(migratedReminders.removeIDs.count == 3 && migratedReminders.addOffsets == [5 * 86400], "replace untouched legacy reminders with configured default")
+            var edited = legacy[0]; edited.triggerAt = due; edited.enabled = false
+            let preservedReminder = AcademicReminderPolicy.plan(current: [edited], previousOffsets: [259200], previousDue: due,
+                due: due, targetOffsets: [86400], isNew: false)
+            try require(preservedReminder.removeIDs.isEmpty && preservedReminder.addOffsets.isEmpty, "disabled/edited reminders remain private")
+            let deletedReminder = AcademicReminderPolicy.plan(current: [], previousOffsets: [259200], previousDue: due,
+                due: due, targetOffsets: [86400], isNew: false)
+            try require(deletedReminder.addOffsets.isEmpty, "deleted default must not resurrect")
+            let noReminder = AcademicReminderPolicy.plan(current: legacy, previousOffsets: AcademicReminderPolicy.legacyOffsets,
+                previousDue: due, due: due, targetOffsets: [], isNew: false)
+            try require(noReminder.removeIDs.count == 3 && noReminder.addOffsets.isEmpty, "disable only source-managed reminders")
+            let firstDue = AcademicReminderPolicy.plan(current: [], previousOffsets: [259200], previousDue: nil,
+                due: due, targetOffsets: [259200], isNew: false)
+            try require(firstDue.addOffsets == [259200], "newly published deadline gets default reminder")
             print("PASS: academic safety, real App parsers, semester, scheduling and completion checks")
         } catch {
             // No raw service error or response: live payloads may contain private data.
