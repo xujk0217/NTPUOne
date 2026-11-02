@@ -518,11 +518,14 @@ struct AcademicSchoolReportView: View {
         }.accessibilityLabel("選擇學期")
     }
     @ViewBuilder private var graduationContent: some View {
-        if let total = sections.first(where: { $0.id == "tag_total" }) {
+        if let total = sections.first(where: { $0.id == "summary_total" }) {
             AcademicGraduationSummaryCard(section: total, prominent: true)
         }
+        if let requirements = sections.first(where: { $0.id == "requirements" }) {
+            AcademicGraduationRequirementsCard(section: requirements)
+        }
         LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 150), alignment: .top)], spacing: 12) {
-            ForEach(sections.filter { ["tag_chinese", "tag_english", "tag_pe", "tag_general", "mini_general"].contains($0.id) }) { section in
+            ForEach(sections.filter { ["summary_required", "summary_option", "tag_total", "summary_other", "tag_chinese", "tag_english", "tag_pe", "tag_general", "mini_general"].contains($0.id) }) { section in
                 AcademicGraduationSummaryCard(section: section)
             }
         }
@@ -539,6 +542,23 @@ struct AcademicSchoolReportView: View {
             Text(academic.schoolLinked ? (needsGraduationRefresh ? "畢業門檻資料需更新" : "尚無資料") : "登入後查看學校資料").font(.headline)
             if academic.schoolLinked { Text("下拉即可更新").font(.subheadline).foregroundStyle(.secondary) }
         }.frame(maxWidth: .infinity).padding(.vertical, 44)
+    }
+}
+
+private struct AcademicGraduationRequirementsCard: View {
+    let section: AcademicReportSection
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(section.title, systemImage: "checklist").font(.headline)
+            ForEach(Array(section.fields.enumerated()), id: \.element.id) { index, field in
+                if index > 0 { Divider() }
+                HStack(alignment: .top, spacing: 12) {
+                    Text(field.label).font(.subheadline).frame(maxWidth: .infinity, alignment: .leading)
+                    Text(field.value).font(.subheadline.weight(.semibold))
+                        .foregroundStyle(field.value == "符合" ? Color.green : (field.value == "不符合" ? Color.red : Color.secondary))
+                }
+            }
+        }.padding(18).background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
     }
 }
 
