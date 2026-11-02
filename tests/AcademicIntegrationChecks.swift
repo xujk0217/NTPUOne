@@ -157,10 +157,11 @@ import Darwin
             }.joined()
             let graduation = try AcademicReportParser.parse(graduationHTML, kind: .graduation)
             try require(graduation.sections?.count == 5 && graduation.sections?.last?.subjects.count == 1, "graduation IDs and subject rows")
+            try require(graduation.sections?.first?.title == "校訂必修學分", "tag_total is the general-education category, not cumulative credits")
             try require(graduation.sections?.first?.fields.first?.value == "100", "three-digit credits remain intact")
             try require(graduation.sections?.first?.fields.first?.detail == "128", "separate credit values and requirements, never concatenate")
             try require(graduation.isCurrent, "new graduation parser revision")
-            var legacyGraduation = graduation; legacyGraduation.parserVersion = nil
+            var legacyGraduation = graduation; legacyGraduation.parserVersion = 2
             try require(legacyGraduation.isNative && !legacyGraduation.isCurrent, "legacy concatenated graduation cache must refresh before display")
             let graduationRoundTrip = try JSONDecoder().decode(SchoolReport.self, from: JSONEncoder().encode(graduation))
             try require(graduationRoundTrip.sections?.first?.fields.first?.detail == "128" && graduationRoundTrip.isCurrent, "credit detail survives protected cache")

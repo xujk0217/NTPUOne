@@ -272,7 +272,7 @@ struct SchoolReport: Codable, Identifiable {
     var html: String?
     var id: String { kind.rawValue }
     var isNative: Bool { sections?.isEmpty == false }
-    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 2) }
+    var isCurrent: Bool { isNative && (kind != .graduation || parserVersion == 3) }
     func migrated() throws -> SchoolReport {
         if isNative { return self }
         guard let html else { throw AcademicError.invalidResponse }
@@ -293,7 +293,7 @@ enum AcademicReportParser {
         case .graduation: sections = try graduation(document)
         }
         guard !sections.isEmpty, Set(sections.map(\.id)).count == sections.count else { throw AcademicError.unsupported }
-        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 2, html: nil)
+        return SchoolReport(kind: kind, checkedAt: checkedAt, sections: sections, parserVersion: 3, html: nil)
     }
     private static func text(_ node: Element, _ selector: String) throws -> String {
         try node.select(selector).first()?.text().trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -362,7 +362,7 @@ enum AcademicReportParser {
     private static func graduation(_ document: Document) throws -> [AcademicReportSection] {
         var output: [AcademicReportSection] = []
         // Keep school values verbatim; do not invent an overall eligibility calculation.
-        for (id, title) in [("tag_total", "總學分"), ("tag_chinese", "國文"), ("tag_english", "英文"), ("tag_pe", "體育"), ("tag_general", "通識"), ("mini_general", "通識分類")] {
+        for (id, title) in [("tag_total", "校訂必修學分"), ("tag_chinese", "國文"), ("tag_english", "英文"), ("tag_pe", "體育"), ("tag_general", "通識"), ("mini_general", "通識分類")] {
             guard let node = try document.select("#\(id)").first() else { continue }
             var section = AcademicReportSection(id: id, title: title)
             for (index, box) in try node.select(".credit_box").enumerated() {
