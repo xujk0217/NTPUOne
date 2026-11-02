@@ -29,3 +29,7 @@
 - 使用本人當次校務 session，三份真實頁經同一份 Swift parser：成績 6 區段／59 筆學期課程，排名 10 區段，畢業 10 區段／54 筆課程。只有計數輸出，原始頁與個人成績不寫檔。
 - Release 無簽章編譯通過。最終 build 13 簽章封存與上傳結果另見 TESTFLIGHT.md。
 - 需實機複驗：首次開啟成績、舊快取升級、登入失敗／成功／切換帳號、手動課程連結不被後續同步覆寫、Moodle 篩選與通知。
+
+## 發布
+
+1.4.0（13）簽章封存與 TestFlight 上傳成功（Uploaded NTPUOne／EXPORT SUCCEEDED，exit 0）。尚待 Apple 處理與實機冷啟動驗收。主 App 的 dSYM UUID 已核對相符；當前已配對裝置均無可用連線，未取得本次閃退原始紀錄。

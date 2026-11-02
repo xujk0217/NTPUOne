@@ -33,7 +33,18 @@ scripts/testflight.sh upload
 - Xcode 上傳套件先查到已存在 build 11，自動調整為 12；已核對實際 IPA 的兩個 bundle 皆為 12，專案設定亦已同步。
 - xcodebuild 最終回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序 exit code 0。這表示 Apple 已接收上傳，尚未透過 App Store Connect 驗證處理完成、內部群組分配或實際可下載。
 - [App Store Connect TestFlight](https://appstoreconnect.apple.com/apps/6550918004/testflight/ios) 可查看後續處理及測試群組。依 [Apple 說明](https://developer.apple.com/help/app-store-connect/manage-builds/view-builds-and-metadata/)，處理成功才會進入可測試狀態。
-- 本機可重用封存：`.academic-local/TestFlight/NTPUOne.xcarchive`，為 build 12；早期 build 2 封存另行保留。封存與上傳日誌不納入 Git。
+- 本機可重用封存：`.academic-local/TestFlight/NTPUOne-build12.xcarchive`，為 build 12；早期 build 2 封存另行保留。封存與上傳日誌不納入 Git。
 - 上傳有第三方 framework 缺少對應 dSYM 的警告，包含部分 Google 廣告、Firebase 與 gRPC 相依框架。Apple 仍接受本次套件；這些框架的崩潰堆疊符號解析可能不完整，後續應由相依套件供應的相符符號處理，不能用自行偽造的 dSYM 取代。
 
 本輪介面修正使用 build 13 接續，不需每次調整行銷版本。外部測試仍依 Apple TestFlight App Review 規則處理。
+
+## build 13 發布結果（2026-11-02）
+
+- 本輪 [介面修正](ACADEMIC_UX_BUILD13.md) 已封存並上傳 1.4.0（13）；實際 IPA 的 App 與 Widget 皆已核對為 13。
+- xcodebuild 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序 exit code 0；尚未查證 Apple 後續處理、群組分配或實際可下載。
+- 最新封存為 `.academic-local/TestFlight/NTPUOne.xcarchive`（13）；舊 build 12 與原自動調整為 12 的 build 2 封存均保留。若解析 build 12 的 crash，須按 UUID 選用正確 dSYM，而非只看封存檔名稱。
+- 主 App 執行檔與自身 dSYM 的 UUID 相符；第三方套件仍有缺少 dSYM 的上傳警告。
+- 三種真實校務頁皆通過原生 parser、舊快取與備註保留回歸檢查通過、37 項 Python 工具測試通過、Release 編譯與簽章 Archive 成功。
+- 本機三台已配對裝置皆無可用連線，沒有取得當次閃退紀錄。移除 WebView 與改善首次載入不等於已證實閃退根因，仍需 build 13 的實機冷啟動測試。
+
+下一次有程式修改的測試版由 build 14 接續。
