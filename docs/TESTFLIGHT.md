@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，本次 build 設為 12（Apple 回報既有最高 build 為 11）。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前 build 設為 13；前一個已上傳 build 為 12。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -36,4 +36,4 @@ scripts/testflight.sh upload
 - 本機可重用封存：`.academic-local/TestFlight/NTPUOne.xcarchive`，為 build 12；早期 build 2 封存另行保留。封存與上傳日誌不納入 Git。
 - 上傳有第三方 framework 缺少對應 dSYM 的警告，包含部分 Google 廣告、Firebase 與 gRPC 相依框架。Apple 仍接受本次套件；這些框架的崩潰堆疊符號解析可能不完整，後續應由相依套件供應的相符符號處理，不能用自行偽造的 dSYM 取代。
 
-後續內部測試由 build 13 接續，不需每次調整行銷版本。外部測試仍依 Apple TestFlight App Review 規則處理。
+本輪介面修正使用 build 13 接續，不需每次調整行銷版本。外部測試仍依 Apple TestFlight App Review 規則處理。
