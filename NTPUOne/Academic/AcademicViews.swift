@@ -99,15 +99,68 @@ struct AcademicConnectionView: View {
     }
 }
 
+enum AcademicCourseTab: String, CaseIterable, Identifiable {
+    case announcements, materials, assignments, grades
+    var id: String { rawValue }
+    var title: String {
+        switch self { case .announcements: return "公告"; case .materials: return "教材"; case .assignments: return "作業"; case .grades: return "成績" }
+    }
+    var icon: String {
+        switch self { case .announcements: return "megaphone"; case .materials: return "books.vertical"; case .assignments: return "checklist"; case .grades: return "chart.bar" }
+    }
+}
+
+struct AcademicCourseMappingView: View {
+    @EnvironmentObject private var academic: AcademicSyncStore
+    @Environment(\.dismiss) private var dismiss
+    let courseID: String
+    var body: some View {
+        List {
+            Section {
+                Button("使用自動配對") {
+                    if academic.selectMoodleCourse(nil, forCourseID: courseID) { dismiss() }
+                }
+                ForEach(academic.cache.moodleCourses ?? []) { source in
+                    Button {
+                        if academic.selectMoodleCourse(source, forCourseID: courseID) { dismiss() }
+                    } label: {
+                        HStack {
+                            Text(source.fullname)
+                            Spacer()
+                            if academic.moodleCourse(forCourseID: courseID)?.id == source.id { Image(systemName: "checkmark") }
+                        }
+                    }
+                }
+            } footer: { Text("只列出已核對的本學期本人課程。同一課程的其他節次也會使用此配對，並重新連結未手動改過的作業。") }
+            if academic.cache.moodleCourses?.isEmpty != false {
+                Section {
+                    Text("尚無已同步的 Moodle 課程，請先完成校務與 Moodle 登入。")
+                    Button("重新同步") { Task { await academic.refresh(force: true) } }
+                }
+            }
+            if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary) }
+        }.disabled(academic.busy)
+        .navigationTitle("配對 Moodle 課程")
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } } }
+    }
+}
+
 struct AcademicCourseContentView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     let course: MoodleCourse
+    @State private var tab: AcademicCourseTab
     @State private var sections: [MoodleAPI.ContentSection] = []
     @State private var announcements: [MoodleAPI.Announcement] = []
     @State private var grades: [MoodleAPI.Grade] = []
     @State private var errorMessage: String?
     @State private var loading = false
+    @State private var didLoadContent = false
     @State private var didLoadGrades = false
+    @State private var loadedScope = ""
+    @State private var requestID = UUID()
+    init(course: MoodleCourse, initialTab: AcademicCourseTab = .announcements) {
+        self.course = course; _tab = State(initialValue: initialTab)
+    }
     private func text(_ html: String) -> String { (try? SwiftSoup.parseBodyFragment(html).text()) ?? "" }
     private func resourceURL(_ value: String?) -> URL? {
         guard let value, let url = URL(string: value), url.scheme == "https", url.host == "lms3.ntpu.edu.tw",
@@ -117,69 +170,130 @@ struct AcademicCourseContentView: View {
         return url
     }
     var body: some View {
-        List {
-            Section {
-                MoodleInAppLink(title: "在 App 內查看完整 Moodle 課程", url: URL(string: "https://lms3.ntpu.edu.tw/course/view.php?id=\(course.id)")!)
+        VStack(spacing: 0) {
+            Picker("課程內容", selection: $tab) {
+                ForEach(AcademicCourseTab.allCases) { item in Text(item.title).tag(item) }
+            }.pickerStyle(.segmented).padding()
+            List {
+                if loading { ProgressView("正在讀取…") }
+                if let errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.secondary) }
+                switch tab {
+                case .announcements: announcementSections
+                case .materials: materialSections
+                case .assignments: assignmentSections
+                case .grades: gradeSections
+                }
+                Section {
+                    MoodleInAppLink(title: "查看完整 Moodle 課程", url: URL(string: "https://lms3.ntpu.edu.tw/course/view.php?id=\(course.id)")!)
+                } footer: { Text("受保護檔案可在 App 內開啟與預覽；首次可能需登入 Moodle 網頁。") }
+            }.refreshable { await load(force: true) }
+        }
+        .navigationTitle("Moodle · \(tab.title)")
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: academic.sourceScope + ":" + tab.rawValue) {
+            if loadedScope != academic.sourceScope {
+                loadedScope = academic.sourceScope
+                sections = []; announcements = []; grades = []; didLoadContent = false; didLoadGrades = false
             }
-            if loading { ProgressView("正在讀取課程內容…") }
-            if let errorMessage { Text(errorMessage).foregroundStyle(.secondary) }
-            Section("公告 · 最新 10 則／公告區") {
-                if announcements.isEmpty && !loading { Text("目前沒有可顯示的公告。") }
-                ForEach(announcements) { announcement in
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(announcement.name).font(.headline)
-                        Text(text(announcement.message)).font(.subheadline)
-                        if announcement.discussion > 0 {
-                            MoodleInAppLink(title: "查看公告與附件", url: URL(string: "https://lms3.ntpu.edu.tw/mod/forum/discuss.php?d=\(announcement.discussion)")!)
+            await load()
+        }
+        .onDisappear { requestID = UUID(); grades = []; didLoadGrades = false }
+    }
+    @ViewBuilder private var announcementSections: some View {
+        Section("最新公告 · 每個公告區最多 10 則") {
+            if didLoadContent && announcements.isEmpty { Text("目前沒有公告。") }
+            ForEach(announcements) { announcement in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(announcement.name).font(.headline)
+                    Text(text(announcement.message)).font(.subheadline)
+                    if let attachments = announcement.attachments, !attachments.isEmpty {
+                        Text(attachments.map(\.filename).joined(separator: "、")).font(.caption).foregroundStyle(.secondary)
+                    }
+                    MoodleInAppLink(title: "查看完整公告與附件", url: URL(string: "https://lms3.ntpu.edu.tw/mod/forum/discuss.php?d=\(announcement.discussion)")!)
+                }.padding(.vertical, 3)
+            }
+        }
+    }
+    @ViewBuilder private var materialSections: some View {
+        if didLoadContent && sections.isEmpty { Section { Text("目前沒有可讀取的教材。") } }
+        ForEach(sections) { section in
+            Section(section.name.isEmpty ? "課程教材" : section.name) {
+                if let summary = section.summary, !text(summary).isEmpty { Text(text(summary)).font(.subheadline) }
+                ForEach(section.modules) { module in
+                    VStack(alignment: .leading, spacing: 5) {
+                        if let url = resourceURL(module.url) { MoodleInAppLink(title: module.name, url: url) }
+                        else { Text(module.name).font(.subheadline.weight(.medium)) }
+                        if let description = module.description, !text(description).isEmpty { Text(text(description)).font(.caption).foregroundStyle(.secondary) }
+                        if let files = module.contents, !files.isEmpty {
+                            Text(files.map(\.filename).joined(separator: "、")).font(.caption).foregroundStyle(.secondary)
                         }
+                    }.padding(.vertical, 3)
+                }
+            }
+        }
+    }
+    @ViewBuilder private var assignmentSections: some View {
+        Section {
+            if let date = academic.cache.moodleCheckedAt { Text("更新：\(date.formatted())").font(.caption).foregroundStyle(.secondary) }
+            let tasks = academic.courseTasks(course)
+            if tasks.isEmpty { Text("目前沒有已同步的作業，可下拉重新整理。") }
+            ForEach(tasks) { task in
+                NavigationLink { AcademicTaskView(task: task) } label: {
+                    VStack(alignment: .leading, spacing: 5) {
+                        Text(task.title).font(.subheadline.weight(.medium))
+                        if let due = task.due { Text("截止：\(due.formatted())").font(.caption).foregroundStyle(.secondary) }
+                        Label(task.sourceMissing == true ? "來源待確認" : (["submitted": "已繳交", "draft": "草稿", "new": "未繳交", "reopened": "重新開放"][task.status] ?? "狀態待確認"),
+                              systemImage: task.reliableSubmitted ? "checkmark.circle.fill" : "clock")
+                            .font(.caption).foregroundStyle(task.reliableSubmitted ? .green : .secondary)
                     }
                 }
             }
-            ForEach(sections) { section in
-                Section(section.name) {
-                    ForEach(section.modules) { module in
-                        VStack(alignment: .leading, spacing: 4) {
-                            if let url = resourceURL(module.url) {
-                                MoodleInAppLink(title: module.name, url: url)
-                            } else { Text(module.name) }
-                            if let files = module.contents, !files.isEmpty {
-                                Text(files.map(\.filename).joined(separator: "、")).font(.caption).foregroundStyle(.secondary)
-                            }
-                        }
+        } header: { Text("作業與繳交狀態") }
+    }
+    @ViewBuilder private var gradeSections: some View {
+        Section {
+            if didLoadGrades && grades.isEmpty { Text("目前沒有已公布且允許本人查看的成績。") }
+            ForEach(grades) { grade in
+                VStack(alignment: .leading, spacing: 7) {
+                    LabeledContent(grade.itemname?.isEmpty == false ? text(grade.itemname!) : "課程總計",
+                                   value: text(grade.gradeformatted ?? "尚未公布"))
+                    if let percentage = grade.percentageformatted, !percentage.isEmpty {
+                        Text("百分比：\(text(percentage))").font(.caption).foregroundStyle(.secondary)
                     }
+                    if let feedback = grade.feedback, !text(feedback).isEmpty {
+                        DisclosureGroup("教師回饋") { Text(text(feedback)).font(.subheadline) }
+                    }
+                }.privacySensitive()
+            }
+        } header: { Text("本人成績") }
+          footer: { Text("只讀取校方允許本人查看的成績，暫存於此頁記憶體；尚未公布的分數不自行推算。") }
+    }
+    @MainActor private func load(force: Bool = false) async {
+        let request = UUID(); requestID = request
+        errorMessage = nil; loading = true
+        defer { if requestID == request { loading = false } }
+        do {
+            switch tab {
+            case .grades:
+                if force || !didLoadGrades {
+                    let result = try await academic.courseGrades(course)
+                    guard requestID == request, !Task.isCancelled else { return }
+                    grades = result; didLoadGrades = true
+                }
+            case .assignments:
+                if force { await academic.refresh(force: true) }
+                guard requestID == request, !Task.isCancelled else { return }
+                errorMessage = academic.message
+            case .announcements, .materials:
+                if force || !didLoadContent {
+                    let result = try await academic.courseContent(course)
+                    guard requestID == request, !Task.isCancelled else { return }
+                    sections = result.0; announcements = result.1; didLoadContent = true
                 }
             }
-            Section {
-                Button("讀取我在這門課可查看的成績") {
-                    Task {
-                        loading = true; errorMessage = nil
-                        defer { loading = false }
-                        do { grades = try await academic.courseGrades(course); didLoadGrades = true }
-                        catch { grades = []; errorMessage = "目前無法讀取本人成績，可能尚未公布或沒有權限。" }
-                    }
-                }.disabled(loading)
-                if didLoadGrades && grades.isEmpty { Text("目前沒有可顯示的成績項目。") }
-                ForEach(grades) { grade in
-                    LabeledContent(grade.itemname?.isEmpty == false ? grade.itemname! : "課程總計",
-                                   value: grade.gradeformatted ?? "尚未公布")
-                        .privacySensitive()
-                }
-            } header: { Text("本人成績") }
-              footer: { Text("只讀取校方允許本人查看的 Moodle 成績，暫存於此頁記憶體；不寫入 Firebase、待辦、Widget 或 iCloud。教材連結在 Moodle 開啟，可能需要瀏覽器登入。") }
+        } catch {
+            if requestID == request && !Task.isCancelled { errorMessage = "暫時無法更新此項內容，請稍後下拉重新整理。" }
         }
-        .navigationTitle("課程內容")
-        .task(id: academic.sourceScope) {
-            sections = []; announcements = []; grades = []; didLoadGrades = false
-            loading = true
-            defer { loading = false }
-            do { (sections, announcements) = try await academic.courseContent(course) }
-            catch { errorMessage = "目前無法讀取課程內容，請確認學校連結並稍後重新整理。" }
-        }
-        .refreshable {
-            do { (sections, announcements) = try await academic.courseContent(course); errorMessage = nil }
-            catch { errorMessage = "更新失敗，保留本次已載入的內容。" }
-        }
-        .onDisappear { grades = []; didLoadGrades = false }
     }
 }
 
@@ -222,24 +336,36 @@ struct AcademicCoursePreviewSection: View {
     }
 }
 
-struct AcademicCompletionSection: View {
+struct AcademicMemoSettingsView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
-    @State private var selection: AcademicRemoteTask?
+    @State private var days = 3
+    @State private var enabled = true
+    @State private var saved = false
     var body: some View {
-        if !academic.completionCandidates.isEmpty {
-            Section("Moodle 已繳交") {
-                ForEach(academic.completionCandidates) { task in
-                    Button { selection = task } label: { Label(task.title, systemImage: "checkmark.circle") }
-                }
-            }
-            .confirmationDialog("Moodle 顯示已繳交，要將這筆待辦標記完成嗎？", isPresented: Binding(get: { selection != nil }, set: { if !$0 { selection = nil } }), titleVisibility: .visible) {
-                if let task = selection {
-                    Button("標記完成") { academic.acknowledge(task, complete: true); selection = nil }
-                    Button("保留未完成，本次不再提醒") { academic.acknowledge(task, complete: false); selection = nil }
-                }
-                Button("取消", role: .cancel) { selection = nil }
-            }
+        Form {
+            Section {
+                Toggle("截止前提醒", isOn: $enabled)
+                Stepper("截止前 \(days) 天", value: $days, in: 1...30).disabled(!enabled)
+                Button("儲存提醒設定") {
+                    saved = academic.saveReminderPreferences(days: days, enabled: enabled)
+                }.disabled(academic.busy || academic.uid.isEmpty)
+                if saved { Label("已儲存", systemImage: "checkmark.circle").foregroundStyle(.green) }
+            } header: { Text("Moodle 作業預設提醒") }
+              footer: { Text("於截止前指定天數的同一時間提醒。設定套用至新作業及既有未手動修改的預設提醒；單筆自訂、停用或刪除的提醒會保留你的設定。已完成作業不發送提醒。") }
+            Section {
+                Text("已繳交的個人作業會自動標記完成；未繳交、草稿或重新開放則維持或恢復未完成。")
+                Text("團體作業或無法確認的狀態保留原有標記，暫不自行推論。")
+                    .font(.caption).foregroundStyle(.secondary)
+                Button("立即同步作業") { Task { await academic.refresh(force: true) } }
+                    .disabled(academic.busy || !academic.moodleLinked)
+                if academic.busy { ProgressView("正在同步…") }
+                if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary) }
+            } header: { Text("自動同步完成狀態") }
         }
+        .navigationTitle("Moodle 作業設定")
+        .onAppear { days = academic.reminderLeadDays; enabled = academic.remindersEnabled }
+        .onChange(of: days) { _ in saved = false }
+        .onChange(of: enabled) { _ in saved = false }
     }
 }
 
@@ -257,11 +383,11 @@ struct AcademicTaskView: View {
                 if !task.description.isEmpty { Text(task.description) }
                 if let due = task.due { LabeledContent("來源截止時間", value: due.formatted()) }
                 LabeledContent("來源狀態", value: ["new": "尚未提交", "draft": "草稿", "submitted": "已繳交", "reopened": "重新開放" ][task.status] ?? "無法判定")
-                if task.isTeam == true { Text("這是團體作業；來源狀態不代表已確認本人完成，App 不會自動提出完成建議。")
+                if task.isTeam == true { Text("這是團體作業；來源狀態不代表已確認本人完成，App 不會自行改變完成標記。")
                     .font(.caption).foregroundStyle(.secondary) }
                 MoodleInAppLink(title: "在 App 內查看 Moodle 作業", url: task.url)
             } header: { Text("Moodle 來源") }
-              footer: { Text("來源說明與你的私人筆記分開保存。已評分或逾期不代表已繳交；未驗證的團體狀態不會自動建議完成。") }
+              footer: { Text("來源說明與你的私人筆記分開保存。個人作業依繳交狀態同步完成標記；已評分或逾期不代表已繳交。") }
         }.navigationTitle("作業來源")
     }
 }

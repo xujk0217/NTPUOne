@@ -191,12 +191,12 @@ final class MoodleAPI {
 
     struct Resource: Decodable, Identifiable {
         struct Attachment: Decodable { var filename: String }
-        var id: Int; var name: String; var modname: String; var url: String?; var contents: [Attachment]?
+        var id: Int; var name: String; var modname: String; var url: String?; var contents: [Attachment]?; var description: String?
     }
-    struct ContentSection: Decodable, Identifiable { var id: Int; var name: String; var modules: [Resource] }
-    struct Announcement: Decodable, Identifiable { var id: Int; var name: String; var message: String; var discussion: Int }
+    struct ContentSection: Decodable, Identifiable { var id: Int; var name: String; var modules: [Resource]; var summary: String? }
+    struct Announcement: Decodable, Identifiable { var id: Int; var name: String; var message: String; var discussion: Int; var attachments: [Resource.Attachment]? }
     struct Grade: Decodable, Identifiable {
-        var id: Int; var itemname: String?; var gradeformatted: String?; var percentageformatted: String?; var gradeishidden: Bool?
+        var id: Int; var itemname: String?; var gradeformatted: String?; var percentageformatted: String?; var gradeishidden: Bool?; var feedback: String?
     }
     func content(courseID: Int, credential: MoodleCredential) async throws -> ([ContentSection], [Announcement]) {
         guard availableFunctions.contains("core_course_get_contents") else { throw AcademicError.unsupported }

@@ -23,11 +23,11 @@ struct AcademicMemoRecord: Codable {
     var memoID: String
     var lastTitle: String
     var lastDue: Date?
-    var acknowledgedVersion: String?
     var managedCourseLink: Bool? = nil
     var lastCourseLink: String? = nil
     var lastContent: String? = nil
     var lastTagType: String? = nil
+    var reminderOffsets: [Int]? = nil
 }
 struct AcademicCachedCourse: Codable, Identifiable {
     var code: String
@@ -38,6 +38,9 @@ struct AcademicCachedCourse: Codable, Identifiable {
 }
 struct AcademicCache: Codable {
     var prompted = false
+    var reminderLeadDays: Int?
+    var remindersEnabled: Bool?
+    var manualMoodleLinks: [String: Int]?
     var schoolIdentity: String?
     var year: String?
     var term: String?
@@ -196,7 +199,7 @@ final class AcademicSyncStore: ObservableObject {
             moodleWebDataStore = .nonPersistent()
             cache.schoolIdentity = nil; cache.moodleUser = nil
             cache.year = nil; cache.term = nil; cache.courses = []; cache.tasks = []; cache.moodleCourses = nil
-            cache.reports = nil; reportErrors = [:]
+            cache.reports = nil; reportErrors = [:]; cache.manualMoodleLinks = nil
             cache.schoolCheckedAt = nil; cache.moodleCheckedAt = nil
             // Retain provenance/tombstones to avoid resurrecting deleted tasks on reconnect.
             try persist(); message = "已解除本機連結，保留已匯入的課表與待辦。"
@@ -368,10 +371,23 @@ final class AcademicSyncStore: ObservableObject {
     }
     private func matchingCourseLink(_ task: AcademicRemoteTask) -> String? {
         guard let data = courseData else { return nil }
-        if let id = cache.courseRecords[sourceKey(task.courseCode)]?.first(where: { id in data.courses.contains { $0.id == id } }) { return id }
+        func acceptsAutomaticLink(_ id: String) -> Bool {
+            guard let chosen = cache.manualMoodleLinks?[id] else { return true }
+            return cache.moodleCourses?.first(where: { $0.id == chosen })?.fullname.contains("(\(task.courseCode))") == true
+        }
+        let manuallyLinked = data.courses.filter { local in
+            guard let remoteID = cache.manualMoodleLinks?[local.id],
+                  let remote = cache.moodleCourses?.first(where: { $0.id == remoteID }) else { return false }
+            return remote.fullname.contains("(\(task.courseCode))")
+        }
+        if !manuallyLinked.isEmpty {
+            guard Set(manuallyLinked.map { $0.name + ":" + $0.teacher }).count == 1 else { return nil }
+            return manuallyLinked.sorted { $0.id < $1.id }.first?.id
+        }
+        if let id = cache.courseRecords[sourceKey(task.courseCode)]?.first(where: { id in acceptsAutomaticLink(id) && data.courses.contains { $0.id == id } }) { return id }
         guard let source = cache.courses.first(where: { $0.code == task.courseCode }) else { return nil }
         let matches = data.courses.filter {
-            AcademicMemoMergePolicy.courseName($0.name) == AcademicMemoMergePolicy.courseName(source.name) &&
+            acceptsAutomaticLink($0.id) && AcademicMemoMergePolicy.courseName($0.name) == AcademicMemoMergePolicy.courseName(source.name) &&
             (source.teacher.isEmpty || $0.teacher.isEmpty || $0.teacher == source.teacher)
         }
         guard Set(matches.map(\.teacher)).count <= 1 else { return nil }
@@ -393,67 +409,81 @@ final class AcademicSyncStore: ObservableObject {
             let sourceCourseLink = matchingCourseLink(task)
             if old != nil && existing == nil { continue } // User-deleted: never recreate.
             if var memo = existing {
+                let previous = memo
                 if let old {
-                    let previous = memo
                     if (old.managedCourseLink == true || (old.managedCourseLink == nil && memo.courseLink == nil)) && memo.courseLink == old.lastCourseLink { memo.courseLink = sourceCourseLink }
                     if memo.title == old.lastTitle { memo.title = task.title }
                     memo.content = AcademicMemoMergePolicy.content(existing: memo.content, previous: old.lastContent, incoming: task.description)
                     if memo.tagType.rawValue == (old.lastTagType ?? Memo.TagType.homework.rawValue) { memo.tagType = .moodle }
                     if memo.dueAt == old.lastDue {
                         memo.dueAt = task.due
-                        memo.reminderRules = memo.reminderRules.compactMap { rule in
-                            guard rule.id.hasPrefix("academic."), let offset = Double(rule.id.dropFirst("academic.".count)),
-                                  let previous = old.lastDue,
-                                  rule.triggerAt == previous.addingTimeInterval(-offset) else { return rule }
-                            guard let due = task.due else { return nil }
-                            var updated = rule; updated.triggerAt = due.addingTimeInterval(-offset); return updated
-                        }
                     }
-                    if memo != previous {
-                        memo.updatedAt = Date()
-                        manager.updateMemo(memo)
-                        guard manager.memos.first(where: { $0.id == id }) == memo else { throw AcademicError.storage }
+                    if previous.dueAt == old.lastDue {
+                        applyDefaultReminders(to: &memo, previous: old, isNew: false)
                     }
+
+                }
+                applyMoodleState(task, to: &memo)
+                if memo != previous {
+                    memo.updatedAt = Date()
+                    manager.updateMemo(memo)
+                    guard manager.memos.first(where: { $0.id == id }) == memo else { throw AcademicError.storage }
                 }
             } else {
                 var memo = Memo.create(title: task.title, tagType: .moodle, dueAt: task.due)
                 memo.content = task.description
                 memo.id = id; memo.disableAutoDueReminder = true
-                if let due = task.due {
-                    memo.reminderRules = [3 * 86400, 86400, 1800].map { interval in
-                        ReminderRule(id: "academic.\(interval)", triggerAt: due.addingTimeInterval(-Double(interval)), kind: .beforeDue)
-                    }
-                }
+                applyMoodleState(task, to: &memo)
+                applyDefaultReminders(to: &memo, previous: nil, isNew: true)
                 memo.courseLink = sourceCourseLink
                 manager.addMemo(memo)
             }
             guard manager.memos.contains(where: { $0.id == id }) else { throw AcademicError.storage }
             nextRecords[key] = .init(memoID: id, lastTitle: task.title, lastDue: task.due,
-                                     acknowledgedVersion: old?.acknowledgedVersion,
                                      managedCourseLink: old?.managedCourseLink ?? (existing?.courseLink == nil), lastCourseLink: sourceCourseLink,
-                                     lastContent: task.description, lastTagType: Memo.TagType.moodle.rawValue)
+                                     lastContent: task.description, lastTagType: Memo.TagType.moodle.rawValue,
+                                     reminderOffsets: defaultReminderOffsets)
         }
         cache.memoRecords = nextRecords
     }
-    var completionCandidates: [AcademicRemoteTask] {
-        guard let user = cache.moodleUser, let manager = memoManager else { return [] }
-        return cache.tasks.filter { task in
-            guard task.reliableSubmitted, let record = cache.memoRecords[memoKey(task, userID: user)],
-                  record.acknowledgedVersion != task.version,
-                  let memo = manager.memos.first(where: { $0.id == record.memoID }) else { return false }
-            return memo.status != .done
+    var reminderLeadDays: Int { min(30, max(1, cache.reminderLeadDays ?? 3)) }
+    var remindersEnabled: Bool { cache.remindersEnabled ?? true }
+    private var defaultReminderOffsets: [Int] { remindersEnabled ? [reminderLeadDays * 86400] : [] }
+    @discardableResult
+    func saveReminderPreferences(days: Int, enabled: Bool) -> Bool {
+        guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy, (1...30).contains(days) else { return false }
+        let previousDays = cache.reminderLeadDays, previousEnabled = cache.remindersEnabled
+        cache.reminderLeadDays = days; cache.remindersEnabled = enabled
+        do { try persist() }
+        catch {
+            cache.reminderLeadDays = previousDays; cache.remindersEnabled = previousEnabled
+            show(error); return false
+        }
+        reconcileImportedMemos()
+        return true
+    }
+    private func applyMoodleState(_ task: AcademicRemoteTask, to memo: inout Memo) {
+        guard let completed = AcademicCompletionPolicy.completed(status: task.status,
+            isTeam: task.isTeam ?? true, missing: task.sourceMissing == true) else { return }
+        if completed {
+            memo.status = .done
+            if memo.doneAt == nil { memo.doneAt = Date() }
+        } else if memo.status == .done {
+            memo.status = .todo; memo.doneAt = nil
         }
     }
-    func acknowledge(_ task: AcademicRemoteTask, complete: Bool) {
-        guard Auth.auth().currentUser?.uid == uid else { return }
-        guard let user = cache.moodleUser, let manager = memoManager else { return }
-        guard cache.tasks.contains(where: { $0.id == task.id && $0.version == task.version && $0.reliableSubmitted }) else { show(AcademicError.conflict); return }
-        let key = memoKey(task, userID: user)
-        guard var record = cache.memoRecords[key], let memo = manager.memos.first(where: { $0.id == record.memoID }) else { return }
-        if complete { manager.markAsCompleted(memo) }
-        if complete && manager.memos.first(where: { $0.id == memo.id })?.status != .done { show(AcademicError.storage); return }
-        record.acknowledgedVersion = task.version; cache.memoRecords[key] = record
-        do { try persist() } catch { show(error) }
+    private func applyDefaultReminders(to memo: inout Memo, previous: AcademicMemoRecord?, isNew: Bool) {
+        let plan = AcademicReminderPolicy.plan(current: memo.reminderRules.map {
+            .init(id: $0.id, triggerAt: $0.triggerAt, enabled: $0.enabled,
+                  isDefaultKind: $0.kind == .beforeDue && $0.repeatType == .none)
+        }, previousOffsets: previous?.reminderOffsets ?? (isNew ? [] : AcademicReminderPolicy.legacyOffsets),
+           previousDue: previous?.lastDue, due: memo.dueAt, targetOffsets: defaultReminderOffsets, isNew: isNew)
+        memo.reminderRules.removeAll { plan.removeIDs.contains($0.id) }
+        if let due = memo.dueAt {
+            memo.reminderRules += plan.addOffsets.map { offset in
+                ReminderRule(id: "academic.\(offset)", triggerAt: due.addingTimeInterval(-Double(offset)), kind: .beforeDue)
+            }
+        }
     }
     func previewIssue(_ course: AcademicCachedCourse) -> String? {
         guard let data = courseData else { return "課表尚未載入" }
@@ -507,11 +537,44 @@ final class AcademicSyncStore: ObservableObject {
         return cache.tasks.first { cache.memoRecords[memoKey($0, userID: user)]?.memoID == memoID }
     }
     func moodleCourse(forCourseID id: String) -> MoodleCourse? {
-        guard let identity = cache.schoolIdentity,
-              let source = cache.courseRecords.first(where: { $0.key.hasPrefix(identity + ":") && $0.value.contains(id) }),
-              let code = source.key.split(separator: ":").last else { return nil }
-        let matches = (cache.moodleCourses ?? []).filter { $0.fullname.contains("(\(code))") }
+        let moodle = cache.moodleCourses ?? []
+        if let chosen = cache.manualMoodleLinks?[id] { return moodle.first { $0.id == chosen } }
+        guard let local = courseData?.courses.first(where: { $0.id == id }) else { return nil }
+        let currentPrefix = "\(cache.schoolIdentity ?? ""):\(cache.year ?? "")-\(cache.term ?? ""):"
+        let mapped = cache.courseRecords.filter { $0.key.hasPrefix(currentPrefix) && $0.value.contains(id) }
+        let code: String
+        if mapped.count == 1, let key = mapped.first?.key, let value = key.split(separator: ":").last {
+            code = String(value)
+        } else {
+            // Imported historical courses must not silently point at this year's Moodle.
+            guard !cache.courseRecords.contains(where: { $0.value.contains(id) }) else { return nil }
+            let matches = cache.courses.filter {
+                AcademicMemoMergePolicy.courseName($0.name) == AcademicMemoMergePolicy.courseName(local.name) &&
+                ($0.teacher.isEmpty || local.teacher.isEmpty || $0.teacher == local.teacher)
+            }
+            guard matches.count == 1, let source = matches.first else { return nil }
+            code = source.code
+        }
+        let matches = moodle.filter { $0.fullname.contains("(\(code))") }
         return matches.count == 1 ? matches[0] : nil
+    }
+    @discardableResult
+    func selectMoodleCourse(_ source: MoodleCourse?, forCourseID id: String) -> Bool {
+        guard Auth.auth().currentUser?.uid == uid, !busy, let local = courseData?.courses.first(where: { $0.id == id }),
+              source == nil || cache.moodleCourses?.contains(where: { $0.id == source?.id }) == true else { return false }
+        let previous = cache.manualMoodleLinks
+        var links = previous ?? [:]
+        for row in courseData?.courses ?? [] where row.name == local.name && row.teacher == local.teacher {
+            links[row.id] = source?.id
+        }
+        cache.manualMoodleLinks = links
+        do { try persist(); reconcileImportedMemos(); return true }
+        catch { cache.manualMoodleLinks = previous; show(error); return false }
+    }
+    func courseTasks(_ course: MoodleCourse) -> [AcademicRemoteTask] {
+        guard cache.moodleCourses?.contains(where: { $0.id == course.id }) == true else { return [] }
+        return cache.tasks.filter { course.fullname.contains("(\($0.courseCode))") }
+            .sorted { ($0.due ?? .distantFuture) < ($1.due ?? .distantFuture) }
     }
     private func snapshot(_ course: Course) -> String { "\(course.name)|\(course.day)|\(course.timeSlot.rawValue)|\(course.location)|\(course.teacher)" }
     func importCourses() {

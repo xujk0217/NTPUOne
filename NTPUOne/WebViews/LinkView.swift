@@ -22,6 +22,8 @@ struct LinkView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     @EnvironmentObject var adFree: AdFreeService
     @ObservedObject private var rewardedAd = RewardedAdManager.shared
+    private enum AcademicDestination { case grades, graduation }
+    @State private var academicDestination: AcademicDestination?
     @State private var showAdConfirm = false
     @State private var showNotReadyAlert = false
     @StateObject var weatherManager = WeatherManager()  // 新增 weather manager
@@ -789,12 +791,12 @@ struct LinkView: View {
         Section {
             LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
                 if !academic.uid.isEmpty {
-                    NavigationLink { AcademicGradesView() } label: {
+                    Button { if academicDestination == nil { academicDestination = .grades } } label: {
                         featureCard(icon: "chart.bar", title: "成績與排名", iconColor: .blue)
-                    }.buttonStyle(.plain)
-                    NavigationLink { AcademicSchoolReportView(kind: .graduation) } label: {
+                    }.buttonStyle(.borderless)
+                    Button { if academicDestination == nil { academicDestination = .graduation } } label: {
                         featureCard(icon: "graduationcap", title: "畢業門檻", iconColor: .indigo)
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.borderless)
                 }
                 let favorites = studentImpactStore.quickFeatures.filter(\.isFavorite)
                 if favorites.isEmpty && academic.uid.isEmpty {
@@ -807,7 +809,7 @@ struct LinkView: View {
                         Button { handleQuickFeature(item) } label: {
                             featureCard(icon: item.systemImage, title: item.title, iconColor: quickFeatureTint(item.destination))
                         }
-                        .buttonStyle(.plain)
+                        .buttonStyle(.borderless)
                         .contentShape(Rectangle())
                     }
                 }
@@ -864,6 +866,13 @@ struct LinkView: View {
                                     .foregroundStyle(.secondary)
                             }
                         }
+                    }
+                }
+                .navigationDestination(isPresented: Binding(get: { academicDestination != nil }, set: { if !$0 { academicDestination = nil } })) {
+                    switch academicDestination {
+                    case .grades: AcademicGradesView()
+                    case .graduation: AcademicSchoolReportView(kind: .graduation)
+                    case nil: EmptyView()
                     }
                 }
                 .onAppear {

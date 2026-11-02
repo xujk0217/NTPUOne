@@ -218,6 +218,8 @@ class MemoManager: ObservableObject {
             if let entity = results.first {
                 updateEntity(entity, with: memo)
                 try viewContext.save()
+                // Reminder IDs may have changed. Remove the old set only after the save succeeds.
+                if let previous = memos.first(where: { $0.id == memo.id }) { cancelNotification(for: previous) }
                 
                 if let index = memos.firstIndex(where: { $0.id == memo.id }) {
                     memos[index] = memo

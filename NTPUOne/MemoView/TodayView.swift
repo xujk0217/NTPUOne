@@ -207,6 +207,12 @@ struct TodayView: View {
             }
         }
         
+        ToolbarItem(placement: .navigationBarTrailing) {
+            NavigationLink { AcademicMemoSettingsView() } label: {
+                Image(systemName: "gearshape").accessibilityLabel("Moodle 作業與提醒設定")
+            }
+        }
+
         ToolbarItem(placement: .navigationBarLeading) {
             HStack(spacing: 12) {
                 // 排序選項
@@ -518,7 +524,6 @@ struct TodayView: View {
     // MARK: - 需處理清單
     private var todayTasksView: some View {
         List {
-            AcademicCompletionSection()
             if overdueTasks.isEmpty && planExpiredTasks.isEmpty && todayTasks.isEmpty && plannedTomorrowTasks.isEmpty {
                 Section {
                     emptyTodayView
@@ -634,7 +639,6 @@ struct TodayView: View {
     // MARK: - 即將到期
     private var upcomingView: some View {
         List {
-            AcademicCompletionSection()
             if upcomingTasks.isEmpty {
                 Section {
                     emptyUpcomingView
@@ -742,7 +746,6 @@ struct TodayView: View {
     
     private var allTasksByCourseView: some View {
         List {
-            AcademicCompletionSection()
             if allTasks.isEmpty {
                 Section {
                     emptyAllTasksView
@@ -834,7 +837,6 @@ struct TodayView: View {
     
     private var allTasksByPriorityView: some View {
         List {
-            AcademicCompletionSection()
             if allTasks.isEmpty {
                 Section {
                     emptyAllTasksView
@@ -879,7 +881,6 @@ struct TodayView: View {
     
     private var allTasksByTagView: some View {
         List {
-            AcademicCompletionSection()
             if allTasks.isEmpty {
                 Section {
                     emptyAllTasksView

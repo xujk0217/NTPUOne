@@ -605,6 +605,9 @@ private struct AddCourseTile: View {
 struct CourseDetailSheet: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     @State private var selectedAcademicCourse: MoodleCourse?
+    @State private var selectedMoodleTab: AcademicCourseTab = .announcements
+    @State private var showMoodlePicker = false
+    @State private var showAcademicLogin = false
     let course: Course
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
@@ -624,7 +627,8 @@ struct CourseDetailSheet: View {
                   let rawValues = try? JSONDecoder().decode([String].self, from: data) else {
                 return Memo.TagType.allCases
             }
-            return rawValues.compactMap { Memo.TagType(rawValue: $0) }
+            let restored = rawValues.compactMap { Memo.TagType(rawValue: $0) }
+            return restored + Memo.TagType.allCases.filter { !restored.contains($0) }
         }
     }
     
@@ -647,11 +651,40 @@ struct CourseDetailSheet: View {
                     Spacer()
                 }
 
-            if let source = academic.moodleCourse(forCourseID: course.id) {
-                Button { selectedAcademicCourse = source } label: {
-                    Label("Moodle 公告、教材與本人成績", systemImage: "books.vertical")
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Label("Moodle 課程內容", systemImage: "books.vertical").font(.headline)
+                    Spacer()
+                    if academic.moodleLinked {
+                        Button("配對課程") { showMoodlePicker = true }.font(.caption)
+                    }
+                }
+                if let source = academic.moodleCourse(forCourseID: course.id) {
+                    Text(source.fullname).font(.caption).foregroundStyle(.secondary)
+                    LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
+                        ForEach(AcademicCourseTab.allCases) { tab in
+                            Button {
+                                selectedMoodleTab = tab; selectedAcademicCourse = source
+                            } label: {
+                                Label(tab.title, systemImage: tab.icon)
+                                    .frame(maxWidth: .infinity, minHeight: 38)
+                                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                                    .contentShape(Rectangle())
+                            }.buttonStyle(.borderless)
+                        }
+                    }
+                } else if academic.moodleLinked {
+                    Text("尚未找到對應課程，可手動選擇本學期的 Moodle 課程。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("選擇 Moodle 課程") { showMoodlePicker = true }
+                } else {
+                    Text("登入 Moodle 後可在這裡查看公告、教材、作業與本人成績。")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Button("登入學校帳號") { showAcademicLogin = true }
                 }
             }
+            .padding(14)
+            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
 
             // 資訊卡
             VStack(spacing: 10) {
@@ -820,7 +853,13 @@ struct CourseDetailSheet: View {
             .padding(.top, 16)
         }
         .sheet(item: $selectedAcademicCourse) { source in
-            NavigationStack { AcademicCourseContentView(course: source) }
+            NavigationStack { AcademicCourseContentView(course: source, initialTab: selectedMoodleTab) }
+        }
+        .sheet(isPresented: $showMoodlePicker) {
+            NavigationStack { AcademicCourseMappingView(courseID: course.id) }
+        }
+        .sheet(isPresented: $showAcademicLogin) {
+            NavigationStack { AcademicConnectionView() }
         }
         .sheet(item: $selectedMemo) { memo in
             MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)

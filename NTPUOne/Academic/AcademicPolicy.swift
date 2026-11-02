@@ -105,3 +105,44 @@ enum AcademicMemoMergePolicy {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+/// Only known individual submission states control the local completion flag.
+enum AcademicCompletionPolicy {
+    static func completed(status: String, isTeam: Bool, missing: Bool = false) -> Bool? {
+        guard !isTeam, !missing else { return nil }
+        switch status {
+        case "submitted": return true
+        case "new", "draft", "reopened": return false
+        default: return nil
+        }
+    }
+}
+
+struct AcademicReminderSnapshot {
+    var id: String
+    var triggerAt: Date
+    var enabled: Bool
+    var isDefaultKind: Bool
+}
+struct AcademicReminderPlan {
+    var removeIDs: Set<String>
+    var addOffsets: [Int]
+}
+enum AcademicReminderPolicy {
+    static let legacyOffsets = [259200, 86400, 1800]
+    static func plan(current: [AcademicReminderSnapshot], previousOffsets: [Int], previousDue: Date?,
+                     due: Date?, targetOffsets: [Int], isNew: Bool) -> AcademicReminderPlan {
+        let managed = current.filter { rule in
+            guard rule.enabled, rule.isDefaultKind, let previousDue else { return false }
+            return previousOffsets.contains { offset in
+                rule.id == "academic.\(offset)" && rule.triggerAt == previousDue.addingTimeInterval(-Double(offset))
+            }
+        }
+        let remove = Set(managed.map(\.id))
+        // A deleted or edited default reminder is a private override, not an invitation to recreate it.
+        let mayAdd = isNew || previousOffsets.isEmpty || previousDue == nil || !managed.isEmpty
+        let retained = Set(current.filter { !remove.contains($0.id) }.map(\.id))
+        let add = due != nil && mayAdd ? targetOffsets.filter { !retained.contains("academic.\($0)") } : []
+        return .init(removeIDs: remove, addOffsets: add)
+    }
+}
