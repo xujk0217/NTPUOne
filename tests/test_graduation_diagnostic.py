@@ -39,6 +39,18 @@ class GraduationDiagnosticTests(unittest.TestCase):
         for secret in ('123', '128', '999', '已修'):
             self.assertNotIn(secret, result)
 
+    def test_summary_structure_reports_classes_without_values(self):
+        parser = diagnostic.StructureShape()
+        parser.feed("<div class='credit_card private_123456'><h3>已累計總學分</h3><div class='credit_total'>131</div><span>SECRET_PERSON</span></div>")
+        result = parser.result()
+        self.assertEqual(result[0]['label'], '已累計總學分')
+        self.assertIn('credit_card', result[0]['levels'][0]['node']['classes'])
+        self.assertEqual(result[0]['levels'][0]['children'][1]['shape']['digit_lengths'], [3])
+        encoded = json.dumps(result, ensure_ascii=False)
+        self.assertNotIn('131', encoded)
+        self.assertNotIn('SECRET_PERSON', encoded)
+        self.assertNotIn('private_123456', encoded)
+
     def test_bridge_restricts_host_and_readonly_target(self):
         good = {'form_url': 'https://ohs01.ntpu.edu.tw/pls/pm/stud_system.signin',
                 'base_url': 'https://ohs01.ntpu.edu.tw/pls/univer/query_all_course.judge?func=9_m',

@@ -153,6 +153,85 @@ class CategoryShape(HTMLParser):
             self.footer.append(data)
 
 
+class StructureShape(HTMLParser):
+    """Locate public labels and surrounding HTML structure without exposing values."""
+    LABELS = ("已累計總學分", "系必修", "系選修", "校訂必修學分", "其他學分",
+              "外語能力指標檢核", "校定程式設計能力", "學分學程、微學程")
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__()
+        self.nodes = [{"tag": "root", "classes": [], "id": "", "parent": None, "children": [], "text": []}]
+        self.stack = [0]
+        self.ignored = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in self.VOID:
+            return
+        attrs = dict(attrs)
+        classes = attrs.get("class", "").split()
+        if tag in {"script", "style"} or "lang-en-US" in classes:
+            self.ignored += 1
+        parent = self.stack[-1]
+        node = {"tag": tag, "classes": classes, "id": attrs.get("id", ""),
+                "parent": parent, "children": [], "text": []}
+        self.nodes.append(node)
+        index = len(self.nodes) - 1
+        self.nodes[parent]["children"].append(index)
+        self.stack.append(index)
+
+    def handle_startendtag(self, tag, attrs):
+        if tag not in self.VOID:
+            self.handle_starttag(tag, attrs)
+            self.handle_endtag(tag)
+
+    def handle_endtag(self, tag):
+        if not any(self.nodes[index]["tag"] == tag for index in self.stack[1:]):
+            return
+        while len(self.stack) > 1:
+            node = self.nodes[self.stack.pop()]
+            if node["tag"] in {"script", "style"} or "lang-en-US" in node["classes"]:
+                self.ignored = max(0, self.ignored - 1)
+            if node["tag"] == tag:
+                break
+
+    def handle_data(self, data):
+        if not self.ignored:
+            self.nodes[self.stack[-1]]["text"].append(data)
+
+    def text_under(self, index):
+        node = self.nodes[index]
+        return " ".join(node["text"] + [self.text_under(child) for child in node["children"]])
+
+    def describe(self, index):
+        node = self.nodes[index]
+        classes = [name for name in node["classes"] if
+                   re.fullmatch(r"[A-Za-z][A-Za-z0-9_-]{0,45}", name) and
+                   not re.search(r"[0-9]{3,}", name) and
+                   re.search(r"credit|total|sum|title|info|result|card|score|progress|graduation|number|box|area|container|flex|col|item|note", name, re.I)]
+        safe_id = node["id"] if node["id"] in {"tag_total", "tag_chinese", "tag_english", "tag_pe", "tag_general", "mini_general", "required", "option", "common", "other"} else ""
+        return {"tag": node["tag"], "classes": classes[:8], "id": safe_id,
+                "shape": numeric_shape(self.text_under(index))}
+
+    def result(self):
+        result = []
+        for label in self.LABELS:
+            matches = [index for index, node in enumerate(self.nodes)
+                       if label in " ".join(" ".join(node["text"]).split())]
+            for index in matches[:2]:
+                levels = []
+                current = index
+                for _ in range(4):
+                    parent = self.nodes[current]["parent"]
+                    if parent is None:
+                        break
+                    levels.append({"node": self.describe(parent),
+                                   "children": [self.describe(child) for child in self.nodes[parent]["children"][:12]]})
+                    current = parent
+                result.append({"label": label, "levels": levels})
+        return result
+
+
 def numeric_shape(value):
     """Never include actual numbers or unrecognised text in diagnostics."""
     value = " ".join(value.split())
@@ -243,9 +322,12 @@ def main():
             raise ProbeError("school_graduation_schema_unverified")
         category = CategoryShape()
         category.feed(html)
+        structure = StructureShape()
+        structure.feed(html)
         emit("graduation_credit_shape", boxes=page.results, category_metrics=category.metrics,
              category_footers=category.footers, credit_script_flags=category.scripts,
-             actual_values_hidden=True, raw_page_saved=False, session_saved=False)
+             summary_structure=structure.result(), actual_values_hidden=True,
+             raw_page_saved=False, session_saved=False)
         return 0
     except ProbeError as error:
         emit("graduation_diagnostic_stopped", diagnostic=error.code, http_status=error.status)
