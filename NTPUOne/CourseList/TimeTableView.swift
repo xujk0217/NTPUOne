@@ -30,9 +30,6 @@ struct TimeTableView: View {
         NavigationStack {
             ScrollView{
                 VStack {
-                    NavigationLink { AcademicCourseImportView() } label: {
-                        Label("校務課表預覽與重新整理", systemImage: "arrow.clockwise")
-                    }.padding(.top)
                     if isEdit{
                         Toggle("Saturday", isOn: $isSaturday)
                             .padding()
@@ -129,6 +126,13 @@ struct TimeTableView: View {
                         Image(systemName: "plus")
                     }
 
+                }
+                if isEdit {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        NavigationLink { AcademicCourseImportView() } label: {
+                            Image(systemName: "arrow.clockwise")
+                        }.accessibilityLabel("更新校務課表")
+                    }
                 }
                 if isEdit == false{
                     ToolbarItem {

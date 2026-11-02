@@ -47,7 +47,7 @@ struct AcademicConnectionView: View {
                         }
                     }.disabled(academic.busy || loggingIn != nil || schoolUsername.isEmpty || schoolPassword.isEmpty)
                     }
-                    Text("使用新版學生資訊系統帳號。只讀取個人資料，不會執行選課操作。")
+                    Text("使用新版學生資訊系統帳號。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Moodle 數位學苑") {
@@ -71,7 +71,7 @@ struct AcademicConnectionView: View {
                         }
                     }.disabled(academic.busy || loggingIn != nil || moodleUsername.isEmpty || moodlePassword.isEmpty)
                     }
-                    Text("登入後將本學期作業加入備忘錄，保留你修改過的內容；請先完成校務登入以核對課號。")
+                    Text("先登入校務系統，再連結 Moodle 同步作業。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 AcademicStatusSection()
@@ -131,7 +131,7 @@ struct AcademicCourseMappingView: View {
                         }
                     }
                 }
-            } footer: { Text("只列出已核對的本學期本人課程。同一課程的其他節次也會使用此配對，並重新連結未手動改過的作業。") }
+            } footer: { Text("同一課程的各節次與作業會一併連結。") }
             if academic.cache.moodleCourses?.isEmpty != false {
                 Section {
                     Text("尚無已同步的 Moodle 課程，請先完成校務與 Moodle 登入。")
@@ -200,7 +200,7 @@ struct AcademicCourseContentView: View {
         .onDisappear { requestID = UUID(); grades = []; didLoadGrades = false }
     }
     @ViewBuilder private var announcementSections: some View {
-        Section("最新公告 · 每個公告區最多 10 則") {
+        Section("最新公告") {
             if didLoadContent && announcements.isEmpty { Text("目前沒有公告。") }
             ForEach(announcements) { announcement in
                 VStack(alignment: .leading, spacing: 8) {
@@ -252,7 +252,7 @@ struct AcademicCourseContentView: View {
     }
     @ViewBuilder private var gradeSections: some View {
         Section {
-            if didLoadGrades && grades.isEmpty { Text("目前沒有已公布且允許本人查看的成績。") }
+            if didLoadGrades && grades.isEmpty { Text("尚無已公布成績。") }
             ForEach(grades) { grade in
                 VStack(alignment: .leading, spacing: 7) {
                     LabeledContent(grade.itemname?.isEmpty == false ? text(grade.itemname!) : "課程總計",
@@ -266,7 +266,7 @@ struct AcademicCourseContentView: View {
                 }.privacySensitive()
             }
         } header: { Text("本人成績") }
-          footer: { Text("只讀取校方允許本人查看的成績，暫存於此頁記憶體；尚未公布的分數不自行推算。") }
+          footer: { Text("僅顯示已公布的本人成績。") }
     }
     @MainActor private func load(force: Bool = false) async {
         let request = UUID(); requestID = request
@@ -303,9 +303,9 @@ struct AcademicStatusSection: View {
         Section("學校資料同步") {
             if academic.busy { ProgressView("正在更新學校資料…") }
             if let date = academic.cache.moodleCheckedAt { LabeledContent("作業更新", value: date.formatted(date: .abbreviated, time: .shortened)) }
-            if let date = academic.cache.schoolCheckedAt { LabeledContent("課表來源更新", value: date.formatted(date: .abbreviated, time: .shortened)) }
+            if let date = academic.cache.schoolCheckedAt { LabeledContent("課表更新", value: date.formatted(date: .abbreviated, time: .shortened)) }
             if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary) }
-            Button("立即重新整理") { Task { await academic.refresh(force: true) } }
+            Button("更新資料") { Task { await academic.refresh(force: true) } }
                 .disabled(academic.busy || !(academic.schoolLinked || academic.moodleLinked))
         }
     }
@@ -328,7 +328,7 @@ struct AcademicCoursePreviewSection: View {
         } header: {
             Text("\(academic.cache.year ?? "") 學年度第 \(academic.cache.term ?? "") 學期 · 匯入預覽")
         } footer: {
-            Text("只套用可辨識且沒有衝突的時段。保留現有課程 ID、提醒及私人修改，不自動刪除來源已移除的舊課程。")
+            Text("僅匯入無衝突時段，保留你的課程修改與提醒。")
         }
         .confirmationDialog("將預覽中可用的時段加入課表？", isPresented: $confirmImport, titleVisibility: .visible) {
             Button("套用可用時段") { academic.importCourses() }
@@ -344,25 +344,39 @@ struct AcademicMemoSettingsView: View {
     var body: some View {
         Form {
             Section {
-                Toggle("截止前提醒", isOn: $enabled)
-                Stepper("截止前 \(days) 天", value: $days, in: 1...30).disabled(!enabled)
-                Button("儲存提醒設定") {
+                Toggle("作業提醒", isOn: $enabled)
+                if enabled {
+                    Stepper(value: $days, in: 1...30) {
+                        HStack {
+                            Text("提前天數")
+                            Spacer()
+                            Text("\(days) 天").monospacedDigit().foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                Button {
                     saved = academic.saveReminderPreferences(days: days, enabled: enabled)
-                }.disabled(academic.busy || academic.uid.isEmpty)
-                if saved { Label("已儲存", systemImage: "checkmark.circle").foregroundStyle(.green) }
-            } header: { Text("Moodle 作業預設提醒") }
-              footer: { Text("於截止前指定天數的同一時間提醒。設定套用至新作業及既有未手動修改的預設提醒；單筆自訂、停用或刪除的提醒會保留你的設定。已完成作業不發送提醒。") }
+                } label: {
+                    Label(saved ? "已儲存" : "儲存", systemImage: saved ? "checkmark" : "bell")
+                }.disabled(saved || academic.busy || academic.uid.isEmpty)
+            } header: { Text("預設提醒") }
+              footer: { Text("已完成作業不提醒；單筆自訂設定優先。") }
             Section {
-                Text("已繳交的個人作業會自動標記完成；未繳交、草稿或重新開放則維持或恢復未完成。")
-                Text("團體作業或無法確認的狀態保留原有標記，暫不自行推論。")
-                    .font(.caption).foregroundStyle(.secondary)
-                Button("立即同步作業") { Task { await academic.refresh(force: true) } }
-                    .disabled(academic.busy || !academic.moodleLinked)
-                if academic.busy { ProgressView("正在同步…") }
+                Label("繳交後自動完成", systemImage: "checkmark.circle.fill").foregroundStyle(.primary)
+                Button { Task { await academic.refresh(force: true) } } label: {
+                    HStack {
+                        Text("更新作業")
+                        Spacer()
+                        if academic.busy { ProgressView() }
+                        else { Image(systemName: "arrow.clockwise") }
+                    }
+                }.disabled(academic.busy || !academic.moodleLinked)
                 if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary) }
-            } header: { Text("自動同步完成狀態") }
+            } header: { Text("Moodle 同步") }
+              footer: { Text("未繳交會恢復未完成，團體作業需手動確認。") }
         }
-        .navigationTitle("Moodle 作業設定")
+        .navigationTitle("作業設定")
+        .navigationBarTitleDisplayMode(.inline)
         .onAppear { days = academic.reminderLeadDays; enabled = academic.remindersEnabled }
         .onChange(of: days) { _ in saved = false }
         .onChange(of: enabled) { _ in saved = false }
@@ -377,17 +391,17 @@ struct AcademicTaskView: View {
                 Text(task.courseName)
                 Text(task.title).font(.headline)
                 if task.sourceMissing == true {
-                    Label("來源此次未回傳，保留上次內容；請在 Moodle 確認。", systemImage: "exclamationmark.triangle")
+                    Label("來源暫無資料，保留上次內容。", systemImage: "exclamationmark.triangle")
                         .font(.caption).foregroundStyle(.orange)
                 }
                 if !task.description.isEmpty { Text(task.description) }
                 if let due = task.due { LabeledContent("來源截止時間", value: due.formatted()) }
                 LabeledContent("來源狀態", value: ["new": "尚未提交", "draft": "草稿", "submitted": "已繳交", "reopened": "重新開放" ][task.status] ?? "無法判定")
-                if task.isTeam == true { Text("這是團體作業；來源狀態不代表已確認本人完成，App 不會自行改變完成標記。")
+                if task.isTeam == true { Text("團體作業請手動標記完成。")
                     .font(.caption).foregroundStyle(.secondary) }
                 MoodleInAppLink(title: "在 App 內查看 Moodle 作業", url: task.url)
             } header: { Text("Moodle 來源") }
-              footer: { Text("來源說明與你的私人筆記分開保存。個人作業依繳交狀態同步完成標記；已評分或逾期不代表已繳交。") }
+              footer: { Text("個人作業依 Moodle 繳交狀態同步。") }
         }.navigationTitle("作業來源")
     }
 }
@@ -421,77 +435,212 @@ struct AcademicGradesView: View {
 
 struct AcademicSchoolReportView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let kind: SchoolReportKind
-    private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind && $0.isNative } }
+    @State private var selectedSectionID: String?
+    private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind && $0.isCurrent } }
+    private var sections: [AcademicReportSection] { report?.sections ?? [] }
+    private var selectedSection: AcademicReportSection? {
+        sections.first { $0.id == selectedSectionID } ?? sections.last
+    }
     var body: some View {
-        List {
-            Section {
-                if !academic.schoolLinked {
-                    NavigationLink("登入學校帳號以更新資料") { AcademicConnectionView() }
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: 20) {
+                reportHeader
+                if kind == .graduation {
+                    graduationContent
+                } else if let section = selectedSection {
+                    termPicker
+                    AcademicReportCard(section: section, kind: kind)
                 }
-                if let report { Text("更新：\(report.checkedAt.formatted())").font(.caption).foregroundStyle(.secondary) }
-                if let error = academic.reportErrors[kind] {
-                    Label(error, systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
+                if sections.isEmpty && !academic.busy { emptyState }
+                if !sections.isEmpty {
+                    Text(kind == .graduation ? "正式畢業資格以校方審查為準。" : "依校方公布資料顯示。")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .center)
                 }
-                if academic.busy { ProgressView("正在更新學校資料…") }
-                Button("重新整理") { Task { await academic.refreshReport(kind) } }
-                    .disabled(academic.busy || !academic.schoolLinked)
-            } footer: {
-                Text(kind == .graduation ? "門檻與學分分類依校方資料顯示，正式畢業資格以學校審查為準。" : "成績與排名依校方公布資料顯示；尚未公布的數值不自行推算。")
-            }
-            if let sections = report?.sections {
-                ForEach(sections) { section in
-                    Section {
-                        ForEach(section.fields) { field in
-                            LabeledContent(field.label, value: field.value.isEmpty ? "尚未公布" : field.value)
-                        }
-                        ForEach(Array(section.notes.enumerated()), id: \.offset) { _, note in
-                            Text(note).font(.caption).foregroundStyle(.secondary)
-                        }
-                        if kind == .graduation && !section.subjects.isEmpty {
-                            DisclosureGroup("課程明細（\(section.subjects.count)）") {
-                                ForEach(section.subjects) { subject in AcademicReportSubjectRow(subject: subject) }
-                            }
-                        } else {
-                            ForEach(section.subjects) { subject in AcademicReportSubjectRow(subject: subject) }
-                        }
-                    } header: { Text(section.title) }
-                }
-            } else if !academic.busy {
-                Section {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Label("尚無可顯示的資料", systemImage: "doc.text")
-                        Text("請登入學校帳號並重新整理。暫時無法更新時，會保留上次成功的資料。")
+            }.padding(16)
+        }
+        .background(Color(.systemGroupedBackground))
+        .refreshable { await academic.refreshReport(kind) }
+        .privacySensitive()
+        .navigationTitle(kind == .graduation ? kind.title : "成績與排名")
+        .navigationBarTitleDisplayMode(.inline)
+        .task(id: academic.uid + ":" + kind.rawValue) { await academic.prepareReport(kind) }
+    }
+    private var reportHeader: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 12) {
+                Image(systemName: kind == .graduation ? "graduationcap.fill" : "chart.bar.xaxis")
+                    .font(.title2).foregroundStyle(.indigo)
+                    .frame(width: 48, height: 48).background(.indigo.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(kind == .graduation ? "畢業進度" : (kind == .rank ? "成績排名" : "學期成績")).font(.title2.bold())
+                    if let report {
+                        Text("更新於 \(report.checkedAt.formatted(date: .abbreviated, time: .shortened))")
                             .font(.caption).foregroundStyle(.secondary)
                     }
                 }
+                Spacer(minLength: 0)
+                Button { Task { await academic.refreshReport(kind) } } label: {
+                    if academic.busy { ProgressView() }
+                    else { Image(systemName: "arrow.clockwise").font(.body.weight(.semibold)) }
+                }
+                .frame(minWidth: 44, minHeight: 44)
+                .accessibilityLabel("更新\(kind.title)")
+                .disabled(academic.busy || !academic.schoolLinked)
+            }
+            if !academic.schoolLinked {
+                NavigationLink { AcademicConnectionView() } label: {
+                    Label("登入學校帳號", systemImage: "person.badge.key")
+                }.buttonStyle(.bordered)
+            }
+            if let error = academic.reportErrors[kind] {
+                Label(error, systemImage: "exclamationmark.triangle")
+                    .font(.caption).foregroundStyle(.orange)
             }
         }
-        .privacySensitive()
-        .navigationTitle(kind == .graduation ? kind.title : "成績與排名")
-        .task(id: academic.uid + ":" + kind.rawValue) { await academic.prepareReport(kind) }
+    }
+    private var termPicker: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(sections.reversed()) { section in
+                    let selected = section.id == selectedSection?.id
+                    Button { selectedSectionID = section.id } label: {
+                        Text(section.title).font(.subheadline.weight(selected ? .semibold : .regular))
+                            .padding(.horizontal, 14).padding(.vertical, 11)
+                            .foregroundStyle(selected ? Color.white : Color.primary)
+                            .background(selected ? Color.indigo : Color(.secondarySystemGroupedBackground), in: Capsule())
+                    }.buttonStyle(.plain)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                }
+            }
+        }.accessibilityLabel("選擇學期")
+    }
+    @ViewBuilder private var graduationContent: some View {
+        if let total = sections.first(where: { $0.id == "tag_total" }) {
+            AcademicGraduationSummaryCard(section: total, prominent: true)
+        }
+        LazyVGrid(columns: dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 150), alignment: .top)], spacing: 12) {
+            ForEach(sections.filter { ["tag_chinese", "tag_english", "tag_pe", "tag_general", "mini_general"].contains($0.id) }) { section in
+                AcademicGraduationSummaryCard(section: section)
+            }
+        }
+        ForEach(sections.filter { ["required", "option", "common", "other"].contains($0.id) }) { section in
+            AcademicReportCard(section: section, kind: kind)
+        }
+    }
+    private var needsGraduationRefresh: Bool {
+        kind == .graduation && academic.cache.reports?.contains(where: { $0.kind == .graduation && !$0.isCurrent }) == true
+    }
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Image(systemName: "doc.text.magnifyingglass").font(.largeTitle).foregroundStyle(.secondary)
+            Text(academic.schoolLinked ? (needsGraduationRefresh ? "畢業門檻資料需更新" : "尚無資料") : "登入後查看學校資料").font(.headline)
+            if academic.schoolLinked { Text("下拉即可更新").font(.subheadline).foregroundStyle(.secondary) }
+        }.frame(maxWidth: .infinity).padding(.vertical, 44)
+    }
+}
+
+private struct AcademicGraduationSummaryCard: View {
+    let section: AcademicReportSection
+    var prominent = false
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Label(section.title, systemImage: prominent ? "graduationcap" : "bookmark")
+                .font(prominent ? .headline : .subheadline.weight(.semibold))
+            ForEach(section.fields) { field in
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(field.value).font(prominent ? .largeTitle.bold() : .title2.bold())
+                        .monospacedDigit().foregroundStyle(.indigo)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let detail = field.detail, !detail.isEmpty {
+                        Text(detail).font(.caption).foregroundStyle(.secondary)
+                    }
+                    if section.fields.count > 1 {
+                        Text(field.label).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+        }.frame(maxWidth: .infinity, alignment: .leading).padding(prominent ? 22 : 16)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: prominent ? 22 : 18))
+    }
+}
+
+private struct AcademicReportCard: View {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let section: AcademicReportSection
+    let kind: SchoolReportKind
+    private var tint: Color { .indigo }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(section.title).font(.headline)
+                Spacer()
+                if !section.subjects.isEmpty {
+                    Text("\(section.subjects.count) 門課").font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !section.fields.isEmpty {
+                LazyVGrid(columns: section.fields.count == 1 || dynamicTypeSize.isAccessibilitySize ? [GridItem(.flexible())] : [GridItem(.adaptive(minimum: 130), alignment: .top)], alignment: .leading, spacing: 12) {
+                    ForEach(section.fields) { field in
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(field.label).font(.caption).foregroundStyle(.secondary)
+                            Text(field.value.isEmpty ? "尚未公布" : field.value)
+                                .font(.title3.weight(.semibold)).monospacedDigit()
+                                .foregroundStyle(tint).fixedSize(horizontal: false, vertical: true)
+                            if let detail = field.detail, !detail.isEmpty { Text(detail).font(.caption).foregroundStyle(.secondary) }
+                        }.frame(maxWidth: .infinity, minHeight: 64, alignment: .topLeading)
+                            .padding(12).background(tint.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+            }
+            if !section.subjects.isEmpty {
+                if kind == .graduation {
+                    DisclosureGroup("課程明細") { subjectRows.padding(.top, 10) }.tint(tint)
+                } else { subjectRows }
+            }
+            if !section.notes.isEmpty {
+                DisclosureGroup("補充說明") {
+                    VStack(alignment: .leading, spacing: 8) {
+                        ForEach(Array(section.notes.enumerated()), id: \.offset) { _, note in Text(note) }
+                    }.font(.caption).foregroundStyle(.secondary).padding(.top, 8)
+                }.font(.subheadline).tint(tint)
+            }
+        }.padding(18)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
+    }
+    private var subjectRows: some View {
+        VStack(spacing: 14) {
+            ForEach(Array(section.subjects.enumerated()), id: \.element.id) { index, subject in
+                if index > 0 { Divider() }
+                AcademicReportSubjectRow(subject: subject)
+            }
+        }
     }
 }
 
 private struct AcademicReportSubjectRow: View {
     let subject: AcademicReportSubject
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .top, spacing: 14) {
+            VStack(alignment: .leading, spacing: 7) {
                 Text(subject.title).font(.subheadline.weight(.medium))
-                Spacer(minLength: 8)
-                if let grade = subject.grade {
-                    Text(grade.isEmpty ? "尚未公布" : grade).font(.headline).monospacedDigit()
+                HStack(spacing: 8) {
+                    if let category = subject.category, !category.isEmpty { Text(category) }
+                    if let credits = subject.credits, !credits.isEmpty { Text("\(credits) 學分") }
+                }.font(.caption).foregroundStyle(.secondary)
+                ForEach(Array(subject.details.enumerated()), id: \.offset) { _, detail in
+                    Text(detail).font(.caption).foregroundStyle(.secondary)
                 }
+            }.frame(maxWidth: .infinity, alignment: .leading)
+            if let grade = subject.grade {
+                Text(grade.isEmpty ? "—" : grade).font(.title3.bold()).monospacedDigit()
+                    .foregroundStyle(.indigo).padding(10)
+                    .background(.indigo.opacity(0.08), in: RoundedRectangle(cornerRadius: 12))
+                    .accessibilityLabel("成績 \(grade.isEmpty ? "尚未公布" : grade)")
             }
-            HStack(spacing: 12) {
-                if let category = subject.category, !category.isEmpty { Text(category) }
-                if let credits = subject.credits, !credits.isEmpty { Text("\(credits) 學分") }
-            }.font(.caption).foregroundStyle(.secondary)
-            ForEach(Array(subject.details.enumerated()), id: \.offset) { _, detail in
-                Text(detail).font(.caption).foregroundStyle(.secondary)
-            }
-        }.padding(.vertical, 3)
+        }
     }
 }
 
@@ -506,7 +655,7 @@ struct MoodleInAppLink: View {
             .sheet(isPresented: $presented) {
                 NavigationStack {
                     VStack(spacing: 0) {
-                        Text("此頁直接由 Moodle 提供。首次查看受保護教材可能需在此登入；此瀏覽工作階段只保留至 App 關閉，學校 token 不會加入網址。")
+                        Text("首次查看教材可能需登入 Moodle。")
                             .font(.caption).foregroundStyle(.secondary).padding()
                         MoodleWebsite(url: url, dataStore: academic.moodleWebDataStore) { preview = MoodlePreviewFile(url: $0) }.id(academic.sourceScope)
                     }

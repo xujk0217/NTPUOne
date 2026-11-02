@@ -30,7 +30,7 @@ struct MemoDetailSheet: View {
                 if let task = academic.remoteTask(for: memo.id) {
                     Section {
                         NavigationLink { AcademicTaskView(task: task) } label: {
-                            Label("Moodle 作業來源與繳交狀態", systemImage: "link")
+                            Label("Moodle 作業", systemImage: "link")
                         }
                     }
                 }
@@ -52,13 +52,13 @@ struct MemoDetailSheet: View {
                     }
                     
                 }
-                Section("連結課程") {
-                    Picker("這是哪一堂課的作業", selection: Binding(get: { memo.courseLink }, set: { id in
+                Section("課程") {
+                    Picker("連結課程", selection: Binding(get: { memo.courseLink }, set: { id in
                         var updated = memo; updated.courseLink = id; updated.updatedAt = Date()
                         memoManager.updateMemo(updated)
                         if let saved = memoManager.memos.first(where: { $0.id == memo.id }) { memo = saved }
                     })) {
-                        Text("不連結課程").tag(nil as String?)
+                        Text("無").tag(nil as String?)
                         ForEach(courseOptions) { course in Text(course.name).tag(course.id as String?) }
                         if let id = memo.courseLink, !courseOptions.contains(where: { $0.id == id }) {
                             Text("原課程（已移除）").tag(id as String?)
