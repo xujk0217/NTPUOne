@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，目前 build 設為 14；前一個已上傳 build 為 13。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前 build 設為 15；前一個已上傳 build 為 14。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -53,8 +53,16 @@ scripts/testflight.sh upload
 
 - [本輪三項修正](ACADEMIC_UX_BUILD14.md) 的完整封存已上傳為 1.4.0（14），實際 IPA 的主 App 與 Widget 皆已核對為 14。
 - xcodebuild 最終回報 `Uploaded NTPUOne`／`EXPORT SUCCEEDED`，程序 exit code 0。Apple 後續處理、內部測試群組與實際可下載狀態尚未查證。
-- 最新完整封存為 `.academic-local/TestFlight/NTPUOne.xcarchive`（14）。本輪兩份中間封存未上傳，檔名已標記 `not-uploaded`；未將中間版本用於發布。
+- build 14 完整封存已保留為 `.academic-local/TestFlight/NTPUOne-build14.xcarchive`。本輪兩份中間封存未上傳，檔名已標記 `not-uploaded`；未將中間版本用於發布。
 - 已完成狀態與提醒遷移離線回歸、37 項探測工具測試、真實 Moodle API 型別驗證、最終簽章 Archive。首頁互斥導覽、通知實際送達與課程配對仍須手機驗收。
 - 第三方 framework 的部分 dSYM 警告仍存在，未阻擋這次上傳。
 
-後續有程式修改的測試版從 build 15 接續。
+後續有程式修改的測試版從 build 16 接續。
+
+## build 15 發布結果（2026-11-02）
+
+- [校務與備忘錄介面整理](ACADEMIC_UI_REFINEMENT.md) 已封存並上傳為 1.4.0（15）；實際上傳套件的主 App 與 Widget 均核對為 15。
+- Xcode 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序結束碼 0；Apple 後續處理、內部測試群組與實際可下載狀態尚未查證。
+- 最新完整封存為 `.academic-local/TestFlight/NTPUOne.xcarchive`（15），build 14 已另行保存；上傳設定僅供內部測試。
+- 三位數學分的根因仍待有效校務 session 核對，不能視為已解決。已分開原本串接的欄位並保留來源數值；未猜測小數點或縮放。
+- Release 簽章封存成功，離線解析及舊快取回歸通過；iPhone 16e 模擬器以合成資料檢查介面，仍需正式 App 與真實資料的實機驗收。
