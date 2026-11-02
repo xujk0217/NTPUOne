@@ -160,6 +160,7 @@ struct FirstRunOnboardingView: View {
     @State private var selection = 0
     @State private var showFreshmanPrompt = false
     @State private var showLoginPrompt = false
+    @State private var finishing = false
     let onFinish: () -> Void
 
     private let pages: [FirstRunOnboardingPage] = [
@@ -229,13 +230,17 @@ struct FirstRunOnboardingView: View {
                         Button {
                             profileManager.signInWithGoogleSchoolEmail()
                         } label: {
-                            Label(String(localized: "onboarding_google_login_button"), systemImage: "person.badge.key")
+                            HStack(spacing: 10) {
+                                if profileManager.isSigningIn { ProgressView().tint(.white) }
+                                Label(String(localized: profileManager.isSigningIn ? "community_google_auth_opening" : "onboarding_google_login_button"), systemImage: "person.badge.key")
+                            }
                                 .font(.headline)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 14)
                                 .background(Color.blue, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .foregroundStyle(.white)
                         }
+                        .disabled(profileManager.isSigningIn)
                         .accessibilityLabel(String(localized: "onboarding_google_login_accessibility"))
 
                         Button(String(localized: "onboarding_google_continue_button")) {
@@ -303,21 +308,17 @@ struct FirstRunOnboardingView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle(String(localized: "onboarding_navigation_title"))
             .navigationBarTitleDisplayMode(.inline)
-            .communityDepartmentChooser(profileManager)
         }
-        .onChange(of: profileManager.profile.ownerUid) { _ in
-            maybeFinishOnboarding()
+        .task(id: "\(profileManager.profile.ownerUid):\(profileManager.isSigningIn)") {
+            // Also handles an already-restored Firebase session on first presentation.
+            guard !finishing, !profileManager.profile.ownerUid.isEmpty,
+                  Auth.auth().currentUser?.uid == profileManager.profile.ownerUid,
+                  !profileManager.isSigningIn else { return }
+            do { try await Task.sleep(nanoseconds: 400_000_000) } catch { return }
+            guard !Task.isCancelled, !profileManager.isSigningIn,
+                  Auth.auth().currentUser?.uid == profileManager.profile.ownerUid else { return }
+            finishing = true; onFinish()
         }
-        .onChange(of: profileManager.pendingDepartmentChoices) { _ in
-            maybeFinishOnboarding()
-        }
-    }
-
-    /// Google 登入成功（且科系選擇完成，若有）即自動結束新手導覽
-    private func maybeFinishOnboarding() {
-        guard !profileManager.profile.ownerUid.isEmpty else { return }
-        guard profileManager.pendingDepartmentChoices == nil else { return }
-        onFinish()
     }
 
     private func applyFreshmanPreference(_ isNewStudent: Bool) {
@@ -1503,6 +1504,7 @@ private final class FirebaseAuthPresentationDelegate: NSObject, AuthUIDelegate {
 
 final class CommunityProfileManager: ObservableObject {
     @Published var profile: CommunityProfile
+    @Published private(set) var isSigningIn = false
     @Published var authStatusMessage: String?
     @Published var pendingDepartmentChoices: [CommunityDepartmentChoice]?
     private let db = Firestore.firestore()
@@ -2037,11 +2039,14 @@ final class CommunityProfileManager: ObservableObject {
             return
         }
 
+        guard !isSigningIn else { return }
+        isSigningIn = true
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
         GIDSignIn.sharedInstance.signIn(withPresenting: presenter) { [weak self] signInResult, error in
             guard let self else { return }
             if let error {
                 DispatchQueue.main.async {
+                    self.isSigningIn = false
                     self.authStatusMessage = String(format: String(localized: "community_google_auth_failed_format"), error.localizedDescription)
                 }
                 return
@@ -2050,6 +2055,7 @@ final class CommunityProfileManager: ObservableObject {
             guard let user = signInResult?.user,
                   let idToken = user.idToken?.tokenString else {
                 DispatchQueue.main.async {
+                    self.isSigningIn = false
                     self.authStatusMessage = String(localized: "community_google_auth_missing_credential")
                 }
                 return
@@ -2059,6 +2065,7 @@ final class CommunityProfileManager: ObservableObject {
             Auth.auth().signIn(with: credential) { [weak self] result, error in
                 guard let self else { return }
                 DispatchQueue.main.async {
+                    defer { self.isSigningIn = false }
                     if let error {
                         self.authStatusMessage = String(format: String(localized: "community_google_auth_failed_format"), error.localizedDescription)
                         return
