@@ -26,28 +26,31 @@ struct UnifiedCourseGridView: View {
     @ObservedObject var memoManager: MemoManager  // 新增
 
     var body: some View {
-        VStack {
-            LazyVGrid(columns: columns) {
-                ForEach(displayedShortDays, id: \.self) { day in
-                    DayBadge(text: day)
+        VStack(spacing: 8) {
+            // A small eager grid keeps row heights stable through keyboard/tab transitions.
+            HStack(alignment: .top, spacing: 8) {
+                ForEach(Array(displayedDays.enumerated()), id: \.element) { index, day in
+                    VStack(spacing: 8) {
+                        DayBadge(text: displayedShortDays[index])
+                        MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                    }.frame(maxWidth: .infinity, alignment: .top)
                 }
-                ForEach(displayedDays, id: \.self) { day in
-                    MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
-                }
-            }
+            }.fixedSize(horizontal: false, vertical: true)
             LunchButtonView()
-            LazyVGrid(columns: columns) {
+            HStack(alignment: .top, spacing: 8) {
                 ForEach(displayedDays, id: \.self) { day in
                     AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                        .frame(maxWidth: .infinity, alignment: .top)
                 }
-            }
-            if includeNight{
+            }.fixedSize(horizontal: false, vertical: true)
+            if includeNight {
                 DinnerButtonView()
-                LazyVGrid(columns: columns) {
+                HStack(alignment: .top, spacing: 8) {
                     ForEach(displayedDays, id: \.self) { day in
                         EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
+                            .frame(maxWidth: .infinity, alignment: .top)
                     }
-                }
+                }.fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding()
@@ -92,7 +95,7 @@ struct MorningCourseColumnView: View {
     @ObservedObject var memoManager: MemoManager
 
     var body: some View {
-        VStack{
+        VStack(spacing: 8) {
             ForEach(Course.TimeSlot.allCases.prefix(4), id: \.self) { slot in
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
@@ -117,7 +120,7 @@ struct AfternoonCourseColumnView: View {
     @ObservedObject var memoManager: MemoManager
 
     var body: some View {
-        VStack{
+        VStack(spacing: 8) {
             ForEach(Course.TimeSlot.allCases[4..<9], id: \.self) { slot in
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
@@ -141,7 +144,7 @@ struct EveningCourseColumnView: View {
     @ObservedObject var memoManager: MemoManager
 
     var body: some View {
-        VStack{
+        VStack(spacing: 8) {
             ForEach(Course.TimeSlot.allCases[9..<13], id: \.self) { slot in
                 let filteredCourses = courseData.courses.filter {
                     $0.day == day && $0.timeSlot == slot
@@ -640,226 +643,117 @@ struct CourseDetailSheet: View {
         }
     }
 
+    private var weekdayLabel: String {
+        ["Monday": "週一", "Tuesday": "週二", "Wednesday": "週三", "Thursday": "週四", "Friday": "週五", "Saturday": "週六", "Sunday": "週日"][course.day] ?? course.day
+    }
+    private var courseTimeLabel: String {
+        guard course.startTime == .none else { return course.startTime.rawValue }
+        let times = ["8:10", "9:10", "10:10", "11:10", "13:10", "14:10", "15:10", "16:10", "17:10", "18:30", "19:25", "20:25", "21:20"]
+        guard let index = Course.TimeSlot.allCases.firstIndex(of: course.timeSlot), times.indices.contains(index) else { return "時間未設定" }
+        return times[index]
+    }
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
-                // 標題
-                HStack(alignment: .firstTextBaseline) {
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 12) {
                     Text(course.name.isEmpty ? String(localized: "unnamed_course") : course.name)
-                        .font(.title3.bold())
-                        .lineLimit(2)
-                    Spacer()
-                }
+                        .font(.title2.bold()).fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 14) {
+                        Label(course.teacher.isEmpty ? "未設定教師" : course.teacher, systemImage: "person")
+                        Label(course.isNotification ? "提醒開啟" : "提醒關閉", systemImage: course.isNotification ? "bell" : "bell.slash")
+                    }.font(.caption).foregroundStyle(.secondary)
+                    HStack(spacing: 14) {
+                        Label("\(weekdayLabel) \(courseTimeLabel)", systemImage: "clock")
+                        if !course.location.isEmpty { Label(course.location, systemImage: "mappin.and.ellipse") }
+                    }.font(.subheadline).foregroundStyle(.secondary)
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
 
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    Label("Moodle 課程內容", systemImage: "books.vertical").font(.headline)
-                    Spacer()
-                    if academic.moodleLinked {
-                        Button("配對課程") { showMoodlePicker = true }.font(.caption)
-                    }
-                }
-                if let source = academic.moodleCourse(forCourseID: course.id) {
-                    Text(source.fullname).font(.caption).foregroundStyle(.secondary)
-                    LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
-                        ForEach(AcademicCourseTab.allCases) { tab in
-                            Button {
-                                selectedMoodleTab = tab; selectedAcademicCourse = source
-                            } label: {
-                                Label(tab.title, systemImage: tab.icon)
-                                    .frame(maxWidth: .infinity, minHeight: 38)
-                                    .background(Color.accentColor.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
-                                    .contentShape(Rectangle())
-                            }.buttonStyle(.borderless)
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("Moodle", systemImage: "books.vertical").font(.headline)
+                        Spacer()
+                        if academic.moodleLinked {
+                            Button("配對") { showMoodlePicker = true }.font(.subheadline)
                         }
                     }
-                } else if academic.moodleLinked {
-                    Text("尚未找到對應課程，可手動選擇本學期的 Moodle 課程。")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Button("選擇 Moodle 課程") { showMoodlePicker = true }
-                } else {
-                    Text("登入 Moodle 後可在這裡查看公告、教材、作業與本人成績。")
-                        .font(.caption).foregroundStyle(.secondary)
-                    Button("登入學校帳號") { showAcademicLogin = true }
-                }
-            }
-            .padding(14)
-            .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 12))
-
-            // 資訊卡
-            VStack(spacing: 10) {
-                infoRow(icon: "person", title: String(localized: "professor"),  value: course.teacher.isEmpty ? "—" : "\(course.teacher)")
-                infoRow(icon: "calendar",   title: String(localized: "time"),  value: "\(course.day), \(course.startTime.rawValue)")
-                infoRow(icon: "mappin.and.ellipse", title: String(localized: "location"),  value: course.location.isEmpty ? "—" : course.location)
-                infoRow(icon: course.isNotification ? "bell" : "bell.slash",
-                        title: String(localized: "notification"), value: course.isNotification ? String(localized: "on") : String(localized: "off"))
-            }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(.quaternary)
-            )
-
-            let relatedMemos = getRelatedMemos()
-            courseIntegrationPack(relatedMemos: relatedMemos)
-
-            // 相關任務列表
-            if !relatedMemos.isEmpty {
-                // 按類型分組
-                let groupedMemos = Dictionary(grouping: relatedMemos) { $0.tagType }
-                
-                // 排序標題和按鈕
-                HStack {
-                    Text(String(localized: "tasks"))
-                        .font(.headline)
-                    Spacer()
-                    Button {
-                        isEditingOrder = true
-                    } label: {
-                        HStack(spacing: 2) {
-                            Image(systemName: "arrow.up.arrow.down")
-                            Text(String(localized: "sort"))
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    if let source = academic.moodleCourse(forCourseID: course.id) {
+                        Text(source.fullname).font(.caption).foregroundStyle(.secondary).lineLimit(2)
+                        Button {
+                            selectedMoodleTab = .announcements; selectedAcademicCourse = source
+                        } label: {
+                            HStack {
+                                Label("公告、教材、作業與成績", systemImage: "square.grid.2x2")
+                                Spacer(); Image(systemName: "chevron.right").font(.caption)
+                            }.frame(maxWidth: .infinity).padding(12)
+                                .background(Color.accentColor.opacity(0.09), in: RoundedRectangle(cornerRadius: 10))
+                        }.buttonStyle(.plain)
+                    } else if academic.moodleLinked {
+                        Text("尚未配對課程").font(.subheadline).foregroundStyle(.secondary)
+                        Button("選擇 Moodle 課程") { showMoodlePicker = true }
+                    } else {
+                        Text("連結後可查看課程內容與作業。").font(.subheadline).foregroundStyle(.secondary)
+                        Button("連結學校帳號") { showAcademicLogin = true }
                     }
-                }
-                .padding(.top, 4)
-                
-                // 按用戶排序的順序顯示
-                let orderedTags = tagOrder.filter { groupedMemos[$0] != nil }
-                
-                ForEach(orderedTags, id: \.self) { tagType in
-                    if let memos = groupedMemos[tagType] {
-                        // 每個標籤類型一個區塊
-                        VStack(alignment: .leading, spacing: 8) {
-                            // 標籤標題（直接顯示標籤名稱）
-                            HStack(spacing: 2) {
-                                Image(systemName: tagType.icon)
-                                    .font(.subheadline)
-                                Text(tagType.displayName)
-                                    .font(.subheadline.weight(.semibold))
-                                
-                                Text("(\(memos.count))")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.leading, 4)
-                                
-                                Spacer()
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
+
+                let relatedMemos = getRelatedMemos()
+                let grouped = Dictionary(grouping: relatedMemos) { $0.tagType }
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Label("課程待辦", systemImage: "checklist").font(.headline)
+                        Text("\(relatedMemos.count)").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        if !relatedMemos.isEmpty { Button { isEditingOrder = true } label: { Image(systemName: "arrow.up.arrow.down") }.accessibilityLabel("調整待辦分類順序") }
+                        Menu {
+                            ForEach(MemoTemplate.allCases) { template in
+                                Button { selectedTemplate = template } label: { Label(template.title, systemImage: template.icon) }
                             }
-                            .foregroundStyle(tagType.color)
-                            
-                            // 該類型的任務（可點擊）
-                            VStack(spacing: 6) {
-                                ForEach(memos) { memo in
-                                    Button {
-                                        selectedMemo = memo
-                                    } label: {
-                                        HStack(alignment: .top, spacing: 8) {
-                                            Image(systemName: memo.status.icon)
-                                                .font(.caption2)
-                                                .foregroundStyle(memo.status.color)
-                                                .frame(width: 16)
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(memo.title)
-                                                    .font(.subheadline)
-                                                    .foregroundStyle(.primary)
-                                                    .lineLimit(2)
-                                                    .multilineTextAlignment(.leading)
-                                                
-                                                HStack(spacing: 4) {
-                                                    // 顯示時間
-                                                    if let dueAt = memo.dueAt {
-                                                        HStack(spacing: 1) {
-                                                            Image(systemName: "clock.badge.exclamationmark")
-                                                                .font(.caption2)
-                                                            Text(formatShortDate(dueAt))
-                                                                .font(.caption2)
-                                                        }
-                                                        .foregroundStyle(memo.isOverdue ? .red : .orange)
-                                                    } else if let planAt = memo.planAt {
-                                                        HStack(spacing: 1) {
-                                                            Image(systemName: "calendar")
-                                                                .font(.caption2)
-                                                            Text(formatShortDate(planAt))
-                                                                .font(.caption2)
-                                                        }
-                                                        .foregroundStyle(.blue)
-                                                    }
-                                                    
-                                                    // 狀態描述
-                                                    if let desc = memo.dueDateDescription {
-                                                        Text("• \(desc)")
-                                                            .font(.caption2)
-                                                            .foregroundStyle(memo.isOverdue ? .red : .secondary)
-                                                    }
+                        } label: { Image(systemName: "plus.circle.fill").font(.title3) }.accessibilityLabel("新增課程待辦")
+                    }
+                    if relatedMemos.isEmpty {
+                        Text("尚無課程待辦").font(.subheadline).foregroundStyle(.secondary).padding(.vertical, 6)
+                    } else {
+                        ForEach(tagOrder.filter { grouped[$0] != nil }, id: \.self) { tag in
+                            VStack(alignment: .leading, spacing: 4) {
+                                Label(tag.displayName, systemImage: tag.icon).font(.caption.weight(.semibold)).foregroundStyle(tag.color).padding(.top, 4)
+                                ForEach(grouped[tag] ?? []) { memo in
+                                    Button { selectedMemo = memo } label: {
+                                        HStack(alignment: .top, spacing: 10) {
+                                            Image(systemName: memo.status.icon).foregroundStyle(memo.status.color).frame(width: 20)
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(memo.title).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                                                if let date = memo.dueAt ?? memo.planAt {
+                                                    Text(formatShortDate(date)).font(.caption).foregroundStyle(memo.isOverdue ? .red : .secondary)
                                                 }
                                             }
-                                            
-                                            Spacer()
-                                            
-                                            // 右箭頭提示可點擊
-                                            Image(systemName: "chevron.right")
-                                                .font(.caption2)
-                                                .foregroundStyle(.tertiary)
-                                        }
-                                        .padding(.vertical, 8)
-                                        .padding(.horizontal, 10)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                                .fill(Color(.tertiarySystemBackground))
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
+                                            Spacer(); Image(systemName: "chevron.right").font(.caption).foregroundStyle(.tertiary)
+                                        }.padding(.vertical, 8).contentShape(Rectangle())
+                                    }.buttonStyle(.plain)
                                 }
                             }
                         }
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .strokeBorder(.quaternary)
-                        )
                     }
-                }
-            }
-            else {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label(String(localized: "course_no_tasks_title"), systemImage: "checklist")
-                        .font(.subheadline.weight(.semibold))
-                    Text(String(localized: "course_no_tasks_hint"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(14)
-                .background(
-                    RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
-            }
+                }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                    .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
 
-            Spacer(minLength: 0)
-            }
-            .padding(16)
-            .padding(.top, 16)
+                Menu {
+                    Button("Moodle 網站") { openCourseShortcut("https://lms3.ntpu.edu.tw/") }
+                    Button("課程評價") { openCourseShortcut("https://no21.ntpu.org/") }
+                    Button("考古題") { openCourseShortcut("https://past-exam.ntpu.cc") }
+                } label: { Label("更多課程連結", systemImage: "link").font(.subheadline) }
+                .padding(.horizontal, 4)
+            }.padding(16)
         }
         .sheet(item: $selectedAcademicCourse) { source in
-            NavigationStack { AcademicCourseContentView(course: source, initialTab: selectedMoodleTab) }
+            NavigationStack { AcademicCourseContentView(course: source, initialTab: selectedMoodleTab) }.environmentObject(academic)
         }
         .sheet(isPresented: $showMoodlePicker) {
-            NavigationStack { AcademicCourseMappingView(courseID: course.id) }
+            NavigationStack { AcademicCourseMappingView(courseID: course.id) }.environmentObject(academic)
         }
         .sheet(isPresented: $showAcademicLogin) {
-            NavigationStack { AcademicConnectionView() }
+            NavigationStack { AcademicConnectionView() }.environmentObject(academic)
         }
         .sheet(item: $selectedMemo) { memo in
             MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)
@@ -880,89 +774,6 @@ struct CourseDetailSheet: View {
                 presetDisableAutoPlanReminder: template.presetDisableAutoPlanReminder
             )
         }
-    }
-
-    @ViewBuilder
-    private func courseIntegrationPack(relatedMemos: [Memo]) -> some View {
-        let examCount = relatedMemos.filter { $0.tagType == .exam }.count
-
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(String(localized: "course_integration_title"))
-                        .font(.headline)
-                    Text(String(format: String(localized: "course_integration_summary_format"), relatedMemos.count, examCount))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-
-                Spacer()
-
-                Image(systemName: "square.grid.2x2")
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-                    .padding(8)
-                    .background(Color.blue.opacity(0.12), in: Circle())
-            }
-
-            LazyVGrid(columns: [.init(.flexible()), .init(.flexible())], spacing: 10) {
-                Menu {
-                    ForEach(MemoTemplate.allCases) { template in
-                        Button {
-                            selectedTemplate = template
-                        } label: {
-                            Label(template.title, systemImage: template.icon)
-                        }
-                    }
-                } label: {
-                    courseActionButtonLabel(title: String(localized: "course_add_task"), icon: "plus.circle", tint: .blue)
-                }
-                .buttonStyle(.plain)
-
-                courseActionButton(title: String(localized: "course_add_exam"), icon: "pencil.and.list.clipboard", tint: .red) {
-                    selectedTemplate = .exam
-                }
-                courseActionButton(title: String(localized: "web_lms"), icon: "graduationcap.circle", tint: .indigo) {
-                    openCourseShortcut("https://lms3.ntpu.edu.tw/")
-                }
-                courseActionButton(title: String(localized: "quick_feature_course_reviews"), icon: "ellipsis.message", tint: .purple) {
-                    openCourseShortcut("https://no21.ntpu.org/")
-                }
-                courseActionButton(title: String(localized: "quick_feature_past_exams"), icon: "doc.text.magnifyingglass", tint: .orange) {
-                    openCourseShortcut("https://past-exam.ntpu.cc")
-                }
-            }
-        }
-        .padding(14)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(.quaternary)
-        )
-    }
-
-    private func courseActionButtonLabel(title: String, icon: String, tint: Color) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: icon)
-                .foregroundStyle(tint)
-            Text(title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-            Spacer(minLength: 0)
-        }
-        .padding(10)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-    }
-
-    @ViewBuilder
-    private func courseActionButton(title: String, icon: String, tint: Color, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            courseActionButtonLabel(title: title, icon: icon, tint: tint)
-        }
-        .buttonStyle(.plain)
     }
 
     private func openCourseShortcut(_ urlString: String) {
