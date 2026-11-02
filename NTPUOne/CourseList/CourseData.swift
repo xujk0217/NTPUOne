@@ -124,7 +124,6 @@ class CourseData: ObservableObject {
 
     func addCourse(_ course: Course) {
         guard let viewContext = viewContext else {
-            print("Error: View context is nil. Cannot add course \(course.name).")
             return
         }
         
@@ -176,14 +175,12 @@ class CourseData: ObservableObject {
         
         saveContext()
         courses.append(NCourse)
-        print("Success: Added new course with id \(course.id) and name \(course.name) and startTime \(startTime.rawValue ?? "ooo").")
         listAllPendingNotifications()
         refreshNextCourseLiveActivity()
     }
 
     func deleteCourse(_ course: Course) {
         guard let viewContext = viewContext else {
-            print("Error: View context is nil. Cannot delete course with id \(course.id).")
             return
         }
         cancelNotification(for: course)
@@ -193,18 +190,15 @@ class CourseData: ObservableObject {
 
         do {
             let courseEntities = try viewContext.fetch(fetchRequest)
-            print("Info: Found \(courseEntities.count) course(s) matching id \(course.id) for deletion.")
             for courseEntity in courseEntities {
                 viewContext.delete(courseEntity)
             }
             saveContext()
             if let index = courses.firstIndex(where: { $0.id == course.id }) {
                 courses.remove(at: index)
-                print("Success: Deleted course with id \(course.id).")
             }
             refreshNextCourseLiveActivity()
         } catch {
-            print("Error: Failed to delete course with id \(course.id) - \(error.localizedDescription)")
         }
     }
     
@@ -237,7 +231,6 @@ class CourseData: ObservableObject {
 
     func updateCourse(_ course: Course) {
         guard let viewContext = viewContext else {
-            print("Error: View context is nil. Cannot update course with id \(course.id).")
             return
         }
         
@@ -265,14 +258,11 @@ class CourseData: ObservableObject {
 
                 if let index = courses.firstIndex(where: { $0.id == course.id }) {
                     courses[index] = course
-                    print("Success: Updated course with id \(course.id) and name \(course.name).")
                 }
                 refreshNextCourseLiveActivity()
             } else {
-                print("Info: No course found with id \(course.id) to update.")
             }
         } catch {
-            print("Error: Failed to update course with id \(course.id) - \(error.localizedDescription)")
         }
     }
     
@@ -357,7 +347,6 @@ extension CourseData {
             if let error = error {
                 print("Error scheduling notification: \(error.localizedDescription)")
             } else {
-                print("Notification scheduled for course \(course.name).")
             }
         }
     }
@@ -366,7 +355,6 @@ extension CourseData {
     // 取消通知的方法
     func cancelNotification(for course: Course) {
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: [course.id])
-        print("Notification cancelled for course \(course.name).")
     }
     
     func cancelNotification(withId courseId: String) {
@@ -457,8 +445,6 @@ extension CourseData {
                 print("Pending notifications:")
                 for request in requests {
                     print("Identifier: \(request.identifier)")
-                    print("Title: \(request.content.title)")
-                    print("Body: \(request.content.body)")
                     print("Sound: \(String(describing: request.content.sound))")
                     print("Badge: \(String(describing: request.content.badge))")
                     

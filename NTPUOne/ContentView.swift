@@ -31,6 +31,7 @@ struct ContentView: View {
     
     @State var selectedTab = 0
     @State private var showFirstRunOnboarding = false
+    @StateObject private var academic = AcademicSyncStore()
     
     init() {
         let context = CoreDataManager.shared.persistentContainer.viewContext
@@ -72,11 +73,18 @@ struct ContentView: View {
                 Text(String(localized: "my"))
             }.tag(4)
         }
+        .environmentObject(academic)
+        .sheet(isPresented: $academic.showConnection) {
+            NavigationStack { AcademicConnectionView().environmentObject(academic) }
+        }
+        .onChange(of: academic.uid) { _ in
+            if hasCompletedFirstRunOnboarding { academic.offerConnectionIfNeeded() }
+        }
         .labelStyle(.compactIconText)
         .onOpenURL { url in
             handleDeepLink(url: url)
         }
-        .fullScreenCover(isPresented: $showFirstRunOnboarding) {
+        .fullScreenCover(isPresented: $showFirstRunOnboarding, onDismiss: { academic.offerConnectionIfNeeded() }) {
             FirstRunOnboardingView {
                 hasCompletedFirstRunOnboarding = true
                 showFirstRunOnboarding = false
@@ -84,6 +92,7 @@ struct ContentView: View {
             .interactiveDismissDisabled()
         }
         .onAppear {
+            academic.start(memos: memoManager, courses: courseData)
             if !hasCompletedFirstRunOnboarding {
                 showFirstRunOnboarding = true
             }
@@ -92,6 +101,7 @@ struct ContentView: View {
         }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
+                Task { await academic.refresh() }
                 NextCourseLiveActivityManager.shared.setApplicationActive(true)
                 refreshLiveActivity()
             } else {

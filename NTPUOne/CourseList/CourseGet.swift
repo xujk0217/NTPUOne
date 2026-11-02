@@ -17,6 +17,7 @@ struct CourseG: Identifiable, Decodable, Equatable {
     var teacher: String
     var time: String
     var location: String
+    var scheduleText: String? = nil
 }
 
 // ViewModel
@@ -55,7 +56,7 @@ class CourseGViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     func fetchCourses() {
-        guard let url = URL(string: "https://sea.cc.ntpu.edu.tw/pls/dev_stud/course_query_all.queryByKeyword") else {
+        guard !courseYear.isEmpty, !courseSemester.isEmpty else {
             DispatchQueue.main.async {
                 self.errorMessage = "Invalid URL"
             }
@@ -68,13 +69,7 @@ class CourseGViewModel: ObservableObject {
             self.courses = []
         }
 
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.setValue("text/html", forHTTPHeaderField: "Accept")
-
-        let bodyData = "qYear=\(courseYear)&qTerm=\(courseSemester)&courseno=\(courseno)&cour=&teach=&week=&seq1=A&seq2=M"
-        request.httpBody = bodyData.data(using: .utf8)
+        let request = CourseCatalogService.request(year: courseYear, term: courseSemester, code: courseno)
 
         URLSession.shared.dataTaskPublisher(for: request)
             .tryMap { data, response in
@@ -82,27 +77,9 @@ class CourseGViewModel: ObservableObject {
                     throw URLError(.badServerResponse)
                 }
                 
-                // 将 BIG5 编码的数据转换为 UTF-8 编码
-                let big5String = NSString(data: data, encoding: CFStringConvertEncodingToNSStringEncoding(CFStringEncoding(CFStringEncodings.big5.rawValue))) as String?
-                
-                guard let htmlString = big5String else {
-                    throw URLError(.cannotDecodeContentData)
-                }
-                
-                // 更新 htmlString 以便于在 UI 上显示原始 HTML
-                DispatchQueue.main.async {
-                    self.htmlString = htmlString
-                }
-                
-                return htmlString
+                return try CourseCatalogService.decode(data)
             }
-            .tryMap { html -> [CourseG] in
-                do {
-                    return try self.parseHTML(html: html)
-                } catch {
-                    throw error
-                }
-            }
+            .tryMap { try CourseCatalogService.parse($0) }
             .receive(on: DispatchQueue.main)
             .sink(receiveCompletion: { completion in
                 self.isLoading = false
@@ -124,90 +101,6 @@ class CourseGViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // 解析HTML
-    private func parseHTML(html: String) throws -> [CourseG] {
-        var courses: [CourseG] = []
-        let document = try SwiftSoup.parse(html)
-        
-        // 打印 HTML 文档内容以调试
-        let body = try document.body()?.html() ?? ""
-        print("HTML Body: \(body)")
-        
-        // 检查是否找到课程
-        let courseFound = try document.select("h4").text().contains("共找到")
-        
-        if !courseFound {
-            DispatchQueue.main.async {
-                self.errorMessage = "沒有找到課程"
-            }
-            return []
-        }
-        
-        let rows = try document.select("table#example tbody tr")
-        if rows.isEmpty {
-            DispatchQueue.main.async {
-                self.errorMessage = "沒有找到課程"
-            }
-            return []
-        }
-        
-        for row in rows {
-            let columns = try row.select("td")
-            if columns.count >= 15 { // 确保列数足够
-                
-                let courseno = try columns[3].text()
-                
-                // 提取课程名称并去除备注
-                let courseNameHTML = try columns[7].html()
-                let courseName = try extractCourseName(from: courseNameHTML)
-                
-                
-                let teacher = try columns[8].text()
-                
-                // 提取上课时间和教室
-                let timeAndLocationHTML = try columns[13].html()
-                let timeAndLocation = try extractTimeAndLocation(from: timeAndLocationHTML)
-                
-                // 分隔上课时间和教室
-                let time = timeAndLocation.time
-                let location = timeAndLocation.location
-                
-                let course = CourseG(courseno: courseno, courseName: courseName, teacher: teacher, time: time, location: location)
-                courses.append(course)
-            }
-        }
-        
-        return courses
-    }
-    // 提取课程名称的方法，去除备注
-    private func extractCourseName(from html: String) throws -> String {
-        let document = try SwiftSoup.parse(html)
-        
-        // 提取纯文本内容，去除所有 HTML 标签
-        if let linkElement = try document.select("a").first() {
-            return try linkElement.text().trimmingCharacters(in: .whitespacesAndNewlines)
-        }
-        
-        // 如果没有找到 <a> 标签，返回其他可能的纯文本内容
-        return try document.text().trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    // 提取上课时间和教室的方法
-    private func extractTimeAndLocation(from html: String) throws -> (time: String, location: String) {
-        let document = try SwiftSoup.parse(html)
-        
-        // 提取纯文本内容，去除所有 HTML 标签
-        let text = try document.text()
-        
-        // 将文本按照空格分隔，并过滤掉空白项
-        let components = text.components(separatedBy: " ").filter { !$0.isEmpty }
-        
-        // 根据实际数据调整分隔方式，假设第一个组件是时间，第二个是地点
-        let time = components.first ?? ""
-        let location = components.dropFirst().joined(separator: " ")
-        
-        return (time: time, location: location)
-    }
 }
 
 // SwiftUI

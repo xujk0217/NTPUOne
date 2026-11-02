@@ -41,6 +41,11 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
+                Section {
+                    NavigationLink { AcademicConnectionView() } label: {
+                        Label("學校帳號與同步", systemImage: "graduationcap")
+                    }
+                }
                 // Admin 區塊（密碼解鎖＋專屬信箱雙重確認）
                 if isAdmin, CommunityProfileManager.isPrivilegedAdminEmail {
                     Section {

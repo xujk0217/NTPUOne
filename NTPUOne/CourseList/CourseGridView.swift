@@ -603,6 +603,8 @@ private struct AddCourseTile: View {
 }
 
 struct CourseDetailSheet: View {
+    @EnvironmentObject private var academic: AcademicSyncStore
+    @State private var selectedAcademicCourse: MoodleCourse?
     let course: Course
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
@@ -644,6 +646,12 @@ struct CourseDetailSheet: View {
                         .lineLimit(2)
                     Spacer()
                 }
+
+            if let source = academic.moodleCourse(forCourseID: course.id) {
+                Button { selectedAcademicCourse = source } label: {
+                    Label("Moodle 公告、教材與本人成績", systemImage: "books.vertical")
+                }
+            }
 
             // 資訊卡
             VStack(spacing: 10) {
@@ -810,6 +818,9 @@ struct CourseDetailSheet: View {
             }
             .padding(16)
             .padding(.top, 16)
+        }
+        .sheet(item: $selectedAcademicCourse) { source in
+            NavigationStack { AcademicCourseContentView(course: source) }
         }
         .sheet(item: $selectedMemo) { memo in
             MemoDetailSheet(memoManager: memoManager, courseData: courseData, memo: memo)

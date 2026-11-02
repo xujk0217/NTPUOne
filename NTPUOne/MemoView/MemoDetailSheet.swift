@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MemoDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var academic: AcademicSyncStore
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
     
@@ -26,6 +27,13 @@ struct MemoDetailSheet: View {
     var body: some View {
         NavigationStack {
             List {
+                if let task = academic.remoteTask(for: memo.id) {
+                    Section {
+                        NavigationLink { AcademicTaskView(task: task) } label: {
+                            Label("Moodle 作業來源與繳交狀態", systemImage: "link")
+                        }
+                    }
+                }
                 // 基本資訊
                 Section {
                     // 標題

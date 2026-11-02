@@ -9,6 +9,7 @@ import Foundation
 import CoreData
 import UserNotifications
 import SwiftUI
+import WidgetKit
 
 class MemoManager: ObservableObject {
     @Published var memos: [Memo] = []
@@ -197,7 +198,6 @@ class MemoManager: ObservableObject {
             applyFiltersAndSort()
             refreshNextCourseLiveActivityTodos()
             scheduleNotification(for: memo)
-            print("Success: Added memo '\(memo.title)'")
         } catch {
             CoreDataManager.shared.reportOperationError(error)
             print("Error: Failed to save memo - \(error.localizedDescription)")
@@ -225,7 +225,6 @@ class MemoManager: ObservableObject {
                 applyFiltersAndSort()
                 refreshNextCourseLiveActivityTodos()
                 scheduleNotification(for: memo)
-                print("Success: Updated memo '\(memo.title)'")
             }
         } catch {
             CoreDataManager.shared.reportOperationError(error)
@@ -252,7 +251,6 @@ class MemoManager: ObservableObject {
                 applyFiltersAndSort()
                 refreshNextCourseLiveActivityTodos()
                 cancelNotification(for: memo)
-                print("Success: Deleted memo '\(memo.title)'")
             }
         } catch {
             CoreDataManager.shared.reportOperationError(error)
@@ -440,6 +438,7 @@ class MemoManager: ObservableObject {
         let currentMemos = memos
         Task { @MainActor in
             NextCourseLiveActivityManager.shared.syncMemos(currentMemos)
+            WidgetCenter.shared.reloadTimelines(ofKind: "MemoWidget")
         }
     }
     
@@ -463,31 +462,25 @@ class MemoManager: ObservableObject {
     // MARK: - 通知
     
     func scheduleNotificationsForAllMemos() {
-        // 移除所有 Memo 相關的通知
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let memoNotificationIds = requests
-                .filter { $0.identifier.hasPrefix("memo_") }
-                .map { $0.identifier }
-            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: memoNotificationIds)
-        }
-        
-        // 重新排程
-        for memo in memos where memo.status != .done {
-            scheduleNotification(for: memo)
+        // 先完成清理，再於主執行緒讀取最新狀態並排程，避免舊的清理回呼刪掉新提醒。
+        UNUserNotificationCenter.current().getPendingNotificationRequests { [weak self] requests in
+            DispatchQueue.main.async {
+                let ids = requests.filter { $0.identifier.hasPrefix("memo_") }.map(\.identifier)
+                UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
+                guard let self else { return }
+                for memo in self.memos { self.scheduleNotification(for: memo) }
+            }
         }
     }
-    
+
     func scheduleNotification(for memo: Memo) {
-        guard memo.status != .done else { return }
-        
-        // 先取消舊的通知
         cancelNotification(for: memo)
-        
+        guard memo.status != .done else { return }
+
         // 1. 使用者自訂的提醒規則
         for rule in memo.reminderRules where rule.enabled {
             // 非重複通知需要檢查時間是否已過
             if rule.repeatType == .none && rule.triggerAt <= Date() {
-                print("⏭️ Skipping expired reminder for '\(memo.title)'")
                 continue
             }
             scheduleNotificationRequest(
@@ -645,20 +638,7 @@ class MemoManager: ObservableObject {
         )
         
         UNUserNotificationCenter.current().add(request) { error in
-            if let error = error {
-                print("❌ Error scheduling notification: \(error)")
-            } else {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                formatter.timeZone = TimeZone.current
-                let localTime = formatter.string(from: triggerDate)
-                
-                if triggerDate <= Date() {
-                    print("⚠️ Notification for '\(memo.title)' scheduled at \(localTime) (已過期，不會觸發)")
-                } else {
-                    print("✅ Notification scheduled for '\(memo.title)' at \(localTime)")
-                }
-            }
+            if error != nil { print("memo_notification_schedule_failed") }
         }
     }
     
@@ -669,7 +649,6 @@ class MemoManager: ObservableObject {
         identifiers.append("memo_\(memo.id)_auto_due_30min")
         identifiers.append("memo_\(memo.id)_auto_plan")
         UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
-        print("Cancelled notifications for memo '\(memo.title)'")
     }
     
     // 除錯用：列出所有排程的通知
@@ -682,7 +661,6 @@ class MemoManager: ObservableObject {
                 print("📬 Pending memo notifications (\(memoRequests.count)):")
                 for request in memoRequests {
                     print("  ────────────────────")
-                    print("  📝 \(request.content.title)")
                     if let trigger = request.trigger as? UNCalendarNotificationTrigger {
                         // 將 dateComponents 轉成可讀時間
                         let dc = trigger.dateComponents

@@ -43,6 +43,12 @@ struct PrivacyPolicyView: View {
                     ]
                 )
 
+                Section("校務與 Moodle 連結") {
+                    Text("學校帳密只送往校方登入站，並依你選擇的連結範圍存於本機 Keychain。Moodle 驗證後只保存 token，不保存 Moodle 密碼；不將學校憑證上傳 Firebase、CloudKit 或提供給廣告服務。")
+                    Text("校務成績、排名及畢業進度報表只作本機受保護快取並排除備份；Moodle 成績只在查看頁面時暫存。匯入的課程與作業待辦沿用原有私人 iCloud 同步，私人筆記不會傳回校方。")
+                    Text("可在「我的 → 學校帳號與同步」解除本機連結，刪除該連結憑證與快取中的個人報表，保留已匯入的課表及待辦。App 內 Moodle 網頁使用獨立、非持久工作階段；關閉 App、切換帳號或解除連結後不再沿用該瀏覽工作階段。")
+                }
+
                 PrivacyPolicySection(
                     titleKey: "privacy_policy_controls_title",
                     itemKeys: [

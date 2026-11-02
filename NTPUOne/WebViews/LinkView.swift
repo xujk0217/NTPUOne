@@ -824,6 +824,7 @@ struct LinkView: View {
             VStack {
                 List {
                     todayHubSection
+                    AcademicHomeSection()
                     orderSection
                     quickFeaturesSection
                     // Native 廣告 Section
