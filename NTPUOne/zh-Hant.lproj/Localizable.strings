@@ -1278,3 +1278,13 @@
 "privacy_policy_controls_public_content" = "本機重置不會刪除公開的主題、回覆或餐廳留言。請在「我的內容」中管理綁定目前帳號的公開內容；一般留言可編輯或刪除，管理員可處理異常內容。";
 "privacy_policy_controls_uninstall" = "你也可以解除安裝 App，或在系統設定中關閉通知、廣告追蹤權限或 iCloud 功能（若可用），以停止 App 端的相關收集。";
 "privacy_policy_links_title" = "控制項、第三方政策與聯絡方式";
+
+/* Device-local administrator password */
+"admin_password_create_title" = "設定管理員密碼";
+"admin_password_confirm" = "再次輸入密碼";
+"admin_password_local_explanation" = "設定至少 12 個字元。密碼只保存在這台裝置的 Keychain，換裝置須重新設定。";
+"admin_password_notice_title" = "管理員登入";
+"admin_password_sign_in_required" = "請先使用已驗證的管理員 Google 帳號登入。";
+"admin_password_keychain_error" = "無法存取本機密碼，請確認裝置已解鎖後再試。";
+"admin_password_length_error" = "密碼須為 12 至 128 個字元。";
+"admin_password_mismatch" = "兩次輸入的密碼不一致。";

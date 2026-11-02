@@ -1278,3 +1278,13 @@
 "privacy_policy_controls_public_content" = "Local reset does not delete public topics, replies, or restaurant comments. Manage public content tied to your account under My Content; you can edit or delete your own comments, and moderators can handle abnormal content.";
 "privacy_policy_controls_uninstall" = "You may also stop app-side collection by uninstalling the app or disabling notifications, ads tracking permissions, or iCloud features in system settings where available.";
 "privacy_policy_links_title" = "Controls, third-party policies, and contact";
+
+/* Device-local administrator password */
+"admin_password_create_title" = "Set Admin Password";
+"admin_password_confirm" = "Confirm password";
+"admin_password_local_explanation" = "Use at least 12 characters. The password is stored only in this device’s Keychain and must be set again on a new device.";
+"admin_password_notice_title" = "Admin Sign-In";
+"admin_password_sign_in_required" = "Sign in with the verified administrator Google account first.";
+"admin_password_keychain_error" = "The local password could not be accessed. Unlock the device and try again.";
+"admin_password_length_error" = "Use 12 to 128 characters.";
+"admin_password_mismatch" = "The passwords do not match.";

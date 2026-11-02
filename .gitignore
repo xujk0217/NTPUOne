@@ -45,6 +45,9 @@ fastlane/test_output
 
 # Environment
 .env
+.env.*
+!.env.example
+*.local.xcconfig
 
 # Temporary files
 *.tmp

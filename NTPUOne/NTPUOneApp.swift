@@ -231,6 +231,7 @@ struct RemoteConfigFeatureGate<Content: View>: View {
 
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate, InAppMessagingDisplayDelegate, MessagingDelegate {
     var window: UIWindow?
+    private var adminAuthHandle: AuthStateDidChangeListenerHandle?
     private static var communityNotificationRefreshTaskIdentifier: String {
         "\(Bundle.main.bundleIdentifier ?? "com.xujk.NTPUOne").communityNotificationRefresh"
     }
@@ -245,6 +246,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         
         FirebaseApp.configure()
+        adminAuthHandle = Auth.auth().addStateDidChangeListener { _, user in
+            DispatchQueue.main.async { AdminLocalSecurity.reconcileSession(user: user) }
+        }
         RemoteConfigManager.shared.start()
         
         AppCheck.appCheck().token(forcingRefresh: true) { token, error in
@@ -500,6 +504,7 @@ struct NTPUOneApp: App {
     @Environment(\.scenePhase) private var scenePhase
     
     init() {
+        AdminLocalSecurity.migrateLegacySession()
         incrementLaunchCount()
     }
 

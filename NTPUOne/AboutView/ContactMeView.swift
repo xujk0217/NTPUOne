@@ -7,6 +7,9 @@
 
 import SwiftUI
 import SafariServices
+import FirebaseAuth
+import Security
+import CryptoKit
 
 struct ContactMeView: View {
     @Environment(\.openURL) private var openURL
@@ -18,11 +21,14 @@ struct ContactMeView: View {
     
     // admin
     @AppStorage("isAdmin") private var isAdmin: Bool = false
-    private let correctPassword = "910351"
     @State private var tapCount = 0
     @State private var showPasswordPrompt = false
     @State private var passwordInput = ""
-    @State private var showWrongPasswordAlert = false
+    @State private var showAdminNotice = false
+    @State private var adminNotice = ""
+    @State private var settingPassword = false
+    @State private var confirmationInput = ""
+    @State private var pendingAdminUID = ""
     
     var body: some View {
         List {
@@ -53,7 +59,7 @@ struct ContactMeView: View {
                 tapCount += 1
                 if tapCount >= 15 {
                     tapCount = 0
-                    showPasswordPrompt = true
+                    prepareAdminUnlock()
                 }
             }
             
@@ -97,27 +103,20 @@ struct ContactMeView: View {
         .navigationTitle("Contact")
         .navigationBarTitleDisplayMode(.inline)
         .tint(.blue)
-        .alert(String(localized: "enter_admin_password"), isPresented: $showPasswordPrompt) {
+        .alert(String(localized: settingPassword ? "admin_password_create_title" : "enter_admin_password"), isPresented: $showPasswordPrompt) {
             SecureField(String(localized: "password"), text: $passwordInput)
-
-            Button(String(localized: "confirm")) {
-                if passwordInput == correctPassword {
-                    isAdmin = true   // ✅ 登入成功
-                    CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
-                    adFree.refresh()
-                } else {
-                    showWrongPasswordAlert = true
-                }
-                passwordInput = ""
+            if settingPassword {
+                SecureField(String(localized: "admin_password_confirm"), text: $confirmationInput)
             }
-
-            Button(String(localized: "cancel"), role: .cancel) {
-                passwordInput = ""
-            }
+            Button(String(localized: "confirm")) { completeAdminUnlock() }
+            Button(String(localized: "cancel"), role: .cancel) { clearPasswordFields() }
+        } message: {
+            if settingPassword { Text(String(localized: "admin_password_local_explanation")) }
         }
-        .alert(String(localized: "wrong_password"), isPresented: $showWrongPasswordAlert) {
-            Button("OK", role: .cancel) {}
-        }
+        .alert(String(localized: "admin_password_notice_title"), isPresented: $showAdminNotice) {
+            Button("OK", role: .cancel) { }
+        } message: { Text(adminNotice) }
+        .onDisappear { clearPasswordFields() }
         if !adFree.isAdFree{
             // Native 廣告
             Section {
@@ -125,6 +124,123 @@ struct ContactMeView: View {
                     .frame(height: 140)
             }
             .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+        }
+    }
+    private func clearPasswordFields() {
+        passwordInput = ""
+        confirmationInput = ""
+        pendingAdminUID = ""
+    }
+
+    private func notice(_ key: String.LocalizationValue) {
+        adminNotice = String(localized: key)
+        showAdminNotice = true
+    }
+
+    private func prepareAdminUnlock() {
+        guard let user = Auth.auth().currentUser, user.isEmailVerified,
+              CommunityProfileManager.isPrivilegedAdminEmail else {
+            notice("admin_password_sign_in_required")
+            return
+        }
+        do {
+            settingPassword = try !AdminLocalSecurity.hasPassword(uid: user.uid)
+            pendingAdminUID = user.uid
+            showPasswordPrompt = true
+        } catch { notice("admin_password_keychain_error") }
+    }
+
+    private func completeAdminUnlock() {
+        defer { clearPasswordFields() }
+        guard let user = Auth.auth().currentUser, user.uid == pendingAdminUID, user.isEmailVerified,
+              CommunityProfileManager.isPrivilegedAdminEmail else {
+            notice("admin_password_sign_in_required")
+            return
+        }
+        do {
+            if settingPassword {
+                guard (12...128).contains(passwordInput.count), passwordInput.contains(where: { !$0.isWhitespace }) else { notice("admin_password_length_error"); return }
+                guard passwordInput == confirmationInput else { notice("admin_password_mismatch"); return }
+                try AdminLocalSecurity.createPassword(passwordInput, uid: user.uid)
+            } else if try !AdminLocalSecurity.verifyPassword(passwordInput, uid: user.uid) {
+                notice("wrong_password")
+                return
+            }
+            UserDefaults.standard.set(user.uid, forKey: "adminAuthorizedUID")
+            isAdmin = true
+            CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
+            adFree.refresh()
+        } catch { notice("admin_password_keychain_error") }
+    }
+
+}
+
+/// A device-local UI lock; server-side Firebase rules remain the authority for admin data.
+enum AdminLocalSecurity {
+    private static let service = "com.xujk.NTPUOne.AdminLocalPassword"
+    private static let sessionVersionKey = "adminLocalSecurityVersion"
+    private static let uidKey = "adminAuthorizedUID"
+
+    enum Failure: Error { case keychain(OSStatus) }
+
+    private static func query(uid: String) -> [String: Any] {
+        [kSecClass as String: kSecClassGenericPassword,
+         kSecAttrService as String: service,
+         kSecAttrAccount as String: uid,
+         kSecAttrSynchronizable as String: false]
+    }
+
+    static func hasPassword(uid: String) throws -> Bool {
+        var request = query(uid: uid)
+        request[kSecReturnAttributes as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        if status == errSecItemNotFound { return false }
+        guard status == errSecSuccess else { throw Failure.keychain(status) }
+        return true
+    }
+
+    static func createPassword(_ password: String, uid: String) throws {
+        var item = query(uid: uid)
+        item[kSecValueData as String] = Data(password.utf8)
+        item[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly
+        let status = SecItemAdd(item as CFDictionary, nil)
+        // Never overwrite an existing credential, even if a previous read failed.
+        guard status == errSecSuccess else { throw Failure.keychain(status) }
+    }
+
+    static func verifyPassword(_ password: String, uid: String) throws -> Bool {
+        var request = query(uid: uid)
+        request[kSecReturnData as String] = true
+        request[kSecMatchLimit as String] = kSecMatchLimitOne
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching(request as CFDictionary, &result)
+        guard status == errSecSuccess, let stored = result as? Data else { throw Failure.keychain(status) }
+        // Fixed-length digest comparison avoids early-exit comparison of password bytes.
+        let expected = Array(SHA256.hash(data: stored))
+        let candidate = Array(SHA256.hash(data: Data(password.utf8)))
+        return zip(expected, candidate).reduce(UInt8(0)) { $0 | ($1.0 ^ $1.1) } == 0
+    }
+
+    static func migrateLegacySession() {
+        let defaults = UserDefaults.standard
+        guard defaults.integer(forKey: sessionVersionKey) < 1 else { return }
+        defaults.set(false, forKey: "isAdmin")
+        defaults.removeObject(forKey: uidKey)
+        defaults.set(1, forKey: sessionVersionKey)
+    }
+
+    @MainActor static func reconcileSession(user: User?) {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: "isAdmin") else { return }
+        guard let user, user.uid == defaults.string(forKey: uidKey), user.isEmailVerified,
+              CommunityProfileManager.isPrivilegedAdminEmail else {
+            defaults.set(false, forKey: "isAdmin")
+            defaults.removeObject(forKey: uidKey)
+            CommentBadgeManager.shared.refreshBadgeForAdminStatusChange()
+            AdFreeService.shared.refresh()
+            return
         }
     }
 }
