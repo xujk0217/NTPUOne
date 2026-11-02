@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，本次 build 設為 2。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，本次 build 設為 12（Apple 回報既有最高 build 為 11）。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
