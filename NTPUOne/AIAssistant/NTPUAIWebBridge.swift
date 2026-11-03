@@ -448,7 +448,12 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         contextTask = Task { [weak self] in
             let payload = selected.sources.isEmpty ? AIContextPayload.empty : await provider?(selected) ?? .empty
             guard !Task.isCancelled, let self else { return }
-            if self.autoWebSearchEnabled, let query = selected.webQuery {
+            // The planning model can omit webQuery even when the user enabled
+            // automatic search. Fall back to the current question after the
+            // same privacy filter so the feature does not silently become a
+            // model-dependent no-op.
+            let searchQuery = selected.webQuery ?? (self.autoWebSearchEnabled ? AIWebQueryPolicy.clean(question) : nil)
+            if self.autoWebSearchEnabled, let query = searchQuery {
                 self.replyStatus = "正在搜尋網路"
                 do {
                     let result = try await AIWebSearch.search(query)
