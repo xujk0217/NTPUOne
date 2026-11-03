@@ -4,26 +4,43 @@ import Combine
 
 /// One store and one context for the App. Failures never delete or replace user data.
 final class CoreDataManager: ObservableObject {
-    static let shared = CoreDataManager(storeURL: FileManager.default
-        .containerURL(forSecurityApplicationGroupIdentifier: "group.NTPUOne.NextCourseWidget")?
-        .appendingPathComponent("shared.sqlite"))
+    static let shared = CoreDataManager(storeURLProvider: {
+        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: "group.NTPUOne.NextCourseWidget")?
+            .appendingPathComponent("shared.sqlite")
+    })
 
     let persistentContainer: NSPersistentCloudKitContainer
     @Published private(set) var isReady = false
     @Published private(set) var loadError: String?
     @Published var operationError: String?
+    private let storeURLProvider: (() -> URL?)?
+    private let cloudSyncEnabled: Bool
 
-    init(storeURL: URL?, model: NSManagedObjectModel? = nil, cloudSyncEnabled: Bool = true) {
+    convenience init(storeURLProvider: @escaping () -> URL?) {
+        self.init(storeURL: storeURLProvider(), storeURLProvider: storeURLProvider)
+    }
+
+    init(storeURL: URL?, model: NSManagedObjectModel? = nil, cloudSyncEnabled: Bool = true,
+         storeURLProvider: (() -> URL?)? = nil) {
+        self.storeURLProvider = storeURLProvider
+        self.cloudSyncEnabled = cloudSyncEnabled
         if let model {
             persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel", managedObjectModel: model)
         } else {
             persistentContainer = NSPersistentCloudKitContainer(name: "CourseModel")
         }
+        persistentContainer.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
         guard let storeURL else {
             persistentContainer.persistentStoreDescriptions = []
             loadError = "無法存取共用資料空間。請確認裝置儲存空間及 App 權限，稍後再試。"
             return
         }
+        configureStore(at: storeURL)
+        retryLoading()
+    }
+
+    private func configureStore(at storeURL: URL) {
         let description = NSPersistentStoreDescription(url: storeURL)
         // Finish loading before any view model fetches or schedules notifications.
         description.shouldAddStoreAsynchronously = false
@@ -35,13 +52,17 @@ final class CoreDataManager: ObservableObject {
             description.cloudKitContainerOptions = NSPersistentCloudKitContainerOptions(containerIdentifier: "iCloud.com.xujk.NTPUOne")
         }
         persistentContainer.persistentStoreDescriptions = [description]
-        persistentContainer.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
-        persistentContainer.viewContext.automaticallyMergesChangesFromParent = true
-        retryLoading()
     }
 
     func retryLoading() {
-        guard !isReady, persistentContainer.persistentStoreDescriptions.first?.url != nil else { return }
+        guard !isReady else { return }
+        if persistentContainer.persistentStoreDescriptions.first?.url == nil, let url = storeURLProvider?() {
+            configureStore(at: url)
+        }
+        guard persistentContainer.persistentStoreDescriptions.first?.url != nil else {
+            loadError = "無法存取共用資料空間。請確認裝置儲存空間及 App 權限，稍後再試。"
+            return
+        }
         loadError = nil
         persistentContainer.loadPersistentStores { [self] _, error in
             if let error {

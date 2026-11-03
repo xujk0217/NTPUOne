@@ -17,6 +17,7 @@ import Firebase
 import UserNotifications
 
 struct AboutView: View {
+    @State private var adPresenter = WeakScenePresentationController()
     //about rewardAds
     @StateObject private var rewardAd = RewardedAd()
     @ObservedObject private var rewardedAdManager = RewardedAdManager.shared
@@ -146,6 +147,7 @@ struct AboutView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
+            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle(String(localized: "my"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
@@ -192,6 +194,7 @@ struct AboutView: View {
                 rewardedAdManager.preload()
             }
         }
+        .background(ScenePresentationAnchor { adPresenter.controller = $0 }.frame(width: 0, height: 0))
         .communityDepartmentChooser(communityProfileManager)
     }
 
@@ -243,7 +246,7 @@ struct AboutView: View {
             return
         }
 
-        let presented = rewardedAdManager.present(onReward: {
+        let presented = rewardedAdManager.present(from: adPresenter.controller, onReward: {
             adFree.grantForTodayEnd()
         })
 
@@ -255,6 +258,7 @@ struct AboutView: View {
 }
 
 private struct AccountCenterView: View {
+    @State private var loginPresenter = WeakScenePresentationController()
     @ObservedObject var communityProfileManager: CommunityProfileManager
     @AppStorage("isAdmin") private var isAdmin: Bool = false
 
@@ -275,7 +279,7 @@ private struct AccountCenterView: View {
                         .foregroundStyle(.secondary)
 
                     Button {
-                        communityProfileManager.signInWithGoogleSchoolEmail()
+                        communityProfileManager.signInWithGoogleSchoolEmail(presenting: loginPresenter.controller)
                     } label: {
                         rowLabel(
                             title: String(localized: "account_google_login"),
@@ -442,6 +446,7 @@ private struct AccountCenterView: View {
             .padding(.vertical, 4)
         }
         .accessibilityLabel(String(localized: "account_display_preferences"))
+        .background(ScenePresentationAnchor { loginPresenter.controller = $0 }.frame(width: 0, height: 0))
         .communityDepartmentChooser(communityProfileManager)
         .onAppear { communityProfileManager.syncOwnCommentCountFromServer() }
         .onChange(of: communityProfileManager.profile.ownerUid) { _ in

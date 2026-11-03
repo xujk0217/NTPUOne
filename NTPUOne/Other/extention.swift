@@ -49,7 +49,8 @@ struct AutoSizingTF: UIViewRepresentable {
         textView.delegate = context.coordinator
         
         // 添加工具栏
-        let toolBar = UIToolbar(frame: CGRect(x: 0, y: 0, width: UIScreen.main.bounds.width, height: 50))
+        let toolBar = UIToolbar(frame: .zero)
+        toolBar.autoresizingMask = [.flexibleWidth]
         toolBar.barStyle = .default
         let spacer = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: nil, action: nil)
         let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: context.coordinator, action: #selector(context.coordinator.closeKeyBoard))

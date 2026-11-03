@@ -55,7 +55,7 @@ struct WebView: UIViewRepresentable {
                 }
                 
                 // 对其他 URL 使用内嵌浏览器 (SFSafariViewController) 打开
-                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
+                if let topViewController = ScenePresentationAnchor.presenter(for: webView) {
                     let safariVC = SFSafariViewController(url: url)
                     topViewController.present(safariVC, animated: true, completion: nil)
                 }
@@ -66,6 +66,17 @@ struct WebView: UIViewRepresentable {
             decisionHandler(.allow)
         }
     }
+}
+
+/// A Safari presentation belongs to the SwiftUI view that requested it, not a global window.
+struct SceneSafariDestination: Identifiable {
+    let id = UUID()
+    let url: URL
+}
+
+/// Holds a scene-local presentation source without retaining its view hierarchy.
+final class WeakScenePresentationController {
+    weak var controller: UIViewController?
 }
 
 struct SafariView: UIViewControllerRepresentable {

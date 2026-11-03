@@ -12,6 +12,8 @@ struct AcademicConnectionPromptView: View {
         Group {
             if connecting { AcademicConnectionView() }
             else {
+                GeometryReader { viewport in
+                ScrollView {
                 VStack(spacing: 22) {
                     Text("連結學校服務").font(.largeTitle.bold()).padding(.top, 24)
                     VStack(spacing: 20) {
@@ -25,7 +27,7 @@ struct AcademicConnectionPromptView: View {
                         Text("帳密只保存在這台手機，不會更改校方密碼。")
                             .font(.caption).foregroundStyle(.secondary)
                         Spacer(minLength: 10)
-                    }.padding(24).frame(maxWidth: .infinity, maxHeight: .infinity)
+                    }.padding(24).frame(maxWidth: .infinity).frame(minHeight: max(260, viewport.size.height - 240))
                         .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 24))
                         .overlay(RoundedRectangle(cornerRadius: 24).stroke(Color.blue.opacity(0.18)))
                     Button { connecting = true } label: {
@@ -34,7 +36,9 @@ struct AcademicConnectionPromptView: View {
                             .background(Color.blue, in: RoundedRectangle(cornerRadius: 14)).foregroundStyle(.white)
                     }
                     Button("稍後再說") { dismiss() }.font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
-                }.padding(.horizontal, 20).padding(.bottom, 24).background(Color(.systemGroupedBackground))
+                }.padding(.horizontal, 20).padding(.bottom, 24)
+                }
+                }.background(Color(.systemGroupedBackground))
             }
         }
     }

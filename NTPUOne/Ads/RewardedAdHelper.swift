@@ -66,7 +66,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
     ///   - onDismiss: 廣告關閉後的回調（不論是否獲獎）
     /// - Returns: 是否成功呈現
     @discardableResult
-    func present(onReward: @escaping () -> Void, onDismiss: (() -> Void)? = nil) -> Bool {
+    func present(from presenter: UIViewController?, onReward: @escaping () -> Void, onDismiss: (() -> Void)? = nil) -> Bool {
         resetDailyCountIfNeeded()
         guard viewCount < maxDailyViews else {
             print("⚠️ Rewarded: 已達每日上限 \(maxDailyViews) 次")
@@ -86,7 +86,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
             return false
         }
 
-        guard let rootVC = Self.rootVC else {
+        guard let presenter, presenter.viewIfLoaded?.window != nil else {
             print("⚠️ Rewarded: 找不到 rootViewController")
             return false
         }
@@ -94,7 +94,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
         self.onReward = onReward
         self.onDismiss = onDismiss
 
-        ad.present(fromRootViewController: rootVC) { [weak self] in
+        ad.present(fromRootViewController: ScenePresentationAnchor.top(from: presenter)) { [weak self] in
             self?.onReward?()
             self?.recordView()
         }
@@ -197,10 +197,5 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
         }
     }
 
-    // MARK: - Helper
-    private static var rootVC: UIViewController? {
-        UIApplication.shared.connectedScenes
-            .compactMap { ($0 as? UIWindowScene)?.keyWindow?.rootViewController }
-            .first
-    }
+
 }

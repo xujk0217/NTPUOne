@@ -52,6 +52,14 @@ enum CoreDataRecoveryChecks {
         precondition(!unavailable.isReady && unavailable.loadError != nil)
         precondition(unavailable.persistentContainer.persistentStoreDescriptions.isEmpty,
                      "Missing App Group must never fall back to a different database")
+        var sharedAvailable = false
+        let recoveredURL = root.appendingPathComponent("recovered.sqlite")
+        let recovered = CoreDataManager(storeURL: nil, model: model(), cloudSyncEnabled: false,
+            storeURLProvider: { sharedAvailable ? recoveredURL : nil })
+        precondition(!recovered.isReady && recovered.loadError != nil)
+        sharedAvailable = true
+        recovered.retryLoading()
+        precondition(recovered.isReady && recovered.loadError == nil, "Retry must re-resolve the same App Group store")
         print("PASS: load failure, original data preservation, load retry, failed save retention, save retry, missing App Group")
     }
 }

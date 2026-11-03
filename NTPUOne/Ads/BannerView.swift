@@ -53,6 +53,24 @@ final class BannerAdLoader: NSObject, ObservableObject, GADBannerViewDelegate {
     }
 }
 
+/// Resolve the source controller only after UIKit attaches this banner to its own scene.
+private final class SceneBoundBannerView: GADBannerView {
+    private var requestedInitialAd = false
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        guard window != nil, let presenter = ScenePresentationAnchor.presenter(for: self, followingPresented: false) else {
+            rootViewController = nil
+            return
+        }
+        rootViewController = presenter
+        if !requestedInitialAd {
+            requestedInitialAd = true
+            load(GADRequest())
+        }
+    }
+}
+
 /// Banner 廣告的 UIViewRepresentable
 struct BannerAdUIViewWrapper: UIViewRepresentable {
     @ObservedObject var loader: BannerAdLoader
@@ -63,21 +81,14 @@ struct BannerAdUIViewWrapper: UIViewRepresentable {
     // let adUnitID = "ca-app-pub-3940256099942544/2934735716"
     
     func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
+        let bannerView = SceneBoundBannerView(adSize: GADAdSizeBanner)
         bannerView.adUnitID = adUnitID
-        bannerView.rootViewController = Self.rootVC
         bannerView.delegate = loader
-        bannerView.load(GADRequest())
         return bannerView
     }
     
     func updateUIView(_ uiView: GADBannerView, context: Context) {}
     
-    private static var rootVC: UIViewController? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first { $0.isKeyWindow }?.rootViewController
-    }
 }
 
 /// Banner 骨架佔位符
@@ -120,11 +131,9 @@ struct BannerAdView: UIViewRepresentable {
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = GADBannerView(adSize: GADAdSizeBanner)
+        let bannerView = SceneBoundBannerView(adSize: GADAdSizeBanner)
         bannerView.adUnitID = adUnitID
-        bannerView.rootViewController = Self.rootVC
         bannerView.delegate = context.coordinator
-        bannerView.load(GADRequest())
         context.coordinator.bannerView = bannerView
         return bannerView
     }
@@ -155,9 +164,4 @@ struct BannerAdView: UIViewRepresentable {
     }
 
     // MARK: - Helper
-    private static var rootVC: UIViewController? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .first?.windows.first { $0.isKeyWindow }?.rootViewController
-    }
 }

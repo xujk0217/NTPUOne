@@ -11,6 +11,7 @@ import SafariServices
 struct CommonLinksView: View {
     @StateObject private var webManager = WebManager()
     @EnvironmentObject var adFree: AdFreeService
+    @State private var safariDestination: SceneSafariDestination?
     
     var body: some View {
         VStack {
@@ -61,6 +62,7 @@ struct CommonLinksView: View {
                 }
             }
         }
+        .sheet(item: $safariDestination) { destination in SafariView(url: destination.url) }
         .navigationTitle(String(localized: "common_links"))
         .onAppear {
             webManager.createData()
@@ -101,10 +103,7 @@ struct CommonLinksView: View {
         } else {
             // 用 SFSafariViewController 開啟（內嵌瀏覽器）
             if let url = URL(string: urlString) {
-                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                    let safariVC = SFSafariViewController(url: url)
-                    topViewController.present(safariVC, animated: true, completion: nil)
-                }
+                safariDestination = SceneSafariDestination(url: url)
             }
         }
     }

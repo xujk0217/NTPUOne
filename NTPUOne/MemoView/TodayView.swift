@@ -136,6 +136,7 @@ struct TodayView: View {
 
     private var navigationContent: some View {
         mainStack
+            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle(String(localized: "memo"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

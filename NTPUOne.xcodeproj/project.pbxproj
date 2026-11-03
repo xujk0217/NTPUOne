@@ -7,6 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA2500000000000000000005 /* AIChangeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000006 /* AIChangeReviewView.swift */; };
+		AA2500000000000000000003 /* ScenePresentationAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000004 /* ScenePresentationAnchor.swift */; };
+		AA2500000000000000000001 /* DuoWorkspacePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000002 /* DuoWorkspacePolicy.swift */; };
 		AA1300000000000000000009 /* MarkdownThirdPartyNotices.txt in Resources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000009 /* MarkdownThirdPartyNotices.txt */; };
 		AA1300000000000000000008 /* markdown-renderer.bundle.js in Resources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000008 /* markdown-renderer.bundle.js */; };
 		AA1300000000000000000007 /* AILoginDiagnostics.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA1200000000000000000007 /* AILoginDiagnostics.swift */; };
@@ -175,6 +178,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA2500000000000000000006 /* AIChangeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AIChangeReviewView.swift; sourceTree = "<group>"; };
+		AA2500000000000000000004 /* ScenePresentationAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout/ScenePresentationAnchor.swift; sourceTree = "<group>"; };
+		AA2500000000000000000002 /* DuoWorkspacePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout/DuoWorkspacePolicy.swift; sourceTree = "<group>"; };
 		AA1200000000000000000009 /* MarkdownThirdPartyNotices.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = AIAssistant/MarkdownThirdPartyNotices.txt; sourceTree = "<group>"; };
 		AA1200000000000000000008 /* markdown-renderer.bundle.js */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.javascript; path = AIAssistant/markdown-renderer.bundle.js; sourceTree = "<group>"; };
 		AA1200000000000000000007 /* AILoginDiagnostics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AILoginDiagnostics.swift; sourceTree = "<group>"; };
@@ -432,6 +438,9 @@
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95082F5D1000001A1697 /* CommunityNotificationFallbackService.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				AA2500000000000000000004 /* ScenePresentationAnchor.swift */,
+				AA2500000000000000000002 /* DuoWorkspacePolicy.swift */,
+				AA2500000000000000000006 /* AIChangeReviewView.swift */,
 				AA1200000000000000000003 /* FloatingAIView.swift */,
 				AA1200000000000000000007 /* AILoginDiagnostics.swift */,
 				AA1200000000000000000006 /* AIContextService.swift */,
@@ -798,7 +807,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "# Type a script or drag a script file from your workspace to insert its path.\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+			shellScript = "# Simulator builds do not upload device crash symbols.\nif [ \"${PLATFORM_NAME}\" = \"iphonesimulator\" ]; then exit 0; fi\n\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -834,6 +843,9 @@
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95092F5D1000001A1697 /* CommunityNotificationFallbackService.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
+				AA2500000000000000000003 /* ScenePresentationAnchor.swift in Sources */,
+				AA2500000000000000000001 /* DuoWorkspacePolicy.swift in Sources */,
+				AA2500000000000000000005 /* AIChangeReviewView.swift in Sources */,
 				AA1200000000000000000001 /* FloatingAIView.swift in Sources */,
 				AA1300000000000000000007 /* AILoginDiagnostics.swift in Sources */,
 				AA1300000000000000000006 /* AIContextService.swift in Sources */,
@@ -982,7 +994,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = NextCourseWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 26;
 				DEVELOPMENT_TEAM = T593T3727N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NextCourseWidget/Info.plist;
@@ -1011,7 +1023,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = NextCourseWidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 26;
 				DEVELOPMENT_TEAM = T593T3727N;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = NextCourseWidget/Info.plist;
@@ -1161,7 +1173,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 26;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
 				DEVELOPMENT_TEAM = T593T3727N;
@@ -1176,7 +1188,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -1205,7 +1217,7 @@
 				ASSETCATALOG_COMPILER_INCLUDE_ALL_APPICON_ASSETS = NO;
 				CODE_SIGN_ENTITLEMENTS = NTPUOne/NTPUOne.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 24;
+				CURRENT_PROJECT_VERSION = 26;
 				DEVELOPMENT_ASSET_PATHS = "\"NTPUOne/Preview Content\"";
 				DEVELOPMENT_TEAM = T593T3727N;
 				ENABLE_PREVIEWS = YES;
@@ -1219,7 +1231,7 @@
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = "Launch Screen.storyboard";
-				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

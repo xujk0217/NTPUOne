@@ -33,6 +33,8 @@ struct dietView: View {
     @State var store: FDetail
     let currCollectName: String?
     @EnvironmentObject var adFree: AdFreeService
+    @State private var safariDestination: SceneSafariDestination?
+    @State private var scenePresenter = WeakScenePresentationController()
 
     @State private var isStar = false
     @State private var position: MapCameraPosition
@@ -227,6 +229,8 @@ struct dietView: View {
             } message: {
                 Text(String(localized: "delete_comment_confirm_message"))
             }
+            .background(ScenePresentationAnchor { scenePresenter.controller = $0 })
+            .sheet(item: $safariDestination) { destination in SafariView(url: destination.url) }
             .sheet(item: $editingComment) { comment in
                 editCommentSheet(comment)
             }
@@ -492,10 +496,8 @@ struct dietView: View {
     }
 
     func openURL(_ urlString: String) {
-        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url),
-           let topViewController = UIApplication.shared.windows.first?.rootViewController {
-            let safariVC = SFSafariViewController(url: url)
-            topViewController.present(safariVC, animated: true, completion: nil)
+        if let url = URL(string: urlString), UIApplication.shared.canOpenURL(url) {
+            safariDestination = SceneSafariDestination(url: url)
         }
     }
 
@@ -562,6 +564,7 @@ struct dietView: View {
     
     func watchAdForBonus() {
         let presented = RewardedAdManager.shared.present(
+            from: scenePresenter.controller,
             onReward: {
                 commentLimit.grantAdBonus()
             },
@@ -586,6 +589,8 @@ struct dietView: View {
 
 struct noMapDietView: View {
     @EnvironmentObject var adFree: AdFreeService
+    @State private var safariDestination: SceneSafariDestination?
+    @State private var scenePresenter = WeakScenePresentationController()
     @State private var store: FDetail?
     let currCollectName: String?
     
@@ -785,6 +790,8 @@ struct noMapDietView: View {
             } message: {
                 Text(String(localized: "delete_comment_confirm_message"))
             }
+            .background(ScenePresentationAnchor { scenePresenter.controller = $0 })
+            .sheet(item: $safariDestination) { destination in SafariView(url: destination.url) }
             .sheet(item: $editingComment) { comment in
                 noMapEditCommentSheet(comment)
             }
@@ -819,11 +826,7 @@ extension noMapDietView{
     func openURL(_ urlString: String) {
         if let url = URL(string: urlString) {
             if UIApplication.shared.canOpenURL(url) {
-                // 打开 SafariViewController
-                if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                    let safariVC = SFSafariViewController(url: url)
-                    topViewController.present(safariVC, animated: true, completion: nil)
-                }
+                safariDestination = SceneSafariDestination(url: url)
             } else {
                 print("Cannot open URL: \(urlString)")
             }
@@ -894,6 +897,7 @@ extension noMapDietView{
     
     func watchAdForBonus() {
         let presented = RewardedAdManager.shared.present(
+            from: scenePresenter.controller,
             onReward: {
                 commentLimit.grantAdBonus()
             },

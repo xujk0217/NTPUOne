@@ -32,6 +32,8 @@ struct LinkView: View {
     @State private var urlString: String? = nil
     @State private var showWebView = false
     @State private var showSafariView = false
+    @State private var safariDestination: SceneSafariDestination?
+    @State private var scenePresenter = WeakScenePresentationController()
     @State private var selectDemo = 0
     
     let cardShape = RoundedRectangle(cornerRadius: 14, style: .continuous)
@@ -813,7 +815,8 @@ struct LinkView: View {
                         .listRowBackground(Color.clear)
                     }
                 }
-                .navigationTitle("NTPU one")
+                .modifier(AIWorkspaceEntry(active: true))
+            .navigationTitle("NTPU one")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .principal) {
@@ -840,6 +843,10 @@ struct LinkView: View {
                 }
                 .onChange(of: todayFoodManager.Food) { _ in
                     updateTodayRestaurantRecommendation()
+                }
+                .background(ScenePresentationAnchor { scenePresenter.controller = $0 })
+                .sheet(item: $safariDestination) { destination in
+                    SafariView(url: destination.url)
                 }
                 .sheet(isPresented: $showWebView) {
                     if let urlString = urlString {
@@ -1542,7 +1549,7 @@ struct LinkView: View {
     }
 
     private func showRewarded() {
-        rewardedAd.present(onReward: {
+        rewardedAd.present(from: scenePresenter.controller, onReward: {
             adFree.grantForTodayEnd()
         })
     }
@@ -1884,11 +1891,7 @@ struct LinkView: View {
         if urlString == "https://past-exam.ntpu.cc" {
             UIApplication.shared.open(url)
         } else {
-            // Open in SafariViewController
-            if let topViewController = UIApplication.shared.windows.first?.rootViewController {
-                let safariVC = SFSafariViewController(url: url)
-                topViewController.present(safariVC, animated: true, completion: nil)
-            }
+            safariDestination = SceneSafariDestination(url: url)
         }
     }
     

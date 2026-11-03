@@ -22,27 +22,27 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
     // private let adUnitID = "ca-app-pub-3940256099942544/3986624511"
 
     private var adLoader: GADAdLoader?
+    private weak var sourceController: UIViewController?
     private var retryCount = 0
     private let maxRetry = 2
+
+    func attach(to controller: UIViewController) {
+        let sourceChanged = sourceController !== controller
+        sourceController = controller
+        nativeAd?.rootViewController = ScenePresentationAnchor.top(from: controller)
+        // A SwiftUI update is not a retry signal; preserve the existing backoff policy.
+        if sourceChanged { loadAd() }
+    }
 
     func loadAd() {
         guard !isLoading else { return }
         guard nativeAd == nil else { return }
+        // The local anchor calls attach again when its scene becomes available.
+        guard let controller = sourceController, controller.viewIfLoaded?.window != nil else { return }
+        let rootVC = ScenePresentationAnchor.top(from: controller)
 
         isLoading = true
         loadFailed = false
-
-        // 取得 rootViewController
-        let rootVC = Self.findRootVC()
-        guard let rootVC else {
-            print("⚠️ NativeAdLoader: rootVC == nil，延遲 0.5s 重試")
-            isLoading = false
-            // rootVC 可能尚未就緒（例如 app launch 初期），稍後重試
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                self?.loadAd()
-            }
-            return
-        }
 
         let loader = GADAdLoader(
             adUnitID: adUnitID,
@@ -58,6 +58,7 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
     // MARK: GADNativeAdLoaderDelegate
     func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
         nativeAd.delegate = self
+        nativeAd.rootViewController = sourceController.map { ScenePresentationAnchor.top(from: $0) }
         DispatchQueue.main.async {
             self.nativeAd = nativeAd
             self.isLoading = false
@@ -89,14 +90,6 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
         print("👆 Native ad click recorded")
     }
 
-    // MARK: Helper
-    private static func findRootVC() -> UIViewController? {
-        UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap { $0.windows }
-            .first(where: { $0.isKeyWindow })?
-            .rootViewController
-    }
 }
 
 // MARK: - SwiftUI 入口：NativeAdSectionView
@@ -146,6 +139,7 @@ struct NativeAdSectionView: View {
             }
         )
         .clipShape(RoundedRectangle(cornerRadius: showCardBackground ? 18 : 0, style: .continuous))
+        .background(ScenePresentationAnchor { loader.attach(to: $0) })
         .onAppear {
             print("🔍 NativeAdSectionView onAppear - 開始載入廣告")
             loader.loadAd()
