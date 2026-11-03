@@ -156,3 +156,7 @@ build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個�
 ## build 27（2026-11-03）
 
 版本 1.4.0 build 27 已封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 處理及測試者可下載狀態待確認。新增管理員功能開關、舊使用者學校連結提示與批次變更預覽。管理員規則模擬測試通過；批次操作、iCloud 與手機介面仍待實機驗收。本版封存仍缺 11 個第三方 framework 的匹配 dSYM。
+
+## build 28（2026-11-03）
+
+版本 1.4.0 build 28 已封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 後續處理及下載狀態待確認。AI 拖曳關閉和本機歡迎訊息已通過政策測試及模擬器編譯，觸控手感仍需裝置驗收。既有第三方 dSYM 缺漏警告仍存在。
