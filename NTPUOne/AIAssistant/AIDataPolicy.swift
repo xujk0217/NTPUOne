@@ -277,8 +277,10 @@ enum AIWelcomePolicy {
     }
 }
 enum AIPanelDismissPolicy {
-    static func shouldDismiss(horizontal: CGFloat, vertical: CGFloat, predictedVertical: CGFloat) -> Bool {
-        vertical > 0 && vertical > abs(horizontal) && (vertical > 90 || predictedVertical > 150)
+    static func shouldDismiss(horizontal: CGFloat, vertical: CGFloat, predictedVertical: CGFloat, threshold: CGFloat) -> Bool {
+        let dominantDirection = vertical != 0 ? vertical : predictedVertical
+        let projectedDistance = max(vertical, predictedVertical)
+        return dominantDirection > 0 && abs(dominantDirection) > abs(horizontal) && projectedDistance >= threshold
     }
 }
 

@@ -199,24 +199,29 @@ private struct AIChatPanel: View {
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
     @State private var dismissDrag: CGFloat = 0
+    @State private var panelHeight: CGFloat = 0
     private var dismissGesture: some Gesture {
-        DragGesture(minimumDistance: 10)
+        // Measure in a fixed coordinate space. The panel itself is offset while
+        // dragging; using the default local space makes the translation depend on
+        // that offset, which feeds back into the gesture and makes the panel jump
+        // between its resting and dragged positions.
+        DragGesture(minimumDistance: 10, coordinateSpace: .global)
             .onChanged { value in
                 // Track the finger directly while dragging. Disable implicit
                 // animation here so the panel never lags behind the gesture.
-                guard value.translation.height > 0,
-                      value.translation.height > abs(value.translation.width) else { return }
+                guard abs(value.translation.height) > abs(value.translation.width) else { return }
                 var transaction = Transaction()
                 transaction.disablesAnimations = true
                 withTransaction(transaction) {
-                    dismissDrag = min(value.translation.height, 260)
+                    dismissDrag = min(max(value.translation.height, 0), max(panelHeight, 260))
                 }
             }
             .onEnded { value in
-                if AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width, vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height) {
+                let threshold = max(panelHeight, 260) * 0.4
+                if AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width, vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height, threshold: threshold) {
                     inputFocused = false
                     withAnimation(.spring(response: 0.48, dampingFraction: 0.88)) {
-                        dismissDrag = min(max(value.translation.height, 80), 260)
+                        dismissDrag = min(max(value.translation.height, threshold), max(panelHeight, 260))
                         close()
                     }
                 } else {
@@ -362,6 +367,13 @@ private struct AIChatPanel: View {
         .onChange(of: bridge.messages.count) { _ in bridge.showWelcomeIfNeeded() }
         .onChange(of: bridge.preparingArrival) { _ in bridge.showWelcomeIfNeeded() }
         .onChange(of: bridge.replying) { _ in bridge.showWelcomeIfNeeded() }
+        .background {
+            GeometryReader { geometry in
+                Color.clear
+                    .onAppear { panelHeight = geometry.size.height }
+                    .onChange(of: geometry.size.height) { panelHeight = $0 }
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 24))
         .scaleEffect(reduceMotion ? 1 : 1 - min(dismissDrag / 1800, 0.1), anchor: .bottom)
         .offset(y: dismissDrag)
