@@ -815,7 +815,6 @@ struct LinkView: View {
                         .listRowBackground(Color.clear)
                     }
                 }
-                .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle("NTPU one")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

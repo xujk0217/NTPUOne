@@ -147,7 +147,6 @@ struct AboutView: View {
                     .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
                 }
             }
-            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle(String(localized: "my"))
             .navigationBarTitleDisplayMode(.large)
             .toolbar {

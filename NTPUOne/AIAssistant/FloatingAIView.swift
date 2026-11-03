@@ -10,64 +10,6 @@ private enum AIChatColors {
     static let user = Color(red: 0.16, green: 0.35, blue: 0.73)
 }
 
-private struct AIWorkspaceActions {
-    var show: () -> Void = {}
-    var dismissTip: () -> Void = {}
-    var tip: String?
-    var busy = false
-    var enabled = true
-}
-private struct AIWorkspaceActionsKey: EnvironmentKey { static let defaultValue = AIWorkspaceActions() }
-private struct AIWorkspaceActiveKey: EnvironmentKey { static let defaultValue = false }
-extension EnvironmentValues {
-    var aiWorkspaceActive: Bool {
-        get { self[AIWorkspaceActiveKey.self] }
-        set { self[AIWorkspaceActiveKey.self] = newValue }
-    }
-    fileprivate var aiWorkspaceActions: AIWorkspaceActions {
-        get { self[AIWorkspaceActionsKey.self] }
-        set { self[AIWorkspaceActionsKey.self] = newValue }
-    }
-}
-
-/// Native bars avoid the Duo camera and become vertical with the system's navigation.
-struct AIWorkspaceEntry: ViewModifier {
-    let active: Bool
-    @Environment(\.aiWorkspaceActions) private var actions
-    @Environment(\.aiWorkspaceActive) private var isActive
-    func body(content: Content) -> some View {
-        content.toolbar {
-            if active && isActive && actions.enabled {
-                ToolbarItem(placement: .primaryAction) {
-                    Button(action: actions.show) {
-                        if actions.busy { ProgressView() }
-                        else { Image(systemName: "sparkles") }
-                    }
-                    .accessibilityLabel("開啟 AI 助理")
-                    .popover(isPresented: Binding(get: { active && actions.tip != nil }, set: { if !$0 { actions.dismissTip() } })) {
-                        VStack(alignment: .leading, spacing: 12) {
-                            HStack {
-                                Label("給你的小提醒", systemImage: "sparkles").font(.headline)
-                                Spacer()
-                                Button(action: actions.dismissTip) { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("關閉提醒")
-                            }
-                            Text(actions.tip ?? "").fixedSize(horizontal: false, vertical: true)
-                        }.padding(18).frame(idealWidth: 300, maxWidth: 340)
-                            .background(AIChatColors.hint)
-                            .modifier(AIReminderPopoverStyle())
-                    }
-                }
-            }
-        }
-    }
-}
-private struct AIReminderPopoverStyle: ViewModifier {
-    func body(content: Content) -> some View {
-        if #available(iOS 16.4, *) { content.presentationCompactAdaptation(.popover) }
-        else { content }
-    }
-}
-
 struct FloatingAIContainer<Content: View>: View {
     let content: Content
     let contextProvider: (AIContextRequest) async -> AIContextPayload
@@ -110,10 +52,6 @@ struct FloatingAIContainer<Content: View>: View {
             ZStack(alignment: .topLeading) {
                 // A stable view identity preserves tab navigation and scroll position across folds.
                 content
-                    .environment(\.aiWorkspaceActions, AIWorkspaceActions(show: {
-                        bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
-                    }, dismissTip: { bridge.dismissArrivalTip() }, tip: bridge.arrivalTip,
-                       busy: bridge.loading || bridge.preparingArrival || bridge.replying, enabled: features.aiEnabled))
                     .frame(width: plan.page.width, height: plan.page.height)
                     .position(x: plan.page.midX, y: plan.page.midY)
                     .blur(radius: blocking ? 9 : 0).allowsHitTesting(!blocking).accessibilityHidden(blocking)
@@ -139,7 +77,50 @@ struct FloatingAIContainer<Content: View>: View {
                     .position(x: plan.assistant.midX, y: plan.assistant.midY)
                     .zIndex(1)
                 }
-                if !open { AIWebsiteView(webView: bridge.webView).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false).accessibilityHidden(true) }
+                if !open {
+                    AIWebsiteView(webView: bridge.webView).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false).accessibilityHidden(true)
+                    if features.aiEnabled {
+                        let area = DuoWorkspacePolicy.floatingArea(size: geo.size, divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
+                        let button = DuoWorkspacePolicy.floatingButton(in: area, occlusions: regions(geo, division: false))
+                        if !button.isEmpty {
+                            let width = min(320, max(button.width, button.maxX - area.minX))
+                            VStack(alignment: .trailing, spacing: 10) {
+                                if let tip = bridge.arrivalTip, button.minY - area.minY >= 100 {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            Label("給你的小提醒", systemImage: "sparkles").font(.subheadline.weight(.semibold))
+                                            Spacer(minLength: 8)
+                                            Button { bridge.dismissArrivalTip() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                                                .accessibilityLabel("關閉提醒")
+                                        }
+                                        ScrollView { Text(tip).font(.subheadline).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }
+                                            .frame(maxHeight: max(0, min(180, button.minY - area.minY - 86)))
+                                    }
+                                    .padding(12).background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 18))
+                                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(AIChatColors.border))
+                                    .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                                }
+                                Button {
+                                    bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
+                                } label: {
+                                    Group {
+                                        if bridge.loading || bridge.preparingArrival || bridge.replying { ProgressView().tint(.white) }
+                                        else { Image(systemName: "sparkles").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white) }
+                                    }.frame(width: button.width, height: button.height)
+                                        .background(Color.accentColor, in: Circle())
+                                        .overlay(alignment: .topTrailing) {
+                                            if bridge.arrivalTip != nil { Circle().fill(Color.red).frame(width: 11, height: 11).overlay(Circle().stroke(.white, lineWidth: 1.5)) }
+                                        }
+                                        .shadow(color: .black.opacity(0.22), radius: 8, y: 4)
+                                }.accessibilityLabel(bridge.arrivalTip == nil ? "開啟 AI 助理" : "開啟 AI 助理，有新提醒")
+                            }
+                            .padding(.bottom, max(0, area.maxY - button.maxY))
+                            .frame(width: width, height: area.height, alignment: .bottomTrailing)
+                            .position(x: button.maxX - width / 2, y: area.midY)
+                            .zIndex(2)
+                        }
+                    }
+                }
             }
             .task(id: "\(onboardingComplete)-\(features.aiEnabled)") { if onboardingComplete && features.aiEnabled { bridge.start() } }
             .task(id: arrivalTrigger) {

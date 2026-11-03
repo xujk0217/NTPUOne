@@ -112,7 +112,6 @@ struct TimeTableView: View {
                     }
                 }
             }
-            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle("Course Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar{

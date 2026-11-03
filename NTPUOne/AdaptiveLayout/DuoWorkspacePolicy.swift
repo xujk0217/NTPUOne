@@ -47,6 +47,36 @@ enum DuoWorkspacePolicy {
         return DuoWorkspacePlan(mode: mode, page: page, assistant: assistant)
     }
 
+    /// The floating entry stays in the lower-right usable region, away from folds and cameras.
+    static func floatingArea(size: CGSize, divisions: [CGRect] = [], occlusions: [CGRect] = []) -> CGRect {
+        let bounds = CGRect(origin: .zero, size: CGSize(width: max(0, size.width), height: max(0, size.height)))
+        var area = bounds
+        for raw in divisions {
+            let fold = raw.intersection(area)
+            guard !fold.isNull, fold.width > 0, fold.height > 0 else { continue }
+            if fold.height >= area.height * 0.5 && fold.width < area.width * 0.4 {
+                let right = CGRect(x: min(area.maxX, fold.maxX + 8), y: area.minY,
+                                   width: max(0, area.maxX - fold.maxX - 8), height: area.height)
+                let left = CGRect(x: area.minX, y: area.minY, width: max(0, fold.minX - area.minX - 8), height: area.height)
+                area = right.width >= 72 ? right : left
+            } else if fold.width >= area.width * 0.5 && fold.height < area.height * 0.4 {
+                let lower = CGRect(x: area.minX, y: min(area.maxY, fold.maxY + 8),
+                                   width: area.width, height: max(0, area.maxY - fold.maxY - 8))
+                let upper = CGRect(x: area.minX, y: area.minY, width: area.width, height: max(0, fold.minY - area.minY - 8))
+                area = lower.height >= 72 ? lower : upper
+            }
+        }
+        return freeRectangle(area, avoiding: occlusions)
+    }
+    static func floatingButton(in area: CGRect, occlusions: [CGRect] = []) -> CGRect {
+        guard !area.isNull, area.width >= 56, area.height >= 56 else { return .zero }
+        let side: CGFloat = 56
+        let right = max(0, min(16, area.width - side))
+        let bottom = max(0, min(76, area.height - side))
+        let button = CGRect(x: area.maxX - right - side, y: area.maxY - bottom - side, width: side, height: side)
+        return occlusions.contains(where: { $0.insetBy(dx: -8, dy: -8).intersects(button) }) ? .zero : button
+    }
+
     /// Keep custom chat controls out of camera regions; native page containers adapt themselves.
     private static func freeRectangle(_ frame: CGRect, avoiding occlusions: [CGRect]) -> CGRect {
         var result = frame

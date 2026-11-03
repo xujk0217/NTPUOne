@@ -50,19 +50,19 @@ struct ContentView: View {
         }, hasSavedSchoolAccount: academic.schoolLinked,
            credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage, reviewChange: { aiChange = $0 }, reviewBatch: { proposals, onComplete in aiBatch = AIChangeBatch(proposals: proposals, onComplete: onComplete) }) {
         TabView(selection: $selectedTab) {
-            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).environment(\.aiWorkspaceActive, selectedTab == 0 && aiPage == nil).tabItem {
+            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).tabItem {
                 Image(systemName: "house")
                     .environment(\.symbolVariants, .none)
                 Text("Main")
             }.tag(0)
             
-            TodayView(memoManager: memoManager, courseData: courseData).environment(\.aiWorkspaceActive, selectedTab == 1 && aiPage == nil).tabItem {
+            TodayView(memoManager: memoManager, courseData: courseData).tabItem {
                 Image(systemName: "note.text")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "memo"))
             }.tag(1)
             
-            TimeTableView(memoManager: memoManager).environment(\.aiWorkspaceActive, selectedTab == 2 && aiPage == nil).tabItem {
+            TimeTableView(memoManager: memoManager).tabItem {
                 Image(systemName: "list.bullet.clipboard")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "timetable"))
@@ -71,14 +71,13 @@ struct ContentView: View {
             RemoteConfigFeatureGate(feature: .community) {
                 CommunityView()
             }
-            .environment(\.aiWorkspaceActive, selectedTab == 3 && aiPage == nil)
             .tabItem {
                 Image(systemName: "bubble.left.and.bubble.right")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "community_title"))
             }.tag(3)
             
-            AboutView().environment(\.aiWorkspaceActive, selectedTab == 4 && aiPage == nil).tabItem {
+            AboutView().tabItem {
                 Image(systemName: "info.circle")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "my"))
@@ -90,12 +89,10 @@ struct ContentView: View {
             if let page = aiPage {
                 NavigationStack {
                     aiDestination(page)
-                        .modifier(AIWorkspaceEntry(active: true))
                         .toolbar {
                             ToolbarItem(placement: .confirmationAction) { Button("返回") { aiPage = nil } }
                         }
                 }
-                .environment(\.aiWorkspaceActive, true)
                 .background(Color(uiColor: .systemBackground))
             }
         }
@@ -2910,7 +2907,6 @@ private struct CommunityView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
-            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle(String(localized: "community_title"))
             .searchable(text: $searchText, prompt: String(localized: "community_search_prompt"))
             .toolbar { communityToolbar }
