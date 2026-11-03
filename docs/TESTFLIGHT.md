@@ -180,3 +180,7 @@ build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個�
 ## build 33（2026-11-03）
 
 版本 1.4.0 build 33 已封存並上傳，`/private/tmp/ntpu33-upload-retry.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序結束碼 0；App Store Connect 後續處理與測試者可下載狀態待確認。修正 AI 面板拖曳：手指按住時不更新面板位移，放開後才依手勢距離決定收起或以彈簧動畫回原位。封存仍有第三方 `openssl_grpc.framework` dSYM 缺漏警告。
+
+## build 34（2026-11-03）
+
+版本 1.4.0 build 34 已完成簽章封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 後續處理及 TestFlight 可下載狀態待確認。本版讓 AI 面板在手指拖曳期間即時跟隨垂直移動，放手後依門檻收起或彈回。第三方 Firebase／Google framework 仍有缺少匹配 dSYM 的警告，未阻擋上傳。
