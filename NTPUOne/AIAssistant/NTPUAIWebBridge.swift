@@ -6,6 +6,7 @@ struct AIChatMessage: Identifiable {
     let id = UUID()
     let isUser: Bool
     var text: String
+    var isLocalGreeting = false
 }
 
 @MainActor
@@ -155,6 +156,12 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         arrivalEntry = UUID(); arrivalEntryRequested = false
         lastArrivalAttempt = nil; hasManualConversation = false; preparingArrival = false; arrivalTip = nil
     }
+    /// A local welcome is shown only for an otherwise empty conversation; it is never sent to the service.
+    func showWelcomeIfNeeded() {
+        guard AIWelcomePolicy.shouldShow(messageCount: messages.count, replying: replying, preparingArrival: preparingArrival) else { return }
+        messages.append(AIChatMessage(isUser: false, text: "嗨！我是 NTPU One AI 助理。你可以問我課表、待辦、Moodle、成績與校園資訊，也可以請我協助規劃或預覽資料變更。使用個人資料前，請在資料設定中確認相關權限。", isLocalGreeting: true))
+    }
+    var hasSchoolConversation: Bool { startedConversation }
     func dismissArrivalTip() { arrivalTip = nil }
     func setChatVisible(_ visible: Bool) { chatVisible = visible; if visible { arrivalTip = nil } }
     func cancelArrival() {
@@ -373,7 +380,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         guard ready, !replying, !deletingSchoolConversation, !prompt.isEmpty else { return }
         hasManualConversation = true; arrivalTip = nil
         // Send only the visible conversational text, not hidden source snapshots or action markers.
-        localConversationContext = messages.suffix(10).compactMap { message in
+        localConversationContext = messages.filter { !$0.isLocalGreeting }.suffix(10).compactMap { message in
             let clean = AIAppPage.allCases.reduce(AIChangeProposal.displayText(message.text)) { $0.replacingOccurrences(of: "[[page:\($1.rawValue)]]", with: "") }.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !clean.isEmpty else { return nil }
             return "\(message.isUser ? "使用者" : "助理")：\(String(clean.prefix(1200)))"

@@ -267,3 +267,15 @@ struct AIChangeProposal: Decodable, Identifiable {
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
+
+/// Local welcome and handle decisions do not send messages or depend on a signed-in session.
+enum AIWelcomePolicy {
+    static func shouldShow(messageCount: Int, replying: Bool, preparingArrival: Bool) -> Bool {
+        messageCount == 0 && !replying && !preparingArrival
+    }
+}
+enum AIPanelDismissPolicy {
+    static func shouldDismiss(horizontal: CGFloat, vertical: CGFloat, predictedVertical: CGFloat) -> Bool {
+        vertical > 0 && vertical > abs(horizontal) && (vertical > 90 || predictedVertical > 150)
+    }
+}

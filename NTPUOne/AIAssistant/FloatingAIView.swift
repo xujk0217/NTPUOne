@@ -194,8 +194,26 @@ private struct AIChatPanel: View {
     @State private var draft = ""
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
+    @GestureState private var dismissDrag: CGFloat = 0
     var body: some View {
         VStack(spacing: 0) {
+            Capsule().fill(.secondary.opacity(0.45)).frame(width: 42, height: 5)
+                .frame(maxWidth: .infinity, minHeight: 28)
+                .contentShape(Rectangle())
+                .gesture(DragGesture(minimumDistance: 8)
+                    .updating($dismissDrag) { value, state, _ in
+                        if value.translation.height > 0 && abs(value.translation.height) > abs(value.translation.width) {
+                            state = min(value.translation.height, 220)
+                        }
+                    }
+                    .onEnded { value in
+                        guard AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width,
+                            vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height) else { return }
+                        inputFocused = false; close()
+                    })
+                .accessibilityLabel("向下滑動關閉 AI 助理")
+                .accessibilityAddTraits(.isButton)
+                .accessibilityAction { inputFocused = false; close() }
             HStack(spacing: 10) {
                 Image(systemName: "sparkles").font(.headline).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
@@ -213,7 +231,7 @@ private struct AIChatPanel: View {
                         Toggle("寬畫面並排", isOn: $preferDocked)
                         Button("網路搜尋") { inputFocused = false; webQuery = draft; webError = nil; showWebSearch = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation)
                         Button("資料與提醒設定") { inputFocused = false; showDataSettings = true }
-                        Button("刪除這次校方對話", role: .destructive) { inputFocused = false; showDeleteSchoolChat = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation || bridge.messages.isEmpty)
+                        Button("刪除這次校方對話", role: .destructive) { inputFocused = false; showDeleteSchoolChat = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation || !bridge.hasSchoolConversation)
                     } label: {
                         Image(systemName: bridge.appDataEnabled ? "sparkles.rectangle.stack.fill" : "sparkles.rectangle.stack")
                             .foregroundStyle(bridge.appDataEnabled ? Color.accentColor : Color.secondary)
@@ -231,12 +249,8 @@ private struct AIChatPanel: View {
                         ScrollViewReader { proxy in
                             ScrollView {
                                 LazyVStack(alignment: .leading, spacing: 12) {
-                                    if bridge.messages.isEmpty {
-                                        VStack(spacing: 12) {
-                                            Image(systemName: "sparkles").font(.largeTitle).foregroundStyle(.tint)
-                                            Text("嗨！我是 NTPU One AI，有什麼可以幫你的嗎？").font(.headline).multilineTextAlignment(.center)
-                                            Text(bridge.loading ? "正在恢復登入狀態…" : bridge.ready ? "輸入問題，開始你的對話。" : "請先登入 NTPU AI，開始你的對話。").font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
-                                        }.frame(maxWidth: .infinity).padding(.top, 40)
+                                    if bridge.messages.isEmpty && (bridge.preparingArrival || bridge.replying) {
+                                        AITypingIndicator(label: "正在準備提醒").padding(12)
                                     }
                                     ForEach(bridge.messages) { message in
                                         HStack {
@@ -324,8 +338,15 @@ private struct AIChatPanel: View {
             if reduceTransparency { RoundedRectangle(cornerRadius: 24).fill(Color(uiColor: .systemBackground)) }
             else { RoundedRectangle(cornerRadius: 24).fill(.ultraThinMaterial).opacity(0.62).overlay(RoundedRectangle(cornerRadius: 24).fill(Color(uiColor: .systemBackground).opacity(0.04))) }
         }
-        .onAppear { if !bridge.hasPromptedForAppData { bridge.hasPromptedForAppData = true; showDataSettings = true } }
+        .onAppear {
+            bridge.showWelcomeIfNeeded()
+            if !bridge.hasPromptedForAppData { bridge.hasPromptedForAppData = true; showDataSettings = true }
+        }
+        .onChange(of: bridge.messages.count) { _ in bridge.showWelcomeIfNeeded() }
+        .onChange(of: bridge.preparingArrival) { _ in bridge.showWelcomeIfNeeded() }
+        .onChange(of: bridge.replying) { _ in bridge.showWelcomeIfNeeded() }
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .offset(y: dismissDrag)
         .sheet(isPresented: $showWebSearch, onDismiss: { webTask?.cancel(); webSearching = false }) {
             NavigationStack {
                 Form {

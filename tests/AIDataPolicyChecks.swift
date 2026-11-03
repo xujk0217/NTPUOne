@@ -3,6 +3,15 @@ import Foundation
 @main
 struct AIDataPolicyChecks {
     static func main() throws {
+        precondition(AIWelcomePolicy.shouldShow(messageCount: 0, replying: false, preparingArrival: false))
+        precondition(!AIWelcomePolicy.shouldShow(messageCount: 1, replying: false, preparingArrival: false))
+        precondition(!AIWelcomePolicy.shouldShow(messageCount: 0, replying: true, preparingArrival: false))
+        precondition(!AIWelcomePolicy.shouldShow(messageCount: 0, replying: false, preparingArrival: true))
+        precondition(AIPanelDismissPolicy.shouldDismiss(horizontal: 5, vertical: 100, predictedVertical: 100))
+        precondition(AIPanelDismissPolicy.shouldDismiss(horizontal: 5, vertical: 20, predictedVertical: 160))
+        precondition(!AIPanelDismissPolicy.shouldDismiss(horizontal: 100, vertical: 30, predictedVertical: 200))
+        precondition(!AIPanelDismissPolicy.shouldDismiss(horizontal: 0, vertical: -100, predictedVertical: -200))
+        precondition(!AIPanelDismissPolicy.shouldDismiss(horizontal: 1, vertical: 40, predictedVertical: 80))
         let ordinary = AIDataSource.allowed(includeSensitive: false)
         let all = AIDataSource.allowed(includeSensitive: true)
         precondition(all.count == 21)
