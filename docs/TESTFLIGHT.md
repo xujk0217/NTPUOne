@@ -152,3 +152,7 @@ Debug 編譯、Swift 校務解析與身分恢復政策、日期跨日／跨年�
 ### 第三方符號檔追查
 
 build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個動態 framework UUID 找不到相符的 dSYM（包括 gRPC、absl、Google Mobile Ads 與 Firebase）。`python3 scripts/check_archive_symbols.py <archive>` 可重跑檢查，缺漏時回傳非零。第三方二進位必須取得 UUID 完全相符的供應商 dSYM，不能用主程式 dSYM 代替；尚未找到這些檔案。參考 Apple 的 Locating a missing debug symbol file 和 Firebase Crashlytics 的符號上傳說明。
+
+## build 27（2026-11-03）
+
+版本 1.4.0 build 27 已封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 處理及測試者可下載狀態待確認。新增管理員功能開關、舊使用者學校連結提示與批次變更預覽。管理員規則模擬測試通過；批次操作、iCloud 與手機介面仍待實機驗收。本版封存仍缺 11 個第三方 framework 的匹配 dSYM。
