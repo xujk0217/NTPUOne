@@ -160,3 +160,7 @@ build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個�
 ## build 28（2026-11-03）
 
 版本 1.4.0 build 28 已封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 後續處理及下載狀態待確認。AI 拖曳關閉和本機歡迎訊息已通過政策測試及模擬器編譯，觸控手感仍需裝置驗收。既有第三方 dSYM 缺漏警告仍存在。
+
+## build 29（2026-11-03）
+
+版本 1.4.0 build 29 已封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；Apple 後續處理及 TestFlight 下載狀態待確認。Duo 模擬器已確認內螢幕入口與開關、外螢幕直向／橫向入口、分頁操作及外螢幕下拉關閉。原有第三方 dSYM 缺漏警告仍存在。
