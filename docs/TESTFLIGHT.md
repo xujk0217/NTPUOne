@@ -140,3 +140,11 @@ AI 每輪提供台北時區日期、星期、時間；明確說明 NTPU One 助�
 Debug 編譯、Swift 校務解析與身分恢復政策、日期跨日／跨年／星期、提醒資格、資料權限／能力提示、AI 串流、登入表單與 Markdown 安全檢查，以及 41 項 Python 測試通過。真實 Google 返回、重新安裝後同步、模型回覆、提醒及鍵盤跳轉間距仍須在 iPhone 驗收；未取得原問題的裝置日誌。未 commit 或推送 GitHub。
 
 最終簽章封存為 `.academic-local/TestFlight/NTPUOne-build24-final.xcarchive`。先前 build 24 中間封存因納入後續要求而取消，未上傳。最終封存與實際上傳 IPA 的 App／Widget 均核對為 1.4.0（24）。`/private/tmp/ntpu24-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`、程序結束碼 0，並顯示上傳套件已進入處理。Apple 已接收；內部群組分配與 iPhone 可下載尚未確認。第三方 framework 的 dSYM 警告未阻擋上傳。
+
+## build 25（2026-11-03）
+
+版本 1.4.0 build 25 已完成 archive 與上傳，Xcode 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`；App Store Connect 後續處理及測試者可下載狀態需另行確認。上傳時第三方 absl、grpc、grpcpp、openssl_grpc 缺少 dSYM 警告，可能影響那些第三方函式庫的閃退符號化。真實帳號、Duo 實機與 AI 寫入流程仍需驗收。
+
+## build 26（2026-11-03）
+
+版本 1.4.0 build 26 已完成 archive 與上傳，Xcode 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`；App Store Connect 的處理與測試者可下載狀態仍待確認。第三方套件有 dSYM 缺漏警告，可能影響相關閃退符號化。搜尋、校方對話刪除與實際帳號操作尚需在手機驗收。
