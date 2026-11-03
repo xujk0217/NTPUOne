@@ -10,6 +10,19 @@ private enum AIChatColors {
     static let user = Color(red: 0.16, green: 0.35, blue: 0.73)
 }
 
+/// Scale and translate a transient view toward the lower-left of its usable region.
+private struct AICornerEntrance: ViewModifier {
+    let hidden: Bool
+    let horizontal: CGFloat
+    let vertical: CGFloat
+    func body(content: Content) -> some View {
+        content
+            .scaleEffect(hidden ? 0.08 : 1, anchor: UnitPoint(x: 0, y: 1))
+            .offset(x: hidden ? horizontal : 0, y: hidden ? vertical : 0)
+            .opacity(hidden ? 0 : 1)
+    }
+}
+
 struct FloatingAIContainer<Content: View>: View {
     let content: Content
     let contextProvider: (AIContextRequest) async -> AIContextPayload
@@ -75,6 +88,7 @@ struct FloatingAIContainer<Content: View>: View {
                     }
                     .frame(width: plan.assistant.width, height: plan.assistant.height)
                     .position(x: plan.assistant.midX, y: plan.assistant.midY)
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.08, anchor: UnitPoint(x: 0, y: 1)).combined(with: .opacity))
                     .zIndex(1)
                 }
                 if !open {
@@ -90,7 +104,7 @@ struct FloatingAIContainer<Content: View>: View {
                                         HStack {
                                             Label("給你的小提醒", systemImage: "sparkles").font(.subheadline.weight(.semibold))
                                             Spacer(minLength: 8)
-                                            Button { bridge.dismissArrivalTip() } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
+                                            Button { withAnimation(animation) { bridge.dismissArrivalTip() } } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
                                                 .accessibilityLabel("關閉提醒")
                                         }
                                         ScrollView { Text(tip).font(.subheadline).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }
@@ -99,6 +113,11 @@ struct FloatingAIContainer<Content: View>: View {
                                     .padding(12).background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 18))
                                     .overlay(RoundedRectangle(cornerRadius: 18).stroke(AIChatColors.border))
                                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
+                                    .transition(reduceMotion ? .opacity : .modifier(
+                                        active: AICornerEntrance(hidden: true,
+                                            horizontal: min(0, area.minX - button.maxX + width),
+                                            vertical: max(0, area.maxY - button.minY)),
+                                        identity: AICornerEntrance(hidden: false, horizontal: 0, vertical: 0)))
                                 }
                                 Button {
                                     bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
@@ -116,6 +135,7 @@ struct FloatingAIContainer<Content: View>: View {
                             }
                             .padding(.bottom, max(0, area.maxY - button.maxY))
                             .frame(width: width, height: area.height, alignment: .bottomTrailing)
+                            .animation(animation, value: bridge.arrivalTip)
                             .position(x: button.maxX - width / 2, y: area.midY)
                             .zIndex(2)
                         }
