@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，目前 build 設為 17；前一個已上傳 build 為 16。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 35。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -184,3 +184,10 @@ build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個�
 ## build 34（2026-11-03）
 
 版本 1.4.0 build 34 已完成簽章封存並上傳，Xcode 回報 `Uploaded NTPUOne` 與 `EXPORT SUCCEEDED`；App Store Connect 後續處理及 TestFlight 可下載狀態待確認。本版讓 AI 面板在手指拖曳期間即時跟隨垂直移動，放手後依門檻收起或彈回。第三方 Firebase／Google framework 仍有缺少匹配 dSYM 的警告，未阻擋上傳。
+
+
+## build 35（2026-11-04）
+
+1.4.0（35）已完成 Release 簽章封存與上傳。主 App 與 Widget 的封存版本均核對為 35；上傳程序結束碼 0，日誌 `/private/tmp/ntpu35-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`。Apple 後續處理、群組分配及實際可下載狀態尚未確認。
+
+本版修正單筆與批次預覽的備忘錄課程連結，共用課名與關鍵字比對，將同課名、同教師的多個節次視為一堂課；匹配後預選本機課程 ID，歧義保留手動選擇。批次預覽增加自動提醒時間說明。只有進入提醒的聊天也會補上本機歡迎訊息；網路搜尋不再無條件以整句操作需求當備援搜尋詞。課程比對的六項本機檢查與 Swift 語法檢查通過，Release 封存成功；真實 AI 回覆與手機預覽仍須驗收。既有第三方 framework 缺少 dSYM 的警告未阻擋上傳。
