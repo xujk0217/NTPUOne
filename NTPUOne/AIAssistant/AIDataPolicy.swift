@@ -60,8 +60,9 @@ struct AIContextRequest {
     var courseKeyword: String = ""
     // Native-only: model JSON cannot opt into automatic arrival collection.
     var isArrival = false
+    var webQuery: String? = nil
 
-    /// Model output is a selection, never a URL, query, credential or executable tool.
+    /// Model output selects allowed sources and an optional filtered public search query.
     static func parse(_ text: String, allowed: Set<AIDataSource>) -> AIContextRequest? {
         guard text.utf8.count <= 8_192 else { return nil }
         var content = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -69,18 +70,19 @@ struct AIContextRequest {
             content = String(content.dropFirst(8).dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         guard let data = content.data(using: .utf8) else { return nil }
-        struct Selection: Decodable { var sources: [String]; var courseKeyword: String? }
+        struct Selection: Decodable { var sources: [String]; var courseKeyword: String?; var webQuery: String? }
         let names: [String]
         var keyword = ""
+        var webQuery: String?
         if let value = try? JSONDecoder().decode(Selection.self, from: data) {
-            names = value.sources; keyword = value.courseKeyword ?? ""
+            names = value.sources; keyword = value.courseKeyword ?? ""; webQuery = value.webQuery
         } else if let value = try? JSONDecoder().decode([String].self, from: data) { names = value }
         else { return nil }
         guard names.count <= 40, keyword.count <= 80,
               !keyword.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               !keyword.contains("://") else { return nil }
         let sources = Set(names.compactMap(AIDataSource.init(rawValue:))).intersection(allowed)
-        return AIContextRequest(sources: sources, courseKeyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines))
+        return AIContextRequest(sources: sources, courseKeyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines), webQuery: AIWebQueryPolicy.clean(webQuery))
     }
 }
 
@@ -277,5 +279,14 @@ enum AIWelcomePolicy {
 enum AIPanelDismissPolicy {
     static func shouldDismiss(horizontal: CGFloat, vertical: CGFloat, predictedVertical: CGFloat) -> Bool {
         vertical > 0 && vertical > abs(horizontal) && (vertical > 90 || predictedVertical > 150)
+    }
+}
+
+enum AIWebQueryPolicy {
+    static func clean(_ raw: String?) -> String? {
+        guard let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty, value.count <= 160,
+              !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
+              value.range(of: #"(?i)(@|://|password|token|cookie|密碼|學號|身分證|我的成績|我的課表|\d{6,})"#, options: .regularExpression) == nil else { return nil }
+        return value
     }
 }

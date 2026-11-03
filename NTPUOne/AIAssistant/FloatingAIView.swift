@@ -36,6 +36,7 @@ struct FloatingAIContainer<Content: View>: View {
     @State private var open = false
     @State private var preferDocked = true
     @State private var enteredBackground = false
+    @State private var detectedFold = false
     @State private var pageNavigation: Task<Void, Never>?
     @AppStorage("hasCompletedFirstRunOnboarding") private var onboardingComplete = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -49,7 +50,7 @@ struct FloatingAIContainer<Content: View>: View {
     private var arrivalTrigger: String {
         "\(features.aiEnabled)-\(onboardingComplete)-\(scenePhase == .active)-\(bridge.ready)-\(bridge.replying)-\(bridge.appDataEnabled)-\(bridge.arrivalEnabled)-\(open)"
     }
-    private var animation: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.86) }
+    private var animation: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.5, dampingFraction: 0.88) }
     private func regions(_ proxy: GeometryProxy, division: Bool) -> [CGRect] {
         if #available(iOS 27.1, *) {
             return proxy.reservedRegions(kind: division ? .division : .occlusion).map(\.frame)
@@ -59,7 +60,7 @@ struct FloatingAIContainer<Content: View>: View {
     var body: some View {
         GeometryReader { geo in
             let plan = DuoWorkspacePolicy.plan(size: geo.size, divisions: regions(geo, division: true),
-                occlusions: regions(geo, division: false), assistantOpen: open, preferDocked: preferDocked,
+                occlusions: regions(geo, division: false), assistantOpen: open, preferDocked: preferDocked && (detectedFold || !regions(geo, division: true).isEmpty),
                 rightToLeft: layoutDirection == .rightToLeft)
             let anchorPoint = DuoWorkspacePolicy.buttonAnchor(size: geo.size,
                 divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
@@ -76,7 +77,7 @@ struct FloatingAIContainer<Content: View>: View {
                         .onTapGesture { withAnimation(animation) { open = false } }
                 }
                 if open {
-                    AIChatPanel(bridge: bridge, preferDocked: $preferDocked, reviewChange: reviewChange, reviewBatch: reviewBatch, contextProvider: contextProvider,
+                    AIChatPanel(bridge: bridge, preferDocked: $preferDocked, supportsDocking: detectedFold || !regions(geo, division: true).isEmpty, reviewChange: reviewChange, reviewBatch: reviewBatch, contextProvider: contextProvider,
                         hasSavedSchoolAccount: hasSavedSchoolAccount, credentialProvider: credentialProvider, openPage: { page in
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         if blocking { withAnimation(animation) { open = false } }
@@ -145,6 +146,8 @@ struct FloatingAIContainer<Content: View>: View {
                     }
                 }
             }
+            .onAppear { if !regions(geo, division: true).isEmpty { detectedFold = true } }
+            .onChange(of: regions(geo, division: true).isEmpty) { empty in if !empty { detectedFold = true } }
             .task(id: "\(onboardingComplete)-\(features.aiEnabled)") { if onboardingComplete && features.aiEnabled { bridge.start() } }
             .task(id: arrivalTrigger) {
                 guard features.aiEnabled, onboardingComplete, scenePhase == .active, !open, bridge.ready, bridge.arrivalEnabled else { return }
@@ -178,9 +181,11 @@ struct FloatingAIContainer<Content: View>: View {
 }
 
 private struct AIChatPanel: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @ObservedObject var bridge: NTPUAIWebBridge
     @Binding var preferDocked: Bool
+    let supportsDocking: Bool
     let reviewChange: (AIChangeProposal) -> Void
     let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let contextProvider: (AIContextRequest) async -> AIContextPayload
@@ -190,35 +195,25 @@ private struct AIChatPanel: View {
     let close: () -> Void
     @State private var showDataSettings = false
     @State private var showDeleteSchoolChat = false
-    @State private var showWebSearch = false
-    @State private var webQuery = ""
-    @State private var webSearching = false
-    @State private var webError: String?
-    @State private var webTask: Task<Void, Never>?
     @State private var draft = ""
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
-    @GestureState private var dismissDrag: CGFloat = 0
+    @State private var dismissDrag: CGFloat = 0
+    private var dismissGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                guard value.translation.height > 0, abs(value.translation.height) > abs(value.translation.width) else { return }
+                var transaction = Transaction(); transaction.disablesAnimations = true
+                withTransaction(transaction) { dismissDrag = min(value.translation.height, 260) }
+            }
+            .onEnded { value in
+                if AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width, vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height) {
+                    inputFocused = false; close()
+                } else { withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { dismissDrag = 0 } }
+            }
+    }
     var body: some View {
         VStack(spacing: 0) {
-            Capsule().fill(.secondary.opacity(0.45)).frame(width: 42, height: 5)
-                .frame(maxWidth: .infinity, minHeight: 28)
-                .padding(.top, 24)
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 8)
-                    .updating($dismissDrag) { value, state, _ in
-                        if value.translation.height > 0 && abs(value.translation.height) > abs(value.translation.width) {
-                            state = min(value.translation.height, 220)
-                        }
-                    }
-                    .onEnded { value in
-                        guard AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width,
-                            vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height) else { return }
-                        inputFocused = false; close()
-                    })
-                .accessibilityLabel("向下滑動關閉 AI 助理")
-                .accessibilityAddTraits(.isButton)
-                .accessibilityAction { inputFocused = false; close() }
             HStack(spacing: 10) {
                 Image(systemName: "sparkles").font(.headline).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
@@ -233,8 +228,7 @@ private struct AIChatPanel: View {
                 }.accessibilityLabel("新對話").disabled(bridge.showingWebsite || bridge.storedLoginInProgress || bridge.deletingSchoolConversation)
                 Group {
                     Menu {
-                        Toggle("寬畫面並排", isOn: $preferDocked)
-                        Button("網路搜尋") { inputFocused = false; webQuery = draft; webError = nil; showWebSearch = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation)
+                        if supportsDocking { Toggle("寬畫面並排", isOn: $preferDocked) }
                         Button("資料與提醒設定") { inputFocused = false; showDataSettings = true }
                         Button("刪除這次校方對話", role: .destructive) { inputFocused = false; showDeleteSchoolChat = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation || !bridge.hasSchoolConversation)
                     } label: {
@@ -248,6 +242,10 @@ private struct AIChatPanel: View {
                 .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 20))
                 .overlay(RoundedRectangle(cornerRadius: 20).stroke(.white.opacity(0.23), lineWidth: 0.7))
                 .padding(.horizontal, 4).padding(.top, 4)
+                .overlay(alignment: .top) { Capsule().fill(.secondary.opacity(0.4)).frame(width: 36, height: 4).padding(.top, 5).allowsHitTesting(false) }
+                .contentShape(Rectangle())
+                .simultaneousGesture(dismissGesture)
+                .accessibilityAction(named: Text("關閉 AI 助理")) { inputFocused = false; close() }
             ZStack {
                 if !bridge.showingWebsite {
                     VStack(spacing: 0) {
@@ -351,39 +349,8 @@ private struct AIChatPanel: View {
         .onChange(of: bridge.preparingArrival) { _ in bridge.showWelcomeIfNeeded() }
         .onChange(of: bridge.replying) { _ in bridge.showWelcomeIfNeeded() }
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .scaleEffect(reduceMotion ? 1 : 1 - min(dismissDrag / 1800, 0.1), anchor: .bottom)
         .offset(y: dismissDrag)
-        .sheet(isPresented: $showWebSearch, onDismiss: { webTask?.cancel(); webSearching = false }) {
-            NavigationStack {
-                Form {
-                    Section("搜尋內容") {
-                        TextField("輸入要查詢的問題", text: $webQuery, axis: .vertical).lineLimit(2...5).disabled(webSearching)
-                        Text("搜尋文字會傳送至第三方 Exa；結果及你的問題會傳送至 NTPU AI。請勿輸入帳密或不想分享的個人資料。") .font(.caption).foregroundStyle(.secondary)
-                    }
-                    if let webError { Section { Text(webError).foregroundStyle(.red) } }
-                    Section {
-                        Button(webSearching ? "搜尋中…" : "搜尋並詢問 AI") {
-                            let query = webQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-                            guard !query.isEmpty, query.count <= 300 else { webError = "請輸入 1 至 300 字的搜尋內容。"; return }
-                            webSearching = true; webError = nil
-                            webTask = Task { @MainActor in
-                                do {
-                                    let results = try await AIWebSearch.search(query)
-                                    guard !Task.isCancelled, bridge.ready, !bridge.replying else { webSearching = false; return }
-                                    // Dismissal cancels webTask; detach only after all search work is complete.
-                                    webTask = nil; webSearching = false; showWebSearch = false; draft = ""; followLatest = true
-                                    bridge.send(query, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled, webResults: results)
-                                } catch {
-                                    guard !Task.isCancelled else { return }
-                                    webSearching = false; webError = "搜尋暫時無法使用，請稍後再試。問題尚未送出。"
-                                }
-                            }
-                        }.disabled(webSearching)
-                    }
-                }
-                .navigationTitle("網路搜尋")
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { webTask?.cancel(); showWebSearch = false } } }
-            }
-        }
         .confirmationDialog("刪除這次校方對話？", isPresented: $showDeleteSchoolChat, titleVisibility: .visible) {
             Button("刪除這次對話", role: .destructive) { bridge.deleteCurrentSchoolConversation() }
         } message: { Text("刪除後無法復原；帳號的長期記憶和其他對話不受影響。") }
@@ -400,6 +367,10 @@ private struct AIChatPanel: View {
                             .disabled(!bridge.appDataEnabled)
                     } header: { Text("AI 可使用的資訊") } footer: {
                         Text("課表與備忘錄預設開啟；Moodle、學生資訊系統及成績預設關閉。開啟的資料會依問題選取並傳至 NTPU AI，校方可能保存。成績另須開啟所屬來源及成績開關；帳密與 Cookie 不會作為聊天資料。")
+                    }
+                    Section {
+                        Toggle("需要時自動搜尋網路", isOn: Binding(get: { bridge.autoWebSearchEnabled }, set: { bridge.setAutoWebSearch($0) }))
+                        Text("開啟後，AI 判斷需要查證公開資訊時會將搜尋詞送至 Exa，結果交給 NTPU AI；請避免在問題中提供不想分享的個人資料。") .font(.caption).foregroundStyle(.secondary)
                     }
                     Section {
                         Toggle("進入 App 時提醒", isOn: Binding(get: { bridge.arrivalEnabled }, set: { bridge.setArrivalEnabled($0) }))
