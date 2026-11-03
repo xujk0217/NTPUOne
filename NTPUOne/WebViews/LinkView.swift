@@ -950,7 +950,9 @@ struct LinkView: View {
                 
                 // 右上角按鈕
                 ToolbarItem(placement: toolbarPlacementTrailing) {
-                    if adFree.isAdFree {
+                    if !GlobalFeatureSettings.shared.adsEnabled {
+                        Label("廣告暫停顯示", systemImage: "checkmark.seal").labelStyle(.iconOnly).foregroundStyle(.green).help("廣告暫停顯示")
+                    } else if adFree.isAdFree {
                         Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal")
                             .labelStyle(.iconOnly)
                             .foregroundStyle(.green)

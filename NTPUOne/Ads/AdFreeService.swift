@@ -21,6 +21,7 @@ final class AdFreeService: ObservableObject {
 
     init() {
         refresh()
+        GlobalFeatureSettings.shared.$adsEnabled.receive(on: RunLoop.main).sink { [weak self] _ in self?.refresh() }.store(in: &cancellables)
         Timer.publish(every: 60, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] _ in self?.refresh() }
@@ -28,7 +29,9 @@ final class AdFreeService: ObservableObject {
     }
 
     func refresh(now: Date = Date()) {
-        if isAdmin{
+        if !GlobalFeatureSettings.shared.adsEnabled {
+            isAdFree = true
+        } else if isAdmin{
             adFreeUntilTs = Calendar.current.date(byAdding: .year, value: 100, to: Date())!.timeIntervalSince1970
             isAdFree = true
         } else {

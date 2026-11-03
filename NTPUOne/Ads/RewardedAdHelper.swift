@@ -13,6 +13,7 @@ import Combine
 /// 統一的獎勵式廣告管理器
 /// - 自帶預載、過期重載（1 小時）、失敗指數退避重試（最多 3 次）
 /// - 頻率控制：每天最多觀看 5 次
+@MainActor
 final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate {
     static let shared = RewardedAdManager()
 
@@ -52,7 +53,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
 
     /// 預載廣告（若尚未載入或已過期）
     func preload() {
-        guard !isLoading else { return }
+        guard GlobalFeatureSettings.shared.adsEnabled, !isLoading else { return }
         // 若已有廣告且未過期，不重載
         if rewardedAd != nil, let loadedAt, Date().timeIntervalSince(loadedAt) < adExpiryInterval {
             return
@@ -67,6 +68,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
     /// - Returns: 是否成功呈現
     @discardableResult
     func present(from presenter: UIViewController?, onReward: @escaping () -> Void, onDismiss: (() -> Void)? = nil) -> Bool {
+        guard GlobalFeatureSettings.shared.adsEnabled else { return false }
         resetDailyCountIfNeeded()
         guard viewCount < maxDailyViews else {
             print("⚠️ Rewarded: 已達每日上限 \(maxDailyViews) 次")

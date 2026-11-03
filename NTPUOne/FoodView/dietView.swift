@@ -196,7 +196,7 @@ struct dietView: View {
                 isStar = false
             }
             .alert(String(localized: "comment_limit_reached"), isPresented: $showCommentLimitAlert) {
-                if commentLimit.canWatchAdForBonus {
+                if commentLimit.canWatchAdForBonus && GlobalFeatureSettings.shared.adsEnabled {
                     Button(String(localized: "watch_ad")) {
                         watchAdForBonus()
                     }
@@ -205,7 +205,9 @@ struct dietView: View {
                     Button(String(localized: "ok"), role: .cancel) { }
                 }
             } message: {
-                if commentLimit.canWatchAdForBonus {
+                if !GlobalFeatureSettings.shared.adsEnabled {
+                    Text("目前已達評論上限，獎勵廣告暫停提供。")
+                } else if commentLimit.canWatchAdForBonus {
                     Text(String(format: String(localized: "comment_limit_message"), commentLimit.remainingAdViews))
                 } else {
                     Text(String(localized: "comment_limit_all_used"))
@@ -757,7 +759,7 @@ struct noMapDietView: View {
                 isStar = false
             }
             .alert(String(localized: "comment_limit_reached"), isPresented: $showCommentLimitAlert) {
-                if commentLimit.canWatchAdForBonus {
+                if commentLimit.canWatchAdForBonus && GlobalFeatureSettings.shared.adsEnabled {
                     Button(String(localized: "watch_ad")) {
                         watchAdForBonus()
                     }
@@ -766,7 +768,9 @@ struct noMapDietView: View {
                     Button(String(localized: "ok"), role: .cancel) { }
                 }
             } message: {
-                if commentLimit.canWatchAdForBonus {
+                if !GlobalFeatureSettings.shared.adsEnabled {
+                    Text("目前已達評論上限，獎勵廣告暫停提供。")
+                } else if commentLimit.canWatchAdForBonus {
                     Text(String(format: String(localized: "comment_limit_message"), commentLimit.remainingAdViews))
                 } else {
                     Text(String(localized: "comment_limit_all_used"))

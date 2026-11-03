@@ -660,6 +660,15 @@ service cloud.firestore {
         || (isAdminOrDeveloper() && isValidUserStatsWrite());
     }
 
+    match /appSettings/features {
+      allow read: if true;
+      allow create, update: if isAdminOrDeveloper()
+        && request.resource.data.keys().hasOnly(['adsEnabled', 'aiEnabled'])
+        && (!('adsEnabled' in request.resource.data) || request.resource.data.adsEnabled is bool)
+        && (!('aiEnabled' in request.resource.data) || request.resource.data.aiEnabled is bool);
+      allow delete: if false;
+    }
+
     match /adminUsers/{uid} {
       allow read, write: if false;
     }

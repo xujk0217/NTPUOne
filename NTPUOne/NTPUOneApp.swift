@@ -25,6 +25,40 @@ import FirebaseAppCheck
 import GoogleSignIn
 import StoreKit
 
+/// Public switches are readable by every app; Firestore rules enforce administrator-only writes.
+@MainActor
+final class GlobalFeatureSettings: ObservableObject {
+    static let shared = GlobalFeatureSettings()
+    @Published private(set) var adsEnabled = true
+    @Published private(set) var aiEnabled = true
+    @Published private(set) var available = false
+    @Published private(set) var saving = false
+    @Published var error: String?
+    private var listener: ListenerRegistration?
+    func start() {
+        guard listener == nil, FirebaseApp.app() != nil else { return }
+        listener = Firestore.firestore().collection("appSettings").document("features").addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let error { self.error = error.localizedDescription; self.available = false; return }
+                guard let snapshot else { return }
+                let data = snapshot.data() ?? [:]
+                self.adsEnabled = data["adsEnabled"] as? Bool ?? true
+                self.aiEnabled = data["aiEnabled"] as? Bool ?? true
+                self.available = !snapshot.metadata.isFromCache
+                if self.available { self.error = nil }
+            }
+        }
+    }
+    func save(key: String, value: Bool) {
+        guard ["adsEnabled", "aiEnabled"].contains(key), available, !saving else { return }
+        saving = true; error = nil
+        Firestore.firestore().collection("appSettings").document("features").setData([key: value], merge: true) { [weak self] error in
+            DispatchQueue.main.async { self?.saving = false; self?.error = error?.localizedDescription }
+        }
+    }
+}
+
 enum RemoteConfigFeature {
     case community
     case restaurant
@@ -250,6 +284,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             DispatchQueue.main.async { AdminLocalSecurity.reconcileSession(user: user) }
         }
         RemoteConfigManager.shared.start()
+        GlobalFeatureSettings.shared.start()
         
         AppCheck.appCheck().token(forcingRefresh: true) { token, error in
             if token != nil {

@@ -11,19 +11,22 @@ import GoogleMobileAds
 
 struct WebDetailView: View {
     let url: String?
+    @EnvironmentObject private var adFree: AdFreeService
     var body: some View {
         VStack(spacing: 0) {
             WebView(urlString: url)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-            BannerAdView()
-                .frame(height: 50)
-                .background(Color.clear)
+            if !adFree.isAdFree {
+                BannerAdView()
+                    .frame(height: 50)
+                    .background(Color.clear)
+            }
         }
         .edgesIgnoringSafeArea(.bottom)
     }
 }
 
 #Preview {
-    WebDetailView(url: "https://www.google.com")
+    WebDetailView(url: "https://www.google.com").environmentObject(AdFreeService.shared)
 }
 
