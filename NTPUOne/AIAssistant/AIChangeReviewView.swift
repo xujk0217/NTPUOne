@@ -240,3 +240,200 @@ enum AIChangeConsistency {
         return entity.updatedAt == old.updatedAt && entity.title == old.title && entity.content == old.content && entity.courseLink == old.courseLink && entity.status == old.status.rawValue
     }
 }
+
+struct AIChangeBatch: Identifiable {
+    let id = UUID()
+    let proposals: [AIChangeProposal]
+    let onComplete: () -> Void
+}
+
+/// Batch changes are committed through one Core Data save after resolving all targets.
+struct AIChangeBatchReviewView: View {
+    let batch: AIChangeBatch
+    @ObservedObject var memoManager: MemoManager
+    @ObservedObject var courseData: CourseData
+    @EnvironmentObject private var academic: AcademicSyncStore
+    @Environment(\.dismiss) private var dismiss
+    @State private var proposals: [AIChangeProposal]
+    @State private var originalMemos: [Int: Memo] = [:]
+    @State private var originalCourses: [Int: Course] = [:]
+    @State private var memoLinks: [Int: String] = [:]
+    @State private var account = ""
+    @State private var prepared = false
+    @State private var error: String?
+    @State private var confirming = false
+    private let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+    private let times: [Course.TimeStart] = [.eight,.nine,.ten,.eleven,.thirteen,.fourteen,.fifteen,.sixteen,.seventeen,.eighteen,.nineteen,.twenty,.twentyone]
+
+    init(batch: AIChangeBatch, memoManager: MemoManager, courseData: CourseData) {
+        self.batch = batch; self.memoManager = memoManager; self.courseData = courseData
+        _proposals = State(initialValue: batch.proposals)
+    }
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section { Text("所有項目會一起儲存；若有衝突或失敗，整批不會變更。刪除 Moodle 待辦不會刪除校方作業。") .font(.caption) }
+                ForEach(proposals.indices, id: \.self) { i in
+                    Section("\(i + 1). \(title(proposals[i]))") {
+                        if let target = proposals[i].target { Text("目標：\(target)").font(.caption) }
+                        if let memo = originalMemos[i] {
+                            Text("原內容：\(memo.content.isEmpty ? "（空白）" : memo.content)").font(.caption).foregroundStyle(.secondary)
+                        }
+                        if let course = originalCourses[i] {
+                            Text("原時段：\(course.day) · \(course.timeSlot.rawValue) · \(course.location)").font(.caption).foregroundStyle(.secondary)
+                        }
+                        if proposals[i].operation != .create && originalMemos[i] == nil && originalCourses[i] == nil {
+                            Text("找不到唯一目標；請改用逐筆預覽選擇。") .foregroundStyle(.red)
+                        }
+                        if proposals[i].operation != .delete {
+                            TextField("名稱（留空保留原值）", text: field(i, \.title))
+                            if proposals[i].kind == .memo {
+                                TextField("內容（留空保留原值）", text: field(i, \.content), axis: .vertical)
+                                TextField("截止時間 ISO8601（留空保留原值）", text: field(i, \.deadline))
+                                Picker("連結課程", selection: Binding(get: { memoLinks[i] ?? "" }, set: { memoLinks[i] = $0 })) {
+                                    Text("無").tag("")
+                                    ForEach(courseData.courses) { Text("\($0.name) · \($0.day)").tag($0.id) }
+                                }
+                            } else {
+                                Picker("星期（未指定保留原值）", selection: field(i, \.weekday)) {
+                                    Text("未指定").tag("")
+                                    ForEach(weekdays, id: \.self) { Text($0).tag($0) }
+                                }
+                                Picker("節次（未指定保留原值）", selection: Binding(get: { proposals[i].period ?? 0 }, set: { proposals[i].period = $0 == 0 ? nil : $0 })) {
+                                    Text("未指定").tag(0)
+                                    ForEach(1...13, id: \.self) { Text("第 \($0) 節").tag($0) }
+                                }
+                                TextField("教室（留空保留原值）", text: field(i, \.location))
+                                TextField("教師（留空保留原值）", text: field(i, \.teacher))
+                            }
+                        }
+                    }
+                }
+                if let error { Section { Text(error).foregroundStyle(.red) } }
+                Section { Button("確認全部變更") { confirming = true }.disabled(proposals.isEmpty) }
+            }
+            .navigationTitle("預覽全部變更")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
+            .onAppear(perform: prepare)
+            .onChange(of: academic.uid) { _ in dismiss() }
+            .confirmationDialog("確定執行全部 \(proposals.count) 項變更？", isPresented: $confirming, titleVisibility: .visible) {
+                Button("確認全部", role: proposals.contains(where: { $0.operation == .delete }) ? .destructive : nil) { apply() }
+            }
+        }
+    }
+    private func title(_ p: AIChangeProposal) -> String {
+        let action = p.operation == .create ? "新增" : p.operation == .edit ? "修改" : "刪除"
+        return action + (p.kind == .memo ? "備忘錄" : "課程")
+    }
+    private func field(_ i: Int, _ key: WritableKeyPath<AIChangeProposal, String?>) -> Binding<String> {
+        Binding(get: { proposals[i][keyPath: key] ?? "" }, set: { proposals[i][keyPath: key] = $0.isEmpty ? nil : $0 })
+    }
+    private func prepare() {
+        guard !prepared else { return }
+        prepared = true; account = academic.uid
+        for i in proposals.indices where proposals[i].operation != .create {
+            let target = proposals[i].target ?? ""
+            if proposals[i].kind == .memo {
+                let matches = memoManager.memos.filter { $0.title == target }
+                if matches.count == 1 { originalMemos[i] = matches[0]; memoLinks[i] = matches[0].courseLink ?? "" }
+            } else {
+                let matches = courseData.courses.filter { $0.name == target }
+                if matches.count == 1 { originalCourses[i] = matches[0] }
+            }
+        }
+    }
+    private func fail(_ message: String) { error = message }
+    private func apply() {
+        guard academic.uid == account else { fail("帳號已變更，請重新預覽。"); return }
+        guard let context = memoManager.viewContext, context === courseData.viewContext, !context.hasChanges else { fail("資料正在儲存，請稍後重試。"); return }
+        var memoIDs = Set<String>(), courseIDs = Set<String>()
+        var finalCourses = courseData.courses
+        for i in proposals.indices {
+            let p = proposals[i]
+            if p.operation != .create {
+                if p.kind == .memo {
+                    guard let old = originalMemos[i], memoIDs.insert(old.id).inserted,
+                          memoManager.memos.first(where: { $0.id == old.id }) == old,
+                          AIChangeConsistency.memo(old, in: context) else { fail("第 \(i + 1) 筆備忘錄找不到、重複或已變更；請重新預覽。"); return }
+                } else {
+                    guard let old = originalCourses[i], courseIDs.insert(old.id).inserted,
+                          let current = courseData.courses.first(where: { $0.id == old.id }),
+                          AIChangeConsistency.course(old, current), AIChangeConsistency.course(old, in: context) else { fail("第 \(i + 1) 筆課程找不到、重複或已變更；請重新預覽。"); return }
+                    if p.operation == .delete {
+                        let linked: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+                        linked.predicate = NSPredicate(format: "courseLink == %@", old.id); linked.fetchLimit = 1
+                        guard let count = try? context.count(for: linked), count == 0,
+                              !memoManager.memos.contains(where: { $0.courseLink == old.id }) else {
+                            fail("第 \(i + 1) 筆課程有關聯備忘錄或無法確認關聯，請逐筆處理。 "); return
+                        }
+                    }
+                    finalCourses.removeAll { $0.id == old.id }
+                }
+            }
+        }
+        var newMemoKeys = Set<String>()
+        for i in proposals.indices {
+            let p = proposals[i]
+            guard p.operation != .delete else { continue }
+            let proposedTitle = (p.title ?? (p.kind == .memo ? originalMemos[i]?.title : originalCourses[i]?.name) ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !proposedTitle.isEmpty, proposedTitle.count <= 120, (p.content?.count ?? 0) <= 5000 else { fail("第 \(i + 1) 筆名稱或內容不正確。"); return }
+            if let deadline = p.deadline, ISO8601DateFormatter().date(from: deadline) == nil { fail("第 \(i + 1) 筆截止時間格式錯誤。"); return }
+            if p.kind == .memo, let link = memoLinks[i], !link.isEmpty,
+               (!courseData.courses.contains(where: { $0.id == link }) || proposals.indices.contains(where: { proposals[$0].kind == .course && proposals[$0].operation == .delete && originalCourses[$0]?.id == link })) {
+                fail("第 \(i + 1) 筆連結的課程不存在或將被刪除。"); return
+            }
+            if p.kind == .memo && p.operation == .create {
+                let key = proposedTitle + "\u{0}" + (p.content ?? "")
+                let duplicates: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+                duplicates.predicate = NSPredicate(format: "title == %@ AND content == %@", proposedTitle, p.content ?? ""); duplicates.fetchLimit = 1
+                guard let count = try? context.count(for: duplicates), count == 0,
+                      newMemoKeys.insert(key).inserted, !memoManager.memos.contains(where: { $0.title == proposedTitle && $0.content == (p.content ?? "") }) else {
+                    fail("第 \(i + 1) 筆已有相同名稱及內容的備忘錄；如需重複新增請逐筆處理。"); return
+                }
+            }
+            if p.kind == .course {
+                let day = p.weekday ?? originalCourses[i]?.day ?? ""
+                let period = p.period ?? originalCourses[i].flatMap { Course.TimeSlot.allCases.firstIndex(of: $0.timeSlot).map { $0 + 1 } } ?? 0
+                guard weekdays.contains(day), (1...13).contains(period) else { fail("第 \(i + 1) 筆請選擇星期及節次。"); return }
+                let slot = Course.TimeSlot.allCases[period - 1]
+                guard !finalCourses.contains(where: { $0.day == day && $0.timeSlot == slot }) else { fail("第 \(i + 1) 筆課程時段衝突。"); return }
+                finalCourses.append(Course(id: originalCourses[i]?.id ?? UUID().uuidString, name: proposedTitle, day: day, startTime: times[period - 1], timeSlot: slot, location: p.location ?? originalCourses[i]?.location ?? "", teacher: p.teacher ?? originalCourses[i]?.teacher ?? "", isNotification: originalCourses[i]?.isNotification ?? false))
+            }
+        }
+        do {
+            for i in proposals.indices {
+                let p = proposals[i]
+                if p.kind == .memo {
+                    let entity: MemoEntity
+                    if let old = originalMemos[i] {
+                        let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", old.id); request.fetchLimit = 1
+                        guard let found = try context.fetch(request).first else { throw BatchError.changed }; entity = found
+                    } else { entity = MemoEntity(context: context); entity.id = UUID().uuidString; entity.createdAt = Date(); entity.tagType = Memo.TagType.other.rawValue; entity.status = Memo.MemoStatus.todo.rawValue; entity.priority = Memo.Priority.medium.rawValue; entity.reminderRulesData = try JSONEncoder().encode([ReminderRule]()) }
+                    if p.operation == .delete { context.delete(entity); continue }
+                    entity.title = p.title ?? originalMemos[i]?.title
+                    entity.content = p.content ?? originalMemos[i]?.content ?? ""
+                    entity.courseLink = (memoLinks[i] ?? "").isEmpty ? nil : memoLinks[i]
+                    if let raw = p.deadline { entity.dueAt = ISO8601DateFormatter().date(from: raw) }
+                    entity.updatedAt = Date()
+                } else {
+                    let entity: CourseEntity
+                    if let old = originalCourses[i] {
+                        let request: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest(); request.predicate = NSPredicate(format: "id == %@", old.id); request.fetchLimit = 1
+                        guard let found = try context.fetch(request).first else { throw BatchError.changed }; entity = found
+                    } else { entity = CourseEntity(context: context); entity.id = UUID().uuidString }
+                    if p.operation == .delete { context.delete(entity); continue }
+                    let day = p.weekday ?? originalCourses[i]?.day ?? ""
+                    let period = p.period ?? originalCourses[i].flatMap { Course.TimeSlot.allCases.firstIndex(of: $0.timeSlot).map { $0 + 1 } } ?? 0
+                    entity.name = p.title ?? originalCourses[i]?.name; entity.day = day; entity.timeSlot = Course.TimeSlot.allCases[period - 1].rawValue; entity.startTime = times[period - 1].rawValue
+                    entity.location = p.location ?? originalCourses[i]?.location ?? ""; entity.teacher = p.teacher ?? originalCourses[i]?.teacher ?? ""; entity.isNotification = originalCourses[i]?.isNotification ?? false
+                }
+            }
+            try context.save()
+        } catch { context.rollback(); fail("儲存失敗，所有變更都已取消。請重新預覽。"); return }
+        for old in originalMemos.values { memoManager.cancelNotification(for: old) }
+        for old in originalCourses.values { courseData.cancelNotification(for: old) }
+        memoManager.loadMemosFromCoreData(); courseData.loadCoursesFromCoreData(); memoManager.scheduleNotificationsForAllMemos()
+        batch.onComplete(); dismiss()
+    }
+    private enum BatchError: Error { case changed }
+}

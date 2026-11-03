@@ -15,6 +15,7 @@ private struct AIWorkspaceActions {
     var dismissTip: () -> Void = {}
     var tip: String?
     var busy = false
+    var enabled = true
 }
 private struct AIWorkspaceActionsKey: EnvironmentKey { static let defaultValue = AIWorkspaceActions() }
 private struct AIWorkspaceActiveKey: EnvironmentKey { static let defaultValue = false }
@@ -36,7 +37,7 @@ struct AIWorkspaceEntry: ViewModifier {
     @Environment(\.aiWorkspaceActive) private var isActive
     func body(content: Content) -> some View {
         content.toolbar {
-            if active && isActive {
+            if active && isActive && actions.enabled {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: actions.show) {
                         if actions.busy { ProgressView() }
@@ -72,8 +73,10 @@ struct FloatingAIContainer<Content: View>: View {
     let contextProvider: (AIContextRequest) async -> AIContextPayload
     let openPage: (AIAppPage) -> Void
     let reviewChange: (AIChangeProposal) -> Void
+    let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let hasSavedSchoolAccount: Bool
     let credentialProvider: () -> SchoolCredential?
+    @ObservedObject private var features = GlobalFeatureSettings.shared
     @StateObject private var bridge: NTPUAIWebBridge
     @State private var open = false
     @State private var preferDocked = true
@@ -83,13 +86,13 @@ struct FloatingAIContainer<Content: View>: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.layoutDirection) private var layoutDirection
-    init(accountID: String, contextProvider: @escaping (AIContextRequest) async -> AIContextPayload, hasSavedSchoolAccount: Bool, credentialProvider: @escaping () -> SchoolCredential?, openPage: @escaping (AIAppPage) -> Void, reviewChange: @escaping (AIChangeProposal) -> Void, @ViewBuilder content: () -> Content) {
+    init(accountID: String, contextProvider: @escaping (AIContextRequest) async -> AIContextPayload, hasSavedSchoolAccount: Bool, credentialProvider: @escaping () -> SchoolCredential?, openPage: @escaping (AIAppPage) -> Void, reviewChange: @escaping (AIChangeProposal) -> Void, reviewBatch: @escaping ([AIChangeProposal], @escaping () -> Void) -> Void, @ViewBuilder content: () -> Content) {
         self.content = content(); self.contextProvider = contextProvider; self.openPage = openPage
-        self.hasSavedSchoolAccount = hasSavedSchoolAccount; self.credentialProvider = credentialProvider; self.reviewChange = reviewChange
+        self.hasSavedSchoolAccount = hasSavedSchoolAccount; self.credentialProvider = credentialProvider; self.reviewChange = reviewChange; self.reviewBatch = reviewBatch
         _bridge = StateObject(wrappedValue: NTPUAIWebBridge(accountID: accountID))
     }
     private var arrivalTrigger: String {
-        "\(onboardingComplete)-\(scenePhase == .active)-\(bridge.ready)-\(bridge.replying)-\(bridge.appDataEnabled)-\(bridge.arrivalEnabled)-\(open)"
+        "\(features.aiEnabled)-\(onboardingComplete)-\(scenePhase == .active)-\(bridge.ready)-\(bridge.replying)-\(bridge.appDataEnabled)-\(bridge.arrivalEnabled)-\(open)"
     }
     private var animation: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.86) }
     private func regions(_ proxy: GeometryProxy, division: Bool) -> [CGRect] {
@@ -110,7 +113,7 @@ struct FloatingAIContainer<Content: View>: View {
                     .environment(\.aiWorkspaceActions, AIWorkspaceActions(show: {
                         bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
                     }, dismissTip: { bridge.dismissArrivalTip() }, tip: bridge.arrivalTip,
-                       busy: bridge.loading || bridge.preparingArrival || bridge.replying))
+                       busy: bridge.loading || bridge.preparingArrival || bridge.replying, enabled: features.aiEnabled))
                     .frame(width: plan.page.width, height: plan.page.height)
                     .position(x: plan.page.midX, y: plan.page.midY)
                     .blur(radius: blocking ? 9 : 0).allowsHitTesting(!blocking).accessibilityHidden(blocking)
@@ -119,7 +122,7 @@ struct FloatingAIContainer<Content: View>: View {
                         .onTapGesture { withAnimation(animation) { open = false } }
                 }
                 if open {
-                    AIChatPanel(bridge: bridge, preferDocked: $preferDocked, reviewChange: reviewChange, contextProvider: contextProvider,
+                    AIChatPanel(bridge: bridge, preferDocked: $preferDocked, reviewChange: reviewChange, reviewBatch: reviewBatch, contextProvider: contextProvider,
                         hasSavedSchoolAccount: hasSavedSchoolAccount, credentialProvider: credentialProvider, openPage: { page in
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         if blocking { withAnimation(animation) { open = false } }
@@ -138,12 +141,15 @@ struct FloatingAIContainer<Content: View>: View {
                 }
                 if !open { AIWebsiteView(webView: bridge.webView).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false).accessibilityHidden(true) }
             }
-            .task(id: onboardingComplete) { if onboardingComplete { bridge.start() } }
+            .task(id: "\(onboardingComplete)-\(features.aiEnabled)") { if onboardingComplete && features.aiEnabled { bridge.start() } }
             .task(id: arrivalTrigger) {
-                guard onboardingComplete, scenePhase == .active, !open, bridge.ready, bridge.arrivalEnabled else { return }
+                guard features.aiEnabled, onboardingComplete, scenePhase == .active, !open, bridge.ready, bridge.arrivalEnabled else { return }
                 do { try await Task.sleep(nanoseconds: 2_000_000_000) } catch { return }
                 guard !Task.isCancelled else { return }
                 await bridge.requestArrival(contextProvider: contextProvider)
+            }
+            .onChange(of: features.aiEnabled) { enabled in
+                if !enabled { pageNavigation?.cancel(); bridge.cancelArrival(); bridge.stop(); bridge.cancelStoredSchoolLogin(); open = false }
             }
             .onChange(of: open) { visible in
                 bridge.setChatVisible(visible)
@@ -157,7 +163,7 @@ struct FloatingAIContainer<Content: View>: View {
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
                     if enteredBackground { bridge.beginForegroundEntry(); enteredBackground = false }
-                    bridge.checkStatus()
+                    if features.aiEnabled { bridge.checkStatus() }
                 } else {
                     if phase == .background { enteredBackground = true }
                     bridge.cancelArrival()
@@ -172,6 +178,7 @@ private struct AIChatPanel: View {
     @ObservedObject var bridge: NTPUAIWebBridge
     @Binding var preferDocked: Bool
     let reviewChange: (AIChangeProposal) -> Void
+    let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let contextProvider: (AIContextRequest) async -> AIContextPayload
     let hasSavedSchoolAccount: Bool
     let credentialProvider: () -> SchoolCredential?
@@ -237,7 +244,7 @@ private struct AIChatPanel: View {
                                             Group {
                                                 if !message.isUser && message.text.isEmpty && bridge.replying {
                                                     AITypingIndicator(label: bridge.replyStatus)
-                                                } else { AIMessageBody(message: message, canReview: !bridge.replying, reviewChange: reviewChange, openPage: { page in inputFocused = false; openPage(page) }) }
+                                                } else { AIMessageBody(message: message, canReview: !bridge.replying, reviewChange: reviewChange, reviewBatch: reviewBatch, openPage: { page in inputFocused = false; openPage(page) }) }
                                             }.padding(12)
                                                 .foregroundStyle(message.isUser ? Color.white : Color.primary)
                                                 .background { RoundedRectangle(cornerRadius: 18).fill(message.isUser ? AIChatColors.user : AIChatColors.reply).overlay(RoundedRectangle(cornerRadius: 18).stroke(message.isUser ? Color.clear : AIChatColors.border, lineWidth: 1)) }
@@ -411,9 +418,11 @@ private struct AITypingIndicator: View {
 
 /// Render bounded Markdown blocks with native, allowlisted page actions.
 private struct AIMessageBody: View {
+    @State private var batchApplied = false
     let message: AIChatMessage
     let canReview: Bool
     let reviewChange: (AIChangeProposal) -> Void
+    let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let openPage: (AIAppPage) -> Void
     private var pages: [AIAppPage] {
         guard !message.isUser else { return [] }
@@ -431,7 +440,11 @@ private struct AIMessageBody: View {
                 AIMarkdownView(text: displayText.isEmpty ? "…" : displayText)
             }
             if !message.isUser, canReview, let proposals = AIChangeProposal.extractAll(from: message.text) {
-                if proposals.count > 1 { Text("共 \(proposals.count) 筆建議，請逐筆確認；已確認的項目會立即儲存。") .font(.caption).foregroundStyle(.secondary) }
+                if proposals.count > 1 {
+                    Text("共 \(proposals.count) 筆建議，可一起預覽確認；若已逐筆儲存，請勿再次整批套用。") .font(.caption).foregroundStyle(.secondary)
+                    if batchApplied { Label("這組變更已儲存", systemImage: "checkmark.circle").font(.caption) }
+                    else { Button("預覽全部變更") { reviewBatch(proposals) { batchApplied = true } }.buttonStyle(.borderedProminent) }
+                }
                 ForEach(Array(proposals.enumerated()), id: \.offset) { _, proposal in
                 VStack(alignment: .leading, spacing: 8) {
                     let verb = proposal.operation == .create ? "新增" : proposal.operation == .edit ? "修改" : "刪除"
@@ -441,7 +454,7 @@ private struct AIMessageBody: View {
                     if let deadline = proposal.deadline, !deadline.isEmpty { Text("截止建議：\(deadline)").font(.caption) }
                     if let day = proposal.weekday, let period = proposal.period { Text("建議時段：\(day) · 第 \(period) 節").font(.caption) }
                     Text("每次確認都會執行一次，請避免重複新增。") .font(.caption).foregroundStyle(.secondary)
-                    Button("查看並確認") { reviewChange(proposal) }.buttonStyle(.borderedProminent)
+                    Button("查看並確認") { reviewChange(proposal) }.buttonStyle(.borderedProminent).disabled(batchApplied)
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AIChatColors.border))

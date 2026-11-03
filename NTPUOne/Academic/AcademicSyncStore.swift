@@ -38,6 +38,7 @@ struct AcademicCachedCourse: Codable, Identifiable {
 }
 struct AcademicCache: Codable {
     var prompted = false
+    var connectionPromptRevision: Int?
     var reminderLeadDays: Int?
     var remindersEnabled: Bool?
     var manualMoodleLinks: [String: Int]?
@@ -141,10 +142,12 @@ final class AcademicSyncStore: ObservableObject {
         Task { await migrateCachedReports(); reconcileImportedMemos(); await refresh() }
     }
     func offerConnectionIfNeeded() {
-        guard !uid.isEmpty, !cache.prompted, storageAvailable else { return }
-        showConnection = true
+        guard !uid.isEmpty, storageAvailable, (!schoolLinked || requiresSchoolLogin), (cache.connectionPromptRevision ?? 0) < 1 else { return }
+        // Per-account migration: previously dismissed onboarding should not hide the new school connection prompt.
         cache.prompted = true
-        do { try persist() } catch { message = AcademicError.storage.localizedDescription }
+        cache.connectionPromptRevision = 1
+        do { try persist(); showConnection = true }
+        catch { cache.connectionPromptRevision = nil; message = AcademicError.storage.localizedDescription }
     }
     private func check(_ expected: UUID) throws {
         guard generation == expected, Auth.auth().currentUser?.uid == uid, !uid.isEmpty else { throw CancellationError() }

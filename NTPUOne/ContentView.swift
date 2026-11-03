@@ -21,6 +21,7 @@ struct ContentView: View {
     @Environment(\.scenePhase) private var scenePhase
     @EnvironmentObject var courseData: CourseData
     @EnvironmentObject private var adFree: AdFreeService
+    @ObservedObject private var features = GlobalFeatureSettings.shared
     
     @ObservedObject var webManager = WebManager()
     @StateObject private var bikeManager = UbikeManager()
@@ -34,6 +35,7 @@ struct ContentView: View {
     @State private var showFirstRunOnboarding = false
     @State private var aiPage: AIAppPage?
     @State private var aiChange: AIChangeProposal?
+    @State private var aiBatch: AIChangeBatch?
     @StateObject private var academic = AcademicSyncStore()
     
     init() {
@@ -46,7 +48,7 @@ struct ContentView: View {
             await AIContextService.make(request, academic: academic, courses: courseData.courses,
                                         memos: memoManager.memos, bikes: bikeManager)
         }, hasSavedSchoolAccount: academic.schoolLinked,
-           credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage, reviewChange: { aiChange = $0 }) {
+           credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage, reviewChange: { aiChange = $0 }, reviewBatch: { proposals, onComplete in aiBatch = AIChangeBatch(proposals: proposals, onComplete: onComplete) }) {
         TabView(selection: $selectedTab) {
             LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).environment(\.aiWorkspaceActive, selectedTab == 0 && aiPage == nil).tabItem {
                 Image(systemName: "house")
@@ -105,11 +107,16 @@ struct ContentView: View {
                 .environmentObject(academic)
                 .environmentObject(adFree)
         }
+        .sheet(item: $aiBatch) { batch in
+            AIChangeBatchReviewView(batch: batch, memoManager: memoManager, courseData: courseData)
+                .environmentObject(academic)
+        }
         .sheet(isPresented: $academic.showConnection) {
             NavigationStack { AcademicConnectionPromptView().environmentObject(academic) }
         }
+        .onChange(of: features.aiEnabled) { enabled in if !enabled { aiChange = nil; aiBatch = nil } }
         .onChange(of: academic.uid) { _ in
-            aiChange = nil; aiPage = nil
+            aiChange = nil; aiBatch = nil; aiPage = nil
             if hasCompletedFirstRunOnboarding { academic.offerConnectionIfNeeded() }
         }
         .labelStyle(.compactIconText)
@@ -127,7 +134,7 @@ struct ContentView: View {
             academic.start(memos: memoManager, courses: courseData)
             if !hasCompletedFirstRunOnboarding {
                 showFirstRunOnboarding = true
-            }
+            } else { academic.offerConnectionIfNeeded() }
             NextCourseLiveActivityManager.shared.setApplicationActive(true)
             refreshLiveActivity()
         }
