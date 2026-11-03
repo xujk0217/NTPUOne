@@ -1033,6 +1033,10 @@
 "onboarding_timetable_message" = "課表、今日與備忘錄會互相串接，作業、考試與提醒都能靠近相關課程。";
 "onboarding_community_title" = "帶著暱稱加入交流";
 "onboarding_community_message" = "先建立預設暱稱，之後可用學校 Google 驗證，發文與管理內容更方便。";
+"onboarding_school_link_title" = "串聯數位學院與學生資訊系統";
+"onboarding_school_link_message" = "連結校務帳號後，可同步 Moodle 課程與作業，以及學生資訊系統中的課表、成績和畢業門檻。請在個人頁面的學校帳號設定中完成連結。";
+"onboarding_ai_title" = "用 AI 助理快速掌握校園資訊";
+"onboarding_ai_message" = "AI 可依你授權的課表、待辦、Moodle、公告等 App 資料回答問題，也能協助整理或修改課表與備忘錄；送出變更前會先讓你確認。從右下角的懸浮按鈕開啟。";
 "onboarding_privacy_title" = "準備好開始探索";
 "onboarding_privacy_message" = "完成導覽後，可以依照自己的節奏整理課表、收藏常用工具，並加入校園交流。";
 "onboarding_next_button" = "下一步";

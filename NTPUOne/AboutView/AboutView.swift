@@ -165,7 +165,7 @@ struct AboutView: View {
                 AddOrderView(rewardAd: rewardAd)
             }
             .fullScreenCover(isPresented: $showOnboarding) {
-                FirstRunOnboardingView {
+                FirstRunOnboardingView(autoFinishAfterAuth: false) {
                     showOnboarding = false
                 }
                 .interactiveDismissDisabled()

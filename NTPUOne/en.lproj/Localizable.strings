@@ -1033,6 +1033,10 @@
 "onboarding_timetable_message" = "Timetable, Today, and memos work together so assignments, exams, and reminders stay close to your courses.";
 "onboarding_community_title" = "Join community with a nickname";
 "onboarding_community_message" = "Start with a default nickname, then optionally verify your school Google account for posting and content management.";
+"onboarding_school_link_title" = "Connect Moodle and the student system";
+"onboarding_school_link_message" = "Link your school account to sync Moodle courses and assignments, plus your timetable, grades, and graduation progress from the student information system. Set this up in School Account on your profile page.";
+"onboarding_ai_title" = "Get campus help with the AI assistant";
+"onboarding_ai_message" = "With your permission, AI can answer questions using app data such as your timetable, tasks, Moodle, and announcements. It can also help organize or edit your timetable and memos, with a review step before changes are applied. Open it from the floating button in the lower-right corner.";
 "onboarding_privacy_title" = "Ready to explore campus";
 "onboarding_privacy_message" = "After onboarding, set up classes, save favorite tools, and join campus conversations at your own pace.";
 "onboarding_next_button" = "Next";

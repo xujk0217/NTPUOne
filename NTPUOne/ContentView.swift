@@ -227,6 +227,7 @@ private extension LabelStyle where Self == CompactIconTextLabelStyle {
 
 struct FirstRunOnboardingView: View {
     @StateObject private var profileManager = CommunityProfileManager()
+    @ObservedObject private var features = GlobalFeatureSettings.shared
     @State private var selection = 0
     @State private var showFreshmanPrompt = false
     @State private var showLoginPrompt = false
@@ -234,8 +235,10 @@ struct FirstRunOnboardingView: View {
     @State private var loginPresenter = WeakScenePresentationController()
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let onFinish: () -> Void
+    var autoFinishAfterAuth = true
 
-    private let pages: [FirstRunOnboardingPage] = [
+    private var pages: [FirstRunOnboardingPage] {
+        var pages: [FirstRunOnboardingPage] = [
         .init(
             titleKey: "onboarding_dashboard_title",
             messageKey: "onboarding_dashboard_message",
@@ -253,11 +256,32 @@ struct FirstRunOnboardingView: View {
             messageKey: "onboarding_community_message",
             systemImage: "person.text.rectangle",
             tint: .orange
+        ),
+        .init(
+            titleKey: "onboarding_school_link_title",
+            messageKey: "onboarding_school_link_message",
+            systemImage: "building.columns",
+            tint: .indigo
         )
-    ]
+        ]
+        if features.aiEnabled {
+            pages.append(.init(
+                titleKey: "onboarding_ai_title",
+                messageKey: "onboarding_ai_message",
+                systemImage: "sparkles",
+                tint: .purple
+            ))
+        }
+        return pages
+    }
 
     private var isLastPage: Bool {
         selection == pages.count - 1
+    }
+
+    private var hasGoogleSession: Bool {
+        guard let user = Auth.auth().currentUser else { return false }
+        return !profileManager.profile.ownerUid.isEmpty && profileManager.profile.ownerUid == user.uid
     }
 
     var body: some View {
@@ -288,7 +312,10 @@ struct FirstRunOnboardingView: View {
                             .transition(.opacity.combined(with: .scale(scale: 0.98)))
                     } else {
                         TabView(selection: $selection) {
-                            ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                            // `pages` is computed from feature settings; enumerate
+                            // with a stable index so regenerated page values do not
+                            // reset TabView's identity during an interactive swipe.
+                            ForEach(Array(pages.enumerated()), id: \.offset) { index, page in
                                 FirstRunOnboardingCard(page: page)
                                     .padding(.horizontal)
                                     .tag(index)
@@ -389,7 +416,7 @@ struct FirstRunOnboardingView: View {
         }
         .task(id: "\(profileManager.profile.ownerUid):\(profileManager.isSigningIn)") {
             // Also handles an already-restored Firebase session on first presentation.
-            guard !finishing, !profileManager.profile.ownerUid.isEmpty,
+            guard autoFinishAfterAuth, !finishing, !profileManager.profile.ownerUid.isEmpty,
                   Auth.auth().currentUser?.uid == profileManager.profile.ownerUid,
                   !profileManager.isSigningIn else { return }
             do { try await Task.sleep(nanoseconds: 400_000_000) } catch { return }
@@ -401,6 +428,10 @@ struct FirstRunOnboardingView: View {
 
     private func applyFreshmanPreference(_ isNewStudent: Bool) {
         StudentImpactStore.shared.applyNewStudentShortcutPreference(isNewStudent: isNewStudent)
+        if hasGoogleSession {
+            onFinish()
+            return
+        }
         withAnimation(.easeInOut(duration: 0.22)) {
             showFreshmanPrompt = false
             showLoginPrompt = true
