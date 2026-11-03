@@ -398,6 +398,8 @@ struct CourseFormSheet: View {
     var courseData: CourseData
     @Binding var showingSheet: Bool
     var memoManager: MemoManager
+    var expectedOriginalCourse: Course? = nil
+    @State private var staleAIProposal = false
     
     @State private var showDeleteAlert = false
     @State private var relatedMemoCount = 0
@@ -407,6 +409,7 @@ struct CourseFormSheet: View {
         ZStack {
             if !isNewCourse {
                 CourseFormView(course: $selectedCourse, isNewCourse: false, onSave: {
+                    guard checkAIOriginal() else { return }
                     if let index = courseData.courses.firstIndex(where: { $0.id == selectedCourse.id }) {
                         courseData.courses[index] = selectedCourse
                         courseData.updateCourse(selectedCourse)
@@ -426,6 +429,7 @@ struct CourseFormSheet: View {
                 }, courseData: courseData)
             }
         }
+        .alert("課程已變更", isPresented: $staleAIProposal) { Button("好", role: .cancel) {} } message: { Text("請關閉並重新預覽，以免覆蓋其他變更。") }
         .alert(String(localized: "alert_confirm_delete_course"), isPresented: $showDeleteAlert) {
             Button(String(localized: "delete"), role: .destructive) {
                 performDelete()
@@ -440,7 +444,17 @@ struct CourseFormSheet: View {
         }
     }
     
+    private func checkAIOriginal() -> Bool {
+        guard let expected = expectedOriginalCourse else { return true }
+        guard let context = courseData.viewContext, !context.hasChanges,
+              let current = courseData.courses.first(where: { $0.id == expected.id }),
+              AIChangeConsistency.course(expected, current), AIChangeConsistency.course(expected, in: context) else {
+            staleAIProposal = true; return false
+        }
+        return true
+    }
     private func handleDeleteCourse() {
+        guard checkAIOriginal() else { return }
         // 檢查是否是最後一個同名課程
         let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }
         isLastCourseWithName = sameNameCourses.count == 1
@@ -464,6 +478,7 @@ struct CourseFormSheet: View {
     }
     
     private func performDelete() {
+        guard checkAIOriginal() else { return }
         print("🗑️ 開始執行刪除: 課程名稱=\(selectedCourse.name)")
         
         let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }

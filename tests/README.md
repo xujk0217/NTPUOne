@@ -35,3 +35,19 @@ node tests/test_ai_markdown.cjs
 ```
 
 已儲存帳號登入測試使用合成表單與假帳密，驗證唯一官方 POST 表單、禁止讀取隱藏值、驗證碼／OTP 拒絕代填，以及欄位事件變更目的地時清除填入值並停止提交。並非真實校方 SSO 驗收。
+
+## AI 資料權限與 Duo 幾何
+
+```sh
+swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  NTPUOne/AIAssistant/AIDataPolicy.swift NTPUOne/AIAssistant/AILoginDiagnostics.swift \
+  tests/AIDataPolicyChecks.swift -o /private/tmp/ntpuone-ai-policy-checks
+/private/tmp/ntpuone-ai-policy-checks
+
+swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  NTPUOne/AdaptiveLayout/DuoWorkspacePolicy.swift tests/DuoWorkspaceChecks.swift \
+  -o /private/tmp/ntpuone-duo-checks
+/private/tmp/ntpuone-duo-checks
+```
+
+以上為合成資料與幾何測試，不代表實際模型產生變更建議、寫入流程或每個裝置姿態都已驗收。

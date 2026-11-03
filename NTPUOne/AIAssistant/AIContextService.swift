@@ -25,7 +25,7 @@ enum AIContextService {
             do {
                 switch source {
                 case .courses, .memos:
-                    text = AIContextSnapshot.make([source.rawValue], courses: courses, memos: memos,
+                    text = AIContextSnapshot.make([source.rawValue], courses: request.sources.contains(.courses) ? courses : [], memos: memos,
                                                   orders: [], bikes: [], bikeUpdated: nil)
                 case .bikes:
                     if bikes.lastUpdated.map({ Date().timeIntervalSince($0) > 60 }) ?? true { await bikes.refresh() }

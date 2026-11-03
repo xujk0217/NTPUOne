@@ -30,9 +30,10 @@ struct ContentView: View {
     @StateObject private var memoManager: MemoManager
     @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
     
-    @State var selectedTab = 0
+    @SceneStorage("ntpu.selectedTab") private var selectedTab = 0
     @State private var showFirstRunOnboarding = false
     @State private var aiPage: AIAppPage?
+    @State private var aiChange: AIChangeProposal?
     @StateObject private var academic = AcademicSyncStore()
     
     init() {
@@ -45,21 +46,21 @@ struct ContentView: View {
             await AIContextService.make(request, academic: academic, courses: courseData.courses,
                                         memos: memoManager.memos, bikes: bikeManager)
         }, hasSavedSchoolAccount: academic.schoolLinked,
-           credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage) {
+           credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage, reviewChange: { aiChange = $0 }) {
         TabView(selection: $selectedTab) {
-            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).tabItem {
+            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).environment(\.aiWorkspaceActive, selectedTab == 0 && aiPage == nil).tabItem {
                 Image(systemName: "house")
                     .environment(\.symbolVariants, .none)
                 Text("Main")
             }.tag(0)
             
-            TodayView(memoManager: memoManager, courseData: courseData).tabItem {
+            TodayView(memoManager: memoManager, courseData: courseData).environment(\.aiWorkspaceActive, selectedTab == 1 && aiPage == nil).tabItem {
                 Image(systemName: "note.text")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "memo"))
             }.tag(1)
             
-            TimeTableView(memoManager: memoManager).tabItem {
+            TimeTableView(memoManager: memoManager).environment(\.aiWorkspaceActive, selectedTab == 2 && aiPage == nil).tabItem {
                 Image(systemName: "list.bullet.clipboard")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "timetable"))
@@ -68,34 +69,47 @@ struct ContentView: View {
             RemoteConfigFeatureGate(feature: .community) {
                 CommunityView()
             }
+            .environment(\.aiWorkspaceActive, selectedTab == 3 && aiPage == nil)
             .tabItem {
                 Image(systemName: "bubble.left.and.bubble.right")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "community_title"))
             }.tag(3)
             
-            AboutView().tabItem {
+            AboutView().environment(\.aiWorkspaceActive, selectedTab == 4 && aiPage == nil).tabItem {
                 Image(systemName: "info.circle")
                     .environment(\.symbolVariants, .none)
                 Text(String(localized: "my"))
             }.tag(4)
         }
+        .accessibilityHidden(aiPage != nil)
+        .allowsHitTesting(aiPage == nil)
+        .overlay {
+            if let page = aiPage {
+                NavigationStack {
+                    aiDestination(page)
+                        .modifier(AIWorkspaceEntry(active: true))
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) { Button("返回") { aiPage = nil } }
+                        }
+                }
+                .environment(\.aiWorkspaceActive, true)
+                .background(Color(uiColor: .systemBackground))
+            }
+        }
         }
         .id(academic.uid)
         .environmentObject(academic)
-        .sheet(item: $aiPage) { page in
-            NavigationStack {
-                aiDestination(page)
-                    .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { aiPage = nil } } }
-            }
-            .environmentObject(academic)
-            .environmentObject(courseData)
-            .environmentObject(adFree)
+        .sheet(item: $aiChange) { proposal in
+            AIChangeReviewView(proposal: proposal, memoManager: memoManager, courseData: courseData)
+                .environmentObject(academic)
+                .environmentObject(adFree)
         }
         .sheet(isPresented: $academic.showConnection) {
             NavigationStack { AcademicConnectionPromptView().environmentObject(academic) }
         }
         .onChange(of: academic.uid) { _ in
+            aiChange = nil; aiPage = nil
             if hasCompletedFirstRunOnboarding { academic.offerConnectionIfNeeded() }
         }
         .labelStyle(.compactIconText)
@@ -129,7 +143,7 @@ struct ContentView: View {
     }
 
     private func openAIPage(_ page: AIAppPage) {
-        guard aiPage == nil else { return }
+        aiPage = nil
         switch page {
         case .home: selectedTab = 0
         case .memo: selectedTab = 1
@@ -213,6 +227,8 @@ struct FirstRunOnboardingView: View {
     @State private var showFreshmanPrompt = false
     @State private var showLoginPrompt = false
     @State private var finishing = false
+    @State private var loginPresenter = WeakScenePresentationController()
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let onFinish: () -> Void
 
     private let pages: [FirstRunOnboardingPage] = [
@@ -242,6 +258,8 @@ struct FirstRunOnboardingView: View {
 
     var body: some View {
         NavigationStack {
+            GeometryReader { viewport in
+            ScrollView {
             VStack(spacing: 18) {
                 VStack(spacing: 6) {
                     Text(String(localized: "onboarding_welcome_title"))
@@ -275,12 +293,13 @@ struct FirstRunOnboardingView: View {
                         .tabViewStyle(.page(indexDisplayMode: .always))
                     }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .frame(maxWidth: .infinity)
+                .frame(height: dynamicTypeSize.isAccessibilitySize ? 680 : max(340, viewport.size.height - 250))
 
                 VStack(spacing: 10) {
                     if showLoginPrompt {
                         Button {
-                            profileManager.signInWithGoogleSchoolEmail()
+                            profileManager.signInWithGoogleSchoolEmail(presenting: loginPresenter.controller)
                         } label: {
                             HStack(spacing: 10) {
                                 if profileManager.isSigningIn { ProgressView().tint(.white) }
@@ -357,7 +376,10 @@ struct FirstRunOnboardingView: View {
                 .padding(.horizontal)
                 .padding(.bottom, 22)
             }
+            }
+            }
             .background(Color(.systemGroupedBackground))
+            .background(ScenePresentationAnchor { loginPresenter.controller = $0 }.frame(width: 0, height: 0))
             .navigationTitle(String(localized: "onboarding_navigation_title"))
             .navigationBarTitleDisplayMode(.inline)
         }
@@ -1518,42 +1540,6 @@ private func communityErrorMessage(_ error: Error) -> String {
     return nsError.localizedDescription
 }
 
-private final class FirebaseAuthPresentationDelegate: NSObject, AuthUIDelegate {
-    func present(_ viewControllerToPresent: UIViewController, animated flag: Bool, completion: (() -> Void)? = nil) {
-        DispatchQueue.main.async {
-            Self.topViewController()?.present(viewControllerToPresent, animated: flag, completion: completion)
-        }
-    }
-
-    func dismiss(animated flag: Bool, completion: (() -> Void)? = nil) {
-        DispatchQueue.main.async {
-            Self.topViewController()?.dismiss(animated: flag, completion: completion)
-        }
-    }
-
-    static func topViewController() -> UIViewController? {
-        let root = UIApplication.shared.connectedScenes
-            .compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows)
-            .first { $0.isKeyWindow }?
-            .rootViewController
-        return topViewController(from: root)
-    }
-
-    private static func topViewController(from viewController: UIViewController?) -> UIViewController? {
-        if let presented = viewController?.presentedViewController {
-            return topViewController(from: presented)
-        }
-        if let navigation = viewController as? UINavigationController {
-            return topViewController(from: navigation.topViewController)
-        }
-        if let tab = viewController as? UITabBarController {
-            return topViewController(from: tab.selectedViewController)
-        }
-        return viewController
-    }
-}
-
 final class CommunityProfileManager: ObservableObject {
     @Published var profile: CommunityProfile
     @Published private(set) var isSigningIn = false
@@ -2074,7 +2060,7 @@ final class CommunityProfileManager: ObservableObject {
     }
 
 
-    func signInWithGoogleSchoolEmail() {
+    func signInWithGoogleSchoolEmail(presenting source: UIViewController?) {
         if let setupIssue = Self.googleOAuthSetupIssue() {
             authStatusMessage = setupIssue
             return
@@ -2086,7 +2072,7 @@ final class CommunityProfileManager: ObservableObject {
             authStatusMessage = String(localized: "community_google_auth_missing_client_id")
             return
         }
-        guard let presenter = FirebaseAuthPresentationDelegate.topViewController() else {
+        guard let source, source.viewIfLoaded?.window != nil else {
             authStatusMessage = String(localized: "community_google_auth_missing_presenter")
             return
         }
@@ -2094,7 +2080,7 @@ final class CommunityProfileManager: ObservableObject {
         guard !isSigningIn else { return }
         isSigningIn = true
         GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
-        GIDSignIn.sharedInstance.signIn(withPresenting: presenter) { [weak self] signInResult, error in
+        GIDSignIn.sharedInstance.signIn(withPresenting: ScenePresentationAnchor.top(from: source)) { [weak self] signInResult, error in
             guard let self else { return }
             if let error {
                 DispatchQueue.main.async {
@@ -2917,6 +2903,7 @@ private struct CommunityView: View {
             }
             .scrollContentBackground(.hidden)
             .background(Color.gray.opacity(0.1))
+            .modifier(AIWorkspaceEntry(active: true))
             .navigationTitle(String(localized: "community_title"))
             .searchable(text: $searchText, prompt: String(localized: "community_search_prompt"))
             .toolbar { communityToolbar }

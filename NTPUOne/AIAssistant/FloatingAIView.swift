@@ -10,94 +10,134 @@ private enum AIChatColors {
     static let user = Color(red: 0.16, green: 0.35, blue: 0.73)
 }
 
+private struct AIWorkspaceActions {
+    var show: () -> Void = {}
+    var dismissTip: () -> Void = {}
+    var tip: String?
+    var busy = false
+}
+private struct AIWorkspaceActionsKey: EnvironmentKey { static let defaultValue = AIWorkspaceActions() }
+private struct AIWorkspaceActiveKey: EnvironmentKey { static let defaultValue = false }
+extension EnvironmentValues {
+    var aiWorkspaceActive: Bool {
+        get { self[AIWorkspaceActiveKey.self] }
+        set { self[AIWorkspaceActiveKey.self] = newValue }
+    }
+    fileprivate var aiWorkspaceActions: AIWorkspaceActions {
+        get { self[AIWorkspaceActionsKey.self] }
+        set { self[AIWorkspaceActionsKey.self] = newValue }
+    }
+}
+
+/// Native bars avoid the Duo camera and become vertical with the system's navigation.
+struct AIWorkspaceEntry: ViewModifier {
+    let active: Bool
+    @Environment(\.aiWorkspaceActions) private var actions
+    @Environment(\.aiWorkspaceActive) private var isActive
+    func body(content: Content) -> some View {
+        content.toolbar {
+            if active && isActive {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: actions.show) {
+                        if actions.busy { ProgressView() }
+                        else { Image(systemName: "sparkles") }
+                    }
+                    .accessibilityLabel("開啟 AI 助理")
+                    .popover(isPresented: Binding(get: { active && actions.tip != nil }, set: { if !$0 { actions.dismissTip() } })) {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Label("給你的小提醒", systemImage: "sparkles").font(.headline)
+                                Spacer()
+                                Button(action: actions.dismissTip) { Image(systemName: "xmark").frame(width: 44, height: 44) }.accessibilityLabel("關閉提醒")
+                            }
+                            Text(actions.tip ?? "").fixedSize(horizontal: false, vertical: true)
+                        }.padding(18).frame(idealWidth: 300, maxWidth: 340)
+                            .background(AIChatColors.hint)
+                            .modifier(AIReminderPopoverStyle())
+                    }
+                }
+            }
+        }
+    }
+}
+private struct AIReminderPopoverStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 16.4, *) { content.presentationCompactAdaptation(.popover) }
+        else { content }
+    }
+}
+
 struct FloatingAIContainer<Content: View>: View {
     let content: Content
     let contextProvider: (AIContextRequest) async -> AIContextPayload
     let openPage: (AIAppPage) -> Void
+    let reviewChange: (AIChangeProposal) -> Void
     let hasSavedSchoolAccount: Bool
     let credentialProvider: () -> SchoolCredential?
     @StateObject private var bridge: NTPUAIWebBridge
     @State private var open = false
+    @State private var preferDocked = true
     @State private var enteredBackground = false
     @State private var pageNavigation: Task<Void, Never>?
     @AppStorage("hasCompletedFirstRunOnboarding") private var onboardingComplete = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
-    init(accountID: String, contextProvider: @escaping (AIContextRequest) async -> AIContextPayload, hasSavedSchoolAccount: Bool, credentialProvider: @escaping () -> SchoolCredential?, openPage: @escaping (AIAppPage) -> Void, @ViewBuilder content: () -> Content) {
-        self.content = content()
-        self.contextProvider = contextProvider
-        self.openPage = openPage
-        self.hasSavedSchoolAccount = hasSavedSchoolAccount
-        self.credentialProvider = credentialProvider
+    @Environment(\.layoutDirection) private var layoutDirection
+    init(accountID: String, contextProvider: @escaping (AIContextRequest) async -> AIContextPayload, hasSavedSchoolAccount: Bool, credentialProvider: @escaping () -> SchoolCredential?, openPage: @escaping (AIAppPage) -> Void, reviewChange: @escaping (AIChangeProposal) -> Void, @ViewBuilder content: () -> Content) {
+        self.content = content(); self.contextProvider = contextProvider; self.openPage = openPage
+        self.hasSavedSchoolAccount = hasSavedSchoolAccount; self.credentialProvider = credentialProvider; self.reviewChange = reviewChange
         _bridge = StateObject(wrappedValue: NTPUAIWebBridge(accountID: accountID))
     }
     private var arrivalTrigger: String {
-        "\(onboardingComplete)-\(scenePhase == .active)-\(bridge.ready)-\(bridge.appDataEnabled)-\(bridge.arrivalEnabled)-\(open)"
+        "\(onboardingComplete)-\(scenePhase == .active)-\(bridge.ready)-\(bridge.replying)-\(bridge.appDataEnabled)-\(bridge.arrivalEnabled)-\(open)"
     }
     private var animation: Animation { reduceMotion ? .easeInOut(duration: 0.15) : .spring(response: 0.38, dampingFraction: 0.86) }
+    private func regions(_ proxy: GeometryProxy, division: Bool) -> [CGRect] {
+        if #available(iOS 27.1, *) {
+            return proxy.reservedRegions(kind: division ? .division : .occlusion).map(\.frame)
+        }
+        return []
+    }
     var body: some View {
         GeometryReader { geo in
-            ZStack(alignment: .bottomTrailing) {
+            let plan = DuoWorkspacePolicy.plan(size: geo.size, divisions: regions(geo, division: true),
+                occlusions: regions(geo, division: false), assistantOpen: open, preferDocked: preferDocked,
+                rightToLeft: layoutDirection == .rightToLeft)
+            let blocking = open && plan.mode == .overlay
+            ZStack(alignment: .topLeading) {
+                // A stable view identity preserves tab navigation and scroll position across folds.
                 content
-                    .blur(radius: open ? 9 : 0)
-                    .allowsHitTesting(!open)
-                    .accessibilityHidden(open)
-                if !open {
-                    VStack(alignment: .trailing, spacing: 12) {
-                        if let tip = bridge.arrivalTip {
-                            HStack(alignment: .top, spacing: 8) {
-                                VStack(alignment: .leading, spacing: 5) {
-                                    Label("給你的小提醒", systemImage: "sparkles").font(.caption.weight(.semibold)).foregroundStyle(.tint)
-                                    Text(tip).font(.subheadline).foregroundStyle(.primary).lineLimit(5).fixedSize(horizontal: false, vertical: true)
-                                }
-                                Button { withAnimation(animation) { bridge.dismissArrivalTip() } } label: {
-                                    Image(systemName: "xmark").font(.caption.weight(.bold)).frame(width: 28, height: 28).background(.quaternary, in: Circle()).frame(width: 44, height: 44)
-                                }.accessibilityLabel("關閉這則提醒")
-                            }
-                            .padding(14).frame(maxWidth: min(300, max(180, geo.size.width - 36)))
-                            .background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 20))
-                            .overlay(RoundedRectangle(cornerRadius: 20).stroke(AIChatColors.border, lineWidth: 1))
-                            .shadow(color: .black.opacity(0.1), radius: 12, y: 5)
-                            .transition(.opacity.combined(with: .move(edge: .bottom)))
-                        }
-                        Button { bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true } } label: {
-                            ZStack {
-                                if bridge.loading || bridge.preparingArrival || bridge.replying {
-                                    ProgressView().tint(.white).accessibilityLabel("AI 正在準備")
-                                } else { Image(systemName: "sparkles").font(.system(size: 21, weight: .semibold)).foregroundStyle(.white) }
-                            }.frame(width: 52, height: 52)
-                                .background(Color.accentColor, in: Circle()).shadow(color: .black.opacity(0.2), radius: 8, y: 4)
-                        }
-                        .accessibilityLabel(bridge.arrivalTip == nil ? "開啟 AI 助理" : "開啟 AI 助理並查看提醒")
-                    }
-                    .padding(.trailing, 18).padding(.bottom, 62)
+                    .environment(\.aiWorkspaceActions, AIWorkspaceActions(show: {
+                        bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
+                    }, dismissTip: { bridge.dismissArrivalTip() }, tip: bridge.arrivalTip,
+                       busy: bridge.loading || bridge.preparingArrival || bridge.replying))
+                    .frame(width: plan.page.width, height: plan.page.height)
+                    .position(x: plan.page.midX, y: plan.page.midY)
+                    .blur(radius: blocking ? 9 : 0).allowsHitTesting(!blocking).accessibilityHidden(blocking)
+                if blocking {
+                    Color(uiColor: .systemBackground).opacity(0.08).ignoresSafeArea()
+                        .onTapGesture { withAnimation(animation) { open = false } }
                 }
                 if open {
-                    Color(uiColor: .systemBackground).opacity(0.08).ignoresSafeArea().onTapGesture { withAnimation(animation) { open = false } }
-                    AIChatPanel(bridge: bridge, contextProvider: contextProvider, hasSavedSchoolAccount: hasSavedSchoolAccount, credentialProvider: credentialProvider, openPage: { page in
+                    AIChatPanel(bridge: bridge, preferDocked: $preferDocked, reviewChange: reviewChange, contextProvider: contextProvider,
+                        hasSavedSchoolAccount: hasSavedSchoolAccount, credentialProvider: credentialProvider, openPage: { page in
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                        withAnimation(animation) { open = false }
+                        if blocking { withAnimation(animation) { open = false } }
                         pageNavigation?.cancel()
                         pageNavigation = Task { @MainActor in
-                            do { try await Task.sleep(nanoseconds: 300_000_000) } catch { return }
+                            do { try await Task.sleep(nanoseconds: blocking ? 300_000_000 : 100_000_000) } catch { return }
                             guard !Task.isCancelled else { return }
                             openPage(page)
                         }
                     }) {
-                        bridge.cancelStoredSchoolLogin()
-                        withAnimation(animation) { open = false }
+                        bridge.cancelStoredSchoolLogin(); withAnimation(animation) { open = false }
                     }
-                        .frame(maxWidth: 620)
-                        .frame(height: max(250, min(geo.size.height - 24, 820)))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                        .padding(.horizontal, 12)
-                        .transition(reduceMotion ? .opacity : .scale(scale: 0.9, anchor: .bottomTrailing).combined(with: .opacity))
-                        .zIndex(1)
+                    .frame(width: plan.assistant.width, height: plan.assistant.height)
+                    .position(x: plan.assistant.midX, y: plan.assistant.midY)
+                    .zIndex(1)
                 }
-                // The same web view remains mounted while the panel is closed.
                 if !open { AIWebsiteView(webView: bridge.webView).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false).accessibilityHidden(true) }
             }
-            .animation(animation, value: open)
             .task(id: onboardingComplete) { if onboardingComplete { bridge.start() } }
             .task(id: arrivalTrigger) {
                 guard onboardingComplete, scenePhase == .active, !open, bridge.ready, bridge.arrivalEnabled else { return }
@@ -112,6 +152,7 @@ struct FloatingAIContainer<Content: View>: View {
                     bridge.cancelStoredSchoolLogin()
                 }
             }
+            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in bridge.honorPersistedRevocations() }
             .onDisappear { pageNavigation?.cancel(); bridge.cancelArrival(); bridge.cancelStoredSchoolLogin() }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
@@ -129,12 +170,20 @@ struct FloatingAIContainer<Content: View>: View {
 private struct AIChatPanel: View {
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @ObservedObject var bridge: NTPUAIWebBridge
+    @Binding var preferDocked: Bool
+    let reviewChange: (AIChangeProposal) -> Void
     let contextProvider: (AIContextRequest) async -> AIContextPayload
     let hasSavedSchoolAccount: Bool
     let credentialProvider: () -> SchoolCredential?
     let openPage: (AIAppPage) -> Void
     let close: () -> Void
     @State private var showDataSettings = false
+    @State private var showDeleteSchoolChat = false
+    @State private var showWebSearch = false
+    @State private var webQuery = ""
+    @State private var webSearching = false
+    @State private var webError: String?
+    @State private var webTask: Task<Void, Never>?
     @State private var draft = ""
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
@@ -143,7 +192,7 @@ private struct AIChatPanel: View {
             HStack(spacing: 10) {
                 Image(systemName: "sparkles").font(.headline).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("NTPU One AI").font(.headline)
+                    Text("NTPU One AI").font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                     Text(bridge.replying ? "正在回覆" : bridge.loading ? "連線中" : bridge.ready ? "已連線" : "請登入 NTPU AI")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -151,10 +200,13 @@ private struct AIChatPanel: View {
                 if bridge.showingWebsite { Button("完成") { bridge.checkStatus() }.font(.subheadline.weight(.semibold)) }
                 Button { inputFocused = false; followLatest = true; bridge.newConversation() } label: {
                     Image(systemName: "square.and.pencil").font(.body.weight(.semibold)).frame(width: 44, height: 44)
-                }.accessibilityLabel("新對話").disabled(bridge.showingWebsite || bridge.storedLoginInProgress)
+                }.accessibilityLabel("新對話").disabled(bridge.showingWebsite || bridge.storedLoginInProgress || bridge.deletingSchoolConversation)
                 Group {
                     Menu {
+                        Toggle("寬畫面並排", isOn: $preferDocked)
+                        Button("網路搜尋") { inputFocused = false; webQuery = draft; webError = nil; showWebSearch = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation)
                         Button("資料與提醒設定") { inputFocused = false; showDataSettings = true }
+                        Button("刪除這次校方對話", role: .destructive) { inputFocused = false; showDeleteSchoolChat = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation || bridge.messages.isEmpty)
                     } label: {
                         Image(systemName: bridge.appDataEnabled ? "sparkles.rectangle.stack.fill" : "sparkles.rectangle.stack")
                             .foregroundStyle(bridge.appDataEnabled ? Color.accentColor : Color.secondary)
@@ -185,7 +237,7 @@ private struct AIChatPanel: View {
                                             Group {
                                                 if !message.isUser && message.text.isEmpty && bridge.replying {
                                                     AITypingIndicator(label: bridge.replyStatus)
-                                                } else { AIMessageBody(message: message, openPage: { page in inputFocused = false; openPage(page) }) }
+                                                } else { AIMessageBody(message: message, canReview: !bridge.replying, reviewChange: reviewChange, openPage: { page in inputFocused = false; openPage(page) }) }
                                             }.padding(12)
                                                 .foregroundStyle(message.isUser ? Color.white : Color.primary)
                                                 .background { RoundedRectangle(cornerRadius: 18).fill(message.isUser ? AIChatColors.user : AIChatColors.reply).overlay(RoundedRectangle(cornerRadius: 18).stroke(message.isUser ? Color.clear : AIChatColors.border, lineWidth: 1)) }
@@ -247,7 +299,7 @@ private struct AIChatPanel: View {
                                 Button { bridge.stop() } label: { Image(systemName: "stop.fill").frame(width: 40, height: 40) }.accessibilityLabel("停止回覆")
                             } else {
                                 Button { let text = draft; draft = ""; followLatest = true; bridge.send(text, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled) } label: { Image(systemName: "arrow.up").fontWeight(.bold).foregroundStyle(.white).frame(width: 40, height: 40).background(Color.accentColor, in: Circle()) }
-                                    .disabled(!bridge.ready || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("送出訊息")
+                                    .disabled(!bridge.ready || bridge.deletingSchoolConversation || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("送出訊息")
                             }
                         }.padding(10)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))
@@ -267,15 +319,54 @@ private struct AIChatPanel: View {
         }
         .onAppear { if !bridge.hasPromptedForAppData { bridge.hasPromptedForAppData = true; showDataSettings = true } }
         .clipShape(RoundedRectangle(cornerRadius: 24))
+        .sheet(isPresented: $showWebSearch, onDismiss: { webTask?.cancel(); webSearching = false }) {
+            NavigationStack {
+                Form {
+                    Section("搜尋內容") {
+                        TextField("輸入要查詢的問題", text: $webQuery, axis: .vertical).lineLimit(2...5).disabled(webSearching)
+                        Text("搜尋文字會傳送至第三方 Exa；結果及你的問題會傳送至 NTPU AI。請勿輸入帳密或不想分享的個人資料。") .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if let webError { Section { Text(webError).foregroundStyle(.red) } }
+                    Section {
+                        Button(webSearching ? "搜尋中…" : "搜尋並詢問 AI") {
+                            let query = webQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+                            guard !query.isEmpty, query.count <= 300 else { webError = "請輸入 1 至 300 字的搜尋內容。"; return }
+                            webSearching = true; webError = nil
+                            webTask = Task { @MainActor in
+                                do {
+                                    let results = try await AIWebSearch.search(query)
+                                    guard !Task.isCancelled, bridge.ready, !bridge.replying else { webSearching = false; return }
+                                    // Dismissal cancels webTask; detach only after all search work is complete.
+                                    webTask = nil; webSearching = false; showWebSearch = false; draft = ""; followLatest = true
+                                    bridge.send(query, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled, webResults: results)
+                                } catch {
+                                    guard !Task.isCancelled else { return }
+                                    webSearching = false; webError = "搜尋暫時無法使用，請稍後再試。問題尚未送出。"
+                                }
+                            }
+                        }.disabled(webSearching)
+                    }
+                }
+                .navigationTitle("網路搜尋")
+                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { webTask?.cancel(); showWebSearch = false } } }
+            }
+        }
+        .confirmationDialog("刪除這次校方對話？", isPresented: $showDeleteSchoolChat, titleVisibility: .visible) {
+            Button("刪除這次對話", role: .destructive) { bridge.deleteCurrentSchoolConversation() }
+        } message: { Text("刪除後無法復原；帳號的長期記憶和其他對話不受影響。") }
         .sheet(isPresented: $showDataSettings) {
             NavigationStack {
                 Form {
                     Section {
                         Toggle("使用 App 資料", isOn: Binding(get: { bridge.appDataEnabled }, set: { if $0 { bridge.enableAppData() } else { bridge.disableAppData() } }))
+                        Toggle("手機與 iCloud 課表", isOn: Binding(get: { bridge.shareCourses }, set: { bridge.setSource("courses", enabled: $0) })).disabled(!bridge.appDataEnabled)
+                        Toggle("手機與 iCloud 備忘錄", isOn: Binding(get: { bridge.shareMemos }, set: { bridge.setSource("memos", enabled: $0) })).disabled(!bridge.appDataEnabled)
+                        Toggle("Moodle 課程與作業", isOn: Binding(get: { bridge.shareMoodle }, set: { bridge.setSource("moodle", enabled: $0) })).disabled(!bridge.appDataEnabled)
+                        Toggle("學生資訊系統", isOn: Binding(get: { bridge.shareSchool }, set: { bridge.setSource("school", enabled: $0) })).disabled(!bridge.appDataEnabled)
                         Toggle("成績與畢業資料", isOn: Binding(get: { bridge.sensitiveDataEnabled }, set: { if $0 { bridge.enableSensitiveData() } else { bridge.disableSensitiveData() } }))
                             .disabled(!bridge.appDataEnabled)
                     } header: { Text("AI 可使用的資訊") } footer: {
-                        Text("依問題提供課表、待辦、Moodle、公告圖片、餐廳評論及通知設定等必要資料。成績需另外開啟；內容會傳至 NTPU AI，校方可能保存。帳密與 Cookie 不會作為聊天資料。")
+                        Text("課表與備忘錄預設開啟；Moodle、學生資訊系統及成績預設關閉。開啟的資料會依問題選取並傳至 NTPU AI，校方可能保存。成績另須開啟所屬來源及成績開關；帳密與 Cookie 不會作為聊天資料。")
                     }
                     Section {
                         Toggle("進入 App 時提醒", isOn: Binding(get: { bridge.arrivalEnabled }, set: { bridge.setArrivalEnabled($0) }))
@@ -321,13 +412,16 @@ private struct AITypingIndicator: View {
 /// Render bounded Markdown blocks with native, allowlisted page actions.
 private struct AIMessageBody: View {
     let message: AIChatMessage
+    let canReview: Bool
+    let reviewChange: (AIChangeProposal) -> Void
     let openPage: (AIAppPage) -> Void
     private var pages: [AIAppPage] {
         guard !message.isUser else { return [] }
         return AIAppPage.allCases.filter { message.text.contains("[[page:\($0.rawValue)]]") }
     }
     private var displayText: String {
-        AIAppPage.allCases.reduce(message.text) { $0.replacingOccurrences(of: "[[page:\($1.rawValue)]]", with: "") }.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !message.isUser else { return message.text }
+        return AIAppPage.allCases.reduce(AIChangeProposal.displayText(message.text)) { $0.replacingOccurrences(of: "[[page:\($1.rawValue)]]", with: "") }.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -335,6 +429,26 @@ private struct AIMessageBody: View {
                 Text(displayText.isEmpty ? "…" : displayText).textSelection(.enabled)
             } else {
                 AIMarkdownView(text: displayText.isEmpty ? "…" : displayText)
+            }
+            if !message.isUser, canReview, let proposals = AIChangeProposal.extractAll(from: message.text) {
+                if proposals.count > 1 { Text("共 \(proposals.count) 筆建議，請逐筆確認；已確認的項目會立即儲存。") .font(.caption).foregroundStyle(.secondary) }
+                ForEach(Array(proposals.enumerated()), id: \.offset) { _, proposal in
+                VStack(alignment: .leading, spacing: 8) {
+                    let verb = proposal.operation == .create ? "新增" : proposal.operation == .edit ? "修改" : "刪除"
+                    Label("AI 建議\(verb)\(proposal.kind == .memo ? "備忘錄" : "課程")", systemImage: "square.and.pencil").font(.subheadline.weight(.semibold))
+                    if let target = proposal.target, !target.isEmpty { Text("目標：\(target)").font(.caption) }
+                    if let title = proposal.title, !title.isEmpty { Text("名稱：\(title)").font(.caption) }
+                    if let deadline = proposal.deadline, !deadline.isEmpty { Text("截止建議：\(deadline)").font(.caption) }
+                    if let day = proposal.weekday, let period = proposal.period { Text("建議時段：\(day) · 第 \(period) 節").font(.caption) }
+                    Text("每次確認都會執行一次，請避免重複新增。") .font(.caption).foregroundStyle(.secondary)
+                    Button("查看並確認") { reviewChange(proposal) }.buttonStyle(.borderedProminent)
+                }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 14))
+                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AIChatColors.border))
+            }
+            }
+            if !message.isUser, canReview, message.text.contains("<ntpu-change>"), AIChangeProposal.extractAll(from: message.text) == nil {
+                Label("無法解析變更建議，請重新提出要求。", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.secondary)
             }
             ForEach(pages) { page in
                 Button { openPage(page) } label: {
@@ -461,7 +575,7 @@ enum AIContextSnapshot {
                 let reminders = memo.reminderRules.filter(\.enabled).prefix(5).map {
                     "\($0.kind.rawValue) \($0.triggerAt.formatted(date: .numeric, time: .shortened)) \($0.repeatType.rawValue)"
                 }.joined(separator: "；")
-                return "\(limited(memo.title, 100))｜\(memo.status.rawValue)｜類型 \(memo.tagType.rawValue)｜優先級 \(memo.priority.rawValue)｜截止 \(due)｜計劃 \(plan)｜提醒 \(reminders)｜課程 \(limited(memo.courseLink.flatMap { names[$0] } ?? "未連結", 80))｜\(limited(memo.content, 500))"
+                return "\(limited(memo.title, 100))｜\(memo.status.rawValue)｜類型 \(memo.tagType.rawValue)｜優先級 \(memo.priority.rawValue)｜截止 \(due)｜計劃 \(plan)｜提醒 \(reminders)｜課程 \(limited(memo.courseLink == nil ? "未連結" : (memo.courseLink.flatMap { names[$0] } ?? "未提供"), 80))｜\(limited(memo.content, 500))"
             }
             sections.append("備忘錄與作業（\(memos.count) 筆；最多 50 筆）:\n" + (rows.isEmpty ? "無可用資料" : rows.joined(separator: "\n")))
         }

@@ -37,6 +37,18 @@ enum AIDataSource: String, CaseIterable, Codable {
     }
 }
 
+enum AIDataPermissions {
+    static func allowed(master: Bool, courses: Bool, memos: Bool, moodle: Bool, school: Bool, grades: Bool) -> Set<AIDataSource> {
+        guard master else { return [] }
+        var sources = AIDataSource.allowed(includeSensitive: grades)
+        if !courses { sources.remove(.courses) }
+        if !memos { sources.remove(.memos) }
+        if !moodle { sources.subtract([.moodleTasks, .moodleContent, .moodleGrades]) }
+        if !school { sources.subtract([.enrolment, .schoolGrades, .ranking, .graduation]) }
+        return sources
+    }
+}
+
 struct AIContextPayload {
     var text: String
     var image: Data? = nil
@@ -186,8 +198,8 @@ enum AIClockContext {
 
 /// Capability metadata is separate from the snapshots selected for a single question.
 enum AIAssistantPersona {
-    static func prompt(appDataEnabled: Bool, sensitiveDataEnabled: Bool) -> String {
-        let permitted = appDataEnabled ? AIDataSource.allowed(includeSensitive: sensitiveDataEnabled) : []
+    static func prompt(appDataEnabled: Bool, sensitiveDataEnabled: Bool, allowedSources: Set<AIDataSource>? = nil) -> String {
+        let permitted = appDataEnabled ? (allowedSources ?? AIDataSource.allowed(includeSensitive: sensitiveDataEnabled)) : []
         let enabled = AIDataSource.allCases.filter { permitted.contains($0) }.map(\.title).joined(separator: "、")
         return """
         你是 NTPU One App 內的 AI 助理，由校方 NTPU AI 服務提供回答；自我介紹應以「NTPU One 的 AI 助理」為主。
@@ -196,9 +208,62 @@ enum AIAssistantPersona {
         目前可依問題自動選取的來源：\(enabled.isEmpty ? "尚未開啟 App 資料，使用者可在 AI 資料設定開啟" : enabled)。成績、GPA、排名、畢業及 Moodle 成績另外受成績授權控制。
         「本輪沒有附上資料」不等於「無法查詢」或「使用者未授權」。回答你是誰／能做什麼時，簡潔介紹能力與幾個可問的例子，不要固定附上無法查看個人資料的制式段落；權限已開啟時應說可以依問題查詢。未開啟時才說明需先啟用對應開關。
         只有本輪實際提供的資料才能作為查詢結果。來源未連結、未同步、過期或取用失敗時說明具體限制，不假裝查過，不編造數字；已授權也不代表資料必然可取得。教材以 API 提供的內容、說明及檔案資訊為限，不宣稱讀完整份附件。
-        你能提供原生頁面開啟按鈕，不能直接修改課表、備忘錄、成績或設定；不要宣稱已替使用者完成操作。以下是可開啟頁面及用法：
+        你可提供原生頁面開啟按鈕，也可提出課表或備忘錄的變更建議；必須由使用者在 App 預覽並確認，不能自行儲存或宣稱已完成。成績與設定不可修改。以下是可開啟頁面及用法：
         \(AIAppPage.guideText)
-        需要開頁面時，在回答最後輸出 [[page:代碼]]，代碼僅限上述清單。使用繁體中文，先回答問題，再按需要補充授權或資料限制。
+        需要開頁面時，在回答最後輸出 [[page:代碼]]，代碼僅限上述清單。當使用者明確要求新增、修改或刪除課表或備忘錄時，在回答最後另外輸出一個 <ntpu-change>JSON</ntpu-change>；單筆使用 JSON 物件，多筆使用 JSON 陣列（最多 20 筆），每筆獨立預覽與確認；每個物件僅接受 kind（memo 或 course）、operation（create、edit 或 delete）、target（既有項目完整名稱）、title、content、weekday（Monday 至 Saturday）、period（1 到 13）、location、teacher、deadline（含時區的 ISO8601）。未知欄位省略，不得猜日期或目標；資訊不足時請詢問。這只是建議，不代表已執行。使用繁體中文，先回答問題，再按需要補充授權或資料限制。
         """
+    }
+}
+
+/// A model-suggested operation is untrusted data and can only open a review UI.
+struct AIChangeProposal: Decodable, Identifiable {
+    enum Kind: String, Decodable { case memo, course }
+    enum Operation: String, Decodable { case create, edit, delete }
+    var kind: Kind
+    var operation: Operation
+    var target: String?
+    var title: String?
+    var content: String?
+    var weekday: String?
+    var period: Int?
+    var location: String?
+    var teacher: String?
+    var deadline: String?
+    var id: String { "\(kind.rawValue):\(operation.rawValue):\(target ?? ""):\(title ?? "")" }
+    static func extractAll(from text: String) -> [AIChangeProposal]? {
+        guard text.utf8.count <= 100_000,
+              let start = text.range(of: "<ntpu-change>"),
+              let end = text.range(of: "</ntpu-change>", range: start.upperBound..<text.endIndex),
+              text.range(of: "<ntpu-change>", range: start.upperBound..<text.endIndex) == nil,
+              text.range(of: "</ntpu-change>", range: end.upperBound..<text.endIndex) == nil else { return nil }
+        let raw = String(text[start.upperBound..<end.lowerBound])
+        guard raw.utf8.count <= 32_768, let data = raw.data(using: .utf8) else { return nil }
+        let decoder = JSONDecoder()
+        let values: [Self]
+        if let array = try? decoder.decode([Self].self, from: data) { values = array }
+        else if let single = try? decoder.decode(Self.self, from: data) { values = [single] }
+        else { return nil }
+        guard !values.isEmpty, values.count <= 20, values.allSatisfy({ value in
+            [value.target, value.title, value.content, value.weekday, value.location, value.teacher, value.deadline]
+                .compactMap({ $0 }).allSatisfy({ $0.count <= 500 && !$0.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) && $0 != "\n" }) }) &&
+            (value.period.map({ (1...13).contains($0) }) ?? true)
+        }) else { return nil }
+        return values
+    }
+    static func extract(from text: String) -> AIChangeProposal? {
+        guard let values = extractAll(from: text), values.count == 1 else { return nil }
+        return values.first
+    }
+    static func displayText(_ text: String) -> String {
+        guard let start = text.range(of: "<ntpu-change>") else { return text }
+        guard let end = text.range(of: "</ntpu-change>", range: start.upperBound..<text.endIndex) else {
+            return String(text[..<start.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if text.range(of: "<ntpu-change>", range: end.upperBound..<text.endIndex) != nil ||
+           text.range(of: "</ntpu-change>", range: end.upperBound..<text.endIndex) != nil {
+            return String(text[..<start.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        var result = text; result.removeSubrange(start.lowerBound..<end.upperBound)
+        return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }
