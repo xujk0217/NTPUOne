@@ -123,6 +123,9 @@ struct AIChangeReviewView: View {
     private func prepare() {
         account = academic.uid
         title = proposal.title ?? ""; content = proposal.content ?? ""
+        if proposal.kind == .memo, proposal.operation == .create {
+            courseLink = AICourseLinkResolver.match(proposal, courses: courseData.courses)?.id ?? ""
+        }
         weekday = proposal.weekday ?? ""; period = proposal.period ?? 0
         location = proposal.location ?? ""; teacher = proposal.teacher ?? ""
         if let raw = proposal.deadline {
@@ -144,7 +147,7 @@ struct AIChangeReviewView: View {
         originalCourse = courseData.courses.first { $0.id == targetID }
         if let memo = originalMemo {
             title = proposal.title ?? memo.title; content = proposal.content ?? memo.content
-            memoType = memo.tagType; memoPriority = memo.priority; memoStatus = memo.status; courseLink = memo.courseLink ?? ""
+            memoType = memo.tagType; memoPriority = memo.priority; memoStatus = memo.status; courseLink = proposal.course.flatMap { _ in AICourseLinkResolver.match(proposal, courses: courseData.courses)?.id } ?? memo.courseLink ?? ""
             if proposal.deadline == nil { hasDeadline = memo.dueAt != nil; deadline = memo.dueAt ?? Date() }
         }
         if let course = originalCourse {
@@ -290,6 +293,9 @@ struct AIChangeBatchReviewView: View {
                             if proposals[i].kind == .memo {
                                 TextField("內容（留空保留原值）", text: field(i, \.content), axis: .vertical)
                                 TextField("截止時間 ISO8601（留空保留原值）", text: field(i, \.deadline))
+                                Text(memoReminderSummary(for: i))
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
                                 Picker("連結課程", selection: Binding(get: { memoLinks[i] ?? "" }, set: { memoLinks[i] = $0 })) {
                                     Text("無").tag("")
                                     ForEach(courseData.courses) { Text("\($0.name) · \($0.day)").tag($0.id) }
@@ -328,14 +334,31 @@ struct AIChangeBatchReviewView: View {
     private func field(_ i: Int, _ key: WritableKeyPath<AIChangeProposal, String?>) -> Binding<String> {
         Binding(get: { proposals[i][keyPath: key] ?? "" }, set: { proposals[i][keyPath: key] = $0.isEmpty ? nil : $0 })
     }
+    private func memoReminderSummary(for index: Int) -> String {
+        let dueDate = proposals[index].deadline.flatMap { ISO8601DateFormatter().date(from: $0) }
+            ?? originalMemos[index]?.dueAt
+        guard let dueDate else { return "提醒：未設定截止時間，因此不會建立截止提醒。" }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "zh_TW")
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        let oneDayBefore = dueDate.addingTimeInterval(-24 * 60 * 60)
+        let thirtyMinutesBefore = dueDate.addingTimeInterval(-30 * 60)
+        let times = [oneDayBefore, thirtyMinutesBefore].filter { $0 > Date() }
+        guard !times.isEmpty else { return "提醒：截止時間已過，沒有尚未觸發的自動提醒。" }
+        return "自動提醒：" + times.map { formatter.string(from: $0) }.joined(separator: "、") + "（截止前 1 天及 30 分鐘；已過的提醒不會補發）。"
+    }
     private func prepare() {
         guard !prepared else { return }
         prepared = true; account = academic.uid
+        for i in proposals.indices where proposals[i].kind == .memo && proposals[i].operation == .create {
+            memoLinks[i] = AICourseLinkResolver.match(proposals[i], courses: courseData.courses)?.id
+        }
         for i in proposals.indices where proposals[i].operation != .create {
             let target = proposals[i].target ?? ""
             if proposals[i].kind == .memo {
                 let matches = memoManager.memos.filter { $0.title == target }
-                if matches.count == 1 { originalMemos[i] = matches[0]; memoLinks[i] = matches[0].courseLink ?? "" }
+                if matches.count == 1 { originalMemos[i] = matches[0]; memoLinks[i] = proposals[i].course.flatMap { _ in AICourseLinkResolver.match(proposals[i], courses: courseData.courses)?.id } ?? matches[0].courseLink ?? "" }
             } else {
                 let matches = courseData.courses.filter { $0.name == target }
                 if matches.count == 1 { originalCourses[i] = matches[0] }
@@ -436,4 +459,48 @@ struct AIChangeBatchReviewView: View {
         batch.onComplete(); dismiss()
     }
     private enum BatchError: Error { case changed }
+}
+
+
+/// Both preview paths resolve course text to a local ID before saving.
+private enum AICourseLinkResolver {
+    static func match(_ proposal: AIChangeProposal, courses: [Course]) -> Course? {
+        // Timetable records represent periods. Match logical courses, then pick
+        // a stable period ID just as the memo editor deduplicates its picker.
+        let groups = Dictionary(grouping: courses) { normalized($0.name) + "|" + normalized($0.teacher) }
+        let candidates = groups.values.compactMap { $0.sorted { $0.id < $1.id }.first }
+        let requested = normalized(proposal.course ?? "")
+        if !requested.isEmpty {
+            let exact = candidates.filter { normalized($0.name) == requested }
+            if exact.count == 1 { return exact[0] }
+            if exact.count > 1 { return nil }
+            let partial = candidates.filter { nameMatches(requested, normalized($0.name)) }
+            if partial.count == 1 { return partial[0] }
+            if partial.count > 1 { return nil }
+        }
+        let text = normalized("\(proposal.course ?? "") \(proposal.title ?? "") \(proposal.content ?? "")")
+        let ranked = candidates.compactMap { course -> (Course, Double)? in
+            let name = normalized(course.name)
+            guard name.count >= 2 else { return nil }
+            let score = text.contains(name) ? 1 : similarity(text, name)
+            return score >= 0.55 ? (course, score) : nil
+        }.sorted { $0.1 > $1.1 }
+        guard let best = ranked.first,
+              ranked.dropFirst().first.map({ best.1 - $0.1 >= 0.15 }) ?? true else { return nil }
+        return best.0
+    }
+    private static func nameMatches(_ keyword: String, _ name: String) -> Bool {
+        keyword.count >= 2 && (keyword.contains(name) || name.contains(keyword))
+    }
+    private static func similarity(_ text: String, _ name: String) -> Double {
+        let a = Array(text), b = Array(name)
+        let textGrams = Set(zip(a, a.dropFirst()).map { String([$0, $1]) })
+        let nameGrams = Set(zip(b, b.dropFirst()).map { String([$0, $1]) })
+        guard !nameGrams.isEmpty else { return 0 }
+        return Double(textGrams.intersection(nameGrams).count) / Double(nameGrams.count)
+    }
+    private static func normalized(_ value: String) -> String {
+        value.folding(options: [.widthInsensitive, .caseInsensitive], locale: Locale(identifier: "zh_TW"))
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
+    }
 }
