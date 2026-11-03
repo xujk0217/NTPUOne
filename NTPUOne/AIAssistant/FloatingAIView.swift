@@ -201,15 +201,26 @@ private struct AIChatPanel: View {
     @State private var dismissDrag: CGFloat = 0
     private var dismissGesture: some Gesture {
         DragGesture(minimumDistance: 10)
-            .onChanged { value in
-                guard value.translation.height > 0, abs(value.translation.height) > abs(value.translation.width) else { return }
-                var transaction = Transaction(); transaction.disablesAnimations = true
-                withTransaction(transaction) { dismissDrag = min(value.translation.height, 260) }
-            }
             .onEnded { value in
+                // Keep the panel still while the finger is down. Decide only once
+                // the gesture finishes, avoiding layout/transition updates fighting
+                // the gesture recognizer on compact and split-screen layouts.
                 if AIPanelDismissPolicy.shouldDismiss(horizontal: value.translation.width, vertical: value.translation.height, predictedVertical: value.predictedEndTranslation.height) {
-                    inputFocused = false; close()
-                } else { withAnimation(.spring(response: 0.42, dampingFraction: 0.9)) { dismissDrag = 0 } }
+                    inputFocused = false
+                    withAnimation(.spring(response: 0.48, dampingFraction: 0.88)) {
+                        dismissDrag = min(max(value.translation.height, 80), 260)
+                        close()
+                    }
+                } else if value.translation.height > 12, abs(value.translation.height) > abs(value.translation.width) {
+                    // A short, release-triggered spring gives a clear native bounce
+                    // without continuously moving the panel under the finger.
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { dismissDrag = min(value.translation.height, 72) }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.04) {
+                        withAnimation(.spring(response: 0.42, dampingFraction: 0.72)) { dismissDrag = 0 }
+                    }
+                }
             }
     }
     var body: some View {
