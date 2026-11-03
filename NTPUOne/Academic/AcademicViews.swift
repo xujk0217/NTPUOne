@@ -693,11 +693,22 @@ private struct AcademicReportCard: View {
                 } else { subjectRows }
             }
             if !section.notes.isEmpty {
-                DisclosureGroup("補充說明") {
+                if kind == .graduation {
                     VStack(alignment: .leading, spacing: 8) {
                         ForEach(Array(section.notes.enumerated()), id: \.offset) { _, note in Text(note) }
-                    }.font(.caption).foregroundStyle(.secondary).padding(.top, 8)
-                }.font(.subheadline).tint(tint)
+                    }
+                    .font(.subheadline.monospacedDigit())
+                    .foregroundStyle(.primary)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(tint.opacity(0.07), in: RoundedRectangle(cornerRadius: 14))
+                } else {
+                    DisclosureGroup("補充說明") {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(Array(section.notes.enumerated()), id: \.offset) { _, note in Text(note) }
+                        }.font(.caption).foregroundStyle(.secondary).padding(.top, 8)
+                    }.font(.subheadline).tint(tint)
+                }
             }
         }.padding(18)
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 22))
