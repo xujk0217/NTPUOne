@@ -77,6 +77,14 @@ enum DuoWorkspacePolicy {
         return occlusions.contains(where: { $0.insetBy(dx: -8, dy: -8).intersects(button) }) ? .zero : button
     }
 
+    /// Normalized anchor for the actual floating button, including fold/camera adjustments.
+    static func buttonAnchor(size: CGSize, divisions: [CGRect] = [], occlusions: [CGRect] = []) -> CGPoint {
+        let area = floatingArea(size: size, divisions: divisions, occlusions: occlusions)
+        let button = floatingButton(in: area, occlusions: occlusions)
+        guard size.width > 0, size.height > 0, !button.isEmpty else { return CGPoint(x: 1, y: 1) }
+        return CGPoint(x: max(0, min(1, button.midX / size.width)), y: max(0, min(1, button.midY / size.height)))
+    }
+
     /// Keep custom chat controls out of camera regions; native page containers adapt themselves.
     private static func freeRectangle(_ frame: CGRect, avoiding occlusions: [CGRect]) -> CGRect {
         var result = frame

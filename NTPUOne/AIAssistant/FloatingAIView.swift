@@ -10,14 +10,14 @@ private enum AIChatColors {
     static let user = Color(red: 0.16, green: 0.35, blue: 0.73)
 }
 
-/// Scale and translate a transient view toward the lower-left of its usable region.
-private struct AICornerEntrance: ViewModifier {
+/// Scale and translate a reminder toward its floating button.
+private struct AIButtonEntrance: ViewModifier {
     let hidden: Bool
     let horizontal: CGFloat
     let vertical: CGFloat
     func body(content: Content) -> some View {
         content
-            .scaleEffect(hidden ? 0.08 : 1, anchor: UnitPoint(x: 0, y: 1))
+            .scaleEffect(hidden ? 0.08 : 1, anchor: UnitPoint(x: 1, y: 1))
             .offset(x: hidden ? horizontal : 0, y: hidden ? vertical : 0)
             .opacity(hidden ? 0 : 1)
     }
@@ -61,6 +61,9 @@ struct FloatingAIContainer<Content: View>: View {
             let plan = DuoWorkspacePolicy.plan(size: geo.size, divisions: regions(geo, division: true),
                 occlusions: regions(geo, division: false), assistantOpen: open, preferDocked: preferDocked,
                 rightToLeft: layoutDirection == .rightToLeft)
+            let anchorPoint = DuoWorkspacePolicy.buttonAnchor(size: geo.size,
+                divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
+            let buttonAnchor = UnitPoint(x: anchorPoint.x, y: anchorPoint.y)
             let blocking = open && plan.mode == .overlay
             ZStack(alignment: .topLeading) {
                 // A stable view identity preserves tab navigation and scroll position across folds.
@@ -88,7 +91,7 @@ struct FloatingAIContainer<Content: View>: View {
                     }
                     .frame(width: plan.assistant.width, height: plan.assistant.height)
                     .position(x: plan.assistant.midX, y: plan.assistant.midY)
-                    .transition(reduceMotion ? .opacity : .scale(scale: 0.08, anchor: UnitPoint(x: 0, y: 1)).combined(with: .opacity))
+                    .transition(reduceMotion ? .opacity : .scale(scale: 0.08, anchor: buttonAnchor).combined(with: .opacity))
                     .zIndex(1)
                 }
                 if !open {
@@ -114,10 +117,10 @@ struct FloatingAIContainer<Content: View>: View {
                                     .overlay(RoundedRectangle(cornerRadius: 18).stroke(AIChatColors.border))
                                     .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                                     .transition(reduceMotion ? .opacity : .modifier(
-                                        active: AICornerEntrance(hidden: true,
-                                            horizontal: min(0, area.minX - button.maxX + width),
-                                            vertical: max(0, area.maxY - button.minY)),
-                                        identity: AICornerEntrance(hidden: false, horizontal: 0, vertical: 0)))
+                                        active: AIButtonEntrance(hidden: true,
+                                            horizontal: -button.width / 2,
+                                            vertical: button.height / 2 + 10),
+                                        identity: AIButtonEntrance(hidden: false, horizontal: 0, vertical: 0)))
                                 }
                                 Button {
                                     bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
