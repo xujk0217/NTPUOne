@@ -180,6 +180,7 @@ private struct AIChatPanel: View {
         VStack(spacing: 0) {
             Capsule().fill(.secondary.opacity(0.45)).frame(width: 42, height: 5)
                 .frame(maxWidth: .infinity, minHeight: 28)
+                .padding(.top, 24)
                 .contentShape(Rectangle())
                 .gesture(DragGesture(minimumDistance: 8)
                     .updating($dismissDrag) { value, state, _ in
