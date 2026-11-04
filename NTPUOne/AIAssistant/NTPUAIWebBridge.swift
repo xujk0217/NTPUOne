@@ -30,6 +30,8 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     @Published var loading = true
     @Published var replying = false
     @Published private(set) var replyStatus = "正在思考"
+    @Published private(set) var clearingLoginSession = false
+    private var loginGeneration = UUID()
     @Published var showingWebsite = false
     @Published var error: String?
     @Published var contextNotice: String?
@@ -360,13 +362,42 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         checkStatus()
     }
 
+    /// This store is isolated from Google authentication and the school API stores.
+    func clearAILoginSession() {
+        guard !clearingLoginSession, !deletingSchoolConversation else { return }
+        loginGeneration = UUID()
+        clearingLoginSession = true
+        cancelStoredSchoolLogin()
+        if replying { stop() }
+        sessionRecoveryTask?.cancel()
+        sessionRecoveryUntil = .distantPast
+        webView.stopLoading()
+        ready = false; loading = true; showingWebsite = false
+        accountIdentity = nil; startedConversation = false
+        messages.removeAll(); arrivalTip = nil; error = nil; contextNotice = nil
+        hasManualConversation = true
+        // Unload the old authenticated page before clearing its storage so page
+        // scripts cannot immediately restore cookies/local storage.
+        webView.loadHTMLString("", baseURL: nil)
+        let generation = loginGeneration
+        webView.configuration.websiteDataStore.removeData(ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast) { [weak self] in
+            Task { @MainActor in
+                guard let self, self.loginGeneration == generation else { return }
+                self.clearingLoginSession = false
+                self.contextNotice = "已清除這個 App 帳號的 AI 網頁登入狀態；學校帳密與 Google 登入仍保留。"
+                self.reload()
+            }
+        }
+    }
+
     func checkStatus() {
-        guard started else { return }
+        guard started, !clearingLoginSession else { return }
+        let generation = loginGeneration
         guard webView.url?.scheme == "https", webView.url?.host == "ai.ntpu.edu.tw" else {
             ready = false; loading = storedLoginInProgress; return
         }
         webView.evaluateJavaScript("window.__ntpuOneStatus && window.__ntpuOneStatus() ? document.getElementById('user-email').title : null") { [weak self] value, _ in
-            guard let self else { return }
+            guard let self, self.loginGeneration == generation, !self.clearingLoginSession else { return }
             let identity = value as? String
             if let identity, let old = self.accountIdentity, identity != old {
                 if self.replying { self.fail("登入帳號已變更，請重新提問。") }
@@ -400,7 +431,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     func send(_ text: String, contextProvider: ((AIContextRequest) async -> AIContextPayload)?, includeSensitive: Bool = false, webResults: String? = nil) {
         honorPersistedRevocations()
         let prompt = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard ready, !replying, !deletingSchoolConversation, !prompt.isEmpty else { return }
+        guard ready, !clearingLoginSession, !replying, !deletingSchoolConversation, !prompt.isEmpty else { return }
         hasManualConversation = true; arrivalTip = nil
         // Send only the visible conversational text, not hidden source snapshots or action markers.
         localConversationContext = messages.filter { !$0.isLocalGreeting }.suffix(10).compactMap { message in

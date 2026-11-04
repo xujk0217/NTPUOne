@@ -197,6 +197,7 @@ private struct AIChatPanel: View {
     let close: () -> Void
     @State private var showDataSettings = false
     @State private var showDeleteSchoolChat = false
+    @State private var showClearAILogin = false
     @State private var draft = ""
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
@@ -239,7 +240,7 @@ private struct AIChatPanel: View {
                 Image(systemName: "sparkles").font(.headline).foregroundStyle(.tint)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("NTPU One AI").font(.headline).lineLimit(1).minimumScaleFactor(0.8)
-                    Text(bridge.replying ? "正在回覆" : bridge.loading ? "連線中" : bridge.ready ? "已連線" : "請登入 NTPU AI")
+                    Text(bridge.clearingLoginSession ? "正在登出 AI…" : bridge.replying ? "正在回覆" : bridge.loading ? "連線中" : bridge.ready ? "已連線" : "請登入 NTPU AI")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -251,6 +252,9 @@ private struct AIChatPanel: View {
                     Menu {
                         if supportsDocking { Toggle("寬畫面並排", isOn: $preferDocked) }
                         Button("資料與提醒設定") { inputFocused = false; showDataSettings = true }
+                        Button("登出 AI／清除網頁登入狀態", role: .destructive) {
+                            inputFocused = false; showClearAILogin = true
+                        }.disabled(bridge.clearingLoginSession || bridge.deletingSchoolConversation)
                         Button("刪除這次校方對話", role: .destructive) { inputFocused = false; showDeleteSchoolChat = true }.disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation || !bridge.hasSchoolConversation)
                     } label: {
                         Image(systemName: bridge.appDataEnabled ? "sparkles.rectangle.stack.fill" : "sparkles.rectangle.stack")
@@ -289,6 +293,15 @@ private struct AIChatPanel: View {
                                             if !message.isUser { Spacer(minLength: 36) }
                                         }.id(message.id)
                                     }
+                                    if let error = bridge.error {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Label(error, systemImage: "exclamationmark.circle")
+                                            Button("重新載入") { bridge.reload() }
+                                        }.font(.caption).padding(12)
+                                    }
+                                    if !bridge.ready || !hasGoogleAccount || !hasSavedSchoolAccount {
+                                        accountAccessCard
+                                    }
                                     if let notice = bridge.contextNotice {
                                         Label(notice, systemImage: "info.circle")
                                             .font(.caption).foregroundStyle(.primary)
@@ -315,46 +328,11 @@ private struct AIChatPanel: View {
                                 }
                             }
                         }
-                        if let error = bridge.error {
-                            HStack { Text(error).font(.caption).foregroundStyle(.secondary); Spacer(); Button("重新載入") { bridge.reload() }.font(.caption) }.padding(.horizontal, 16).padding(.bottom, 8)
-                        }
-                        if !hasGoogleAccount || !hasSavedSchoolAccount {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Label("解鎖更多 AI 功能", systemImage: "person.crop.circle.badge.checkmark")
-                                    .font(.subheadline.weight(.semibold))
-                                Text(hasGoogleAccount
-                                     ? "連結學校帳號後，AI 可在你授權下查詢 Moodle 作業、課程及校務資料。"
-                                     : "登入 Google 並連結學校帳號後，AI 可在你授權下協助查看 Moodle、課表、成績與待辦。NTPU AI 的登入與 App 帳號連結分開管理。")
-                                    .font(.caption).foregroundStyle(.secondary)
-                                Button(hasGoogleAccount ? "連結學校帳號" : "前往個人頁面登入 Google") {
-                                    inputFocused = false
-                                    openPage(hasGoogleAccount ? .schoolAccount : .profile)
-                                }.font(.subheadline).buttonStyle(.bordered)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12).background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 14))
-                            .padding(.horizontal, 12).padding(.bottom, 8)
-                        }
-                        if !bridge.ready && bridge.loading {
-                            HStack(spacing: 10) { ProgressView(); Text(bridge.storedLoginInProgress ? "正在使用學校帳號登入…" : "正在恢復登入狀態…").font(.subheadline).foregroundStyle(.secondary) }.padding(.vertical, 8)
-                            if bridge.storedLoginInProgress {
-                                Button("改用手動登入") { bridge.finishStoredLogin(showWebsite: true) }.font(.caption).padding(.bottom, 8)
-                            }
-                        }
-                        if !bridge.ready && !bridge.loading {
-                            if hasSavedSchoolAccount && !bridge.diagnosingLogin {
-                                Button("使用已儲存的學校帳號登入") { inputFocused = false; bridge.beginStoredSchoolLogin(provider: credentialProvider) }
-                                    .buttonStyle(.borderedProminent).padding(.bottom, 4)
-                            }
-                            Button(hasSavedSchoolAccount ? "手動登入" : "登入 NTPU AI") { bridge.showingWebsite = true; inputFocused = false }
-                                .buttonStyle(.bordered).padding(.bottom, 4)
-                            Link("開啟官方網站", destination: URL(string: "https://ai.ntpu.edu.tw/")!).font(.caption).padding(.bottom, 8)
-                        }
                         HStack(alignment: .bottom, spacing: 10) {
                             if inputFocused {
                                 Button { inputFocused = false } label: { Image(systemName: "keyboard.chevron.compact.down").frame(width: 34, height: 40) }.accessibilityLabel("收起鍵盤")
                             }
-                            TextField("輸入訊息", text: $draft, axis: .vertical).lineLimit(1...5).focused($inputFocused)
+                            TextField(bridge.ready ? "輸入訊息" : "登入學校帳號後開始聊天", text: $draft, axis: .vertical).lineLimit(1...5).focused($inputFocused)
                                 .padding(10).background(Color(uiColor: .secondarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
                                 .disabled(!bridge.ready || bridge.replying)
                             if bridge.replying {
@@ -399,6 +377,12 @@ private struct AIChatPanel: View {
         .confirmationDialog("刪除這次校方對話？", isPresented: $showDeleteSchoolChat, titleVisibility: .visible) {
             Button("刪除這次對話", role: .destructive) { bridge.deleteCurrentSchoolConversation() }
         } message: { Text("刪除後無法復原；帳號的長期記憶和其他對話不受影響。") }
+        .confirmationDialog("登出 AI 並清除網頁登入狀態？", isPresented: $showClearAILogin, titleVisibility: .visible) {
+            Button("登出並清除", role: .destructive) { bridge.clearAILoginSession() }
+            Button("取消", role: .cancel) { }
+        } message: {
+            Text("清除本機 AI 與校方 SSO 的網頁登入狀態及目前聊天畫面；保留 Google 登入、手機儲存的學校帳密與資料授權。校方既有聊天紀錄不會因此刪除。")
+        }
         .sheet(isPresented: $showDataSettings) {
             NavigationStack {
                 Form {
@@ -431,6 +415,72 @@ private struct AIChatPanel: View {
         }
 
 
+    }
+
+    private var accountAccessCard: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 10) {
+                Image(systemName: bridge.ready ? "link" : "person.badge.key")
+                    .font(.title3).foregroundStyle(.tint)
+                    .frame(width: 38, height: 38).background(Color.accentColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(bridge.ready ? "連結更多個人資料" : "使用學校帳號登入 AI")
+                        .font(.subheadline.weight(.semibold))
+                    Text(bridge.ready ? "作業、課程與校務資料，依你的授權使用" : "與數位學院、學生資訊系統共用帳密")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+            }
+            if !hasGoogleAccount || !hasSavedSchoolAccount {
+                Text(hasGoogleAccount
+                     ? "連結學校帳號後，即可共用手機儲存的帳密。"
+                     : "Google 登入用於 App 帳號；連結學校帳號後，可共用儲存的帳密與個人資料。")
+                    .font(.caption).foregroundStyle(.secondary)
+            }
+            if !bridge.ready {
+                if bridge.loading {
+                    HStack(spacing: 8) {
+                        ProgressView()
+                        Text(bridge.clearingLoginSession ? "正在清除登入狀態…" : bridge.storedLoginInProgress ? "正在使用學校帳密登入…" : "正在確認登入狀態…")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                    if bridge.storedLoginInProgress {
+                        Button("改用校方網頁登入") { bridge.finishStoredLogin(showWebsite: true) }
+                            .font(.subheadline)
+                    }
+                } else {
+                    Button {
+                        inputFocused = false
+                        if hasSavedSchoolAccount && !bridge.diagnosingLogin {
+                            bridge.beginStoredSchoolLogin(provider: credentialProvider)
+                        } else { bridge.showingWebsite = true }
+                    } label: {
+                        Label(hasSavedSchoolAccount ? "使用已儲存的學校帳密" : "校方網頁登入", systemImage: hasSavedSchoolAccount ? "key.fill" : "globe")
+                            .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 5)
+                    }.buttonStyle(.borderedProminent).buttonBorderShape(.roundedRectangle(radius: 12))
+                    if hasSavedSchoolAccount {
+                        Button("改用校方網頁手動登入") { inputFocused = false; bridge.showingWebsite = true }
+                            .font(.caption).frame(maxWidth: .infinity)
+                    }
+                    Text("網頁登入會在 App 內開啟校方頁面。")
+                        .font(.caption2).foregroundStyle(.secondary)
+                }
+            }
+            if !hasGoogleAccount || !hasSavedSchoolAccount {
+                Button {
+                    inputFocused = false
+                    openPage(hasGoogleAccount ? .schoolAccount : .profile)
+                } label: {
+                    HStack {
+                        Text(hasGoogleAccount ? "連結學校帳號" : "前往個人頁面登入 Google")
+                        Spacer(minLength: 8)
+                        Image(systemName: "chevron.right").font(.caption.weight(.semibold))
+                    }.font(.subheadline)
+                }.buttonStyle(.plain).foregroundStyle(.tint)
+            }
+        }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(uiColor: .secondarySystemBackground).opacity(0.82), in: RoundedRectangle(cornerRadius: 20))
+        .overlay(RoundedRectangle(cornerRadius: 20).stroke(AIChatColors.border, lineWidth: 0.7))
     }
 }
 
