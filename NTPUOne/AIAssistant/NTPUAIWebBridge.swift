@@ -83,19 +83,32 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     private var contextTask: Task<Void, Never>?
     private var contextProvider: ((AIContextRequest) async -> AIContextPayload)?
     let webView: WKWebView
+    private static let legacyAIWebsiteDataStore = WKWebsiteDataStore.nonPersistent()
 
     init(accountID: String) {
         preferenceKey = "ntpu.ai." + SHA256.hash(data: Data((accountID.isEmpty ? "guest" : accountID).utf8)).map { String(format: "%02x", $0) }.joined()
         let controller = WKUserContentController()
         let config = WKWebViewConfiguration()
-        // Keep website sessions separate for each signed-in App account.
-        // iOS 16 has no named persistent store, so use an isolated temporary one.
-        if #available(iOS 17.0, *), !accountID.isEmpty {
-            let bytes = Array(SHA256.hash(data: Data(accountID.utf8)).prefix(16))
-            let identifier = UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+        // AI authentication is independent of the Google App account. Keep one
+        // dedicated store while preferences and conversation state stay scoped
+        // to accountID. On first adoption reuse the former account's store.
+        if #available(iOS 17.0, *) {
+            let defaults = UserDefaults.standard
+            let storeKey = "ntpu.ai.independentWebsiteStoreID"
+            let identifier: UUID
+            if let saved = defaults.string(forKey: storeKey), let existing = UUID(uuidString: saved) {
+                identifier = existing
+            } else if !accountID.isEmpty {
+                let bytes = Array(SHA256.hash(data: Data(accountID.utf8)).prefix(16))
+                identifier = UUID(uuid: (bytes[0], bytes[1], bytes[2], bytes[3], bytes[4], bytes[5], bytes[6], bytes[7], bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
+                defaults.set(identifier.uuidString, forKey: storeKey)
+            } else {
+                identifier = UUID()
+                defaults.set(identifier.uuidString, forKey: storeKey)
+            }
             config.websiteDataStore = WKWebsiteDataStore(forIdentifier: identifier)
         } else {
-            config.websiteDataStore = .nonPersistent()
+            config.websiteDataStore = Self.legacyAIWebsiteDataStore
         }
         config.userContentController = controller
         controller.addUserScript(WKUserScript(source: Self.script, injectionTime: .atDocumentStart, forMainFrameOnly: true))
@@ -384,7 +397,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
             Task { @MainActor in
                 guard let self, self.loginGeneration == generation else { return }
                 self.clearingLoginSession = false
-                self.contextNotice = "已清除這個 App 帳號的 AI 網頁登入狀態；學校帳密與 Google 登入仍保留。"
+                self.contextNotice = "已清除 AI 網頁登入狀態；學校帳密與 Google 登入仍保留。"
                 self.reload()
             }
         }
