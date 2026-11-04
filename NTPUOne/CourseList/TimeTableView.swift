@@ -26,6 +26,14 @@ struct TimeTableView: View {
         self.memoManager = memoManager
     }
     
+    @State private var clearFailed = false
+    private func clearSchedule(deleteMemos: Bool) {
+        let oldMemos = memoManager.memos
+        guard courseData.clearSchedule(deleteLinkedMemos: deleteMemos) else { clearFailed = true; return }
+        for memo in oldMemos { memoManager.cancelNotification(for: memo) }
+        memoManager.loadMemosFromCoreData()
+        memoManager.scheduleNotificationsForAllMemos()
+    }
     var body: some View {
         NavigationStack {
             ScrollView{
@@ -86,25 +94,14 @@ struct TimeTableView: View {
                                 .padding()
                         }
                         .alert(String(localized: "alert_confirm_delete_all"), isPresented: $showDeleteAllAlert) {
-                            Button(String(localized: "delete"), role: .destructive) {
-                                // 先刪除所有有連結課程的任務（courseLink 存的是課程 ID）
-                                let allCourseIds = Set(courseData.courses.map { $0.id })
-                                let memosToDelete = memoManager.memos.filter { memo in
-                                    guard let courseLink = memo.courseLink, !courseLink.isEmpty else { return false }
-                                    return allCourseIds.contains(courseLink)
-                                }
-                                for memo in memosToDelete {
-                                    memoManager.deleteMemo(memo)
-                                }
-                                // 再刪除所有課程
-                                courseData.deleteAllCourses()
-                                // 刷新備忘錄數據
-                                memoManager.loadMemosFromCoreData()
+                            Button("清空課表，保留備忘錄", role: .destructive) { clearSchedule(deleteMemos: false) }
+                            if totalMemoCount > 0 {
+                                Button("連同 \(totalMemoCount) 筆備忘錄一起刪除", role: .destructive) { clearSchedule(deleteMemos: true) }
                             }
-                            Button(String(localized: "cancel"), role: .cancel) { }
+                            Button("取消", role: .cancel) { }
                         } message: {
                             if totalMemoCount > 0 {
-                                Text(String(format: NSLocalizedString("delete_all_courses_with_memos", comment: ""), totalMemoCount))
+                                Text("有 \(totalMemoCount) 筆連結的備忘錄。保留時只會解除課程連結；選擇一起刪除則無法復原。")
                             } else {
                                 Text(String(localized: "delete_all_courses_confirm"))
                             }
@@ -112,6 +109,7 @@ struct TimeTableView: View {
                     }
                 }
             }
+            .alert("無法清空課表", isPresented: $clearFailed) { Button("好", role: .cancel) {} } message: { Text("資料未變更，請稍後重試。") }
             .navigationTitle("Course Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar{

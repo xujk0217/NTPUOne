@@ -266,6 +266,32 @@ class CourseData: ObservableObject {
         }
     }
     
+    @discardableResult
+    func clearSchedule(deleteLinkedMemos: Bool) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
+        do {
+            let rows = try context.fetch(CourseEntity.fetchRequest())
+            let ids = rows.compactMap(\.id)
+            let memoRequest: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+            memoRequest.predicate = NSPredicate(format: "courseLink IN %@", ids)
+            let linked = try context.fetch(memoRequest)
+            for memo in linked {
+                if deleteLinkedMemos { context.delete(memo) }
+                else { memo.courseLink = nil; memo.updatedAt = Date() }
+            }
+            for row in rows { context.delete(row) }
+            try context.save()
+            for course in courses { cancelNotification(for: course) }
+            loadCoursesFromCoreData()
+            refreshNextCourseLiveActivity()
+            return true
+        } catch {
+            context.rollback()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
+        }
+    }
+
     func deleteAllCourses() {
         guard let viewContext = viewContext else {
             print("Error: View context is nil. Cannot delete all courses.")

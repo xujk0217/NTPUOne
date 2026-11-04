@@ -234,6 +234,31 @@ class MemoManager: ObservableObject {
         }
     }
     
+    @discardableResult
+    func restoreDeletedMemos(_ deleted: [Memo]) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
+        do {
+            for memo in deleted {
+                let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+                request.predicate = NSPredicate(format: "id == %@", memo.id)
+                if try context.count(for: request) == 0 {
+                    var restored = memo
+                    if let link = restored.courseLink {
+                        let courses: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
+                        courses.predicate = NSPredicate(format: "id == %@", link)
+                        if try context.count(for: courses) == 0 { restored.courseLink = nil }
+                    }
+                    updateEntity(MemoEntity(context: context), with: restored)
+                }
+            }
+            try context.save()
+            loadMemosFromCoreData()
+            scheduleNotificationsForAllMemos()
+            refreshNextCourseLiveActivityTodos()
+            return true
+        } catch { context.rollback(); CoreDataManager.shared.reportOperationError(error); return false }
+    }
+
     func deleteMemo(_ memo: Memo) {
         guard let viewContext = viewContext else {
             print("Error: View context is nil. Cannot delete memo.")

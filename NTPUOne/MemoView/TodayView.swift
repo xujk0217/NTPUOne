@@ -44,6 +44,9 @@ struct TodayView: View {
     @EnvironmentObject var adFree: AdFreeService
     
     @State private var selectedTab = 0
+    @State private var recentlyDeleted: [Memo] = []
+    @State private var restoreFailed = false
+    @State private var deletionTask: Task<Void, Never>?
     @State private var showAddMemo = false
     @State private var selectedTemplate: MemoTemplate? = nil
     @State private var selectedMemo: Memo? = nil
@@ -82,6 +85,23 @@ struct TodayView: View {
                 navigationContent
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if !recentlyDeleted.isEmpty {
+                HStack {
+                    Text("已刪除 \(recentlyDeleted.count) 筆備忘錄").font(.subheadline)
+                    Spacer()
+                    Button("復原") {
+                        deletionTask?.cancel()
+                        let deleted = recentlyDeleted
+                        restoreFailed = !memoManager.restoreDeletedMemos(deleted)
+                        recentlyDeleted.removeAll { item in memoManager.memos.contains(where: { $0.id == item.id }) }
+                    }.font(.subheadline.bold())
+                }.padding().background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16)).padding(.horizontal)
+            }
+        }
+        .alert("無法復原備忘錄", isPresented: $restoreFailed) { Button("好", role: .cancel) {} } message: { Text("資料未變更，請再按復原重試。") }
+        .onChange(of: academic.uid) { _ in deletionTask?.cancel(); recentlyDeleted = [] }
+        .onDisappear { deletionTask?.cancel(); recentlyDeleted = [] }
         .onAppear {
             academic.reconcileImportedMemos()
             loadManualPlannedTodayOrder()
@@ -160,7 +180,7 @@ struct TodayView: View {
             todayHeader
             
             // Tab 選擇器
-            tabPicker
+            if memoManager.filterStatus != .done { tabPicker }
             
             // 內容區（使用普通切換，不用 page style）
             Group {
@@ -1086,6 +1106,14 @@ struct TodayView: View {
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 memoManager.deleteMemo(memo)
+                if !memoManager.memos.contains(where: { $0.id == memo.id }) {
+                    recentlyDeleted.append(memo)
+                    deletionTask?.cancel()
+                    deletionTask = Task { @MainActor in
+                        do { try await Task.sleep(nanoseconds: 8_000_000_000) } catch { return }
+                        recentlyDeleted = []
+                    }
+                }
             } label: {
                 Label(String(localized: "delete"), systemImage: "trash")
             }

@@ -72,7 +72,7 @@ struct LinkView: View {
     @State private var goMidnightSnack = false
     @State private var goNewStudentChecklist = false
     @State private var goCampusMap = false
-    @State private var showTodayTasks = false  // 新增：顯示今日代辦展開
+    @State private var showTodayTasks = true  // 新增：顯示今日代辦展開
     @State private var selectedMemoForDetail: Memo? = nil  // 新增：選中的備忘錄
     @State private var showWeatherDetail = false  // 新增：顯示天氣詳情
     @State private var showQuickFeatureEditor = false
@@ -365,23 +365,27 @@ struct LinkView: View {
     private var todayTasksList: some View {
         let todayMemos = getTodayMemos()
         if todayMemos.isEmpty {
-            Text(String(localized: "no_today_tasks"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.vertical, 8)
-                .padding(.horizontal, 12)
+            VStack(alignment: .leading, spacing: 8) {
+                NavigationLink { TodayView(memoManager: memoManager, courseData: courseData) } label: {
+                    Label("開啟備忘錄", systemImage: "square.and.pencil").font(.caption.weight(.semibold))
+                }
+            }.padding(.vertical, 8).padding(.horizontal, 12)
         } else {
             VStack(spacing: 0) {
-                ForEach(todayMemos) { memo in
+                ForEach(Array(todayMemos.prefix(3))) { memo in
                     todayTaskRow(memo: memo)
                     
-                    if memo.id != todayMemos.last?.id {
+                    if memo.id != todayMemos.prefix(3).last?.id {
                         Divider()
                             .padding(.leading, 60)
                     }
                 }
             }
             .padding(.top, 8)
+            NavigationLink { TodayView(memoManager: memoManager, courseData: courseData) } label: {
+                Label(todayMemos.count > 3 ? "查看全部 \(todayMemos.count) 筆待辦" : "開啟備忘錄", systemImage: "arrow.right.circle")
+                    .font(.caption.weight(.semibold)).padding(.top, 8)
+            }
         }
     }
     
@@ -561,7 +565,8 @@ struct LinkView: View {
                     todayTasksDisclosureGroup
                 }
 
-                todayRestaurantCard
+                DisclosureGroup("餐廳推薦") { todayRestaurantCard }
+                    .font(.subheadline)
             }
             .padding(16)
             .background {
