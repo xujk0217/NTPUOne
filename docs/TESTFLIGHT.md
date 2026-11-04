@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 40。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 41。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -230,3 +230,14 @@ Version 1.4.0 (40) was archived and uploaded successfully. Both App and Widget a
 The Google sign-in action now opens Account Center with the Google login control. AI web authentication uses one dedicated store independent of the Google App account. On first adoption, an existing signed-in account's former AI store is reused; iOS 16 shares a temporary AI store for the app process lifetime. Conversation state and App data permissions remain scoped to the App account.
 
 Swift syntax checks, simulator build (SWIFT_ENABLE_EXPLICIT_MODULES=NO), and signed Release archive passed. Real Google and AI account switching still requires device acceptance. Existing third-party dSYM warnings did not block upload.
+
+
+## build 41 (2026-11-04)
+
+Version 1.4.0 (41) was archived and uploaded successfully. Both App and Widget archive versions are 41. /private/tmp/ntpu41-upload.log reports Uploaded NTPUOne and EXPORT SUCCEEDED, exit code 0. Apple processing and download availability have not been verified.
+
+Adds photo, Files/iCloud and Moodle attachment selection beside the AI composer. Explicitly selected files remain original bytes, one file per message, up to 20 MB. The native preview shows name/size and image thumbnails. Upload uses the school's file input and waits for successful /upload and the completed attachment indicator before sending the question; failures retain the attachment for retry.
+
+With Moodle sharing enabled, content requests can resolve and download a matching announcement or course attachment automatically and submit its original bytes to NTPU AI. Ambiguous candidates prompt conversational clarification; recent-announcement selection uses returned modification timestamps. Only URLs obtained from the verified Moodle API can be downloaded; authentication credentials and token URLs are not attached. Temporary downloaded files are removed after preparation.
+
+Simulator compilation, signed Release archive, attachment-selection Swift checks and mocked JavaScript upload checks passed. Actual school-account upload and iPhone picker behavior still require acceptance. Existing third-party dSYM warnings did not block upload.
