@@ -6,7 +6,7 @@
 //
 
 
-import FirebaseFirestoreSwift
+import FirebaseFirestore
 
 struct BugReport: Identifiable, Codable, Equatable {
     @DocumentID var id: String?

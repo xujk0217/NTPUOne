@@ -7,7 +7,6 @@
 
 
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 final class BugManager: ObservableObject {
     @Published var items: [BugReport] = []

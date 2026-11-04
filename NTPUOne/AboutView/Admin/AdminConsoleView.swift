@@ -126,7 +126,6 @@ private struct AdminLiveActivityTestView: View {
 // MARK: - 交流區內容管理（貼文＋回覆）
 
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 private func adminPreview(_ text: String) -> String {
     text.count > 120 ? String(text.prefix(117)) + "..." : text

@@ -9,7 +9,6 @@ import MapKit
 import SafariServices
 import FirebaseAuth
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 private func restaurantCommentRelativeTime(_ timestamp: Double) -> String {
     let formatter = RelativeDateTimeFormatter()

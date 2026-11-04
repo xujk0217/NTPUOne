@@ -8,7 +8,6 @@
 import Foundation
 import CoreLocation
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 class FManager: ObservableObject {
     @Published var Food: [FDetail]?

@@ -8,7 +8,6 @@
 import Foundation
 import SwiftData
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 struct WebsArray: Identifiable{
     let id: Int

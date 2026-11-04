@@ -7,7 +7,6 @@
 
 import Foundation
 import FirebaseFirestore
-import FirebaseFirestoreSwift
 
 class CourseYearManager: ObservableObject {
     private static var cachedCourseYear: [CourseYear]?
