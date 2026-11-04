@@ -30,31 +30,31 @@ struct BannerAdSectionView: View {
 }
 
 /// Banner 載入狀態管理
-final class BannerAdLoader: NSObject, ObservableObject, GADBannerViewDelegate {
+final class BannerAdLoader: NSObject, ObservableObject, BannerViewDelegate {
     @Published var isAdLoaded = false
     private var retryCount = 0
     private let maxRetry = 3
     
-    func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+    func bannerViewDidReceiveAd(_ bannerView: BannerView) {
         DispatchQueue.main.async {
             self.isAdLoaded = true
             self.retryCount = 0
         }
     }
     
-    func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+    func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
         print("⚠️ Banner ad failed: \(error.localizedDescription)")
         guard retryCount < maxRetry else { return }
         retryCount += 1
         let delay = Double(retryCount) * 5.0
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak bannerView] in
-            bannerView?.load(GADRequest())
+            bannerView?.load(Request())
         }
     }
 }
 
 /// Resolve the source controller only after UIKit attaches this banner to its own scene.
-private final class SceneBoundBannerView: GADBannerView {
+private final class SceneBoundBannerView: BannerView {
     private var requestedInitialAd = false
 
     override func didMoveToWindow() {
@@ -66,7 +66,7 @@ private final class SceneBoundBannerView: GADBannerView {
         rootViewController = presenter
         if !requestedInitialAd {
             requestedInitialAd = true
-            load(GADRequest())
+            load(Request())
         }
     }
 }
@@ -80,14 +80,14 @@ struct BannerAdUIViewWrapper: UIViewRepresentable {
     // 測試 ID：
     // let adUnitID = "ca-app-pub-3940256099942544/2934735716"
     
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = SceneBoundBannerView(adSize: GADAdSizeBanner)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = SceneBoundBannerView(adSize: AdSizeBanner)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = loader
         return bannerView
     }
     
-    func updateUIView(_ uiView: GADBannerView, context: Context) {}
+    func updateUIView(_ uiView: BannerView, context: Context) {}
     
 }
 
@@ -118,7 +118,7 @@ struct BannerSkeletonPlaceholder: View {
 }
 
 // MARK: - 舊版 BannerAdView（保持向後相容）
-/// 使用固定 GADAdSizeBanner，自帶載入失敗重試機制
+/// 使用固定 AdSizeBanner，自帶載入失敗重試機制
 struct BannerAdView: UIViewRepresentable {
     // 正式 ID
     let adUnitID = "ca-app-pub-4105005748617921/1051002729"
@@ -130,35 +130,35 @@ struct BannerAdView: UIViewRepresentable {
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
-    func makeUIView(context: Context) -> GADBannerView {
-        let bannerView = SceneBoundBannerView(adSize: GADAdSizeBanner)
+    func makeUIView(context: Context) -> BannerView {
+        let bannerView = SceneBoundBannerView(adSize: AdSizeBanner)
         bannerView.adUnitID = adUnitID
         bannerView.delegate = context.coordinator
         context.coordinator.bannerView = bannerView
         return bannerView
     }
 
-    func updateUIView(_ uiView: GADBannerView, context: Context) {
+    func updateUIView(_ uiView: BannerView, context: Context) {
         // 不在 update 中重複載入，避免過度請求
     }
 
     // MARK: - Coordinator（載入失敗自動重試，最多 3 次）
-    final class Coordinator: NSObject, GADBannerViewDelegate {
-        weak var bannerView: GADBannerView?
+    final class Coordinator: NSObject, BannerViewDelegate {
+        weak var bannerView: BannerView?
         private var retryCount = 0
         private let maxRetry = 3
 
-        func bannerView(_ bannerView: GADBannerView, didFailToReceiveAdWithError error: Error) {
+        func bannerView(_ bannerView: BannerView, didFailToReceiveAdWithError error: Error) {
             print("⚠️ Banner ad failed: \(error.localizedDescription)")
             guard retryCount < maxRetry else { return }
             retryCount += 1
             let delay = Double(retryCount) * 5.0 // 5s, 10s, 15s
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak bannerView] in
-                bannerView?.load(GADRequest())
+                bannerView?.load(Request())
             }
         }
 
-        func bannerViewDidReceiveAd(_ bannerView: GADBannerView) {
+        func bannerViewDidReceiveAd(_ bannerView: BannerView) {
             retryCount = 0
         }
     }

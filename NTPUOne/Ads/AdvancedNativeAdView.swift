@@ -11,8 +11,8 @@ import GoogleMobileAds
 // MARK: - Native 廣告載入器
 
 /// 原生廣告載入狀態管理（ObservableObject，可多實例使用）
-final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegate, GADNativeAdDelegate {
-    @Published var nativeAd: GADNativeAd?
+final class NativeAdLoader: NSObject, ObservableObject, NativeAdLoaderDelegate, NativeAdDelegate {
+    @Published var nativeAd: NativeAd?
     @Published var isLoading = false
     @Published var loadFailed = false
 
@@ -21,7 +21,7 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
     // 測試 ID（開發時可切換）：
     // private let adUnitID = "ca-app-pub-3940256099942544/3986624511"
 
-    private var adLoader: GADAdLoader?
+    private var adLoader: AdLoader?
     private weak var sourceController: UIViewController?
     private var retryCount = 0
     private let maxRetry = 2
@@ -44,7 +44,7 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
         isLoading = true
         loadFailed = false
 
-        let loader = GADAdLoader(
+        let loader = AdLoader(
             adUnitID: adUnitID,
             rootViewController: rootVC,
             adTypes: [.native],
@@ -52,11 +52,11 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
         )
         loader.delegate = self
         self.adLoader = loader
-        loader.load(GADRequest())
+        loader.load(Request())
     }
 
-    // MARK: GADNativeAdLoaderDelegate
-    func adLoader(_ adLoader: GADAdLoader, didReceive nativeAd: GADNativeAd) {
+    // MARK: NativeAdLoaderDelegate
+    func adLoader(_ adLoader: AdLoader, didReceive nativeAd: NativeAd) {
         nativeAd.delegate = self
         nativeAd.rootViewController = sourceController.map { ScenePresentationAnchor.top(from: $0) }
         DispatchQueue.main.async {
@@ -67,7 +67,7 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
         }
     }
 
-    func adLoader(_ adLoader: GADAdLoader, didFailToReceiveAdWithError error: Error) {
+    func adLoader(_ adLoader: AdLoader, didFailToReceiveAdWithError error: Error) {
         print("❌ Native ad load failed: \(error.localizedDescription)")
         DispatchQueue.main.async {
             self.isLoading = false
@@ -82,11 +82,11 @@ final class NativeAdLoader: NSObject, ObservableObject, GADNativeAdLoaderDelegat
         }
     }
 
-    // MARK: GADNativeAdDelegate
-    func nativeAdDidRecordImpression(_ nativeAd: GADNativeAd) {
+    // MARK: NativeAdDelegate
+    func nativeAdDidRecordImpression(_ nativeAd: NativeAd) {
         print("📊 Native ad impression recorded")
     }
-    func nativeAdDidRecordClick(_ nativeAd: GADNativeAd) {
+    func nativeAdDidRecordClick(_ nativeAd: NativeAd) {
         print("👆 Native ad click recorded")
     }
 
@@ -147,19 +147,19 @@ struct NativeAdSectionView: View {
     }
 }
 
-// MARK: - UIViewRepresentable：正確的 GADNativeAdView 實現
+// MARK: - UIViewRepresentable：正確的 NativeAdView 實現
 //
 // Google Mobile Ads 要求：
-// 1. 所有內容必須放在 GADNativeAdView 內
+// 1. 所有內容必須放在 NativeAdView 內
 // 2. headlineView、bodyView、mediaView、callToActionView 等屬性必須設定
 // 3. 最後設定 nativeAd 屬性，SDK 才會記錄曝光（impression）
 
 struct NativeAdUIViewWrapper: UIViewRepresentable {
-    let ad: GADNativeAd
+    let ad: NativeAd
     let style: NativeAdSectionView.Style
 
-    func makeUIView(context: Context) -> GADNativeAdView {
-        let nativeAdView = GADNativeAdView()
+    func makeUIView(context: Context) -> NativeAdView {
+        let nativeAdView = NativeAdView()
         nativeAdView.backgroundColor = .clear
 
         switch style {
@@ -172,7 +172,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         return nativeAdView
     }
 
-    func updateUIView(_ nativeAdView: GADNativeAdView, context: Context) {
+    func updateUIView(_ nativeAdView: NativeAdView, context: Context) {
         // 更新文字內容
         (nativeAdView.headlineView as? UILabel)?.text = ad.headline
         (nativeAdView.bodyView as? UILabel)?.text = ad.body
@@ -205,7 +205,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
 
     // MARK: - Compact 版型（左 icon/media + 右 文字）
 
-    private func configureCompact(_ adView: GADNativeAdView) {
+    private func configureCompact(_ adView: NativeAdView) {
         // --- Ad badge ---
         let badgeLabel = UILabel()
         badgeLabel.tag = 999
@@ -227,7 +227,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         adView.iconView = iconView
 
         // --- Media (fallback if no icon) ---
-        let mediaView = GADMediaView()
+        let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.clipsToBounds = true
         mediaView.layer.cornerRadius = 8
@@ -253,7 +253,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         let ctaButton = UIButton(type: .system)
         ctaButton.titleLabel?.font = .systemFont(ofSize: 12, weight: .bold)
         ctaButton.setTitleColor(.systemBlue, for: .normal)
-        ctaButton.isUserInteractionEnabled = false // 由 GADNativeAdView 處理
+        ctaButton.isUserInteractionEnabled = false // 由 NativeAdView 處理
         ctaButton.contentHorizontalAlignment = .leading
         ctaButton.translatesAutoresizingMaskIntoConstraints = false
         adView.callToActionView = ctaButton
@@ -306,7 +306,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
 
     // MARK: - Card 版型（上 media + 下 文字 + CTA 按鈕）
 
-    private func configureCard(_ adView: GADNativeAdView) {
+    private func configureCard(_ adView: NativeAdView) {
         // --- Ad badge ---
         let badgeLabel = UILabel()
         badgeLabel.tag = 999
@@ -320,7 +320,7 @@ struct NativeAdUIViewWrapper: UIViewRepresentable {
         badgeLabel.translatesAutoresizingMaskIntoConstraints = false
 
         // --- Media ---
-        let mediaView = GADMediaView()
+        let mediaView = MediaView()
         mediaView.contentMode = .scaleAspectFill
         mediaView.clipsToBounds = true
         mediaView.layer.cornerRadius = 10

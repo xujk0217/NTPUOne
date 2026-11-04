@@ -14,7 +14,7 @@ import Combine
 /// - 自帶預載、過期重載（1 小時）、失敗指數退避重試（最多 3 次）
 /// - 頻率控制：每天最多觀看 5 次
 @MainActor
-final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentDelegate {
+final class RewardedAdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = RewardedAdManager()
 
     // MARK: - 設定
@@ -31,7 +31,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
     @Published private(set) var isLoading: Bool = false
     @Published private(set) var remainingViews: Int = 5
 
-    private var rewardedAd: GADRewardedAd?
+    private var rewardedAd: GoogleMobileAds.RewardedAd?
     private var loadedAt: Date?
     private var retryCount = 0
     private var onReward: (() -> Void)?
@@ -96,16 +96,16 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
         self.onReward = onReward
         self.onDismiss = onDismiss
 
-        ad.present(fromRootViewController: ScenePresentationAnchor.top(from: presenter)) { [weak self] in
+        ad.present(from: ScenePresentationAnchor.top(from: presenter)) { [weak self] in
             self?.onReward?()
             self?.recordView()
         }
         return true
     }
 
-    // MARK: - GADFullScreenContentDelegate
+    // MARK: - FullScreenContentDelegate
 
-    func adDidDismissFullScreenContent(_ ad: GADFullScreenPresentingAd) {
+    func adDidDismissFullScreenContent(_ ad: FullScreenPresentingAd) {
         DispatchQueue.main.async { [weak self] in
             self?.rewardedAd = nil
             self?.loadedAt = nil
@@ -118,7 +118,7 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
         }
     }
 
-    func ad(_ ad: GADFullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
+    func ad(_ ad: FullScreenPresentingAd, didFailToPresentFullScreenContentWithError error: Error) {
         DispatchQueue.main.async { [weak self] in
             print("❌ Rewarded present error: \(error.localizedDescription)")
             self?.rewardedAd = nil
@@ -132,8 +132,8 @@ final class RewardedAdManager: NSObject, ObservableObject, GADFullScreenContentD
 
     private func loadAd() {
         isLoading = true
-        let req = GADRequest()
-        GADRewardedAd.load(withAdUnitID: adUnitID, request: req) { [weak self] ad, error in
+        let req = Request()
+        GoogleMobileAds.RewardedAd.load(with: adUnitID, request: req) { [weak self] ad, error in
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.isLoading = false

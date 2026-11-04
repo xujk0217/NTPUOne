@@ -298,7 +298,9 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         MonitorNetworkConnection()
         Analytics.logEvent(AnalyticsEventAppOpen, parameters: nil)
-        GADMobileAds.sharedInstance().requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
+        // Keep permission-based device location out of advertising requests.
+        MobileAds.shared.requestConfiguration.coarseLocationCollectionEnabled = false
+        MobileAds.shared.requestConfiguration.testDeviceIdentifiers = ["2d1480604504fd42fec5872ffe17cb9f"]
         startGoogleMobileAdsAfterTrackingAuthorization()
         WidgetCenter.shared.reloadAllTimelines()
         UNUserNotificationCenter.current().delegate = self
@@ -321,7 +323,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     /// 只有使用者完成 ATT 選擇後才初始化廣告 SDK，讓 IDFA 的使用符合 Apple 規範。
     private func startGoogleMobileAdsAfterTrackingAuthorization() {
         let startAds = {
-            GADMobileAds.sharedInstance().start(completionHandler: nil)
+            MobileAds.shared.start(completionHandler: nil)
         }
 
         guard #available(iOS 14.5, *) else {
