@@ -202,6 +202,7 @@ private struct AIChatPanel: View {
     @State private var showDeleteSchoolChat = false
     @State private var showClearAILogin = false
     @State private var draft = ""
+    @State private var lastSubmittedText = ""
     @State private var selectedPhoto: PhotosPickerItem?
     @State private var showPhotoPicker = false
     @State private var showFilePicker = false
@@ -306,14 +307,17 @@ private struct AIChatPanel: View {
                                     if let error = bridge.error {
                                         VStack(alignment: .leading, spacing: 8) {
                                             Label(error, systemImage: "exclamationmark.circle")
-                                            Button("重新載入") { bridge.reload() }
+                                            if !lastSubmittedText.isEmpty {
+                                                Button("帶回問題重新編輯") { draft = lastSubmittedText; inputFocused = true }
+                                            }
+                                            Button("重新連線") { bridge.reload() }
                                         }.font(.caption).padding(12)
                                     }
                                     if !bridge.ready || !hasGoogleAccount || !hasSavedSchoolAccount {
                                         accountAccessCard
                                     }
-                                    if let notice = bridge.contextNotice {
-                                        Label(notice, systemImage: "info.circle")
+                                    if let notice = bridge.contextNotice, !bridge.messages.contains(where: { $0.sourceNotice == notice }) {
+                                        DisclosureGroup("本次使用的資料") { Text(notice).textSelection(.enabled) }
                                             .font(.caption).foregroundStyle(.primary)
                                             .fixedSize(horizontal: false, vertical: true)
                                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -382,7 +386,7 @@ private struct AIChatPanel: View {
                             if bridge.replying {
                                 Button { bridge.stop() } label: { Image(systemName: "stop.fill").frame(width: 40, height: 40) }.accessibilityLabel("停止回覆")
                             } else {
-                                Button { let text = draft; draft = ""; followLatest = true; bridge.send(text, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled) } label: { Image(systemName: "arrow.up").fontWeight(.bold).foregroundStyle(.white).frame(width: 40, height: 40).background(Color.accentColor, in: Circle()) }
+                                Button { let text = draft; lastSubmittedText = text; draft = ""; followLatest = true; bridge.send(text, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled) } label: { Image(systemName: "arrow.up").fontWeight(.bold).foregroundStyle(.white).frame(width: 40, height: 40).background(Color.accentColor, in: Circle()) }
                                     .disabled(!bridge.ready || bridge.deletingSchoolConversation || preparingAttachment || (draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bridge.draftAttachment == nil)).accessibilityLabel("送出訊息")
                             }
                         }.padding(10)
@@ -474,6 +478,12 @@ private struct AIChatPanel: View {
         .sheet(isPresented: $showDataSettings) {
             NavigationStack {
                 Form {
+                    Section("帳號狀態") {
+                        LabeledContent("App Google 帳號", value: hasGoogleAccount ? "已登入" : "訪客")
+                        LabeledContent("學校帳密", value: hasSavedSchoolAccount ? "已保存在手機" : "尚未連結")
+                        LabeledContent("AI 網頁登入", value: bridge.ready ? bridge.maskedAccountIdentity ?? "已連線" : "尚未登入")
+                        Text("AI 網頁登入獨立管理；個人資料依 App 帳號及下方授權使用。").font(.caption).foregroundStyle(.secondary)
+                    }
                     Section {
                         Toggle("使用 App 資料", isOn: Binding(get: { bridge.appDataEnabled }, set: { if $0 { bridge.enableAppData() } else { bridge.disableAppData() } }))
                         Toggle("手機與 iCloud 課表", isOn: Binding(get: { bridge.shareCourses }, set: { bridge.setSource("courses", enabled: $0) })).disabled(!bridge.appDataEnabled)
@@ -483,7 +493,12 @@ private struct AIChatPanel: View {
                         Toggle("成績與畢業資料", isOn: Binding(get: { bridge.sensitiveDataEnabled }, set: { if $0 { bridge.enableSensitiveData() } else { bridge.disableSensitiveData() } }))
                             .disabled(!bridge.appDataEnabled)
                     } header: { Text("AI 可使用的資訊") } footer: {
-                        Text("課表與備忘錄預設開啟；Moodle、學生資訊系統及成績預設關閉。開啟的資料會依問題選取並傳至 NTPU AI，校方可能保存。查詢 Moodle 公告或教材時，可自動上傳明確對應的附件原檔（每次一份、20 MB）。成績另須開啟所屬來源及成績開關；帳密與 Cookie 不會作為聊天資料。")
+                        Text("開啟的資料會依問題傳至 NTPU AI，設定沿用之後的聊天。")
+                    }
+                    Section {
+                        DisclosureGroup("資料使用說明") {
+                            Text("課表與備忘錄預設開啟；其他個人來源預設關閉。Moodle 權限包含對應公告、教材與原始附件（每次一份、20 MB）。成績需同時開啟所屬來源及成績開關。校方可能保存聊天資料；帳密與 Cookie 不會作為聊天內容。").font(.caption).foregroundStyle(.secondary)
+                        }
                     }
                     Section {
                         Toggle("需要時自動搜尋網路", isOn: Binding(get: { bridge.autoWebSearchEnabled }, set: { bridge.setAutoWebSearch($0) }))
@@ -610,7 +625,8 @@ private struct AITypingIndicator: View {
 
 /// Render bounded Markdown blocks with native, allowlisted page actions.
 private struct AIMessageBody: View {
-    @State private var batchApplied = false
+    @EnvironmentObject private var ledger: AIChangeExecutionLedger
+    @EnvironmentObject private var academic: AcademicSyncStore
     let message: AIChatMessage
     let canReview: Bool
     let reviewChange: (AIChangeProposal) -> Void
@@ -631,11 +647,20 @@ private struct AIMessageBody: View {
             } else {
                 AIMarkdownView(text: displayText.isEmpty ? "…" : displayText)
             }
-            if !message.isUser, canReview, let proposals = AIChangeProposal.extractAll(from: message.text) {
+            if let notice = message.sourceNotice {
+                DisclosureGroup("使用的資料") { Text(notice).textSelection(.enabled) }.font(.caption).foregroundStyle(.secondary)
+            }
+            if !message.isUser, canReview, let rawProposals = AIChangeProposal.extractAll(from: message.text) {
+                let proposals = rawProposals.enumerated().map { index, value in
+                    var proposal = value
+                    proposal.executionID = "\(message.id.uuidString):\(index)"
+                    return proposal
+                }
+                let pending = proposals.filter { !ledger.contains($0, account: academic.uid) }
                 if proposals.count > 1 {
-                    Text("共 \(proposals.count) 筆建議，可一起預覽確認；若已逐筆儲存，請勿再次整批套用。") .font(.caption).foregroundStyle(.secondary)
-                    if batchApplied { Label("這組變更已儲存", systemImage: "checkmark.circle").font(.caption) }
-                    else { Button("預覽全部變更") { reviewBatch(proposals) { batchApplied = true } }.buttonStyle(.borderedProminent) }
+                    Text("\(pending.count) 筆待確認・\(proposals.count - pending.count) 筆已儲存") .font(.caption).foregroundStyle(.secondary)
+                    if pending.isEmpty { Label("這組變更已儲存", systemImage: "checkmark.circle").font(.caption) }
+                    else { Button("預覽待確認變更") { reviewBatch(pending) {} }.buttonStyle(.borderedProminent) }
                 }
                 ForEach(Array(proposals.enumerated()), id: \.offset) { _, proposal in
                 VStack(alignment: .leading, spacing: 8) {
@@ -643,10 +668,14 @@ private struct AIMessageBody: View {
                     Label("AI 建議\(verb)\(proposal.kind == .memo ? "備忘錄" : "課程")", systemImage: "square.and.pencil").font(.subheadline.weight(.semibold))
                     if let target = proposal.target, !target.isEmpty { Text("目標：\(target)").font(.caption) }
                     if let title = proposal.title, !title.isEmpty { Text("名稱：\(title)").font(.caption) }
-                    if let deadline = proposal.deadline, !deadline.isEmpty { Text("截止建議：\(deadline)").font(.caption) }
+                    if let deadline = proposal.deadline, !deadline.isEmpty { Text("\(ledger.contains(proposal, account: academic.uid) ? "原建議截止" : "截止")：\(ISO8601DateFormatter().date(from: deadline)?.formatted(date: .abbreviated, time: .shortened) ?? "請在預覽中設定")").font(.caption) }
                     if let day = proposal.weekday, let period = proposal.period { Text("建議時段：\(day) · 第 \(period) 節").font(.caption) }
-                    Text("每次確認都會執行一次，請避免重複新增。") .font(.caption).foregroundStyle(.secondary)
-                    Button("查看並確認") { reviewChange(proposal) }.buttonStyle(.borderedProminent).disabled(batchApplied)
+                    if ledger.contains(proposal, account: academic.uid) {
+                        Label("已儲存", systemImage: "checkmark.circle.fill").foregroundStyle(.green).font(.caption)
+                        Button(proposal.kind == .memo ? "開啟備忘錄" : "開啟課表") { openPage(proposal.kind == .memo ? .memo : .timetable) }.font(.caption.weight(.semibold))
+                    } else {
+                        Button("預覽變更") { reviewChange(proposal) }.buttonStyle(.borderedProminent)
+                    }
                 }.padding(12).frame(maxWidth: .infinity, alignment: .leading)
                     .background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 14))
                     .overlay(RoundedRectangle(cornerRadius: 14).stroke(AIChatColors.border))
@@ -839,7 +868,11 @@ private struct AIMoodleAttachmentPicker: View {
                         AIMoodleCourseAttachments(course: course, select: select)
                     }
                 }
-                if academic.cache.moodleCourses?.isEmpty != false { Text("請先連結學校帳號並同步 Moodle 課程。") }
+                if academic.cache.moodleCourses?.isEmpty != false {
+                    Text("請先連結學校帳號並同步 Moodle 課程。")
+                    NavigationLink("學校帳號與同步") { AcademicConnectionView() }
+                    Button("重新同步") { Task { await academic.refresh(force: true) } }.disabled(academic.busy)
+                }
             }
             .navigationTitle("Moodle 附件").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
@@ -852,6 +885,7 @@ private struct AIMoodleCourseAttachments: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     let course: MoodleCourse
     let select: (AIUploadAttachment) -> Void
+    @State private var retryID = UUID()
     @State private var files: [MoodleAPI.Resource.Attachment] = []
     @State private var loading = true
     @State private var downloading: String?
@@ -860,7 +894,7 @@ private struct AIMoodleCourseAttachments: View {
     var body: some View {
         List {
             if loading { ProgressView("正在讀取課程附件…") }
-            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            if let error { Text(error).font(.caption).foregroundStyle(.red); Button("重新讀取附件") { retryID = UUID() }.disabled(loading || downloading != nil) }
             ForEach(Array(files.enumerated()), id: \.offset) { _, attachment in
                 Button {
                     error = nil; downloading = attachment.filename
@@ -884,7 +918,7 @@ private struct AIMoodleCourseAttachments: View {
             if !loading && files.isEmpty && error == nil { Text("這堂課沒有可直接下載的附件。") }
         }
         .navigationTitle("選擇原始檔案").navigationBarTitleDisplayMode(.inline)
-        .task(id: academic.sourceScope) {
+        .task(id: academic.sourceScope + retryID.uuidString) {
             loading = true; files = []; error = nil
             do {
                 let (sections, announcements) = try await academic.courseContent(course)

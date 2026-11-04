@@ -14,7 +14,7 @@ const elements = {
   sendBtn: { disabled: false, classList: { contains: () => busy }, click() { if (busy) { busy = false; return; } clicks++; void window.fetch('/chat/stream', {method:'POST'}); } },
 };
 let attached = false;
-elements.fileInput = { dispatchEvent() { attached = true; }, files: null };
+elements.fileInput = { dispatchEvent() { void window.fetch('/upload', { method: 'POST' }).then(() => { attached = true; }); }, files: null };
 const document = { getElementById: id => elements[id], querySelector: selector => selector === '#attachPreview .attach-chip-badge' && attached ? {} : null };
 class DataTransfer { constructor() { this.files = []; this.items = { add: file => this.files.push(file) }; } }
 class File { constructor(parts, name, options) { this.name = name; this.type = options.type; } }
@@ -33,7 +33,7 @@ vm.runInNewContext(source, context);
   assert.equal(clicks, 1); assert.equal(newChats, 1); assert.equal(fetches, 1);
   assert.equal(events.filter(e=>e.kind==='token').map(e=>e.content).join(''), '你好世界');
   assert.equal(events.filter(e=>e.kind==='done').length, 1);
-  assert.equal(await window.__ntpuOneSend('圖片','request-image',false, Buffer.from('fixture').toString('base64')), true);
+  assert.equal(await window.__ntpuOneSend('圖片','request-image',false, { name: 'fixture.jpg', mimeType: 'image/jpeg', data: Buffer.from('fixture').toString('base64') }), true);
   await new Promise(resolve => setTimeout(resolve, 20));
   assert.equal(elements.fileInput.files[0].type, 'image/jpeg'); assert.equal(clicks, 2);
   context.sessionId = 's-other';

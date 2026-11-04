@@ -51,3 +51,14 @@ swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
 ```
 
 以上為合成資料與幾何測試，不代表實際模型產生變更建議、寫入流程或每個裝置姿態都已驗收。
+
+## UI/UX 提案執行狀態
+
+```sh
+swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  NTPUOne/AIAssistant/AIDataPolicy.swift tests/AIChangeExecutionChecks.swift \
+  -o /private/tmp/ntpuone-ai-execution-checks
+/private/tmp/ntpuone-ai-execution-checks
+```
+
+檢查同一則訊息中單筆與整批的待確認篩選、帳號隔離、不同訊息同名提案，以及拒絕採用模型傳來的執行 ID。執行狀態與目前聊天同為 App session 生命週期，不是跨裝置的操作紀錄。

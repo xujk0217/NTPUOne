@@ -258,6 +258,11 @@ struct AIChangeProposal: Decodable, Identifiable {
     var location: String?
     var teacher: String?
     var deadline: String?
+    // Assigned locally from message ID + proposal position; never accepted from model JSON.
+    var executionID: String? = nil
+    enum CodingKeys: String, CodingKey {
+        case kind, operation, target, title, content, course, weekday, period, location, teacher, deadline
+    }
     var id: String { "\(kind.rawValue):\(operation.rawValue):\(target ?? ""):\(title ?? "")" }
     static func extractAll(from text: String) -> [AIChangeProposal]? {
         guard text.utf8.count <= 100_000,
@@ -294,6 +299,20 @@ struct AIChangeProposal: Decodable, Identifiable {
         }
         var result = text; result.removeSubrange(start.lowerBound..<end.upperBound)
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+/// The identity belongs to a local chat turn, never to model-generated content.
+struct AIChangeExecutionState {
+    private var applied: Set<String> = []
+    private func key(_ proposal: AIChangeProposal, account: String) -> String? {
+        proposal.executionID.map { account + "|" + $0 }
+    }
+    func contains(_ proposal: AIChangeProposal, account: String) -> Bool {
+        key(proposal, account: account).map { applied.contains($0) } ?? false
+    }
+    mutating func mark(_ proposals: [AIChangeProposal], account: String) {
+        applied.formUnion(proposals.compactMap { key($0, account: account) })
     }
 }
 

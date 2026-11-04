@@ -8,6 +8,7 @@ struct AIChatMessage: Identifiable {
     var text: String
     var isLocalGreeting = false
     var isArrivalMessage = false
+    var sourceNotice: String? = nil
 }
 
 @MainActor
@@ -74,7 +75,12 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     private var started = false
     private var sessionRecoveryUntil = Date.distantPast
     private var sessionRecoveryTask: Task<Void, Never>?
-    private var accountIdentity: String?
+    @Published private var accountIdentity: String?
+    var maskedAccountIdentity: String? {
+        guard let identity = accountIdentity, !identity.isEmpty else { return nil }
+        let parts = identity.split(separator: "@", maxSplits: 1)
+        return String(parts[0].prefix(2)) + "•••" + (parts.count == 2 ? "@" + parts[1] : "")
+    }
     private var responseStartedAt: Date?
     private var planning = false
     private var planningText = ""
@@ -592,6 +598,9 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         error = "已停止回覆。"
     }
     private func finish() {
+        if let index = messages.indices.last, !messages[index].isUser, !messages[index].text.isEmpty {
+            messages[index].sourceNotice = contextNotice
+        }
         watchdog?.cancel(); watchdog = nil; requestID = nil; replying = false; responseStartedAt = nil
         contextTask?.cancel(); contextTask = nil
         planning = false; planningText = ""; requestAttachment = nil; originalQuestion = ""; localConversationContext = ""; pendingWebResults = nil; contextProvider = nil; allowedSources = []; arrivalRequest = false

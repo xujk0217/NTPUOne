@@ -38,6 +38,7 @@ struct ContentView: View {
     @State private var aiBatch: AIChangeBatch?
     @StateObject private var academic = AcademicSyncStore()
     @StateObject private var aiAccountProfile = CommunityProfileManager()
+    @StateObject private var changeLedger = AIChangeExecutionLedger()
     
     init() {
         let context = CoreDataManager.shared.persistentContainer.viewContext
@@ -100,13 +101,16 @@ struct ContentView: View {
         }
         .id(academic.uid)
         .environmentObject(academic)
+        .environmentObject(changeLedger)
         .sheet(item: $aiChange) { proposal in
             AIChangeReviewView(proposal: proposal, memoManager: memoManager, courseData: courseData)
+                .environmentObject(changeLedger)
                 .environmentObject(academic)
                 .environmentObject(adFree)
         }
         .sheet(item: $aiBatch) { batch in
             AIChangeBatchReviewView(batch: batch, memoManager: memoManager, courseData: courseData)
+                .environmentObject(changeLedger)
                 .environmentObject(academic)
         }
         .sheet(isPresented: $academic.showConnection) {
@@ -416,9 +420,9 @@ struct FirstRunOnboardingView: View {
             .navigationTitle(String(localized: "onboarding_navigation_title"))
             .navigationBarTitleDisplayMode(.inline)
         }
-        .task(id: "\(profileManager.profile.ownerUid):\(profileManager.isSigningIn)") {
+        .task(id: "\(showLoginPrompt):\(profileManager.profile.ownerUid):\(profileManager.isSigningIn)") {
             // Also handles an already-restored Firebase session on first presentation.
-            guard autoFinishAfterAuth, !finishing, !profileManager.profile.ownerUid.isEmpty,
+            guard autoFinishAfterAuth, showLoginPrompt, !finishing, !profileManager.profile.ownerUid.isEmpty,
                   Auth.auth().currentUser?.uid == profileManager.profile.ownerUid,
                   !profileManager.isSigningIn else { return }
             do { try await Task.sleep(nanoseconds: 400_000_000) } catch { return }

@@ -1,6 +1,16 @@
 import SwiftUI
 import CoreData
 
+/// Shared by single and batch previews. Chat IDs live for the same app session.
+@MainActor
+final class AIChangeExecutionLedger: ObservableObject {
+    @Published private var state = AIChangeExecutionState()
+    func contains(_ proposal: AIChangeProposal, account: String) -> Bool { state.contains(proposal, account: account) }
+    func mark(_ proposals: [AIChangeProposal], account: String) { state.mark(proposals, account: account) }
+
+}
+
+
 /// Suggestions are never executed directly. This view resolves local targets,
 /// lets the user edit every proposed field, and requires an explicit save/delete.
 struct AIChangeReviewView: View {
@@ -8,8 +18,10 @@ struct AIChangeReviewView: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
     @EnvironmentObject private var academic: AcademicSyncStore
+    @EnvironmentObject private var ledger: AIChangeExecutionLedger
     @Environment(\.dismiss) private var dismiss
     @State private var account = ""
+    @State private var prepared = false
     @State private var targetID = ""
     @State private var originalMemo: Memo?
     @State private var originalCourse: Course?
@@ -69,10 +81,12 @@ struct AIChangeReviewView: View {
                             Picker("狀態", selection: $memoStatus) { ForEach(Memo.MemoStatus.allCases) { Text($0.displayName).tag($0) } }
                             Picker("連結課程", selection: $courseLink) {
                                 Text("無").tag("")
-                                ForEach(courseData.courses) { Text("\($0.name) · \($0.day)").tag($0.id) }
+                                ForEach(AICoursePickerOptions.unique(courseData.courses, selected: courseLink)) { Text($0.name).tag($0.id) }
                             }
                             Toggle("設定截止時間", isOn: $hasDeadline)
                             if hasDeadline { DatePicker("截止", selection: $deadline) }
+                            Text(AIMemoReminderPreview.text(due: hasDeadline ? deadline : nil, original: originalMemo)).font(.caption).foregroundStyle(.secondary)
+                            if courseLink.isEmpty { Text("尚未連結課程，可在上方選擇。").font(.caption).foregroundStyle(.secondary) }
                             if badDeadline {
                                 Text("建議的日期無法辨識，請手動選擇截止時間。").foregroundStyle(.orange).font(.caption)
                                 Button("先不設定截止時間") { hasDeadline = false; badDeadline = false }
@@ -109,7 +123,7 @@ struct AIChangeReviewView: View {
             .onChange(of: academic.uid) { _ in dismiss() }
             .onChange(of: deadline) { _ in badDeadline = false }
             .onChange(of: showCourseEditor) { visible in
-                if !visible, proposal.operation == .delete, !courseData.courses.contains(where: { $0.id == targetID }) { dismiss() }
+                if !visible, proposal.operation == .delete, !courseData.courses.contains(where: { $0.id == targetID }) { ledger.mark([proposal], account: account); dismiss() }
             }
             .confirmationDialog("確定刪除「\(originalMemo?.title ?? "此備忘錄")」？", isPresented: $showDelete, titleVisibility: .visible) {
                 Button("確認刪除", role: .destructive) { deleteMemo() }
@@ -121,6 +135,7 @@ struct AIChangeReviewView: View {
         }
     }
     private func prepare() {
+        guard !prepared else { return }; prepared = true
         account = academic.uid
         title = proposal.title ?? ""; content = proposal.content ?? ""
         if proposal.kind == .memo, proposal.operation == .create {
@@ -158,6 +173,7 @@ struct AIChangeReviewView: View {
     }
     private func validAccount() -> Bool {
         guard academic.uid == account else { error = "帳號已變更，請重新提出要求。"; return false }
+        guard !ledger.contains(proposal, account: account) else { error = "這筆變更已儲存，不會再次執行。"; return false }
         return true
     }
     private func save() {
@@ -207,6 +223,7 @@ struct AIChangeReviewView: View {
                 }
             }
         }
+        ledger.mark([proposal], account: account)
         dismiss()
     }
     private func prepareDelete() {
@@ -221,6 +238,7 @@ struct AIChangeReviewView: View {
         guard validAccount(), let context = memoManager.viewContext, !context.hasChanges, let old = originalMemo, let current = memoManager.memos.first(where: { $0.id == old.id }), current == old, AIChangeConsistency.memo(old, in: context) else { error = "備忘錄已變更，請重新預覽。"; return }
         memoManager.deleteMemo(old)
         guard !context.hasChanges, !memoManager.memos.contains(where: { $0.id == old.id }) else { context.rollback(); error = "刪除未完成，請重試。"; return }
+        ledger.mark([proposal], account: account)
         dismiss()
     }
 }
@@ -256,11 +274,13 @@ struct AIChangeBatchReviewView: View {
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
     @EnvironmentObject private var academic: AcademicSyncStore
+    @EnvironmentObject private var ledger: AIChangeExecutionLedger
     @Environment(\.dismiss) private var dismiss
     @State private var proposals: [AIChangeProposal]
     @State private var originalMemos: [Int: Memo] = [:]
     @State private var originalCourses: [Int: Course] = [:]
     @State private var memoLinks: [Int: String] = [:]
+    @State private var clearedDeadlines: Set<Int> = []
     @State private var account = ""
     @State private var prepared = false
     @State private var error: String?
@@ -292,13 +312,25 @@ struct AIChangeBatchReviewView: View {
                             TextField("名稱（留空保留原值）", text: field(i, \.title))
                             if proposals[i].kind == .memo {
                                 TextField("內容（留空保留原值）", text: field(i, \.content), axis: .vertical)
-                                TextField("截止時間 ISO8601（留空保留原值）", text: field(i, \.deadline))
+                                Picker("截止時間", selection: deadlineMode(i)) {
+                                    Text(originalMemos[i] == nil ? "不設定" : "保留原時間").tag(0)
+                                    Text("設定時間").tag(1)
+                                    if originalMemos[i] != nil { Text("移除時間").tag(2) }
+                                }
+                                if proposals[i].deadline != nil {
+                                    DatePicker("截止", selection: deadlineDate(i))
+                                    if ISO8601DateFormatter().date(from: proposals[i].deadline ?? "") == nil {
+                                        Text("日期無法辨識，請重新選擇。").font(.caption).foregroundStyle(.orange)
+                                    }
+                                } else if !clearedDeadlines.contains(i), let date = originalMemos[i]?.dueAt {
+                                    LabeledContent("原截止", value: date.formatted(date: .abbreviated, time: .shortened))
+                                }
                                 Text(memoReminderSummary(for: i))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                                 Picker("連結課程", selection: Binding(get: { memoLinks[i] ?? "" }, set: { memoLinks[i] = $0 })) {
                                     Text("無").tag("")
-                                    ForEach(courseData.courses) { Text("\($0.name) · \($0.day)").tag($0.id) }
+                                    ForEach(AICoursePickerOptions.unique(courseData.courses, selected: memoLinks[i] ?? "")) { Text($0.name).tag($0.id) }
                                 }
                             } else {
                                 Picker("星期（未指定保留原值）", selection: field(i, \.weekday)) {
@@ -334,23 +366,29 @@ struct AIChangeBatchReviewView: View {
     private func field(_ i: Int, _ key: WritableKeyPath<AIChangeProposal, String?>) -> Binding<String> {
         Binding(get: { proposals[i][keyPath: key] ?? "" }, set: { proposals[i][keyPath: key] = $0.isEmpty ? nil : $0 })
     }
+    private func deadlineMode(_ i: Int) -> Binding<Int> {
+        Binding(get: { clearedDeadlines.contains(i) ? 2 : proposals[i].deadline == nil ? 0 : 1 }, set: { mode in
+            clearedDeadlines.remove(i)
+            if mode == 1 {
+                proposals[i].deadline = ISO8601DateFormatter().string(from: originalMemos[i]?.dueAt ?? Date().addingTimeInterval(86400))
+            } else {
+                proposals[i].deadline = nil
+                if mode == 2 { clearedDeadlines.insert(i) }
+            }
+        })
+    }
+    private func deadlineDate(_ i: Int) -> Binding<Date> {
+        Binding(get: { proposals[i].deadline.flatMap { ISO8601DateFormatter().date(from: $0) } ?? Date() },
+                set: { proposals[i].deadline = ISO8601DateFormatter().string(from: $0) })
+    }
     private func memoReminderSummary(for index: Int) -> String {
-        let dueDate = proposals[index].deadline.flatMap { ISO8601DateFormatter().date(from: $0) }
-            ?? originalMemos[index]?.dueAt
-        guard let dueDate else { return "提醒：未設定截止時間，因此不會建立截止提醒。" }
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "zh_TW")
-        formatter.dateStyle = .short
-        formatter.timeStyle = .short
-        let oneDayBefore = dueDate.addingTimeInterval(-24 * 60 * 60)
-        let thirtyMinutesBefore = dueDate.addingTimeInterval(-30 * 60)
-        let times = [oneDayBefore, thirtyMinutesBefore].filter { $0 > Date() }
-        guard !times.isEmpty else { return "提醒：截止時間已過，沒有尚未觸發的自動提醒。" }
-        return "自動提醒：" + times.map { formatter.string(from: $0) }.joined(separator: "、") + "（截止前 1 天及 30 分鐘；已過的提醒不會補發）。"
+        let due = clearedDeadlines.contains(index) ? nil : proposals[index].deadline.flatMap { ISO8601DateFormatter().date(from: $0) } ?? originalMemos[index]?.dueAt
+        return AIMemoReminderPreview.text(due: due, original: originalMemos[index])
     }
     private func prepare() {
         guard !prepared else { return }
         prepared = true; account = academic.uid
+        proposals.removeAll { ledger.contains($0, account: account) }
         for i in proposals.indices where proposals[i].kind == .memo && proposals[i].operation == .create {
             memoLinks[i] = AICourseLinkResolver.match(proposals[i], courses: courseData.courses)?.id
         }
@@ -368,6 +406,9 @@ struct AIChangeBatchReviewView: View {
     private func fail(_ message: String) { error = message }
     private func apply() {
         guard academic.uid == account else { fail("帳號已變更，請重新預覽。"); return }
+        guard !proposals.isEmpty, !proposals.contains(where: { ledger.contains($0, account: account) }) else {
+            fail("部分變更已套用，請關閉後重新預覽剩餘項目。"); return
+        }
         guard let context = memoManager.viewContext, context === courseData.viewContext, !context.hasChanges else { fail("資料正在儲存，請稍後重試。"); return }
         var memoIDs = Set<String>(), courseIDs = Set<String>()
         var finalCourses = courseData.courses
@@ -436,7 +477,8 @@ struct AIChangeBatchReviewView: View {
                     entity.title = p.title ?? originalMemos[i]?.title
                     entity.content = p.content ?? originalMemos[i]?.content ?? ""
                     entity.courseLink = (memoLinks[i] ?? "").isEmpty ? nil : memoLinks[i]
-                    if let raw = p.deadline { entity.dueAt = ISO8601DateFormatter().date(from: raw) }
+                    if clearedDeadlines.contains(i) { entity.dueAt = nil }
+                    else if let raw = p.deadline { entity.dueAt = ISO8601DateFormatter().date(from: raw) }
                     entity.updatedAt = Date()
                 } else {
                     let entity: CourseEntity
@@ -456,6 +498,7 @@ struct AIChangeBatchReviewView: View {
         for old in originalMemos.values { memoManager.cancelNotification(for: old) }
         for old in originalCourses.values { courseData.cancelNotification(for: old) }
         memoManager.loadMemosFromCoreData(); courseData.loadCoursesFromCoreData(); memoManager.scheduleNotificationsForAllMemos()
+        ledger.mark(proposals, account: account)
         batch.onComplete(); dismiss()
     }
     private enum BatchError: Error { case changed }
@@ -502,5 +545,38 @@ private enum AICourseLinkResolver {
     private static func normalized(_ value: String) -> String {
         value.folding(options: [.widthInsensitive, .caseInsensitive], locale: Locale(identifier: "zh_TW"))
             .filter { !$0.isWhitespace && !$0.isPunctuation }
+    }
+}
+
+/// Keep one course choice while preserving the exact existing link ID.
+enum AICoursePickerOptions {
+    static func unique(_ courses: [Course], selected: String) -> [Course] {
+        let groups = Dictionary(grouping: courses) { $0.name.trimmingCharacters(in: .whitespacesAndNewlines) + "|" + $0.teacher }
+        return groups.values.compactMap { group in
+            group.first(where: { $0.id == selected }) ?? group.sorted { $0.id < $1.id }.first
+        }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+    }
+}
+
+enum AIMemoReminderPreview {
+    static func text(due: Date?, original: Memo?) -> String {
+        if original?.status == .done { return "已完成，不會發送提醒。" }
+        let now = Date()
+        let custom = original?.reminderRules.filter { $0.enabled } ?? []
+        var parts: [String] = []
+        let pendingCustom = custom.filter { $0.repeatType != .none || $0.triggerAt > now }
+        if !pendingCustom.isEmpty {
+            parts.append("自訂提醒：" + pendingCustom.prefix(3).map { $0.triggerAt.formatted(date: .abbreviated, time: .shortened) }.joined(separator: "、") + (pendingCustom.count > 3 ? "等 \(pendingCustom.count) 項" : ""))
+        }
+        if let due, original?.disableAutoDueReminder != true, !custom.contains(where: { $0.kind == .beforeDue }) {
+            let dates = [due.addingTimeInterval(-86400), due.addingTimeInterval(-1800)].filter { $0 > now }
+            if !dates.isEmpty { parts.append("截止提醒：" + dates.map { $0.formatted(date: .abbreviated, time: .shortened) }.joined(separator: "、")) }
+        }
+        if let plan = original?.planAt, plan > now, original?.disableAutoPlanReminder != true,
+           !custom.contains(where: { $0.kind == .atPlan }) {
+            parts.append("計劃提醒：" + plan.formatted(date: .abbreviated, time: .shortened))
+        }
+        return parts.isEmpty ? "沒有待發送的提醒，可儲存後在備忘錄中設定。" : parts.joined(separator: "\n") + "。需允許 App 通知。"
+
     }
 }
