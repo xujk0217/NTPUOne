@@ -67,12 +67,14 @@ final class AcademicSyncStore: ObservableObject {
     @Published private(set) var moodleLinked = false
     @Published private(set) var busy = false
     @Published private(set) var message: String?
+    @Published private(set) var syncErrors: [String: String] = [:]
     @Published private(set) var reportErrors: [SchoolReportKind: String] = [:]
     @Published var showConnection = false
     private(set) var moodleWebDataStore = WKWebsiteDataStore.nonPersistent()
     var sourceScope: String { "\(uid):\(cache.moodleUser ?? -1)" }
     var schoolConnectionStatus: String {
         if requiresSchoolLogin { return "學生資訊系統：需要重新登入" }
+        if syncErrors["school"] != nil { return "學生資訊系統：更新失敗，保留上次資料" }
         if schoolLinked && cache.schoolIdentity != nil && cache.schoolCheckedAt != nil {
             return cache.catalogIncomplete == true ? "學生資訊系統：課號已核對，課程資訊待更新" : "學生資訊系統：已同步"
         }
@@ -80,6 +82,7 @@ final class AcademicSyncStore: ObservableObject {
     }
     var moodleConnectionStatus: String {
         if requiresMoodleLogin { return "Moodle：需要重新登入" }
+        if syncErrors["moodle"] != nil { return "Moodle：更新失敗，保留上次資料" }
         if moodleLinked && cache.moodleUser != nil && cache.moodleCheckedAt != nil { return "Moodle：已同步" }
         return moodleLinked ? "Moodle：已保存登入資料，等待同步" : "Moodle：尚未連結"
     }
@@ -89,6 +92,8 @@ final class AcademicSyncStore: ObservableObject {
     private var failures: [String: Int] = [:]
     private var retryDates: [String: Date] = [:]
     private var storageAvailable = true
+    var moodleNeedsLogin: Bool { requiresMoodleLogin }
+    var schoolNeedsLogin: Bool { requiresSchoolLogin }
     private var requiresMoodleLogin = false
     private var requiresSchoolLogin = false
     private weak var memoManager: MemoManager?
@@ -123,7 +128,7 @@ final class AcademicSyncStore: ObservableObject {
         showConnection = false; lastAttempt = nil; storageAvailable = true
         reportErrors = [:]; failures = [:]; retryDates = [:]
         moodleWebDataStore = .nonPersistent()
-        schoolLinked = false; moodleLinked = false; requiresMoodleLogin = false; requiresSchoolLogin = false
+        syncErrors = [:]; schoolLinked = false; moodleLinked = false; requiresMoodleLogin = false; requiresSchoolLogin = false
         guard !uid.isEmpty else { return }
         do {
             let url = try cacheURL()
@@ -197,7 +202,7 @@ final class AcademicSyncStore: ObservableObject {
             }
             await refreshReports(api: api, credential: credential, epoch: epoch, force: true)
             return true
-        } catch { if epoch == generation { show(error) }; return false }
+        } catch { if epoch == generation { show(error); syncErrors["school"] = message }; return false }
     }
     private func fetchCatalog(_ enrolment: SchoolEnrolment, epoch: UUID) async throws -> [AcademicCachedCourse] {
         var result: [AcademicCachedCourse] = []
@@ -241,7 +246,7 @@ final class AcademicSyncStore: ObservableObject {
             try persist(); moodleLinked = true; requiresMoodleLogin = false
             do { try await refreshMoodle(epoch: epoch) } catch { show(error) }
             return true
-        } catch { if epoch == generation { show(error) }; return false }
+        } catch { if epoch == generation { show(error); syncErrors["moodle"] = message }; return false }
     }
     func unlink() {
         guard !uid.isEmpty, Auth.auth().currentUser?.uid == uid, !busy else { return }
@@ -249,6 +254,7 @@ final class AcademicSyncStore: ObservableObject {
             try AcademicKeychain.delete(account: credentialKey("school"))
             try AcademicKeychain.delete(account: credentialKey("moodle"))
             generation = UUID(); schoolLinked = false; moodleLinked = false
+            syncErrors = [:]; requiresSchoolLogin = false; requiresMoodleLogin = false; failures = [:]; retryDates = [:]
             moodleWebDataStore = .nonPersistent()
             cache.schoolIdentity = nil; cache.moodleUser = nil
             cache.year = nil; cache.term = nil; cache.courses = []; cache.tasks = []; cache.moodleCourses = nil
@@ -289,6 +295,7 @@ final class AcademicSyncStore: ObservableObject {
                 guard epoch == generation else { return }
                 if case AcademicError.loginRequired = error { requiresSchoolLogin = true }
                 show(error)
+                syncErrors["school"] = message
                 backOff("school")
             }
         }
@@ -300,6 +307,7 @@ final class AcademicSyncStore: ObservableObject {
                 guard epoch == generation else { return }
                 if case AcademicError.loginRequired = error { requiresMoodleLogin = true }
                 show(error)
+                syncErrors["moodle"] = message
                 backOff("moodle")
             }
         }
@@ -310,7 +318,7 @@ final class AcademicSyncStore: ObservableObject {
         }
     }
     private func retryAllowed(_ source: String) -> Bool { retryDates[source].map { $0 <= Date() } ?? true }
-    private func resetRetry(_ source: String) { failures[source] = nil; retryDates[source] = nil }
+    private func resetRetry(_ source: String) { syncErrors[source] = nil; failures[source] = nil; retryDates[source] = nil }
     private func backOff(_ source: String) {
         let count = min(5, (failures[source] ?? 0) + 1)
         failures[source] = count

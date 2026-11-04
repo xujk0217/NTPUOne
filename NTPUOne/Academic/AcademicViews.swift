@@ -47,6 +47,8 @@ struct AcademicConnectionPromptView: View {
 struct AcademicConnectionView: View {
     @EnvironmentObject private var academic: AcademicSyncStore
     @Environment(\.dismiss) private var dismiss
+    @StateObject private var profile = CommunityProfileManager()
+    @State private var showGoogleAccount = false
     @State private var username = ""
     @State private var password = ""
     @State private var editing = false
@@ -57,7 +59,11 @@ struct AcademicConnectionView: View {
     var body: some View {
         Form {
             if academic.uid.isEmpty {
-                Section { Text("請先在「我的」登入 Google 帳號，再連結學校資料。") }
+                Section {
+                    Label("先登入 App，再連結學校資料", systemImage: "person.badge.key")
+                    Text("Google 用於 App 帳號；學校帳密另外保存在手機。").font(.caption).foregroundStyle(.secondary)
+                    Button("登入 Google") { showGoogleAccount = true }.buttonStyle(.borderedProminent)
+                }
             } else {
                 Section("學校帳號") {
                     if !editing && (academic.schoolLinked || academic.moodleLinked) {
@@ -69,13 +75,16 @@ struct AcademicConnectionView: View {
                         SecureField("學校密碼", text: $password).textContentType(.password).disabled(loggingIn || academic.busy)
                         Button {
                             let user = username.trimmingCharacters(in: .whitespacesAndNewlines), secret = password
+                            let account = academic.uid
                             loggingIn = true; loginStatus = "正在登入學生資訊系統…"
                             Task {
                                 let schoolOK = await academic.connectSchool(username: user, password: secret)
                                 let schoolMessage = academic.message
+                                guard account == academic.uid else { loggingIn = false; return }
                                 loginStatus = "正在連結 Moodle…"
                                 let moodleOK = await academic.connectMoodle(username: user, password: secret)
                                 let moodleMessage = academic.message
+                                guard account == academic.uid else { loggingIn = false; return }
                                 if schoolOK && moodleOK {
                                     loginStatus = "學校帳號已驗證。同步狀態請見下方。"; password = ""; editing = false
                                 } else {
@@ -92,8 +101,14 @@ struct AcademicConnectionView: View {
                     if let loginStatus { Text(loginStatus).font(.caption).foregroundStyle(.secondary) }
                 }
                 Section("連線狀態") {
-                    Label(academic.schoolConnectionStatus, systemImage: academic.cache.schoolCheckedAt != nil ? "checkmark.circle.fill" : "clock")
-                    Label(academic.moodleConnectionStatus, systemImage: academic.cache.moodleCheckedAt != nil ? "checkmark.circle.fill" : "clock")
+                    Label(academic.schoolConnectionStatus, systemImage: academic.schoolNeedsLogin || academic.syncErrors["school"] != nil ? "exclamationmark.circle" : academic.cache.schoolCheckedAt != nil ? "checkmark.circle" : "clock")
+                    if let issue = academic.syncErrors["school"] { Text(issue).font(.caption).foregroundStyle(.orange) }
+                    if let date = academic.cache.schoolCheckedAt { Text("最近同步：" + date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary) }
+                    Button("重新連結學生資訊系統") { retryConnection(moodle: false) }.disabled(loggingIn || academic.busy)
+                    Label(academic.moodleConnectionStatus, systemImage: academic.moodleNeedsLogin || academic.syncErrors["moodle"] != nil ? "exclamationmark.circle" : academic.cache.moodleCheckedAt != nil ? "checkmark.circle" : "clock")
+                    if let issue = academic.syncErrors["moodle"] { Text(issue).font(.caption).foregroundStyle(.orange) }
+                    if let date = academic.cache.moodleCheckedAt { Text("最近同步：" + date.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary) }
+                    Button("重新連結 Moodle") { retryConnection(moodle: true) }.disabled(loggingIn || academic.busy)
                     Text("NTPU AI 可使用手機保存的學校帳號登入；額外驗證依校方頁面完成。")
                         .font(.caption).foregroundStyle(.secondary)
                 }
@@ -107,9 +122,10 @@ struct AcademicConnectionView: View {
             }
         }
         .navigationTitle("學校帳號與同步")
+        .sheet(isPresented: $showGoogleAccount) { NavigationStack { AccountCenterView(communityProfileManager: profile) } }
         .onAppear { username = academic.savedSchoolUsername() ?? ""; editing = !(academic.schoolLinked || academic.moodleLinked) }
         .onDisappear { password = "" }
-        .onChange(of: academic.uid) { _ in username = ""; password = ""; loginStatus = nil; editing = true }
+        .onChange(of: academic.uid) { uid in username = ""; password = ""; loginStatus = nil; editing = true; if !uid.isEmpty { showGoogleAccount = false } }
         .toolbar {
             ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } }
             ToolbarItem(placement: .navigationBarLeading) {
@@ -124,6 +140,27 @@ struct AcademicConnectionView: View {
             Button("解除連結", role: .destructive) { academic.unlink(); username = ""; password = ""; editing = true }
         }
     }
+    private func retryConnection(moodle: Bool) {
+        let saved = academic.savedSchoolCredentialForAI()
+        let user: String
+        let secret: String
+        if !password.isEmpty {
+            user = username.trimmingCharacters(in: .whitespacesAndNewlines); secret = password
+        } else if username.isEmpty || username == saved?.username {
+            user = saved?.username ?? ""; secret = saved?.password ?? ""
+        } else { editing = true; loginStatus = "請輸入這個帳號的密碼。"; return }
+        guard !user.isEmpty, !secret.isEmpty else { editing = true; loginStatus = "請輸入學校帳密後重試。"; return }
+        let account = academic.uid
+        loggingIn = true; loginStatus = moodle ? "正在連結 Moodle…" : "正在連結學生資訊系統…"
+        Task {
+            let ok = moodle ? await academic.connectMoodle(username: user, password: secret) : await academic.connectSchool(username: user, password: secret)
+            guard account == academic.uid else { loggingIn = false; return }
+            loginStatus = ok ? "連結完成，資料狀態如下。" : academic.message ?? "連結失敗，請重試。"
+            if ok { password = ""; editing = false }
+            loggingIn = false
+        }
+    }
+
 }
 
 enum AcademicCourseTab: String, CaseIterable, Identifiable {
@@ -182,6 +219,10 @@ struct AcademicCourseContentView: View {
     @State private var grades: [MoodleAPI.Grade] = []
     @State private var errorMessage: String?
     @State private var loading = false
+    @State private var expandedMaterials: Set<Int> = []
+    @State private var materialQuery = ""
+    @State private var lastContentUpdate: Date?
+    @State private var lastGradeUpdate: Date?
     @State private var didLoadContent = false
     @State private var didLoadGrades = false
     @State private var loadedScope = ""
@@ -209,7 +250,18 @@ struct AcademicCourseContentView: View {
             }.pickerStyle(.segmented).padding()
             List {
                 if loading { ProgressView("正在讀取…") }
-                if let errorMessage { Text(errorMessage).font(.caption).foregroundStyle(.secondary) }
+                if let errorMessage {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(errorMessage, systemImage: "exclamationmark.arrow.triangle.2.circlepath").font(.caption)
+                        Button("重試") { Task { await load(force: true) } }.disabled(loading)
+                    }
+                }
+                if let updated = tab == .grades ? lastGradeUpdate : tab == .assignments ? academic.cache.moodleCheckedAt : lastContentUpdate {
+                    Text("最近更新：" + updated.formatted(date: .abbreviated, time: .shortened)).font(.caption).foregroundStyle(.secondary)
+                }
+                if tab == .materials {
+                    Section { TextField("搜尋教材或檔名", text: $materialQuery).textInputAutocapitalization(.never) }
+                }
                 switch tab {
                 case .announcements: announcementSections
                 case .materials: materialSections
@@ -217,7 +269,7 @@ struct AcademicCourseContentView: View {
                 case .grades: gradeSections
                 }
                 Section {
-                    MoodleInAppLink(title: "查看完整 Moodle 課程", url: URL(string: "https://lms3.ntpu.edu.tw/course/view.php?id=\(course.id)")!)
+                    MoodleInAppLink(title: "以校方網頁開啟完整課程", url: URL(string: "https://lms3.ntpu.edu.tw/course/view.php?id=\(course.id)")!)
                 }
             }.listStyle(.insetGrouped).refreshable { await load(force: true) }
         }
@@ -226,7 +278,7 @@ struct AcademicCourseContentView: View {
         .task(id: academic.sourceScope + ":" + tab.rawValue) {
             if loadedScope != academic.sourceScope {
                 loadedScope = academic.sourceScope
-                sections = []; announcements = []; grades = []; expandedAnnouncements = []; didLoadContent = false; didLoadGrades = false
+                sections = []; announcements = []; grades = []; expandedAnnouncements = []; expandedMaterials = []; lastContentUpdate = nil; lastGradeUpdate = nil; didLoadContent = false; didLoadGrades = false
             }
             await load()
         }
@@ -258,16 +310,27 @@ struct AcademicCourseContentView: View {
             }
         }
     }
+    private func matchesMaterial(_ module: MoodleAPI.Resource) -> Bool {
+        materialQuery.isEmpty || ([module.name] + (module.contents ?? []).map(\.filename)).joined(separator: " ").localizedStandardContains(materialQuery)
+    }
+    private func materialExpansion(_ id: Int) -> Binding<Bool> {
+        Binding(get: { !materialQuery.isEmpty || expandedMaterials.contains(id) }, set: { expanded in
+            if expanded { expandedMaterials.insert(id) } else { expandedMaterials.remove(id) }
+        })
+    }
     @ViewBuilder private var materialSections: some View {
         if didLoadContent && sections.isEmpty { Section { Label("目前沒有可讀取的教材", systemImage: "folder") .foregroundStyle(.secondary) } }
-        ForEach(sections) { section in
+        if !materialQuery.isEmpty && !sections.contains(where: { $0.modules.contains(where: matchesMaterial) }) {
+            Section { Label("找不到符合的教材", systemImage: "magnifyingglass").foregroundStyle(.secondary) }
+        }
+        ForEach(sections.filter { materialQuery.isEmpty || $0.modules.contains(where: matchesMaterial) }) { section in
             Section {
-                DisclosureGroup {
+                DisclosureGroup(isExpanded: materialExpansion(section.id)) {
                     if let summary = section.summary, !text(summary).isEmpty {
                         Text(text(summary)).font(.subheadline).foregroundStyle(.secondary).textSelection(.enabled)
                     }
                     if section.modules.isEmpty { Text("此單元沒有教材").font(.subheadline).foregroundStyle(.secondary) }
-                    ForEach(section.modules) { module in
+                    ForEach(section.modules.filter(matchesMaterial)) { module in
                         VStack(alignment: .leading, spacing: 8) {
                             Label(module.name, systemImage: "doc.text").font(.subheadline.weight(.semibold))
                             if let description = module.description, !text(description).isEmpty {
@@ -280,7 +343,7 @@ struct AcademicCourseContentView: View {
                                     MoodleNativeFileButton(attachment: attachment, course: course)
                                 }
                             }
-                            if let url = resourceURL(module.url) { MoodleInAppLink(title: "在 Moodle 查看", url: url) }
+                            if let url = resourceURL(module.url) { MoodleInAppLink(title: "以校方網頁開啟", url: url) }
                         }.padding(.vertical, 6).frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } label: {
@@ -343,7 +406,7 @@ struct AcademicCourseContentView: View {
                 if force || !didLoadGrades {
                     let result = try await academic.courseGrades(course)
                     guard requestID == request, !Task.isCancelled else { return }
-                    grades = result; didLoadGrades = true
+                    grades = result; didLoadGrades = true; lastGradeUpdate = Date()
                 }
             case .assignments:
                 if force { await academic.refresh(force: true) }
@@ -353,7 +416,7 @@ struct AcademicCourseContentView: View {
                 if force || !didLoadContent {
                     let result = try await academic.courseContent(course)
                     guard requestID == request, !Task.isCancelled else { return }
-                    sections = result.0; announcements = result.1; didLoadContent = true
+                    sections = result.0; announcements = result.1; didLoadContent = true; lastContentUpdate = Date()
                 }
             }
         } catch {
@@ -612,7 +675,12 @@ struct AcademicSchoolReportView: View {
         VStack(spacing: 12) {
             Image(systemName: "doc.text.magnifyingglass").font(.largeTitle).foregroundStyle(.secondary)
             Text(academic.schoolLinked ? (needsGraduationRefresh ? "畢業門檻資料需更新" : "尚無資料") : "登入後查看學校資料").font(.headline)
-            if academic.schoolLinked { Text("下拉即可更新").font(.subheadline).foregroundStyle(.secondary) }
+            if !academic.schoolLinked || academic.schoolNeedsLogin {
+                Button("連結學校帳號") { academic.showConnection = true }.buttonStyle(.borderedProminent)
+            } else {
+                Button("重新讀取") { Task { await academic.refreshReport(kind) } }.buttonStyle(.borderedProminent)
+                Text("更新失敗時會保留上次資料。").font(.caption).foregroundStyle(.secondary)
+            }
         }.frame(maxWidth: .infinity).padding(.vertical, 44)
     }
 }
