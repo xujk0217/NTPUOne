@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 37。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 38。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -205,3 +205,10 @@ Firebase 升級至官方修補版 12.19.3，Google Sign-In 實際鎖定 9.2.0；
 1.4.0（37）已完成 Release 簽章封存並上傳。App 與 Widget 均核對為 37；`/private/tmp/ntpu37-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，結束碼 0。Apple 後續處理及實際可下載狀態尚未確認。
 
 Google Mobile Ads SDK 升級至 13.12.0；橫幅、原生及獎勵廣告已遷移新版 Swift API，並在初始化之前停用新增的概略位置自動蒐集。Firebase 維持 12.19.3。詳見 [AdMob 更新紀錄](ADMOB_SDK_UPDATE.md)。實機廣告載入、獎勵回呼仍需驗收。既有第三方 dSYM 警告未阻擋上傳。
+
+
+## build 38（2026-11-04）
+
+1.4.0（38）已完成 Release 簽章封存並上傳。App 與 Widget 都核對為 38；`/private/tmp/ntpu38-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，結束碼 0。Apple 後續處理及實際可下載狀態尚未確認。
+
+AI 官方登入頁的「完成」改為無論是否登入皆返回原生聊天，再檢查登入狀態。未登入 Google 或尚未連結學校帳號時，聊天介面會說明個人化 AI 功能及資料授權，並提供個人頁面／學校連結入口。語法與差異檢查、Release 封存通過；手機取消登入與帳號入口仍需驗收。既有第三方 dSYM 警告未阻擋上傳。
