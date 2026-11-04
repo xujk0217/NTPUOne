@@ -1,6 +1,6 @@
 # 遠端修改後的 TestFlight 流程
 
-App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 35。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
+App 與 Widget 維持行銷版本 1.4.0，目前已上傳 build 為 36。後續每次上傳只遞增 CURRENT_PROJECT_VERSION；不要為每次內部測試改行銷版本。Export 允許 Xcode 調整尚未使用的 build number，以 App Store Connect 實際接收的版本為準。
 
 ## 建置與發布
 
@@ -191,3 +191,10 @@ build 26 的主程式 dSYM 存在；封存及目前下載的套件中，11 個�
 1.4.0（35）已完成 Release 簽章封存與上傳。主 App 與 Widget 的封存版本均核對為 35；上傳程序結束碼 0，日誌 `/private/tmp/ntpu35-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`。Apple 後續處理、群組分配及實際可下載狀態尚未確認。
 
 本版修正單筆與批次預覽的備忘錄課程連結，共用課名與關鍵字比對，將同課名、同教師的多個節次視為一堂課；匹配後預選本機課程 ID，歧義保留手動選擇。批次預覽增加自動提醒時間說明。只有進入提醒的聊天也會補上本機歡迎訊息；網路搜尋不再無條件以整句操作需求當備援搜尋詞。課程比對的六項本機檢查與 Swift 語法檢查通過，Release 封存成功；真實 AI 回覆與手機預覽仍須驗收。既有第三方 framework 缺少 dSYM 的警告未阻擋上傳。
+
+
+## build 36（2026-11-04）
+
+Firebase 憑證安全修補版 1.4.0（36）已完整封存並上傳；App 與 Widget 的封存版本均為 36。上傳日誌 `/private/tmp/ntpu36-upload.log` 回報 `Uploaded NTPUOne`、`EXPORT SUCCEEDED`，程序結束碼 0。Apple 後續處理與 TestFlight 可下載狀態尚未確認。
+
+Firebase 升級至官方修補版 12.19.3，Google Sign-In 實際鎖定 9.2.0；舊 Swift 包裝與停用產品已調整，詳見 [安全更新紀錄](FIREBASE_SECURITY_UPDATE.md)。第三方 dSYM 警告未阻擋上傳。此版尚未提交 App Store 正式審查，不能視為正式版使用者已更新。
