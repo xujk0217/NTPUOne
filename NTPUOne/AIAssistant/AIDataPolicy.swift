@@ -110,7 +110,7 @@ enum AIContextText {
 
 /// These routes are app-owned identifiers, never destinations supplied by the model.
 enum AIAppPage: String, CaseIterable, Identifiable {
-    case home, memo, timetable, community, profile, schoolAccount, grades, graduation
+    case home, memo, timetable, community, profile, googleAccount, schoolAccount, grades, graduation
     case announcements, links, bikes, campusMap, checklist, breakfast, lunch, dinner, midnight
     case courseSearch, privacy, feedback, bugReport
     var id: String { rawValue }
@@ -118,6 +118,7 @@ enum AIAppPage: String, CaseIterable, Identifiable {
         switch self {
         case .home: return "首頁"; case .memo: return "備忘錄"; case .timetable: return "課表"
         case .community: return "交流區"; case .profile: return "個人頁"
+        case .googleAccount: return "Google 帳號登入"
         case .schoolAccount: return "學校帳號與同步"; case .grades: return "成績與排名"
         case .graduation: return "畢業門檻"; case .announcements: return "校方新聞"
         case .links: return "常用連結"; case .bikes: return "YouBike"
@@ -135,6 +136,7 @@ enum AIAppPage: String, CaseIterable, Identifiable {
         case .timetable: return "課表查看每週課程，編輯或同步課程"
         case .community: return "交流區瀏覽公開貼文與討論"
         case .profile: return "個人頁進入學校帳號、隱私及其他設定"
+        case .googleAccount: return "帳號中心：登入 Google 帳號或管理 App 帳號"
         case .schoolAccount: return "學校帳號與同步：登入、更新本機帳密與同步校務及 Moodle"
         case .grades: return "成績與排名：查看各學期成績或排名"
         case .graduation: return "畢業門檻：查看校方學分和門檻預覽"

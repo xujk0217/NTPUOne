@@ -468,10 +468,10 @@ private struct AIChatPanel: View {
             if !hasGoogleAccount || !hasSavedSchoolAccount {
                 Button {
                     inputFocused = false
-                    openPage(hasGoogleAccount ? .schoolAccount : .profile)
+                    openPage(hasGoogleAccount ? .schoolAccount : .googleAccount)
                 } label: {
                     HStack {
-                        Text(hasGoogleAccount ? "連結學校帳號" : "前往個人頁面登入 Google")
+                        Text(hasGoogleAccount ? "連結學校帳號" : "登入 Google")
                         Spacer(minLength: 8)
                         Image(systemName: "chevron.right").font(.caption.weight(.semibold))
                     }.font(.subheadline)

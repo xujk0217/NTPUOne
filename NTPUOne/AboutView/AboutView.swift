@@ -256,7 +256,7 @@ struct AboutView: View {
     }
 }
 
-private struct AccountCenterView: View {
+struct AccountCenterView: View {
     @State private var loginPresenter = WeakScenePresentationController()
     @ObservedObject var communityProfileManager: CommunityProfileManager
     @AppStorage("isAdmin") private var isAdmin: Bool = false

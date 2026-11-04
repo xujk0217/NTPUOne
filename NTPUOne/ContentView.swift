@@ -37,6 +37,7 @@ struct ContentView: View {
     @State private var aiChange: AIChangeProposal?
     @State private var aiBatch: AIChangeBatch?
     @StateObject private var academic = AcademicSyncStore()
+    @StateObject private var aiAccountProfile = CommunityProfileManager()
     
     init() {
         let context = CoreDataManager.shared.persistentContainer.viewContext
@@ -159,6 +160,7 @@ struct ContentView: View {
     }
     @ViewBuilder private func aiDestination(_ page: AIAppPage) -> some View {
         switch page {
+        case .googleAccount: AccountCenterView(communityProfileManager: aiAccountProfile)
         case .schoolAccount: AcademicConnectionView()
         case .grades: AcademicGradesView()
         case .graduation: AcademicSchoolReportView(kind: .graduation)
