@@ -353,6 +353,13 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         reload()
     }
 
+    /// Leaving the login page must work even if authentication was cancelled.
+    func dismissLoginWebsite() {
+        cancelStoredSchoolLogin()
+        showingWebsite = false
+        checkStatus()
+    }
+
     func checkStatus() {
         guard started else { return }
         guard webView.url?.scheme == "https", webView.url?.host == "ai.ntpu.edu.tw" else {

@@ -30,6 +30,7 @@ struct FloatingAIContainer<Content: View>: View {
     let reviewChange: (AIChangeProposal) -> Void
     let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let hasSavedSchoolAccount: Bool
+    let hasGoogleAccount: Bool
     let credentialProvider: () -> SchoolCredential?
     @ObservedObject private var features = GlobalFeatureSettings.shared
     @StateObject private var bridge: NTPUAIWebBridge
@@ -44,7 +45,7 @@ struct FloatingAIContainer<Content: View>: View {
     @Environment(\.layoutDirection) private var layoutDirection
     init(accountID: String, contextProvider: @escaping (AIContextRequest) async -> AIContextPayload, hasSavedSchoolAccount: Bool, credentialProvider: @escaping () -> SchoolCredential?, openPage: @escaping (AIAppPage) -> Void, reviewChange: @escaping (AIChangeProposal) -> Void, reviewBatch: @escaping ([AIChangeProposal], @escaping () -> Void) -> Void, @ViewBuilder content: () -> Content) {
         self.content = content(); self.contextProvider = contextProvider; self.openPage = openPage
-        self.hasSavedSchoolAccount = hasSavedSchoolAccount; self.credentialProvider = credentialProvider; self.reviewChange = reviewChange; self.reviewBatch = reviewBatch
+        self.hasGoogleAccount = !accountID.isEmpty; self.hasSavedSchoolAccount = hasSavedSchoolAccount; self.credentialProvider = credentialProvider; self.reviewChange = reviewChange; self.reviewBatch = reviewBatch
         _bridge = StateObject(wrappedValue: NTPUAIWebBridge(accountID: accountID))
     }
     private var arrivalTrigger: String {
@@ -78,7 +79,7 @@ struct FloatingAIContainer<Content: View>: View {
                 }
                 if open {
                     AIChatPanel(bridge: bridge, preferDocked: $preferDocked, supportsDocking: detectedFold || !regions(geo, division: true).isEmpty, reviewChange: reviewChange, reviewBatch: reviewBatch, contextProvider: contextProvider,
-                        hasSavedSchoolAccount: hasSavedSchoolAccount, credentialProvider: credentialProvider, openPage: { page in
+                        hasSavedSchoolAccount: hasSavedSchoolAccount, hasGoogleAccount: hasGoogleAccount, credentialProvider: credentialProvider, openPage: { page in
                         UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
                         if blocking { withAnimation(animation) { open = false } }
                         pageNavigation?.cancel()
@@ -190,6 +191,7 @@ private struct AIChatPanel: View {
     let reviewBatch: ([AIChangeProposal], @escaping () -> Void) -> Void
     let contextProvider: (AIContextRequest) async -> AIContextPayload
     let hasSavedSchoolAccount: Bool
+    let hasGoogleAccount: Bool
     let credentialProvider: () -> SchoolCredential?
     let openPage: (AIAppPage) -> Void
     let close: () -> Void
@@ -241,7 +243,7 @@ private struct AIChatPanel: View {
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Spacer()
-                if bridge.showingWebsite { Button("完成") { bridge.checkStatus() }.font(.subheadline.weight(.semibold)) }
+                if bridge.showingWebsite { Button("完成") { bridge.dismissLoginWebsite() }.font(.subheadline.weight(.semibold)) }
                 Button { inputFocused = false; followLatest = true; bridge.newConversation() } label: {
                     Image(systemName: "square.and.pencil").font(.body.weight(.semibold)).frame(width: 44, height: 44)
                 }.accessibilityLabel("新對話").disabled(bridge.showingWebsite || bridge.storedLoginInProgress || bridge.deletingSchoolConversation)
@@ -315,6 +317,23 @@ private struct AIChatPanel: View {
                         }
                         if let error = bridge.error {
                             HStack { Text(error).font(.caption).foregroundStyle(.secondary); Spacer(); Button("重新載入") { bridge.reload() }.font(.caption) }.padding(.horizontal, 16).padding(.bottom, 8)
+                        }
+                        if !hasGoogleAccount || !hasSavedSchoolAccount {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Label("解鎖更多 AI 功能", systemImage: "person.crop.circle.badge.checkmark")
+                                    .font(.subheadline.weight(.semibold))
+                                Text(hasGoogleAccount
+                                     ? "連結學校帳號後，AI 可在你授權下查詢 Moodle 作業、課程及校務資料。"
+                                     : "登入 Google 並連結學校帳號後，AI 可在你授權下協助查看 Moodle、課表、成績與待辦。NTPU AI 的登入與 App 帳號連結分開管理。")
+                                    .font(.caption).foregroundStyle(.secondary)
+                                Button(hasGoogleAccount ? "連結學校帳號" : "前往個人頁面登入 Google") {
+                                    inputFocused = false
+                                    openPage(hasGoogleAccount ? .schoolAccount : .profile)
+                                }.font(.subheadline).buttonStyle(.bordered)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(12).background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 14))
+                            .padding(.horizontal, 12).padding(.bottom, 8)
                         }
                         if !bridge.ready && bridge.loading {
                             HStack(spacing: 10) { ProgressView(); Text(bridge.storedLoginInProgress ? "正在使用學校帳號登入…" : "正在恢復登入狀態…").font(.subheadline).foregroundStyle(.secondary) }.padding(.vertical, 8)
