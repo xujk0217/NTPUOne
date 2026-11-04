@@ -219,7 +219,7 @@ final class MoodleAPI {
         var id: Int; var name: String; var modname: String; var url: String?; var contents: [Attachment]?; var description: String?
     }
     struct ContentSection: Decodable, Identifiable { var id: Int; var name: String; var modules: [Resource]; var summary: String? }
-    struct Announcement: Decodable, Identifiable { var id: Int; var name: String; var message: String; var discussion: Int; var attachments: [Resource.Attachment]? }
+    struct Announcement: Decodable, Identifiable { var id: Int; var name: String; var message: String; var discussion: Int; var attachments: [Resource.Attachment]?; var timemodified: Double? = nil }
     struct Grade: Decodable, Identifiable {
         var id: Int; var itemname: String?; var gradeformatted: String?; var percentageformatted: String?; var gradeishidden: Bool?; var feedback: String?
     }

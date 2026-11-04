@@ -1,6 +1,9 @@
 import SwiftUI
 import UIKit
 import WebKit
+import PhotosUI
+import UniformTypeIdentifiers
+import ImageIO
 
 // Keep the glass panel translucent while giving its content a stable contrast surface.
 private enum AIChatColors {
@@ -199,6 +202,13 @@ private struct AIChatPanel: View {
     @State private var showDeleteSchoolChat = false
     @State private var showClearAILogin = false
     @State private var draft = ""
+    @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showPhotoPicker = false
+    @State private var showFilePicker = false
+    @State private var showMoodlePicker = false
+    @State private var preparingAttachment = false
+    @State private var attachmentTask: Task<Void, Never>?
+    @State private var attachmentError: String?
     @State private var followLatest = true
     @FocusState private var inputFocused: Bool
     @State private var dismissDrag: CGFloat = 0
@@ -328,7 +338,41 @@ private struct AIChatPanel: View {
                                 }
                             }
                         }
+                        if let attachmentError {
+                            Text(attachmentError).font(.caption).foregroundStyle(.red).padding(.horizontal, 12)
+                        }
+                        if preparingAttachment {
+                            ProgressView("正在準備附件…").font(.caption).padding(8)
+                        }
+                        if let file = bridge.draftAttachment {
+                            HStack(spacing: 10) {
+                                if let thumbnail = attachmentThumbnail(file) {
+                                    Image(uiImage: thumbnail).resizable().scaledToFill().frame(width: 40, height: 40).clipShape(RoundedRectangle(cornerRadius: 8))
+                                } else {
+                                    Image(systemName: "doc.fill").foregroundStyle(.tint).frame(width: 32, height: 40)
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(file.name).font(.caption.weight(.semibold)).lineLimit(1)
+                                    Text(ByteCountFormatter.string(fromByteCount: Int64(file.data.count), countStyle: .file) + " · 送出後上傳原檔至 NTPU AI")
+                                        .font(.caption2).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 0)
+                                Button { bridge.draftAttachment = nil } label: { Image(systemName: "xmark.circle.fill").foregroundStyle(.secondary).frame(width: 36, height: 36) }
+                                    .disabled(bridge.replying).accessibilityLabel("移除附件")
+                            }.padding(.horizontal, 12).padding(.vertical, 6)
+                        }
                         HStack(alignment: .bottom, spacing: 10) {
+                            Menu {
+                                Button("照片", systemImage: "photo") { inputFocused = false; showPhotoPicker = true }
+                                Button("檔案", systemImage: "doc") { inputFocused = false; showFilePicker = true }
+                                if bridge.appDataEnabled && bridge.shareMoodle {
+                                    Button("Moodle 原始附件", systemImage: "graduationcap") { inputFocused = false; showMoodlePicker = true }
+                                } else {
+                                    Button("開啟 Moodle 資料權限", systemImage: "graduationcap") { inputFocused = false; showDataSettings = true }
+                                }
+                            } label: { Image(systemName: "plus.circle").font(.title3).frame(width: 36, height: 40) }
+                                .disabled(!bridge.ready || bridge.replying || preparingAttachment)
+                                .accessibilityLabel("加入照片或附件")
                             if inputFocused {
                                 Button { inputFocused = false } label: { Image(systemName: "keyboard.chevron.compact.down").frame(width: 34, height: 40) }.accessibilityLabel("收起鍵盤")
                             }
@@ -339,7 +383,7 @@ private struct AIChatPanel: View {
                                 Button { bridge.stop() } label: { Image(systemName: "stop.fill").frame(width: 40, height: 40) }.accessibilityLabel("停止回覆")
                             } else {
                                 Button { let text = draft; draft = ""; followLatest = true; bridge.send(text, contextProvider: bridge.appDataEnabled ? contextProvider : nil, includeSensitive: bridge.sensitiveDataEnabled) } label: { Image(systemName: "arrow.up").fontWeight(.bold).foregroundStyle(.white).frame(width: 40, height: 40).background(Color.accentColor, in: Circle()) }
-                                    .disabled(!bridge.ready || bridge.deletingSchoolConversation || draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityLabel("送出訊息")
+                                    .disabled(!bridge.ready || bridge.deletingSchoolConversation || preparingAttachment || (draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && bridge.draftAttachment == nil)).accessibilityLabel("送出訊息")
                             }
                         }.padding(10)
                             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 22))
@@ -383,6 +427,50 @@ private struct AIChatPanel: View {
         } message: {
             Text("清除本機 AI 與校方 SSO 的網頁登入狀態及目前聊天畫面；保留 Google 登入、手機儲存的學校帳密與資料授權。校方既有聊天紀錄不會因此刪除。")
         }
+        .photosPicker(isPresented: $showPhotoPicker, selection: $selectedPhoto, matching: .images, preferredItemEncoding: .current)
+        .onChange(of: selectedPhoto) { item in
+            guard let item else { return }
+            attachmentTask?.cancel(); preparingAttachment = true; attachmentError = nil
+            attachmentTask = Task { @MainActor in
+                defer { preparingAttachment = false; selectedPhoto = nil }
+                do {
+                    guard let bytes = try await item.loadTransferable(type: Data.self) else { throw AIFileSelectionError.unreadable }
+                    try Task.checkCancellation()
+                    let type = CGImageSourceCreateWithData(bytes as CFData, nil).flatMap { CGImageSourceGetType($0) }.flatMap { UTType($0 as String) } ?? .jpeg
+                    try acceptAttachment(bytes, name: "photo." + (type.preferredFilenameExtension ?? "jpg"), mime: type.preferredMIMEType ?? "image/jpeg")
+                } catch { if !Task.isCancelled { attachmentError = error.localizedDescription } }
+            }
+        }
+        .fileImporter(isPresented: $showFilePicker, allowedContentTypes: [.data], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let urls):
+                guard let file = urls.first else { return }
+                attachmentTask?.cancel(); preparingAttachment = true; attachmentError = nil
+                attachmentTask = Task { @MainActor in
+                    defer { preparingAttachment = false }
+                    do {
+                        let bytes = try await readSelectedAIFile(file)
+                        try Task.checkCancellation()
+                        let type = UTType(filenameExtension: file.pathExtension)
+                        try acceptAttachment(bytes, name: file.lastPathComponent, mime: type?.preferredMIMEType ?? "application/octet-stream")
+                    } catch { if !Task.isCancelled { attachmentError = error.localizedDescription } }
+                }
+            case .failure(let error): attachmentError = error.localizedDescription
+            }
+        }
+        .sheet(isPresented: $showMoodlePicker) {
+            AIMoodleAttachmentPicker { file in
+                guard bridge.appDataEnabled && bridge.shareMoodle else { return }
+                bridge.draftAttachment = file; attachmentError = nil; showMoodlePicker = false
+            }
+        }
+        .onChange(of: bridge.shareMoodle) { enabled in
+            if !enabled { showMoodlePicker = false; if bridge.draftAttachment?.isMoodle == true { bridge.draftAttachment = nil } }
+        }
+        .onChange(of: bridge.appDataEnabled) { enabled in
+            if !enabled { showMoodlePicker = false; if bridge.draftAttachment?.isMoodle == true { bridge.draftAttachment = nil } }
+        }
+        .onDisappear { attachmentTask?.cancel() }
         .sheet(isPresented: $showDataSettings) {
             NavigationStack {
                 Form {
@@ -395,7 +483,7 @@ private struct AIChatPanel: View {
                         Toggle("成績與畢業資料", isOn: Binding(get: { bridge.sensitiveDataEnabled }, set: { if $0 { bridge.enableSensitiveData() } else { bridge.disableSensitiveData() } }))
                             .disabled(!bridge.appDataEnabled)
                     } header: { Text("AI 可使用的資訊") } footer: {
-                        Text("課表與備忘錄預設開啟；Moodle、學生資訊系統及成績預設關閉。開啟的資料會依問題選取並傳至 NTPU AI，校方可能保存。成績另須開啟所屬來源及成績開關；帳密與 Cookie 不會作為聊天資料。")
+                        Text("課表與備忘錄預設開啟；Moodle、學生資訊系統及成績預設關閉。開啟的資料會依問題選取並傳至 NTPU AI，校方可能保存。查詢 Moodle 公告或教材時，可自動上傳明確對應的附件原檔（每次一份、20 MB）。成績另須開啟所屬來源及成績開關；帳密與 Cookie 不會作為聊天資料。")
                     }
                     Section {
                         Toggle("需要時自動搜尋網路", isOn: Binding(get: { bridge.autoWebSearchEnabled }, set: { bridge.setAutoWebSearch($0) }))
@@ -415,6 +503,18 @@ private struct AIChatPanel: View {
         }
 
 
+    }
+
+    private func attachmentThumbnail(_ file: AIUploadAttachment) -> UIImage? {
+        guard file.mimeType.hasPrefix("image/"), let source = CGImageSourceCreateWithData(file.data as CFData, nil),
+              let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [kCGImageSourceCreateThumbnailFromImageAlways: true, kCGImageSourceThumbnailMaxPixelSize: 96, kCGImageSourceCreateThumbnailWithTransform: true] as CFDictionary) else { return nil }
+        return UIImage(cgImage: image)
+    }
+
+    private func acceptAttachment(_ bytes: Data, name: String, mime: String) throws {
+        let file = AIUploadAttachment(name: name, mimeType: mime, data: bytes)
+        guard file.isValid else { throw AIFileSelectionError.tooLarge }
+        bridge.draftAttachment = file
     }
 
     private var accountAccessCard: some View {
@@ -694,5 +794,111 @@ enum AIContextSnapshot {
             sections.append("YouBike（更新：\(time)；最多 40 站）:\n" + (rows.isEmpty ? "無可用資料，請先開啟站點頁更新" : rows.joined(separator: "\n")))
         }
         return sections.joined(separator: "\n\n")
+    }
+}
+
+
+private enum AIFileSelectionError: LocalizedError {
+    case tooLarge, unreadable
+    var errorDescription: String? {
+        switch self {
+        case .tooLarge: return "每則訊息可附加一個檔案，大小上限 20 MB。"
+        case .unreadable: return "無法讀取此檔案，請重新選擇。"
+        }
+    }
+}
+
+private func readSelectedAIFile(_ file: URL) async throws -> Data {
+    let task = Task.detached(priority: .utility) {
+        let access = file.startAccessingSecurityScopedResource()
+        defer { if access { file.stopAccessingSecurityScopedResource() } }
+        let handle = try FileHandle(forReadingFrom: file)
+        defer { try? handle.close() }
+        let bytes = try handle.read(upToCount: 20 * 1024 * 1024 + 1) ?? Data()
+        guard !bytes.isEmpty else { throw AIFileSelectionError.unreadable }
+        guard bytes.count <= 20 * 1024 * 1024 else { throw AIFileSelectionError.tooLarge }
+        try Task.checkCancellation()
+        return bytes
+    }
+    return try await withTaskCancellationHandler { try await task.value } onCancel: { task.cancel() }
+}
+
+private struct AIMoodleAttachmentPicker: View {
+    @EnvironmentObject private var academic: AcademicSyncStore
+    @Environment(\.dismiss) private var dismiss
+    let select: (AIUploadAttachment) -> Void
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    Text("選擇課程與原始附件。確認送出訊息後，檔案才會上傳至 NTPU AI；每次限一個、20 MB。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                ForEach(academic.cache.moodleCourses ?? []) { course in
+                    NavigationLink(course.fullname) {
+                        AIMoodleCourseAttachments(course: course, select: select)
+                    }
+                }
+                if academic.cache.moodleCourses?.isEmpty != false { Text("請先連結學校帳號並同步 Moodle 課程。") }
+            }
+            .navigationTitle("Moodle 附件").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
+        }
+        .onChange(of: academic.uid) { _ in dismiss() }
+    }
+}
+
+private struct AIMoodleCourseAttachments: View {
+    @EnvironmentObject private var academic: AcademicSyncStore
+    let course: MoodleCourse
+    let select: (AIUploadAttachment) -> Void
+    @State private var files: [MoodleAPI.Resource.Attachment] = []
+    @State private var loading = true
+    @State private var downloading: String?
+    @State private var error: String?
+    @State private var download: Task<Void, Never>?
+    var body: some View {
+        List {
+            if loading { ProgressView("正在讀取課程附件…") }
+            if let error { Text(error).font(.caption).foregroundStyle(.red) }
+            ForEach(Array(files.enumerated()), id: \.offset) { _, attachment in
+                Button {
+                    error = nil; downloading = attachment.filename
+                    download = Task { @MainActor in
+                        defer { downloading = nil }
+                        do {
+                            let file = try await academic.previewMoodleFile(attachment, course: course)
+                            defer { try? FileManager.default.removeItem(at: file.deletingLastPathComponent()) }
+                            let bytes = try await readSelectedAIFile(file)
+                            try Task.checkCancellation()
+                            let mime = attachment.mimetype ?? UTType(filenameExtension: file.pathExtension)?.preferredMIMEType ?? "application/octet-stream"
+                            let upload = AIUploadAttachment(name: attachment.filename, mimeType: mime, data: bytes, isMoodle: true)
+                            guard upload.isValid else { throw AIFileSelectionError.tooLarge }
+                            select(upload)
+                        } catch { if !Task.isCancelled { self.error = "無法準備此附件：" + error.localizedDescription } }
+                    }
+                } label: {
+                    HStack { Label(attachment.filename, systemImage: "doc"); Spacer(); if downloading == attachment.filename { ProgressView() } }
+                }.disabled(downloading != nil)
+            }
+            if !loading && files.isEmpty && error == nil { Text("這堂課沒有可直接下載的附件。") }
+        }
+        .navigationTitle("選擇原始檔案").navigationBarTitleDisplayMode(.inline)
+        .task(id: academic.sourceScope) {
+            loading = true; files = []; error = nil
+            do {
+                let (sections, announcements) = try await academic.courseContent(course)
+                try Task.checkCancellation()
+                let all = announcements.flatMap { $0.attachments ?? [] } + sections.flatMap { $0.modules }.flatMap { $0.contents ?? [] }
+                var seen = Set<String>()
+                files = all.filter { item in
+                    guard let url = item.fileurl else { return false }
+                    return seen.insert(url).inserted
+                }
+            } catch { if !Task.isCancelled { self.error = "無法讀取 Moodle 附件，請確認連結與網路狀態。" } }
+            loading = false
+        }
+        .onChange(of: academic.sourceScope) { _ in download?.cancel() }
+        .onDisappear { download?.cancel() }
     }
 }

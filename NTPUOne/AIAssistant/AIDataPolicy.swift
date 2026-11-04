@@ -13,7 +13,7 @@ enum AIDataSource: String, CaseIterable, Codable {
         case .memos: return "備忘錄與排程"
         case .enrolment: return "正式修課與學期"
         case .moodleTasks: return "Moodle 作業與繳交狀態"
-        case .moodleContent: return "Moodle 課程公告與教材說明"
+        case .moodleContent: return "Moodle 課程公告與教材"
         case .moodleGrades: return "Moodle 本人成績"
         case .schoolGrades: return "歷年與學期成績"
         case .ranking: return "學期排名"
@@ -49,9 +49,26 @@ enum AIDataPermissions {
     }
 }
 
+/// Explicitly selected bytes; never persisted in chat history or sent to a planner.
+struct AIUploadAttachment: Identifiable {
+    let id = UUID()
+    let name: String
+    let mimeType: String
+    let data: Data
+    var isMoodle = false
+    var uploadName: String {
+        String(name.map { "<>\"'&/\\".contains($0) ? "_" : $0 })
+    }
+    var isValid: Bool {
+        !name.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) && !data.isEmpty && data.count <= 20 * 1024 * 1024 && !name.isEmpty && name.count <= 200
+            && !mimeType.isEmpty && mimeType.count <= 120
+    }
+}
+
 struct AIContextPayload {
     var text: String
     var image: Data? = nil
+    var attachment: AIUploadAttachment? = nil
     static let empty = AIContextPayload(text: "")
 }
 
@@ -61,6 +78,10 @@ struct AIContextRequest {
     // Native-only: model JSON cannot opt into automatic arrival collection.
     var isArrival = false
     var webQuery: String? = nil
+    // Native-only: automatic attachment access follows the user's Moodle content request.
+    var readMoodleFiles = false
+    var moodleFileKeyword = ""
+    var latestMoodleAnnouncement = false
 
     /// Model output selects allowed sources and an optional filtered public search query.
     static func parse(_ text: String, allowed: Set<AIDataSource>) -> AIContextRequest? {
@@ -70,19 +91,22 @@ struct AIContextRequest {
             content = String(content.dropFirst(8).dropLast(3)).trimmingCharacters(in: .whitespacesAndNewlines)
         }
         guard let data = content.data(using: .utf8) else { return nil }
-        struct Selection: Decodable { var sources: [String]; var courseKeyword: String?; var webQuery: String? }
+        struct Selection: Decodable { var sources: [String]; var courseKeyword: String?; var webQuery: String?; var moodleFileKeyword: String? }
         let names: [String]
         var keyword = ""
         var webQuery: String?
+        var fileKeyword = ""
         if let value = try? JSONDecoder().decode(Selection.self, from: data) {
-            names = value.sources; keyword = value.courseKeyword ?? ""; webQuery = value.webQuery
+            names = value.sources; keyword = value.courseKeyword ?? ""; webQuery = value.webQuery; fileKeyword = value.moodleFileKeyword ?? ""
         } else if let value = try? JSONDecoder().decode([String].self, from: data) { names = value }
         else { return nil }
-        guard names.count <= 40, keyword.count <= 80,
+        if ["最新", "最近", "公告", "最新公告", "最近公告", "教材", "附件", "檔案"].contains(fileKeyword.trimmingCharacters(in: .whitespacesAndNewlines)) { fileKeyword = "" }
+        guard names.count <= 40, keyword.count <= 80, fileKeyword.count <= 100,
+              !fileKeyword.contains("://"), !fileKeyword.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               !keyword.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               !keyword.contains("://") else { return nil }
         let sources = Set(names.compactMap(AIDataSource.init(rawValue:))).intersection(allowed)
-        return AIContextRequest(sources: sources, courseKeyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines), webQuery: AIWebQueryPolicy.clean(webQuery))
+        return AIContextRequest(sources: sources, courseKeyword: keyword.trimmingCharacters(in: .whitespacesAndNewlines), webQuery: AIWebQueryPolicy.clean(webQuery), moodleFileKeyword: fileKeyword.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 }
 
@@ -211,7 +235,7 @@ enum AIAssistantPersona {
         目前 App 資料授權：\(appDataEnabled ? "已開啟" : "未開啟")；成績與畢業資料授權：\(appDataEnabled && sensitiveDataEnabled ? "已開啟" : "未開啟")。
         目前可依問題自動選取的來源：\(enabled.isEmpty ? "尚未開啟 App 資料，使用者可在 AI 資料設定開啟" : enabled)。成績、GPA、排名、畢業及 Moodle 成績另外受成績授權控制。
         「本輪沒有附上資料」不等於「無法查詢」或「使用者未授權」。回答你是誰／能做什麼時，簡潔介紹能力與幾個可問的例子，不要固定附上無法查看個人資料的制式段落；權限已開啟時應說可以依問題查詢。未開啟時才說明需先啟用對應開關。
-        只有本輪實際提供的資料才能作為查詢結果。來源未連結、未同步、過期或取用失敗時說明具體限制，不假裝查過，不編造數字；已授權也不代表資料必然可取得。教材以 API 提供的內容、說明及檔案資訊為限，不宣稱讀完整份附件。
+        只有本輪實際提供的資料才能作為查詢結果。來源未連結、未同步、過期或取用失敗時說明具體限制，不假裝查過，不編造數字；已授權也不代表資料必然可取得。教材只能依本輪實際提供的內文、原始附件或附件文字回答；只有本輪明確附上原檔或提供文字擷取結果時才能說讀取過檔案。若未取得附件、內容被截斷或校方無法解析格式，必須說明，不能宣稱已讀完整份附件。
         你可提供原生頁面開啟按鈕，也可提出課表或備忘錄的變更建議；必須由使用者在 App 預覽並確認，不能自行儲存或宣稱已完成。成績與設定不可修改。以下是可開啟頁面及用法：
         \(AIAppPage.guideText)
         需要開頁面時，在回答最後輸出 [[page:代碼]]，代碼僅限上述清單。當使用者明確要求新增、修改或刪除課表或備忘錄時，在回答最後另外輸出一個 <ntpu-change>JSON</ntpu-change>；單筆使用 JSON 物件，多筆使用 JSON 陣列（最多 20 筆），可逐筆或整批預覽並確認；每個物件僅接受 kind（memo 或 course）、operation（create、edit 或 delete）、target（既有項目完整名稱）、title、content、course（使用者要連結的既有課程名稱，必須逐字取自本輪提供的手機課表；不確定或未提供課表時省略）、weekday（Monday 至 Saturday）、period（1 到 13）、location、teacher、deadline（含時區的 ISO8601）。新增備忘錄或待辦時，先查看本輪提供的手機課表；若使用者提到課程且能明確對應，填入 course。不得猜課程或自行建立課程。未知欄位省略，不得猜日期或目標；資訊不足時請詢問。這只是建議，不代表已執行。使用繁體中文，簡潔回答，只提出使用者要求的項目，不增加多餘任務。
@@ -293,5 +317,25 @@ enum AIWebQueryPolicy {
               !value.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }),
               value.range(of: #"(?i)(@|://|password|token|cookie|密碼|學號|身分證|我的成績|我的課表|\d{6,})"#, options: .regularExpression) == nil else { return nil }
         return value
+    }
+}
+
+
+/// Match only names and labels returned by Moodle, never model-provided URLs.
+enum AIMoodleAttachmentSelection {
+    static func select(keyword: String, names: [String], labels: [String]) -> Int? {
+        guard names.count == labels.count else { return nil }
+        let key = normalize(keyword)
+        guard !key.isEmpty else { return names.count == 1 ? 0 : nil }
+        let exact = names.indices.filter { normalize(names[$0]) == key }
+        if !exact.isEmpty { return exact.count == 1 ? exact[0] : nil }
+        let filename = names.indices.filter { normalize(names[$0]).contains(key) }
+        if !filename.isEmpty { return filename.count == 1 ? filename[0] : nil }
+        let context = labels.indices.filter { normalize(labels[$0]).contains(key) }
+        return context.count == 1 ? context[0] : nil
+    }
+    private static func normalize(_ value: String) -> String {
+        value.folding(options: [.widthInsensitive, .caseInsensitive], locale: Locale(identifier: "zh_TW"))
+            .filter { !$0.isWhitespace && !$0.isPunctuation }
     }
 }
