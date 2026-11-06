@@ -192,7 +192,7 @@ enum AIArrivalPolicy {
     }
     static func shouldGenerate(now: Date, entryAlreadyRequested: Bool, lastAttempt: Date?) -> Bool {
         if entryAlreadyRequested { return false }
-        if let lastAttempt, now.timeIntervalSince(lastAttempt) < 60 { return false }
+        if let lastAttempt, now.timeIntervalSince(lastAttempt) < 30 * 60 { return false }
         return true
     }
     static func nextCourse(day: String, time: String, now: Date, calendar: Calendar) -> Date? {
@@ -238,7 +238,7 @@ enum AIAssistantPersona {
         只有本輪實際提供的資料才能作為查詢結果。來源未連結、未同步、過期或取用失敗時說明具體限制，不假裝查過，不編造數字；已授權也不代表資料必然可取得。教材只能依本輪實際提供的內文、原始附件或附件文字回答；只有本輪明確附上原檔或提供文字擷取結果時才能說讀取過檔案。若未取得附件、內容被截斷或校方無法解析格式，必須說明，不能宣稱已讀完整份附件。
         你可提供原生頁面開啟按鈕，也可提出課表或備忘錄的變更建議；必須由使用者在 App 預覽並確認，不能自行儲存或宣稱已完成。成績與設定不可修改。以下是可開啟頁面及用法：
         \(AIAppPage.guideText)
-        需要開頁面時，在回答最後輸出 [[page:代碼]]，代碼僅限上述清單。當使用者明確要求新增、修改或刪除課表或備忘錄時，在回答最後另外輸出一個 <ntpu-change>JSON</ntpu-change>；單筆使用 JSON 物件，多筆使用 JSON 陣列（最多 20 筆），可逐筆或整批預覽並確認；每個物件僅接受 kind（memo 或 course）、operation（create、edit 或 delete）、target（既有項目完整名稱）、title、content、course（使用者要連結的既有課程名稱，必須逐字取自本輪提供的手機課表；不確定或未提供課表時省略）、weekday（Monday 至 Saturday）、period（1 到 13）、location、teacher、deadline（含時區的 ISO8601）。新增備忘錄或待辦時，先查看本輪提供的手機課表；若使用者提到課程且能明確對應，填入 course。不得猜課程或自行建立課程。未知欄位省略，不得猜日期或目標；資訊不足時請詢問。這只是建議，不代表已執行。使用繁體中文，簡潔回答，只提出使用者要求的項目，不增加多餘任務。
+        需要開頁面時，在回答最後輸出 [[page:代碼]]，代碼僅限上述清單。當使用者明確要求新增、修改或刪除課表或備忘錄時，在回答最後另外輸出一個 <ntpu-change>JSON</ntpu-change>；單筆使用 JSON 物件，多筆使用 JSON 陣列（最多 20 筆），可逐筆或整批預覽並確認；每個物件僅接受 kind（memo 或 course）、operation（create、edit 或 delete）、target（既有項目完整名稱）、title、content、course（使用者要連結的既有課程名稱，必須逐字取自本輪提供的手機課表；不確定或未提供課表時省略）、weekday（Monday 至 Saturday）、period（1 到 13）、location、teacher、deadline（截止時間，含時區的 ISO8601）、planAt（僅用於新增或修改備忘錄，表示打算何時做或何時提醒，含時區的 ISO8601）。安排讀書、作業或提醒時，先依本輪提供的課表、待辦與當地時間找出合適時段，再提出可確認的變更。把計劃時間放在 planAt，只有使用者有指定截止時間時才填 deadline。若使用者只想看建議或查詢，直接回答。新增備忘錄或待辦時，先查看本輪提供的手機課表；若使用者提到課程且能明確對應，填入 course。不得猜課程或自行建立課程。未知欄位省略，不得猜日期或目標；資訊不足時請詢問。這只是建議，不代表已執行。使用繁體中文，簡潔回答，只提出使用者要求的項目，不增加多餘任務。
         """
     }
 }
@@ -258,10 +258,11 @@ struct AIChangeProposal: Decodable, Identifiable {
     var location: String?
     var teacher: String?
     var deadline: String?
+    var planAt: String? = nil
     // Assigned locally from message ID + proposal position; never accepted from model JSON.
     var executionID: String? = nil
     enum CodingKeys: String, CodingKey {
-        case kind, operation, target, title, content, course, weekday, period, location, teacher, deadline
+        case kind, operation, target, title, content, course, weekday, period, location, teacher, deadline, planAt
     }
     var id: String { "\(kind.rawValue):\(operation.rawValue):\(target ?? ""):\(title ?? "")" }
     static func extractAll(from text: String) -> [AIChangeProposal]? {
@@ -278,9 +279,12 @@ struct AIChangeProposal: Decodable, Identifiable {
         else if let single = try? decoder.decode(Self.self, from: data) { values = [single] }
         else { return nil }
         guard !values.isEmpty, values.count <= 20, values.allSatisfy({ value in
-            [value.target, value.title, value.content, value.weekday, value.location, value.teacher, value.deadline]
+            [value.target, value.title, value.content, value.weekday, value.location, value.teacher, value.deadline, value.planAt]
                 .compactMap({ $0 }).allSatisfy({ $0.count <= 500 && !$0.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) && $0 != "\n" }) }) &&
-            (value.period.map({ (1...13).contains($0) }) ?? true)
+            (value.period.map({ (1...13).contains($0) }) ?? true) &&
+            (value.planAt.map { raw in
+                value.kind == .memo && value.operation != .delete && ISO8601DateFormatter().date(from: raw) != nil
+            } ?? true)
         }) else { return nil }
         return values
     }

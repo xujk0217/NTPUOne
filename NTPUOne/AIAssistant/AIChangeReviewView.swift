@@ -38,6 +38,7 @@ struct AIChangeReviewView: View {
     @State private var teacher = ""
     @State private var hasDeadline = false
     @State private var deadline = Date()
+    @State private var plannedDate: Date?
     @State private var badDeadline = false
     @State private var showDelete = false
     @State private var showCourseEditor = false
@@ -85,7 +86,8 @@ struct AIChangeReviewView: View {
                             }
                             Toggle("設定截止時間", isOn: $hasDeadline)
                             if hasDeadline { DatePicker("截止", selection: $deadline) }
-                            Text(AIMemoReminderPreview.text(due: hasDeadline ? deadline : nil, original: originalMemo)).font(.caption).foregroundStyle(.secondary)
+                            AIPlanDateField(date: $plannedDate)
+                            Text(AIMemoReminderPreview.text(due: hasDeadline ? deadline : nil, plan: plannedDate, status: memoStatus, original: originalMemo)).font(.caption).foregroundStyle(.secondary)
                             if courseLink.isEmpty { Text("尚未連結課程，可在上方選擇。").font(.caption).foregroundStyle(.secondary) }
                             if badDeadline {
                                 Text("建議的日期無法辨識，請手動選擇截止時間。").foregroundStyle(.orange).font(.caption)
@@ -138,6 +140,7 @@ struct AIChangeReviewView: View {
         guard !prepared else { return }; prepared = true
         account = academic.uid
         title = proposal.title ?? ""; content = proposal.content ?? ""
+        plannedDate = proposal.planAt.flatMap { ISO8601DateFormatter().date(from: $0) }
         if proposal.kind == .memo, proposal.operation == .create {
             courseLink = AICourseLinkResolver.match(proposal, courses: courseData.courses)?.id ?? ""
         }
@@ -161,6 +164,7 @@ struct AIChangeReviewView: View {
         originalMemo = memoManager.memos.first { $0.id == targetID }
         originalCourse = courseData.courses.first { $0.id == targetID }
         if let memo = originalMemo {
+            plannedDate = proposal.planAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? memo.planAt
             title = proposal.title ?? memo.title; content = proposal.content ?? memo.content
             memoType = memo.tagType; memoPriority = memo.priority; memoStatus = memo.status; courseLink = proposal.course.flatMap { _ in AICourseLinkResolver.match(proposal, courses: courseData.courses)?.id } ?? memo.courseLink ?? ""
             if proposal.deadline == nil { hasDeadline = memo.dueAt != nil; deadline = memo.dueAt ?? Date() }
@@ -190,12 +194,13 @@ struct AIChangeReviewView: View {
                 let now = Date()
                 let memo = Memo(id: UUID().uuidString, title: cleaned, content: content, tagType: memoType, courseLink: courseLink.isEmpty ? nil : courseLink,
                     status: memoStatus, priority: memoPriority, createdAt: now, updatedAt: now,
-                    dueAt: hasDeadline ? deadline : nil, planAt: nil, doneAt: memoStatus == .done ? now : nil, reminderRules: [])
+                    dueAt: hasDeadline ? deadline : nil, planAt: plannedDate, doneAt: memoStatus == .done ? now : nil, reminderRules: [])
                 memoManager.addMemo(memo)
                 guard !context.hasChanges, memoManager.memos.contains(where: { $0.id == memo.id }) else { context.rollback(); error = "儲存未完成，請重試。"; return }
             } else {
                 guard var old = originalMemo, let current = memoManager.memos.first(where: { $0.id == old.id }), current == old, AIChangeConsistency.memo(old, in: context) else { error = "備忘錄已變更，請重新預覽。"; return }
                 old.title = cleaned; old.content = content; old.dueAt = hasDeadline ? deadline : nil; old.updatedAt = Date()
+                old.planAt = plannedDate
                 old.tagType = memoType; old.priority = memoPriority; old.courseLink = courseLink.isEmpty ? nil : courseLink
                 if old.status != memoStatus { old.doneAt = memoStatus == .done ? Date() : nil }; old.status = memoStatus
                 memoManager.updateMemo(old)
@@ -258,7 +263,7 @@ enum AIChangeConsistency {
         let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
         request.predicate = NSPredicate(format: "id == %@", old.id); request.fetchLimit = 2
         guard let rows = try? context.fetch(request), rows.count == 1, let entity = rows.first else { return false }
-        return entity.updatedAt == old.updatedAt && entity.title == old.title && entity.content == old.content && entity.courseLink == old.courseLink && entity.status == old.status.rawValue
+        return entity.updatedAt == old.updatedAt && entity.title == old.title && entity.content == old.content && entity.courseLink == old.courseLink && entity.planAt == old.planAt && entity.status == old.status.rawValue
     }
 }
 
@@ -279,6 +284,7 @@ struct AIChangeBatchReviewView: View {
     @State private var proposals: [AIChangeProposal]
     @State private var originalMemos: [Int: Memo] = [:]
     @State private var originalCourses: [Int: Course] = [:]
+    @State private var plannedDates: [Int: Date] = [:]
     @State private var memoLinks: [Int: String] = [:]
     @State private var clearedDeadlines: Set<Int> = []
     @State private var account = ""
@@ -325,6 +331,10 @@ struct AIChangeBatchReviewView: View {
                                 } else if !clearedDeadlines.contains(i), let date = originalMemos[i]?.dueAt {
                                     LabeledContent("原截止", value: date.formatted(date: .abbreviated, time: .shortened))
                                 }
+                                AIPlanDateField(date: Binding(
+                                    get: { plannedDates[i] },
+                                    set: { plannedDates[i] = $0 }
+                                ))
                                 Text(memoReminderSummary(for: i))
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
@@ -383,7 +393,7 @@ struct AIChangeBatchReviewView: View {
     }
     private func memoReminderSummary(for index: Int) -> String {
         let due = clearedDeadlines.contains(index) ? nil : proposals[index].deadline.flatMap { ISO8601DateFormatter().date(from: $0) } ?? originalMemos[index]?.dueAt
-        return AIMemoReminderPreview.text(due: due, original: originalMemos[index])
+        return AIMemoReminderPreview.text(due: due, plan: plannedDates[index], status: originalMemos[index]?.status ?? .todo, original: originalMemos[index])
     }
     private func prepare() {
         guard !prepared else { return }
@@ -401,6 +411,9 @@ struct AIChangeBatchReviewView: View {
                 let matches = courseData.courses.filter { $0.name == target }
                 if matches.count == 1 { originalCourses[i] = matches[0] }
             }
+        }
+        for i in proposals.indices where proposals[i].kind == .memo {
+            plannedDates[i] = proposals[i].planAt.flatMap { ISO8601DateFormatter().date(from: $0) } ?? originalMemos[i]?.planAt
         }
     }
     private func fail(_ message: String) { error = message }
@@ -477,6 +490,7 @@ struct AIChangeBatchReviewView: View {
                     entity.title = p.title ?? originalMemos[i]?.title
                     entity.content = p.content ?? originalMemos[i]?.content ?? ""
                     entity.courseLink = (memoLinks[i] ?? "").isEmpty ? nil : memoLinks[i]
+                    entity.planAt = plannedDates[i]
                     if clearedDeadlines.contains(i) { entity.dueAt = nil }
                     else if let raw = p.deadline { entity.dueAt = ISO8601DateFormatter().date(from: raw) }
                     entity.updatedAt = Date()
@@ -559,8 +573,8 @@ enum AICoursePickerOptions {
 }
 
 enum AIMemoReminderPreview {
-    static func text(due: Date?, original: Memo?) -> String {
-        if original?.status == .done { return "已完成，不會發送提醒。" }
+    static func text(due: Date?, plan: Date?, status: Memo.MemoStatus, original: Memo?) -> String {
+        if status == .done { return "已完成，不會發送提醒。" }
         let now = Date()
         let custom = original?.reminderRules.filter { $0.enabled } ?? []
         var parts: [String] = []
@@ -572,11 +586,28 @@ enum AIMemoReminderPreview {
             let dates = [due.addingTimeInterval(-86400), due.addingTimeInterval(-1800)].filter { $0 > now }
             if !dates.isEmpty { parts.append("截止提醒：" + dates.map { $0.formatted(date: .abbreviated, time: .shortened) }.joined(separator: "、")) }
         }
-        if let plan = original?.planAt, plan > now, original?.disableAutoPlanReminder != true,
+        if let plan, plan > now, original?.disableAutoPlanReminder != true,
            !custom.contains(where: { $0.kind == .atPlan }) {
             parts.append("計劃提醒：" + plan.formatted(date: .abbreviated, time: .shortened))
         }
         return parts.isEmpty ? "沒有待發送的提醒，可儲存後在備忘錄中設定。" : parts.joined(separator: "\n") + "。需允許 App 通知。"
 
+    }
+}
+
+private struct AIPlanDateField: View {
+    @Binding var date: Date?
+
+    var body: some View {
+        Toggle("安排計劃時間", isOn: Binding(
+            get: { date != nil },
+            set: { date = $0 ? (date ?? Date()) : nil }
+        ))
+        if let value = date {
+            DatePicker("計劃時間", selection: Binding(
+                get: { date ?? value },
+                set: { date = $0 }
+            ))
+        }
     }
 }

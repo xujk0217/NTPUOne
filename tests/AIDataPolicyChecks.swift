@@ -69,7 +69,8 @@ struct AIDataPolicyChecks {
         precondition(AIArrivalPolicy.sources(includePersonal: true) == [.courses, .memos, .weather, .restaurants])
         precondition(!AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: true, lastAttempt: nil))
         precondition(!AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: false, lastAttempt: now.addingTimeInterval(-5)))
-        precondition(AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: false, lastAttempt: now.addingTimeInterval(-61)))
+        precondition(!AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: false, lastAttempt: now.addingTimeInterval(-1799)))
+        precondition(AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: false, lastAttempt: now.addingTimeInterval(-1800)))
         var calendar = Calendar(identifier: .gregorian); calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
         let monday = calendar.date(from: DateComponents(year: 2026, month: 11, day: 2, hour: 8, minute: 0))!
         precondition(AIArrivalPolicy.shouldGenerate(now: now, entryAlreadyRequested: false, lastAttempt: nil))

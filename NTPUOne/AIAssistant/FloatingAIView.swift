@@ -507,7 +507,7 @@ private struct AIChatPanel: View {
                     Section {
                         Toggle("進入 App 時提醒", isOn: Binding(get: { bridge.arrivalEnabled }, set: { bridge.setArrivalEnabled($0) }))
                     } footer: {
-                        Text("每次開啟 App 或從背景回來時提醒一次；AI 必須已登入。未開啟 App 資料時只提供公開資訊。設定會沿用後續聊天，隨時可關閉。")
+                        Text("開啟 App 或從背景回來時，每 30 分鐘最多提醒一次。AI 須已登入。關閉 App 資料授權時，僅使用公開資訊。")
                     }
                 }
                 .navigationTitle("AI 資料與提醒")
