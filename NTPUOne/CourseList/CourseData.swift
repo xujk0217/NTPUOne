@@ -11,7 +11,7 @@ import UserNotifications
 import SwiftUI
 import WidgetKit
 
-struct Course: Identifiable {
+struct Course: Identifiable, Equatable {
     var id: String
     var name: String
     var day: String
@@ -61,16 +61,38 @@ struct Course: Identifiable {
 
 class CourseData: ObservableObject {
     @Published var courses: [Course] = []
+    struct SyncConflict: Identifiable {
+        let id: NSManagedObjectID
+        let course: Course
+    }
+
+    @Published private(set) var syncConflicts: [SyncConflict] = []
     var viewContext: NSManagedObjectContext?
+    private var remoteChanges: NSObjectProtocol?
 
     init(context: NSManagedObjectContext? = nil) {
         self.viewContext = context
-        if let viewContext = context {
-            print("Context initialized successfully")
-        } else {
-            print("Context is nil during CourseData initialization")
+        if let coordinator = context?.persistentStoreCoordinator {
+            remoteChanges = NotificationCenter.default.addObserver(
+                forName: .NSPersistentStoreRemoteChange, object: coordinator, queue: nil
+            ) { [weak self] _ in
+                DispatchQueue.main.async { [weak self] in self?.loadCoursesFromCoreData() }
+            }
         }
         loadCoursesFromCoreData()
+    }
+
+    deinit {
+        if let remoteChanges { NotificationCenter.default.removeObserver(remoteChanges) }
+    }
+
+    private func course(from row: CourseEntity) -> Course {
+        Course(id: row.id ?? row.objectID.uriRepresentation().absoluteString,
+               name: row.name ?? "", day: row.day ?? "",
+               startTime: Course.TimeStart(rawValue: row.startTime ?? "") ?? .none,
+               timeSlot: Course.TimeSlot(rawValue: row.timeSlot ?? "") ?? .morning1,
+               location: row.location ?? "", teacher: row.teacher ?? "",
+               isNotification: row.isNotification)
     }
 
     func loadCoursesFromCoreData() {
@@ -82,19 +104,15 @@ class CourseData: ObservableObject {
         let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
 
         do {
-            let courseEntities = try viewContext.fetch(fetchRequest)
-            print("Success: Fetched \(courseEntities.count) courses from Core Data.")
-            self.courses = courseEntities.map { courseEntity in
-                Course(
-                    id: courseEntity.id ?? UUID().uuidString,
-                    name: courseEntity.name ?? "",
-                    day: courseEntity.day ?? "",
-                    startTime: Course.TimeStart(rawValue: courseEntity.startTime ?? Course.TimeStart.none.rawValue) ?? .none,
-                    timeSlot: Course.TimeSlot(rawValue: courseEntity.timeSlot ?? Course.TimeSlot.morning1.rawValue) ?? .morning1,
-                    location: courseEntity.location ?? "",
-                    teacher: courseEntity.teacher ?? "", 
-                    isNotification: courseEntity.isNotification
-                )
+            fetchRequest.shouldRefreshRefetchedObjects = !viewContext.hasChanges
+            let selection = CourseScheduleStorage.partition(try viewContext.fetch(fetchRequest))
+            let previousIDs = Set(courses.map(\.id))
+            let visible = selection.visible.map(course(from:))
+            courses = visible
+            syncConflicts = selection.conflicts.map { SyncConflict(id: $0.objectID, course: course(from: $0)) }
+            let visibleIDs = Set(courses.map(\.id))
+            for id in previousIDs.union(selection.conflicts.compactMap(\.id)).subtracting(visibleIDs) {
+                cancelNotification(withId: id)
             }
             scheduleNotificationsForAllCourses()
         } catch {
@@ -122,86 +140,82 @@ class CourseData: ObservableObject {
         }
     }
 
-    func addCourse(_ course: Course) {
-        guard let viewContext = viewContext else {
-            return
-        }
-        
-        let newCourse = CourseEntity(context: viewContext)
-        newCourse.id = course.id
-        newCourse.name = course.name
-        newCourse.day = course.day
-        var startTime = Course.TimeStart.none
-        switch course.timeSlot {
-        case .morning1:
-            startTime = Course.TimeStart.eight
-        case .morning2:
-            startTime = Course.TimeStart.nine
-        case .morning3:
-            startTime = Course.TimeStart.ten
-        case .morning4:
-            startTime = Course.TimeStart.eleven
-        case .afternoon1:
-            startTime = Course.TimeStart.thirteen
-        case .afternoon2:
-            startTime = Course.TimeStart.fourteen
-        case .afternoon3:
-            startTime = Course.TimeStart.fifteen
-        case .afternoon4:
-            startTime = Course.TimeStart.sixteen
-        case .afternoon5:
-            startTime = Course.TimeStart.seventeen
-        case .evening1:
-            startTime = Course.TimeStart.eighteen
-        case .evening2:
-            startTime = Course.TimeStart.nineteen
-        case .evening3:
-            startTime = Course.TimeStart.twenty
-        case .evening4:
-            startTime = Course.TimeStart.twentyone
-        }
-        newCourse.startTime = startTime.rawValue
-        newCourse.timeSlot = course.timeSlot.rawValue
-        newCourse.location = course.location
-        newCourse.teacher = course.teacher
-        newCourse.isNotification = course.isNotification
-        
-        var NCourse = course
-        NCourse.startTime = startTime
-        
-        if NCourse.isNotification {
-            scheduleNotification(for: NCourse)
-        }
-        
-        saveContext()
-        courses.append(NCourse)
-        listAllPendingNotifications()
-        refreshNextCourseLiveActivity()
+    @discardableResult
+    func addCourse(_ course: Course) -> Bool {
+        saveCourses([course])
     }
 
-    func deleteCourse(_ course: Course) {
-        guard let viewContext = viewContext else {
-            return
-        }
-        cancelNotification(for: course)
-        
-        let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "id == %@", course.id)
+    @discardableResult
+    func updateCourse(_ course: Course) -> Bool {
+        saveCourses([course], updating: true)
+    }
 
+    func saveCourses(_ newCourses: [Course], replacing previousCourses: [Course] = [], updating: Bool = false) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
         do {
-            let courseEntities = try viewContext.fetch(fetchRequest)
-            for courseEntity in courseEntities {
-                viewContext.delete(courseEntity)
+            let request = CourseEntity.fetchRequest()
+            request.shouldRefreshRefetchedObjects = true
+            let rows = try context.fetch(request)
+            for previous in previousCourses {
+                let matches = rows.filter { $0.id == previous.id }
+                guard matches.count == 1, let old = matches.first, course(from: old) == previous else {
+                    throw CourseScheduleStorage.Conflict()
+                }
+                context.delete(old)
             }
-            saveContext()
-            if let index = courses.firstIndex(where: { $0.id == course.id }) {
-                courses.remove(at: index)
+            for course in newCourses {
+                let row: CourseEntity
+                if updating {
+                    let matches = rows.filter { !$0.isDeleted && $0.id == course.id }
+                    guard matches.count == 1, let existing = matches.first else { throw CourseScheduleStorage.Conflict() }
+                    row = existing
+                } else {
+                    row = CourseEntity(context: context)
+                    row.id = course.id
+                }
+                row.name = course.name
+                row.day = course.day
+                row.timeSlot = course.timeSlot.rawValue
+                row.startTime = Self.startTime(for: course.timeSlot).rawValue
+                row.location = course.location
+                row.teacher = course.teacher
+                row.isNotification = course.isNotification
             }
-            refreshNextCourseLiveActivity()
+            try CourseScheduleStorage.validatePendingChanges(in: context)
+            try context.save()
+            loadCoursesFromCoreData()
+            return true
         } catch {
+            context.rollback()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
         }
     }
-    
+
+    private static func startTime(for slot: Course.TimeSlot) -> Course.TimeStart {
+        let times: [Course.TimeStart] = [.eight, .nine, .ten, .eleven, .thirteen, .fourteen, .fifteen,
+                                         .sixteen, .seventeen, .eighteen, .nineteen, .twenty, .twentyone]
+        return times[Course.TimeSlot.allCases.firstIndex(of: slot)!]
+    }
+
+    func deleteCourse(_ course: Course) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
+        do {
+            let request = CourseEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", course.id)
+            let matches = try context.fetch(request)
+            guard matches.count == 1, let row = matches.first else { throw CourseScheduleStorage.Conflict() }
+            context.delete(row)
+            try context.save()
+            loadCoursesFromCoreData()
+            return true
+        } catch {
+            context.rollback()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
+        }
+    }
+
     func deleteCourseById(_ courseId: String) {
         guard let viewContext = viewContext else {
             print("Error: View context is nil. Cannot delete course with id \(courseId).")
@@ -216,11 +230,7 @@ class CourseData: ObservableObject {
             if let courseEntity = try viewContext.fetch(fetchRequest).first {
                 viewContext.delete(courseEntity)
                 saveContext()
-                if let index = courses.firstIndex(where: { $0.id == courseId }) {
-                    courses.remove(at: index)
-                    print("Success: Deleted course with id \(courseId).")
-                }
-                refreshNextCourseLiveActivity()
+                loadCoursesFromCoreData()
             } else {
                 print("Info: No course found with id \(courseId) to delete.")
             }
@@ -229,43 +239,61 @@ class CourseData: ObservableObject {
         }
     }
 
-    func updateCourse(_ course: Course) {
-        guard let viewContext = viewContext else {
-            return
-        }
-        
-        if course.isNotification {
-            scheduleNotification(for: course)
-        } else {
-            cancelNotification(for: course)
-        }
-        
-        let fetchRequest: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
-        fetchRequest.predicate = NSPredicate(format: "id == %@", course.id)
-
+    @discardableResult
+    func resolveConflict(_ id: NSManagedObjectID, day: String, slot: Course.TimeSlot) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
         do {
-            let courseEntities = try viewContext.fetch(fetchRequest)
-            if let courseEntity = courseEntities.first {
-                courseEntity.name = course.name
-                courseEntity.day = course.day
-                courseEntity.startTime = course.startTime.rawValue
-                courseEntity.timeSlot = course.timeSlot.rawValue
-                courseEntity.location = course.location
-                courseEntity.teacher = course.teacher
-                courseEntity.isNotification = course.isNotification
-
-                saveContext()
-
-                if let index = courses.firstIndex(where: { $0.id == course.id }) {
-                    courses[index] = course
-                }
-                refreshNextCourseLiveActivity()
-            } else {
+            let request = CourseEntity.fetchRequest()
+            request.shouldRefreshRefetchedObjects = true
+            let rows = try context.fetch(request)
+            guard let row = CourseScheduleStorage.partition(rows).conflicts.first(where: { $0.objectID == id }) else {
+                throw CourseScheduleStorage.Conflict()
             }
+            if row.id == nil || row.id?.isEmpty == true || rows.contains(where: { $0 !== row && $0.id == row.id }) {
+                row.id = UUID().uuidString
+            }
+            row.day = day
+            row.timeSlot = slot.rawValue
+            row.startTime = Self.startTime(for: slot).rawValue
+            try CourseScheduleStorage.validatePendingChanges(in: context)
+            try context.save()
+            loadCoursesFromCoreData()
+            return true
         } catch {
+            context.rollback()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
         }
     }
-    
+
+    func removeConflict(_ id: NSManagedObjectID) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
+        do {
+            let request = CourseEntity.fetchRequest()
+            request.shouldRefreshRefetchedObjects = true
+            let rows = try context.fetch(request)
+            guard let row = CourseScheduleStorage.partition(rows).conflicts.first(where: { $0.objectID == id }) else {
+                throw CourseScheduleStorage.Conflict()
+            }
+            if let courseID = row.id, !rows.contains(where: { $0 !== row && $0.id == courseID }) {
+                let request: NSFetchRequest<MemoEntity> = MemoEntity.fetchRequest()
+                request.predicate = NSPredicate(format: "courseLink == %@", courseID)
+                for memo in try context.fetch(request) {
+                    memo.courseLink = nil
+                    memo.updatedAt = Date()
+                }
+            }
+            context.delete(row)
+            try context.save()
+            loadCoursesFromCoreData()
+            return true
+        } catch {
+            context.rollback()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
+        }
+    }
+
     @discardableResult
     func clearSchedule(deleteLinkedMemos: Bool) -> Bool {
         guard let context = viewContext, !context.hasChanges else { return false }
@@ -309,6 +337,7 @@ class CourseData: ObservableObject {
             // 清空記憶體中的課程
             let courseIds = courses.map { $0.id }
             courses.removeAll()
+            syncConflicts.removeAll()
             
             // 只取消課程通知，避免清掉 Memo 通知
             if !courseIds.isEmpty {

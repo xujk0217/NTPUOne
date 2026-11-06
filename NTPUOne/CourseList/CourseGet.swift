@@ -253,8 +253,7 @@ struct CourseGetView: View {
             }
             .sheet(isPresented: $showingSheet, content: {
                 CourseGFormView(course: $newCourse, isNewCourse: true, onSave: {
-                    courseData.addCourse(newCourse)
-                    showingSheet = false
+                    if courseData.addCourse(newCourse) { showingSheet = false }
                 }, onCancel: {
                     showingSheet = false
                 }, courseData: courseData, isShowCourseG: $isPresented, endTimeSlot: setEndTimeSLot(selectCourse))

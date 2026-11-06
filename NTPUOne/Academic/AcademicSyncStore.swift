@@ -703,6 +703,7 @@ final class AcademicSyncStore: ObservableObject {
                 }
                 records[key] = ids
             }
+            try CourseScheduleStorage.validatePendingChanges(in: context)
             try context.save()
             cache.courseRecords = records; cache.courseSnapshots = snapshots
             data.loadCoursesFromCoreData()

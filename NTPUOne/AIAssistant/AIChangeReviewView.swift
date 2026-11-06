@@ -507,8 +507,13 @@ struct AIChangeBatchReviewView: View {
                     entity.location = p.location ?? originalCourses[i]?.location ?? ""; entity.teacher = p.teacher ?? originalCourses[i]?.teacher ?? ""; entity.isNotification = originalCourses[i]?.isNotification ?? false
                 }
             }
+            try CourseScheduleStorage.validatePendingChanges(in: context)
             try context.save()
-        } catch { context.rollback(); fail("儲存失敗，所有變更都已取消。請重新預覽。"); return }
+        } catch {
+            context.rollback()
+            fail((error as? CourseScheduleStorage.Conflict)?.localizedDescription ?? "儲存失敗，所有變更都已取消。請重新預覽。")
+            return
+        }
         for old in originalMemos.values { memoManager.cancelNotification(for: old) }
         for old in originalCourses.values { courseData.cancelNotification(for: old) }
         memoManager.loadMemosFromCoreData(); courseData.loadCoursesFromCoreData(); memoManager.scheduleNotificationsForAllMemos()

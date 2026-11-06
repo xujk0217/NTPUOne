@@ -27,6 +27,75 @@ struct TimeTableView: View {
     }
     
     @State private var clearFailed = false
+    @State private var selectedConflict: CourseData.SyncConflict?
+    @State private var conflictDay = "Monday"
+    @State private var conflictSlot: Course.TimeSlot = .morning1
+    @State private var confirmRemoveConflict = false
+    @State private var showConflicts = false
+    private let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
+
+    private var conflictNotice: some View {
+        DisclosureGroup(isExpanded: $showConflicts) {
+            ForEach(courseData.syncConflicts) { conflict in
+                Button {
+                    conflictDay = weekdays.contains(conflict.course.day) ? conflict.course.day : "Monday"
+                    conflictSlot = conflict.course.timeSlot
+                    selectedConflict = conflict
+                } label: {
+                    HStack {
+                        VStack(alignment: .leading) {
+                            Text(conflict.course.name)
+                            Text("\(NSLocalizedString(conflict.course.day, comment: "")) · \(NSLocalizedString(conflict.course.timeSlot.rawValue, comment: ""))")
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                    }
+                }
+                .padding(.vertical, 6)
+            }
+        } label: {
+            Label("課表有 \(courseData.syncConflicts.count) 筆同步衝突", systemImage: "exclamationmark.triangle")
+        }
+        .padding()
+        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
+        .padding(.horizontal)
+    }
+
+    private func conflictEditor(_ conflict: CourseData.SyncConflict) -> some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text("這筆課程已保留，請選擇空的時段，或移除這筆課程。")
+                    Picker("星期", selection: $conflictDay) {
+                        ForEach(weekdays, id: \.self) { day in Text(LocalizedStringKey(day)).tag(day) }
+                    }
+                    Picker("節次", selection: $conflictSlot) {
+                        ForEach(Course.TimeSlot.allCases) { slot in Text(LocalizedStringKey(slot.rawValue)).tag(slot) }
+                    }
+                    Button("移到選擇的時段") {
+                        if courseData.resolveConflict(conflict.id, day: conflictDay, slot: conflictSlot) {
+                            selectedConflict = nil
+                        }
+                    }
+                    .disabled(conflictDay == conflict.course.day && conflictSlot == conflict.course.timeSlot)
+                }
+                Button("移除這筆課程", role: .destructive) { confirmRemoveConflict = true }
+            }
+            .navigationTitle(conflict.course.name)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { selectedConflict = nil } } }
+            .confirmationDialog("移除這筆衝突課程？", isPresented: $confirmRemoveConflict, titleVisibility: .visible) {
+                Button("移除", role: .destructive) {
+                    if courseData.removeConflict(conflict.id) {
+                        memoManager.loadMemosFromCoreData()
+                        selectedConflict = nil
+                    }
+                }
+            } message: {
+                Text("已連結的備忘錄會保留。如果同一課程 ID 還有其他紀錄，原有連結也會保留。")
+            }
+        }
+    }
     private func clearSchedule(deleteMemos: Bool) {
         let oldMemos = memoManager.memos
         guard courseData.clearSchedule(deleteLinkedMemos: deleteMemos) else { clearFailed = true; return }
@@ -38,6 +107,7 @@ struct TimeTableView: View {
         NavigationStack {
             ScrollView{
                 VStack {
+                    if !courseData.syncConflicts.isEmpty { conflictNotice }
                     if isEdit{
                         Toggle("Saturday", isOn: $isSaturday)
                             .padding()
@@ -83,7 +153,7 @@ struct TimeTableView: View {
                     if isEdit {
                         Button(role: .destructive) {
                             // 計算有連結課程的任務數量（courseLink 存的是課程 ID）
-                            let allCourseIds = Set(courseData.courses.map { $0.id })
+                            let allCourseIds = Set(courseData.courses.map(\.id) + courseData.syncConflicts.map { $0.course.id })
                             totalMemoCount = memoManager.memos.filter { memo in
                                 guard let courseLink = memo.courseLink, !courseLink.isEmpty else { return false }
                                 return allCourseIds.contains(courseLink)
@@ -110,6 +180,7 @@ struct TimeTableView: View {
                 }
             }
             .alert("無法清空課表", isPresented: $clearFailed) { Button("好", role: .cancel) {} } message: { Text("資料未變更，請稍後重試。") }
+            .sheet(item: $selectedConflict) { conflictEditor($0) }
             .navigationTitle("Course Schedule")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar{

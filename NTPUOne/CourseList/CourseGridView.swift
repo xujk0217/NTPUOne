@@ -410,11 +410,7 @@ struct CourseFormSheet: View {
             if !isNewCourse {
                 CourseFormView(course: $selectedCourse, isNewCourse: false, onSave: {
                     guard checkAIOriginal() else { return }
-                    if let index = courseData.courses.firstIndex(where: { $0.id == selectedCourse.id }) {
-                        courseData.courses[index] = selectedCourse
-                        courseData.updateCourse(selectedCourse)
-                    }
-                    showingSheet = false
+                    if courseData.updateCourse(selectedCourse) { showingSheet = false }
                 }, onCancel: {
                     showingSheet = false
                 }, onDelete: {
@@ -422,8 +418,7 @@ struct CourseFormSheet: View {
                 }, courseData: courseData)
             } else {
                 CourseFormView(course: $newCourse, isNewCourse: true, onSave: {
-                    courseData.addCourse(newCourse)
-                    showingSheet = false
+                    if courseData.addCourse(newCourse) { showingSheet = false }
                 }, onCancel: {
                     showingSheet = false
                 }, courseData: courseData)
@@ -454,9 +449,13 @@ struct CourseFormSheet: View {
         return true
     }
     private func handleDeleteCourse() {
+        guard !courseData.syncConflicts.contains(where: { $0.course.id == selectedCourse.id }) else {
+            CoreDataManager.shared.reportOperationError(CourseScheduleStorage.Conflict())
+            return
+        }
         guard checkAIOriginal() else { return }
         // 檢查是否是最後一個同名課程
-        let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }
+        let sameNameCourses = (courseData.courses + courseData.syncConflicts.map(\.course)).filter { $0.name == selectedCourse.name }
         isLastCourseWithName = sameNameCourses.count == 1
         
         // 如果是最後一個，計算相關任務數量
@@ -478,11 +477,17 @@ struct CourseFormSheet: View {
     }
     
     private func performDelete() {
+        guard !courseData.syncConflicts.contains(where: { $0.course.id == selectedCourse.id }) else {
+            CoreDataManager.shared.reportOperationError(CourseScheduleStorage.Conflict())
+            return
+        }
         guard checkAIOriginal() else { return }
         print("🗑️ 開始執行刪除: 課程名稱=\(selectedCourse.name)")
         
-        let sameNameCourses = courseData.courses.filter { $0.name == selectedCourse.name }
+        let sameNameCourses = (courseData.courses + courseData.syncConflicts.map(\.course)).filter { $0.name == selectedCourse.name }
         
+        guard courseData.deleteCourse(selectedCourse) else { return }
+
         if isLastCourseWithName {
             // 最後一個同名課程，刪除相關任務
             let sameNameCourseIds = Set(sameNameCourses.map { $0.id })
@@ -510,7 +515,6 @@ struct CourseFormSheet: View {
         
         // 刪除課程
         print("🗑️ 刪除課程: \(selectedCourse.name)")
-        courseData.deleteCourse(selectedCourse)
         
         // 刷新備忘錄數據
         memoManager.loadMemosFromCoreData()

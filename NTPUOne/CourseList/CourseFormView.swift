@@ -20,7 +20,7 @@ struct CourseFormView: View {
 
     @State private var showingAlert = false
     @State private var showingAllowAlert = false
-    @State private var allowOverwrite = false
+    @State private var pendingOverwrite: [Course] = []
     @State private var overwriteCourse: Course? = nil
     @State private var endTimeSlot: Course.TimeSlot = .morning1
     
@@ -147,9 +147,8 @@ struct CourseFormView: View {
                     title: Text("Duplicate Course"),
                     message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue) to \(endTimeSlot.rawValue). Do you want to overwrite it?"),
                     primaryButton: .destructive(Text("Overwrite")) {
-                        allowOverwrite = true
                         showingAllowAlert = false
-                        saveCoursesInTimeRange()
+                        saveCoursesInTimeRange(confirmedReplacement: pendingOverwrite)
 //                        performSaveCoursesInTimeRange()
                     },
                     secondaryButton: .cancel() {
@@ -162,9 +161,10 @@ struct CourseFormView: View {
                     message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue). Do you want to overwrite it?"),
                     primaryButton: .destructive(Text("Overwrite")) {
                         if let overwriteCourse = overwriteCourse {
-                            courseData.deleteCourse(overwriteCourse)
                             showingAlert = false
-                            onSave()
+                            if courseData.saveCourses([course], replacing: [overwriteCourse], updating: !isNewCourse) {
+                                onCancel()
+                            }
                         }
                     },
                     secondaryButton: .cancel()
@@ -173,106 +173,26 @@ struct CourseFormView: View {
         }
     }
 
-    private func saveCoursesInTimeRange() {
-        guard let startIndex = Course.TimeSlot.allCases.firstIndex(of: course.timeSlot),
-              let endIndex = Course.TimeSlot.allCases.firstIndex(of: endTimeSlot) else {
+    private func saveCoursesInTimeRange(confirmedReplacement: [Course]? = nil) {
+        let slots = Course.TimeSlot.allCases
+        guard let start = slots.firstIndex(of: course.timeSlot),
+              let end = slots.firstIndex(of: endTimeSlot), start <= end else { return }
+        let selectedSlots = slots[start...end]
+        let previous = confirmedReplacement ?? selectedSlots.compactMap { findDuplicateCourse(course.day, $0) }
+        if !previous.isEmpty && confirmedReplacement == nil {
+            pendingOverwrite = previous
+            showingAllowAlert = true
+            showingAlert = true
             return
         }
-
-        let timeSlotsToCheck = Array(Course.TimeSlot.allCases[startIndex...endIndex])
-        var isRepeat = false
-        
-        for slot in timeSlotsToCheck {
-            if isTimeSlotOccupied(day: course.day, timeSlot: slot) {
-                isRepeat = true
-                if !allowOverwrite {
-                    showingAllowAlert = true
-                    showingAlert = true
-                    return
-                }
-            }
+        let proposed = selectedSlots.enumerated().map { offset, slot in
+            Course(id: UUID().uuidString, name: course.name, day: course.day, startTime: .none,
+                   timeSlot: slot, location: course.location, teacher: course.teacher,
+                   isNotification: offset == 0 && course.isNotification)
         }
-        
-        if isRepeat {
-            if allowOverwrite{
-                var firstCourse = 0
-                for slot in timeSlotsToCheck {
-                    guard let context = courseData.viewContext else {
-                        print("viewContext is nil")
-                        return
-                    }
-                    if let overwriteCourse = findDuplicateCourse(course.day, slot) {
-                        courseData.deleteCourse(overwriteCourse)
-                    }
-                    
-                    var notification = false
-                    
-                    if firstCourse == 0{
-                        notification = course.isNotification
-                        firstCourse = 1
-                    }
-    
-                    // 使用 addCourse 方法添加课程
-                    let newCourse = Course(id: UUID().uuidString,
-                                            name: course.name ?? "",
-                                            day: course.day ?? "",
-                                            startTime: .none,
-                                            timeSlot: slot,
-                                            location: course.location ?? "",
-                                           teacher: course.teacher ?? "",
-                                           isNotification: notification)
-                    
-                    courseData.addCourse(newCourse)
-                }
-            } else{
-                showingAllowAlert = false
-                allowOverwrite = false
-                isRepeat = false
-                onCancel()
-            }
-        }else{
-            var firstCourse = 0
-            for slot in timeSlotsToCheck {
-                guard let context = courseData.viewContext else {
-                    print("viewContext is nil")
-                    return
-                }
-                
-                var notification = false
-                
-                if firstCourse == 0{
-                    notification = course.isNotification
-                    firstCourse = 1
-                }
-                
-                // 使用 addCourse 方法添加课程
-                let newCourse = Course(id: UUID().uuidString,
-                                        name: course.name ?? "",
-                                        day: course.day ?? "",
-                                        startTime: .none,
-                                        timeSlot: slot,
-                                        location: course.location ?? "",
-                                       teacher: course.teacher ?? "", 
-                                       isNotification: notification)
-                
-                courseData.addCourse(newCourse)
-            }
-        }
-        
-        do {
-            try courseData.viewContext?.save()
-        } catch {
-            print("Failed to save courses: \(error)")
-        }
-        
         showingAllowAlert = false
-        allowOverwrite = false
-        isRepeat = false
-        onCancel()
-    }
-
-    private func isTimeSlotOccupied(day: String, timeSlot: Course.TimeSlot) -> Bool {
-        return courseData.courses.contains { $0.day == day && $0.timeSlot == timeSlot }
+        pendingOverwrite = []
+        if courseData.saveCourses(proposed, replacing: previous) { onCancel() }
     }
 
     private func checkForDuplicateCourse() {
@@ -319,7 +239,7 @@ struct CourseGFormView: View {
 
     @State private var showingAlert = false
     @State private var showingAllowAlert = false
-    @State private var allowOverwrite = false
+    @State private var pendingOverwrite: [Course] = []
     @State private var overwriteCourse: Course? = nil
     @State var endTimeSlot: Course.TimeSlot
     
@@ -458,9 +378,8 @@ struct CourseGFormView: View {
                     title: Text("Duplicate Course"),
                     message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue) to \(endTimeSlot.rawValue). Do you want to overwrite it?"),
                     primaryButton: .destructive(Text("Overwrite")) {
-                        allowOverwrite = true
                         showingAllowAlert = false
-                        saveCoursesInTimeRange()
+                        saveCoursesInTimeRange(confirmedReplacement: pendingOverwrite)
 //                        performSaveCoursesInTimeRange()
                     },
                     secondaryButton: .cancel() {
@@ -473,9 +392,10 @@ struct CourseGFormView: View {
                     message: Text("A course already exists on \(course.day) at \(course.timeSlot.rawValue). Do you want to overwrite it?"),
                     primaryButton: .destructive(Text("Overwrite")) {
                         if let overwriteCourse = overwriteCourse {
-                            courseData.deleteCourse(overwriteCourse)
                             showingAlert = false
-                            onSave()
+                            if courseData.saveCourses([course], replacing: [overwriteCourse], updating: !isNewCourse) {
+                                onCancel()
+                            }
                         }
                     },
                     secondaryButton: .cancel()
@@ -487,106 +407,26 @@ struct CourseGFormView: View {
         }
     }
 
-    private func saveCoursesInTimeRange() {
-        guard let startIndex = Course.TimeSlot.allCases.firstIndex(of: course.timeSlot),
-              let endIndex = Course.TimeSlot.allCases.firstIndex(of: endTimeSlot) else {
+    private func saveCoursesInTimeRange(confirmedReplacement: [Course]? = nil) {
+        let slots = Course.TimeSlot.allCases
+        guard let start = slots.firstIndex(of: course.timeSlot),
+              let end = slots.firstIndex(of: endTimeSlot), start <= end else { return }
+        let selectedSlots = slots[start...end]
+        let previous = confirmedReplacement ?? selectedSlots.compactMap { findDuplicateCourse(course.day, $0) }
+        if !previous.isEmpty && confirmedReplacement == nil {
+            pendingOverwrite = previous
+            showingAllowAlert = true
+            showingAlert = true
             return
         }
-
-        let timeSlotsToCheck = Array(Course.TimeSlot.allCases[startIndex...endIndex])
-        var isRepeat = false
-        
-        for slot in timeSlotsToCheck {
-            if isTimeSlotOccupied(day: course.day, timeSlot: slot) {
-                isRepeat = true
-                if !allowOverwrite {
-                    showingAllowAlert = true
-                    showingAlert = true
-                    return
-                }
-            }
+        let proposed = selectedSlots.enumerated().map { offset, slot in
+            Course(id: UUID().uuidString, name: course.name, day: course.day, startTime: .none,
+                   timeSlot: slot, location: course.location, teacher: course.teacher,
+                   isNotification: offset == 0 && course.isNotification)
         }
-        
-        if isRepeat {
-            if allowOverwrite{
-                var firstCourse = 0
-                for slot in timeSlotsToCheck {
-                    guard let context = courseData.viewContext else {
-                        print("viewContext is nil")
-                        return
-                    }
-                    if let overwriteCourse = findDuplicateCourse(course.day, slot) {
-                        courseData.deleteCourse(overwriteCourse)
-                    }
-                    
-                    var notification = false
-                    
-                    if firstCourse == 0{
-                        notification = course.isNotification
-                        firstCourse = 1
-                    }
-                    
-                    // 使用 addCourse 方法添加课程
-                    let newCourse = Course(id: UUID().uuidString,
-                                            name: course.name ?? "",
-                                            day: course.day ?? "",
-                                            startTime: .none,
-                                            timeSlot: slot,
-                                            location: course.location ?? "",
-                                           teacher: course.teacher ?? "",
-                                           isNotification: notification)
-                    
-                    courseData.addCourse(newCourse)
-                }
-            } else{
-                showingAllowAlert = false
-                allowOverwrite = false
-                isRepeat = false
-                onCancel()
-            }
-        }else{
-            var firstCourse = 0
-            for slot in timeSlotsToCheck {
-                guard let context = courseData.viewContext else {
-                    print("viewContext is nil")
-                    return
-                }
-                
-                var notification = false
-                
-                if firstCourse == 0{
-                    notification = course.isNotification
-                    firstCourse = 1
-                }
-                
-                // 使用 addCourse 方法添加课程
-                let newCourse = Course(id: UUID().uuidString,
-                                        name: course.name ?? "",
-                                        day: course.day ?? "",
-                                        startTime: .none,
-                                        timeSlot: slot,
-                                        location: course.location ?? "",
-                                       teacher: course.teacher ?? "",
-                                       isNotification: notification)
-                
-                courseData.addCourse(newCourse)
-            }
-        }
-        
-        do {
-            try courseData.viewContext?.save()
-        } catch {
-            print("Failed to save courses: \(error)")
-        }
-        
         showingAllowAlert = false
-        allowOverwrite = false
-        isRepeat = false
-        onCancel()
-    }
-
-    private func isTimeSlotOccupied(day: String, timeSlot: Course.TimeSlot) -> Bool {
-        return courseData.courses.contains { $0.day == day && $0.timeSlot == timeSlot }
+        pendingOverwrite = []
+        if courseData.saveCourses(proposed, replacing: previous) { onCancel() }
     }
 
     private func checkForDuplicateCourse() {

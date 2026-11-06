@@ -38,7 +38,7 @@ struct CourseLargeProvider: TimelineProvider {
         let request: NSFetchRequest<CourseEntity> = CourseEntity.fetchRequest()
         
         do {
-            let result = try WidgetPersistence.fetch(request)
+            let result = CourseScheduleStorage.partition(try WidgetPersistence.fetch(request)).visible
             print("Fetched \(result.count) courses from Core Data.")
             return result
         } catch {
