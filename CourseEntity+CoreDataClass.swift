@@ -73,6 +73,27 @@ enum CourseScheduleStorage {
         return (visible, conflicts)
     }
 
+    static func sameSlot(_ lhs: CourseEntity, _ rhs: CourseEntity) -> Bool {
+        guard let slot = Slot(lhs) else { return false }
+        return slot == Slot(rhs)
+    }
+
+    static func duplicateGroups(_ rows: [CourseEntity]) -> [[CourseEntity]] {
+        struct Key: Hashable {
+            let slot: Slot
+            let name: String
+        }
+        let grouped = Dictionary(grouping: rows) { row -> Key? in
+            guard let slot = Slot(row),
+                  let name = row.name?.trimmingCharacters(in: .whitespacesAndNewlines), !name.isEmpty else { return nil }
+            return Key(slot: slot, name: name)
+        }
+        return grouped.compactMap { key, group in
+            guard key != nil, group.count > 1 else { return nil }
+            return group.sorted { order($0).lexicographicallyPrecedes(order($1)) }
+        }
+    }
+
     private static func order(_ row: CourseEntity) -> [String] {
         [row.id ?? "", row.name ?? "", row.day ?? "", row.timeSlot ?? "", row.startTime ?? "",
          row.location ?? "", row.teacher ?? "", row.isNotification ? "1" : "0"]

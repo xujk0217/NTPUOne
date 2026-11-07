@@ -69,6 +69,18 @@ struct CourseScheduleStorageChecks {
         _ = insert("A", slot: "Morning 3")
         try expectCollision()
         context.rollback()
-        print("PASS: local and batch collisions, deterministic imported conflict, move, duplicate ID")
+        let original = rows.first { $0.id == "A" }!
+        let duplicate = insert("D", day: " monday ")
+        duplicate.name = original.name
+        try context.save()
+        rows = try context.fetch(CourseEntity.fetchRequest())
+        let duplicates = CourseScheduleStorage.duplicateGroups(rows)
+        precondition(duplicates.count == 1 && duplicates[0].map(\.id) == ["A", "D"])
+        context.delete(original)
+        try context.save()
+        rows = try context.fetch(CourseEntity.fetchRequest())
+        let recalculated = CourseScheduleStorage.partition(rows)
+        precondition(recalculated.conflicts.isEmpty && recalculated.visible.contains(duplicate))
+        print("PASS: local and batch collisions, deterministic imported conflict, move, duplicate ID, duplicate grouping and recalculation after deletion")
     }
 }

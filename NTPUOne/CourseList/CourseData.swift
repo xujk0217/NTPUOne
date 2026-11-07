@@ -66,6 +66,13 @@ class CourseData: ObservableObject {
         let course: Course
     }
 
+    struct ConflictSlot: Identifiable {
+        let id: NSManagedObjectID
+        let choices: [SyncConflict]
+        let activeID: NSManagedObjectID?
+    }
+
+    @Published private(set) var conflictSlots: [ConflictSlot] = []
     @Published private(set) var syncConflicts: [SyncConflict] = []
     var viewContext: NSManagedObjectContext?
     private var remoteChanges: NSObjectProtocol?
@@ -105,13 +112,42 @@ class CourseData: ObservableObject {
 
         do {
             fetchRequest.shouldRefreshRefetchedObjects = !viewContext.hasChanges
-            let selection = CourseScheduleStorage.partition(try viewContext.fetch(fetchRequest))
+            var rows = try viewContext.fetch(fetchRequest)
+            let fetchedIDs = Set(rows.compactMap(\.id))
+            if !viewContext.hasChanges {
+                do {
+                    if try mergeDuplicateCourses(rows, in: viewContext) {
+                        rows = try viewContext.fetch(fetchRequest)
+                    }
+                } catch {
+                    viewContext.rollback()
+                    rows = try viewContext.fetch(fetchRequest)
+                }
+            }
+            let selection = CourseScheduleStorage.partition(rows)
             let previousIDs = Set(courses.map(\.id))
             let visible = selection.visible.map(course(from:))
             courses = visible
             syncConflicts = selection.conflicts.map { SyncConflict(id: $0.objectID, course: course(from: $0)) }
+            let activeIDs = Set(selection.visible.map(\.objectID))
+            var groupedIDs = Set<NSManagedObjectID>()
+            conflictSlots = selection.conflicts.compactMap { row in
+                guard !groupedIDs.contains(row.objectID) else { return nil }
+                let matches = rows.filter { $0 === row || CourseScheduleStorage.sameSlot(row, $0) }
+                groupedIDs.formUnion(matches.map(\.objectID))
+                let active = matches.first { activeIDs.contains($0.objectID) }
+                let choices = matches.map { SyncConflict(id: $0.objectID, course: course(from: $0)) }
+                    .sorted { ($0.course.name, $0.course.id) < ($1.course.name, $1.course.id) }
+                return ConflictSlot(id: active?.objectID ?? row.objectID, choices: choices, activeID: active?.objectID)
+            }.sorted {
+                guard let lhs = $0.choices.first?.course, let rhs = $1.choices.first?.course else { return false }
+                let days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+                let slots = Course.TimeSlot.allCases
+                return (days.firstIndex(of: lhs.day) ?? 7, slots.firstIndex(of: lhs.timeSlot) ?? 13)
+                    < (days.firstIndex(of: rhs.day) ?? 7, slots.firstIndex(of: rhs.timeSlot) ?? 13)
+            }
             let visibleIDs = Set(courses.map(\.id))
-            for id in previousIDs.union(selection.conflicts.compactMap(\.id)).subtracting(visibleIDs) {
+            for id in previousIDs.union(fetchedIDs).subtracting(visibleIDs) {
                 cancelNotification(withId: id)
             }
             scheduleNotificationsForAllCourses()
@@ -125,6 +161,110 @@ class CourseData: ObservableObject {
         refreshNextCourseLiveActivity()
     }
     
+    private func mergeDuplicateCourses(_ rows: [CourseEntity], in context: NSManagedObjectContext) throws -> Bool {
+        var merged = false
+        for group in CourseScheduleStorage.duplicateGroups(rows) {
+            let ids = group.compactMap(\.id)
+            // A local Core Data object ID is different on each device. A repeated
+            // logical ID must be resolved explicitly to avoid mutual deletion.
+            guard ids.count == group.count, ids.allSatisfy({ !$0.isEmpty }), Set(ids).count == ids.count,
+                  let winner = group.first, let winnerID = winner.id,
+                  rows.filter({ $0.id == winnerID }).count == 1,
+                  ids.allSatisfy({ id in rows.filter { $0.id == id }.count == 1 }) else { continue }
+            for duplicate in group.dropFirst() {
+                if winner.teacher?.isEmpty != false { winner.teacher = duplicate.teacher }
+                if winner.location?.isEmpty != false { winner.location = duplicate.location }
+                winner.isNotification = winner.isNotification || duplicate.isNotification
+                try updateMemoLinks(from: duplicate.id, to: winnerID, in: context)
+                context.delete(duplicate)
+            }
+            merged = true
+        }
+        if merged { try context.save() }
+        return merged
+    }
+
+    private func updateMemoLinks(from id: String?, to replacement: String?, in context: NSManagedObjectContext) throws {
+        guard let id, !id.isEmpty else { return }
+        let request = MemoEntity.fetchRequest()
+        request.predicate = NSPredicate(format: "courseLink == %@", id)
+        for memo in try context.fetch(request) {
+            memo.courseLink = replacement
+            memo.updatedAt = Date()
+        }
+    }
+
+    func keepCourse(_ choice: SyncConflict, in group: ConflictSlot) -> Bool {
+        guard let context = viewContext, !context.hasChanges else { return false }
+        do {
+            let request = CourseEntity.fetchRequest()
+            request.shouldRefreshRefetchedObjects = true
+            let rows = try context.fetch(request)
+            guard let kept = rows.first(where: { $0.objectID == choice.id }) else { throw CourseScheduleStorage.Conflict() }
+            let candidates = rows.filter { $0 === kept || CourseScheduleStorage.sameSlot(kept, $0) }
+            guard candidates.count > 1, Set(candidates.map(\.objectID)) == Set(group.choices.map(\.id)),
+                  candidates.allSatisfy({ row in group.choices.contains { $0.id == row.objectID && $0.course == course(from: row) } }) else {
+                throw CourseScheduleStorage.Conflict()
+            }
+            if let id = kept.id, rows.contains(where: { $0.id == id && !candidates.contains($0) }) {
+                kept.id = UUID().uuidString
+            }
+            for row in candidates where row !== kept {
+                if let id = row.id, !rows.contains(where: { $0.id == id && ($0 === kept || !candidates.contains($0)) }) {
+                    try updateMemoLinks(from: id, to: nil, in: context)
+                }
+                context.delete(row)
+            }
+            try context.save()
+            loadCoursesFromCoreData()
+            return true
+        } catch {
+            context.rollback()
+            loadCoursesFromCoreData()
+            CoreDataManager.shared.reportOperationError(error)
+            return false
+        }
+    }
+
+    func contiguousCourses(around course: Course) -> [Course] {
+        let slots = Course.TimeSlot.allCases
+        guard let index = slots.firstIndex(of: course.timeSlot) else { return [course] }
+        let name = course.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let matching = courses.filter {
+            $0.day == course.day && $0.name.trimmingCharacters(in: .whitespacesAndNewlines) == name
+        }
+        func at(_ offset: Int) -> Course? {
+            guard slots.indices.contains(offset) else { return nil }
+            return matching.first { $0.timeSlot == slots[offset] }
+        }
+        var first = index, last = index
+        while at(first - 1) != nil { first -= 1 }
+        while at(last + 1) != nil { last += 1 }
+        return (first...last).compactMap { $0 == index ? course : at($0) }
+    }
+
+    func updateBlock(_ original: [Course], selected: Course, edited: Course) -> Bool {
+        let slots = Course.TimeSlot.allCases
+        guard let offset = original.firstIndex(where: { $0.id == selected.id }),
+              let index = slots.firstIndex(of: edited.timeSlot) else { return false }
+        let start = index - offset
+        guard start >= 0, start + original.count <= slots.count else {
+            CoreDataManager.shared.reportOperationError(CourseScheduleStorage.Conflict())
+            return false
+        }
+        let replacement = original.enumerated().map { position, old in
+            var course = old
+            course.name = edited.name
+            course.teacher = edited.teacher
+            course.location = edited.location
+            course.day = edited.day
+            course.timeSlot = slots[start + position]
+            if old.id == edited.id { course.isNotification = edited.isNotification }
+            return course
+        }
+        return saveCourses(replacement, updating: true, expected: original)
+    }
+
     func scheduleNotificationsForAllCourses() {
         // 只移除課程通知，避免清掉 Memo 通知
         let courseIds = courses.map { $0.id }
@@ -150,12 +290,18 @@ class CourseData: ObservableObject {
         saveCourses([course], updating: true)
     }
 
-    func saveCourses(_ newCourses: [Course], replacing previousCourses: [Course] = [], updating: Bool = false) -> Bool {
+    func saveCourses(_ newCourses: [Course], replacing previousCourses: [Course] = [], updating: Bool = false, expected: [Course] = []) -> Bool {
         guard let context = viewContext, !context.hasChanges else { return false }
         do {
             let request = CourseEntity.fetchRequest()
             request.shouldRefreshRefetchedObjects = true
             let rows = try context.fetch(request)
+            for original in expected {
+                let matches = rows.filter { $0.id == original.id }
+                guard matches.count == 1, let row = matches.first, course(from: row) == original else {
+                    throw CourseScheduleStorage.Conflict()
+                }
+            }
             for previous in previousCourses {
                 let matches = rows.filter { $0.id == previous.id }
                 guard matches.count == 1, let old = matches.first, course(from: old) == previous else {
@@ -199,13 +345,22 @@ class CourseData: ObservableObject {
     }
 
     func deleteCourse(_ course: Course) -> Bool {
+        deleteBlock([course])
+    }
+
+    func deleteBlock(_ block: [Course]) -> Bool {
         guard let context = viewContext, !context.hasChanges else { return false }
         do {
             let request = CourseEntity.fetchRequest()
-            request.predicate = NSPredicate(format: "id == %@", course.id)
-            let matches = try context.fetch(request)
-            guard matches.count == 1, let row = matches.first else { throw CourseScheduleStorage.Conflict() }
-            context.delete(row)
+            request.shouldRefreshRefetchedObjects = true
+            let rows = try context.fetch(request)
+            for course in block {
+                let matches = rows.filter { $0.id == course.id }
+                guard matches.count == 1, let row = matches.first, self.course(from: row) == course else {
+                    throw CourseScheduleStorage.Conflict()
+                }
+                context.delete(row)
+            }
             try context.save()
             loadCoursesFromCoreData()
             return true
@@ -338,6 +493,7 @@ class CourseData: ObservableObject {
             let courseIds = courses.map { $0.id }
             courses.removeAll()
             syncConflicts.removeAll()
+            conflictSlots.removeAll()
             
             // 只取消課程通知，避免清掉 Memo 通知
             if !courseIds.isEmpty {

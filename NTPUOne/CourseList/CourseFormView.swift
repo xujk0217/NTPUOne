@@ -16,6 +16,7 @@ struct CourseFormView: View {
     var onCancel: () -> Void
     var onDelete: (() -> Void)?
     var timeslotAfterStart = false
+    var contiguousEditCount = 1
     @ObservedObject var courseData: CourseData
 
     @State private var showingAlert = false
@@ -40,7 +41,11 @@ struct CourseFormView: View {
                     } header: {
                         Text("Course Name")
                     } footer: {
-                        Text("Course name is necessary")
+                        if contiguousEditCount > 1 {
+                            Text("這是 \(contiguousEditCount) 節連堂，儲存或刪除會一起套用。")
+                        } else {
+                            Text("Course name is necessary")
+                        }
                     }
                     Section {
                         TextField("Location", text: $course.location)
@@ -196,6 +201,7 @@ struct CourseFormView: View {
     }
 
     private func checkForDuplicateCourse() {
+        guard contiguousEditCount == 1 else { onSave(); return }
         if let existingCourse = findDuplicateCourse() {
             if existingCourse.id != course.id {
                 overwriteCourse = existingCourse
