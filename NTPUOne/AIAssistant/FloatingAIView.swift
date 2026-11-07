@@ -108,19 +108,13 @@ struct FloatingAIContainer<Content: View>: View {
                             let width = min(320, max(button.width, button.maxX - area.minX))
                             VStack(alignment: .trailing, spacing: 10) {
                                 if let tip = bridge.arrivalTip, button.minY - area.minY >= 100 {
-                                    VStack(alignment: .leading, spacing: 8) {
-                                        HStack {
-                                            Label("給你的小提醒", systemImage: "sparkles").font(.subheadline.weight(.semibold))
-                                            Spacer(minLength: 8)
-                                            Button { withAnimation(animation) { bridge.dismissArrivalTip() } } label: { Image(systemName: "xmark").frame(width: 44, height: 44) }
-                                                .accessibilityLabel("關閉提醒")
-                                        }
-                                        ScrollView { Text(tip).font(.subheadline).fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading) }
-                                            .frame(maxHeight: max(0, min(180, button.minY - area.minY - 86)))
+                                    AIArrivalTipCard(text: tip) {
+                                        bridge.start()
+                                        bridge.dismissArrivalTip()
+                                        withAnimation(animation) { open = true }
+                                    } dismiss: {
+                                        withAnimation(animation) { bridge.dismissArrivalTip() }
                                     }
-                                    .padding(12).background(AIChatColors.hint, in: RoundedRectangle(cornerRadius: 18))
-                                    .overlay(RoundedRectangle(cornerRadius: 18).stroke(AIChatColors.border))
-                                    .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
                                     .transition(reduceMotion ? .opacity : .modifier(
                                         active: AIButtonEntrance(hidden: true,
                                             horizontal: -button.width / 2,
@@ -131,14 +125,13 @@ struct FloatingAIContainer<Content: View>: View {
                                     bridge.start(); bridge.dismissArrivalTip(); withAnimation(animation) { open = true }
                                 } label: {
                                     Group {
-                                        if bridge.loading || bridge.preparingArrival || bridge.replying { ProgressView().tint(.white) }
-                                        else { Image(systemName: "sparkles").font(.system(size: 22, weight: .semibold)).foregroundStyle(.white) }
+                                        if bridge.loading || bridge.preparingArrival || bridge.replying { ProgressView().tint(.blue) }
+                                        else { Image(systemName: "sparkles").font(.system(size: 22, weight: .semibold)).foregroundStyle(.blue) }
                                     }.frame(width: button.width, height: button.height)
-                                        .background(Color.accentColor, in: Circle())
+                                        .modifier(AIFloatingButtonGlass())
                                         .overlay(alignment: .topTrailing) {
                                             if bridge.arrivalTip != nil { Circle().fill(Color.red).frame(width: 11, height: 11).overlay(Circle().stroke(.white, lineWidth: 1.5)) }
                                         }
-                                        .shadow(color: .black.opacity(0.22), radius: 8, y: 4)
                                 }.accessibilityLabel(bridge.arrivalTip == nil ? "開啟 AI 助理" : "開啟 AI 助理，有新提醒")
                             }
                             .padding(.bottom, max(0, area.maxY - button.maxY))
@@ -934,5 +927,117 @@ private struct AIMoodleCourseAttachments: View {
         }
         .onChange(of: academic.sourceScope) { _ in download?.cancel() }
         .onDisappear { download?.cancel() }
+    }
+}
+
+
+// A compact notification card shared by the floating reminder and its preview.
+struct AIArrivalTipCard: View {
+    let text: String
+    let open: () -> Void
+    let dismiss: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                Image(systemName: "sparkles")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.blue)
+                    .frame(width: 30, height: 30)
+                    .background(.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("NTPU One AI").font(.subheadline.weight(.semibold))
+                    Text("給你的小提醒").font(.caption).foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 4)
+                Button(action: dismiss) {
+                    Image(systemName: "xmark")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("關閉提醒")
+            }
+
+            Text(.init(text))
+                .font(.subheadline)
+                .lineSpacing(4)
+                .lineLimit(5)
+                .truncationMode(.tail)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 6)
+                .padding(.bottom, 12)
+
+            Button(action: open) {
+                HStack {
+                    Text("開啟對話").font(.subheadline.weight(.semibold))
+                    Spacer()
+                    Image(systemName: "arrow.up.right").font(.caption.weight(.semibold))
+                }
+                .foregroundStyle(.blue)
+                .padding(.vertical, 10)
+                .padding(.horizontal, 12)
+                .background(.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(14)
+        .foregroundStyle(.primary)
+        .modifier(AIArrivalTipGlass())
+        .privacySensitive()
+    }
+}
+
+private struct AIArrivalTipGlass: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+    private var shape: RoundedRectangle {
+        RoundedRectangle(cornerRadius: 24, style: .continuous)
+    }
+
+    func body(content: Content) -> some View {
+        Group {
+            if reduceTransparency {
+                content.background(Color(.secondarySystemGroupedBackground), in: shape)
+            } else if #available(iOS 26.0, *) {
+                content
+                    .background(Color(.systemBackground).opacity(colorScheme == .dark ? 0.66 : 0.74), in: shape)
+                    .glassEffect(.regular.tint(.blue.opacity(colorScheme == .dark ? 0.14 : 0.06)), in: shape)
+            } else {
+                content
+                    .background(Color(.systemBackground).opacity(0.65), in: shape)
+                    .background(.regularMaterial, in: shape)
+            }
+        }
+        .overlay {
+            shape.strokeBorder(
+                LinearGradient(
+                    colors: colorScheme == .dark
+                        ? [.white.opacity(0.32), .white.opacity(0.12)]
+                        : [.white.opacity(0.95), .blue.opacity(0.22)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                ),
+                lineWidth: 1
+            )
+            .allowsHitTesting(false)
+        }
+    }
+}
+
+
+struct AIFloatingButtonGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(.blue.opacity(0.12)).interactive(), in: .circle)
+        } else {
+            content.background(.regularMaterial, in: Circle())
+                .overlay { Circle().strokeBorder(.blue.opacity(0.18), lineWidth: 0.5) }
+        }
     }
 }
