@@ -58,6 +58,7 @@ fastlane/test_output
 
 # AI agent working directory
 .omo/
+.opencode/
 
 # Local academic API verification
 __pycache__/
