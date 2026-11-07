@@ -38,6 +38,11 @@ struct TrafficView: View {
                 if let bikeDatas = bikeManager.bikeDatas {
                         List {
                             BikeStatusView(manager: bikeManager)
+                            NavigationLink {
+                                YouBikeHomeSettings(stations: bikeDatas)
+                            } label: {
+                                Label("設定首頁站點與時段", systemImage: "clock")
+                            }
                             Section {
                                 VStack {
                                     if let bikeDatas = bikeManager.bikeDatas {

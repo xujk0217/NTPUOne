@@ -59,6 +59,24 @@ enum YouBikeRegressionChecks {
             _ = try await UbikeManager.fetchAllStations(session: session)
             preconditionFailure("An entirely empty feed must not look like a successful update")
         } catch is URLError { }
-        print("PASS: pagination, ID deduplication, campus radius, invalid coordinates, station names, HTTP failure, repeated pages, empty feed")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Asia/Taipei")!
+        func time(_ hour: Int) -> Date {
+            calendar.date(from: DateComponents(year: 2026, month: 11, day: 7, hour: hour))!
+        }
+        let preferences = YouBikeHomePreferences(defaultStationID: "fallback", rules: [
+            .init(stationID: "night", startMinute: 22 * 60, endMinute: 2 * 60),
+            .init(stationID: "morning", startMinute: 60, endMinute: 3 * 60)
+        ])
+        precondition(preferences.station(at: time(23), calendar: calendar) == "night")
+        precondition(preferences.station(at: time(1), calendar: calendar) == "night", "First matching rule wins an overlap")
+        precondition(preferences.station(at: time(2), calendar: calendar) == "morning", "End time is exclusive")
+        precondition(preferences.station(at: time(3), calendar: calendar) == "fallback")
+        let allDay = YouBikeHomePreferences(rules: [.init(stationID: "all-day", startMinute: 60, endMinute: 60)])
+        precondition(allDay.station(at: time(12), calendar: calendar) == "all-day")
+        let encodedPreferences = try JSONEncoder().encode(preferences)
+        precondition(YouBikeHomePreferences.decode(encodedPreferences) == preferences)
+        precondition(YouBikeHomePreferences.decode(Data("invalid".utf8)).station(at: time(12), calendar: calendar) == nil)
+        print("PASS: pagination, ID deduplication, campus radius, network failures, empty feed, midnight schedules, rule priority and preferences recovery")
     }
 }

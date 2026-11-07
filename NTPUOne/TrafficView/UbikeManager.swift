@@ -81,3 +81,103 @@ struct BikeStatusView: View {
         }
     }
 }
+
+struct YouBikeHomePreferences: Codable, Equatable {
+    static let storageKey = "youBikeHomePreferences"
+
+    struct Rule: Codable, Equatable, Identifiable {
+        var id = UUID()
+        var stationID: String
+        var startMinute = 7 * 60
+        var endMinute = 10 * 60
+
+        func includes(_ minute: Int) -> Bool {
+            if startMinute == endMinute { return true }
+            if startMinute < endMinute { return (startMinute..<endMinute).contains(minute) }
+            return minute >= startMinute || minute < endMinute
+        }
+    }
+
+    var defaultStationID = ""
+    var rules: [Rule] = []
+
+    static func decode(_ data: Data) -> Self {
+        (try? JSONDecoder().decode(Self.self, from: data)) ?? Self()
+    }
+
+    func station(at date: Date, calendar: Calendar = .current) -> String? {
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        let minute = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        return rules.first { !$0.stationID.isEmpty && $0.includes(minute) }?.stationID
+            ?? (defaultStationID.isEmpty ? nil : defaultStationID)
+    }
+}
+
+#if os(iOS)
+struct YouBikeHomeSettings: View {
+    let stations: [UBResults]
+    @AppStorage(YouBikeHomePreferences.storageKey) private var stored: Data = Data()
+    @State private var preferences = YouBikeHomePreferences()
+
+    var body: some View {
+        Form {
+            Section("預設站點") {
+                stationPicker("站點", selection: $preferences.defaultStationID)
+            }
+
+            Section {
+                ForEach($preferences.rules) { $rule in
+                    VStack(alignment: .leading, spacing: 8) {
+                        stationPicker("站點", selection: $rule.stationID)
+                        DatePicker("開始", selection: timeBinding($rule.startMinute), displayedComponents: .hourAndMinute)
+                        DatePicker("結束", selection: timeBinding($rule.endMinute), displayedComponents: .hourAndMinute)
+                    }
+                }
+                .onDelete { preferences.rules.remove(atOffsets: $0) }
+                .onMove { preferences.rules.move(fromOffsets: $0, toOffset: $1) }
+
+                Button {
+                    let station = preferences.defaultStationID.isEmpty ? stations.first?.id ?? "" : preferences.defaultStationID
+                    preferences.rules.append(.init(stationID: station))
+                } label: {
+                    Label("新增時段", systemImage: "plus")
+                }
+                .disabled(stations.isEmpty)
+            } header: {
+                Text("每日時段")
+            } footer: {
+                Text("時段重疊時以上方規則優先。結束早於開始表示跨午夜，時間相同表示全天。")
+            }
+        }
+        .navigationTitle("首頁 YouBike")
+        .toolbar { EditButton() }
+        .onAppear { preferences = .decode(stored) }
+        .onChange(of: preferences) { value in
+            if let data = try? JSONEncoder().encode(value) { stored = data }
+        }
+    }
+
+    private func stationPicker(_ title: String, selection: Binding<String>) -> some View {
+        Picker(selection: selection) {
+            Text("未選擇").tag("")
+            if !selection.wrappedValue.isEmpty, !stations.contains(where: { $0.id == selection.wrappedValue }) {
+                Text("站點暫無資料").tag(selection.wrappedValue)
+            }
+            ForEach(stations) { station in
+                Text(station.displayName).tag(station.id)
+            }
+        } label: {
+            Text(title)
+        }
+    }
+
+    private func timeBinding(_ minute: Binding<Int>) -> Binding<Date> {
+        Binding {
+            Calendar.current.date(bySettingHour: minute.wrappedValue / 60, minute: minute.wrappedValue % 60, second: 0, of: Date()) ?? Date()
+        } set: { date in
+            let parts = Calendar.current.dateComponents([.hour, .minute], from: date)
+            minute.wrappedValue = (parts.hour ?? 0) * 60 + (parts.minute ?? 0)
+        }
+    }
+}
+#endif

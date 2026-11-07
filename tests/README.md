@@ -12,7 +12,14 @@ swiftc -swift-version 5 -module-cache-path /private/tmp/ntpuone-bike-test-module
   NTPUOne/TrafficView/UbikeData.swift NTPUOne/TrafficView/UbikeManager.swift \
   tests/YouBikeRegressionChecks.swift -o /private/tmp/ntpuone-bike-checks
 /private/tmp/ntpuone-bike-checks
+
+swiftc -swift-version 5 -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  CourseEntity+CoreDataClass.swift CourseEntity+CoreDataProperties.swift \
+  tests/CourseScheduleStorageChecks.swift -o /private/tmp/ntpuone-schedule-checks
+/private/tmp/ntpuone-schedule-checks
 ```
+
+課表檢查包含同步衝突、同名同時段分組與刪除後重新計算；YouBike 檢查包含跨午夜時段、規則優先順序及偏好設定讀取失敗的回復。
 
 Core Data 測試會刻意製造錯誤路徑與資料驗證失敗，因此會出現預期中的 Core Data error log；以程序 exit code 及最後的 `PASS` 判斷結果。這些檢查不代表真機 CloudKit 同步或 Widget 系統排程已驗收。
 

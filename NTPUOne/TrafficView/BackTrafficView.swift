@@ -33,6 +33,11 @@ struct BackTrafficView: View {
                 if let bikeDatas = bikeManager.bikeDatas {
                         List {
                             BikeStatusView(manager: bikeManager)
+                            NavigationLink {
+                                YouBikeHomeSettings(stations: bikeDatas)
+                            } label: {
+                                Label("設定首頁站點與時段", systemImage: "clock")
+                            }
                             Section{
                                 Text(String(localized: "upgrade_ios_for_map"))
                             } header: {
