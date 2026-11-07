@@ -9,6 +9,7 @@ import SwiftUI
 import UIKit
 
 struct UnifiedCourseGridView: View {
+    @Environment(\.layoutDirection) private var layoutDirection
     @ObservedObject var courseData: CourseData
     @Binding var isEdit: Bool
     @State private var showingAlert = false
@@ -28,33 +29,33 @@ struct UnifiedCourseGridView: View {
     var body: some View {
         VStack(spacing: 8) {
             // A small eager grid keeps row heights stable through keyboard/tab transitions.
-            HStack(alignment: .top, spacing: 8) {
+            CourseDayColumns(direction: layoutDirection) {
                 ForEach(Array(displayedDays.enumerated()), id: \.element) { index, day in
                     VStack(spacing: 8) {
                         DayBadge(text: displayedShortDays[index])
                         MorningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
-                    }.frame(maxWidth: .infinity, alignment: .top)
+                    }.frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
                 }
             }.fixedSize(horizontal: false, vertical: true)
             LunchButtonView()
-            HStack(alignment: .top, spacing: 8) {
+            CourseDayColumns(direction: layoutDirection) {
                 ForEach(displayedDays, id: \.self) { day in
                     AfternoonCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
-                        .frame(maxWidth: .infinity, alignment: .top)
+                        .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
                 }
             }.fixedSize(horizontal: false, vertical: true)
             if includeNight {
                 DinnerButtonView()
-                HStack(alignment: .top, spacing: 8) {
+                CourseDayColumns(direction: layoutDirection) {
                     ForEach(displayedDays, id: \.self) { day in
                         EveningCourseColumnView(day: day, courseData: courseData, isEdit: $isEdit, showingSheet: $showingSheet, showingAlert: $showingAlert, selectedCourse: $selectedCourse, isNewCourse: $isNewCourse, newCourse: $newCourse, peekCourse: $peekCourse, memoManager: memoManager)
-                            .frame(maxWidth: .infinity, alignment: .top)
+                            .frame(minWidth: 0, maxWidth: .infinity, alignment: .top)
                     }
                 }.fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding()
-        .cornerRadius(8)
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
         .sheet(isPresented: $showingSheet) {
             CourseFormSheet(isNewCourse: $isNewCourse, selectedCourse: $selectedCourse, newCourse: $newCourse, courseData: courseData, showingSheet: $showingSheet, memoManager: memoManager)
         }
@@ -73,11 +74,41 @@ struct UnifiedCourseGridView: View {
     }
 
     var displayedShortDays: [String] {
-        includeSaturday ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] : ["Mon", "Tue", "Wed", "Thu", "Fri"]
+        let days = ["timetable_mon", "timetable_tue", "timetable_wed", "timetable_thu", "timetable_fri", "timetable_sat"]
+        return includeSaturday ? days : Array(days.prefix(5))
     }
 
     var columns: [GridItem] {
         Array(repeating: .init(.flexible()), count: displayedDays.count)
+    }
+}
+
+// Propose the same finite width to every day, including its course tiles.
+// Heights are measured synchronously so rotation never feeds an old size back into the grid.
+private struct CourseDayColumns: Layout {
+    var direction: LayoutDirection
+    private let spacing: CGFloat = 8
+
+    private func columnWidth(_ width: CGFloat, count: Int) -> CGFloat {
+        max(0, (width - spacing * CGFloat(max(0, count - 1))) / CGFloat(max(1, count)))
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        guard !subviews.isEmpty else { return .zero }
+        let idealWidth = CGFloat(subviews.count) * 80 + CGFloat(subviews.count - 1) * spacing
+        let width = proposal.width.flatMap { $0.isFinite ? max(0, $0) : nil } ?? idealWidth
+        let childProposal = ProposedViewSize(width: columnWidth(width, count: subviews.count), height: nil)
+        let height = subviews.map { $0.sizeThatFits(childProposal).height }.max() ?? 0
+        return CGSize(width: width, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let width = columnWidth(bounds.width, count: subviews.count)
+        for (index, subview) in subviews.enumerated() {
+            let column = direction == .rightToLeft ? subviews.count - 1 - index : index
+            subview.place(at: CGPoint(x: bounds.minX + CGFloat(column) * (width + spacing), y: bounds.minY),
+                          anchor: .topLeading, proposal: ProposedViewSize(width: width, height: nil))
+        }
     }
 }
 
@@ -156,6 +187,8 @@ struct EveningCourseColumnView: View {
 }
 
 struct CourseSlotView: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
+    @ScaledMetric(relativeTo: .caption) private var tileHeight: CGFloat = 100
     var day: String
     var slot: Course.TimeSlot
     var filteredCourses: [Course]
@@ -204,7 +237,8 @@ struct CourseSlotView: View {
                             VStack(spacing: 2) {
                                 Text(course.name)
                                     .font(.caption.weight(.semibold))
-                                    .lineLimit(2)
+                                    .lineLimit(3)
+                                    .minimumScaleFactor(0.85)
                                     .multilineTextAlignment(.center)
                                     .frame(maxWidth: .infinity)
                                     .foregroundStyle(slotTint(slot))          // 保持原本 tint 給課名
@@ -245,7 +279,8 @@ struct CourseSlotView: View {
                                 VStack(spacing: 2) {
                                     Text(course.name)
                                         .font(.caption)
-                                        .lineLimit(2)
+                                        .lineLimit(3)
+                                        .minimumScaleFactor(0.85)
                                         .multilineTextAlignment(.center)
                                         .foregroundStyle(.primary)
 
@@ -278,15 +313,15 @@ struct CourseSlotView: View {
                 }
             }
         }
-        .frame(height: 100)
-        .frame(minWidth: 35, maxWidth: 80)
+        .frame(height: verticalSizeClass == .compact ? tileHeight * 0.88 : tileHeight)
+        .frame(minWidth: 0, maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .fill(isNow ? slotTint(slot).opacity(0.08) : Color.gray.opacity(0.15))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(filteredCourses.isEmpty ? Color(.tertiarySystemGroupedBackground) : slotTint(slot).opacity(isNow ? 0.18 : 0.10))
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                .stroke(isNow ? slotTint(slot).opacity(0.35) : Color.gray.opacity(0.25))
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(isNow ? slotTint(slot).opacity(0.5) : Color.primary.opacity(0.05), lineWidth: isNow ? 1.5 : 0.5)
         )
         .id("\(memoManager.memos.count)_\(memoManager.memos.map { "\($0.id)_\($0.status.rawValue)_\($0.courseLink ?? "")" }.joined(separator: "_"))")
     }
@@ -400,6 +435,8 @@ struct CourseFormSheet: View {
     var memoManager: MemoManager
     var expectedOriginalCourse: Course? = nil
     @State private var staleAIProposal = false
+    @State private var originalCourse: Course?
+    @State private var originalBlock: [Course] = []
     
     @State private var showDeleteAlert = false
     @State private var relatedMemoCount = 0
@@ -410,12 +447,15 @@ struct CourseFormSheet: View {
             if !isNewCourse {
                 CourseFormView(course: $selectedCourse, isNewCourse: false, onSave: {
                     guard checkAIOriginal() else { return }
-                    if courseData.updateCourse(selectedCourse) { showingSheet = false }
+                    guard let originalCourse else { return }
+                    if courseData.updateBlock(originalBlock, selected: originalCourse, edited: selectedCourse) {
+                        showingSheet = false
+                    }
                 }, onCancel: {
                     showingSheet = false
                 }, onDelete: {
                     handleDeleteCourse()
-                }, courseData: courseData)
+                }, contiguousEditCount: max(originalBlock.count, 1), courseData: courseData)
             } else {
                 CourseFormView(course: $newCourse, isNewCourse: true, onSave: {
                     if courseData.addCourse(newCourse) { showingSheet = false }
@@ -423,6 +463,12 @@ struct CourseFormSheet: View {
                     showingSheet = false
                 }, courseData: courseData)
             }
+        }
+        .onAppear {
+            guard !isNewCourse, originalCourse == nil else { return }
+            let original = expectedOriginalCourse ?? selectedCourse
+            originalCourse = original
+            originalBlock = expectedOriginalCourse == nil ? courseData.contiguousCourses(around: original) : [original]
         }
         .alert("課程已變更", isPresented: $staleAIProposal) { Button("好", role: .cancel) {} } message: { Text("請關閉並重新預覽，以免覆蓋其他變更。") }
         .alert(String(localized: "alert_confirm_delete_course"), isPresented: $showDeleteAlert) {
@@ -433,6 +479,8 @@ struct CourseFormSheet: View {
         } message: {
             if isLastCourseWithName && relatedMemoCount > 0 {
                 Text(String(localized: "delete_last_course_with_memos \(selectedCourse.name) \(relatedMemoCount)"))
+            } else if originalBlock.count > 1 {
+                Text("將刪除全部 \(originalBlock.count) 節連堂。")
             } else {
                 Text(String(localized: "delete_course_confirm"))
             }
@@ -448,79 +496,48 @@ struct CourseFormSheet: View {
         }
         return true
     }
+    private var blockIDs: Set<String> { Set(originalBlock.map(\.id)) }
+
+    private var remainingSameName: Course? {
+        (courseData.courses + courseData.syncConflicts.map(\.course)).first {
+            $0.name == originalCourse?.name && !blockIDs.contains($0.id)
+        }
+    }
+
+    private var linkedMemos: [Memo] {
+        memoManager.memos.filter { $0.courseLink.map(blockIDs.contains) ?? false }
+    }
+
     private func handleDeleteCourse() {
-        guard !courseData.syncConflicts.contains(where: { $0.course.id == selectedCourse.id }) else {
-            CoreDataManager.shared.reportOperationError(CourseScheduleStorage.Conflict())
-            return
-        }
-        guard checkAIOriginal() else { return }
-        // 檢查是否是最後一個同名課程
-        let sameNameCourses = (courseData.courses + courseData.syncConflicts.map(\.course)).filter { $0.name == selectedCourse.name }
-        isLastCourseWithName = sameNameCourses.count == 1
-        
-        // 如果是最後一個，計算相關任務數量
-        // courseLink 存的是課程 ID，需要收集所有同名課程的 ID
-        if isLastCourseWithName {
-            let sameNameCourseIds = Set(sameNameCourses.map { $0.id })
-            relatedMemoCount = memoManager.memos.filter { memo in
-                guard let courseLink = memo.courseLink else { return false }
-                return sameNameCourseIds.contains(courseLink)
-            }.count
-        } else {
-            relatedMemoCount = 0
-        }
-        
-        print("📋 刪除檢查: 同名課程數=\(sameNameCourses.count), 是最後一個=\(isLastCourseWithName), 相關任務數=\(relatedMemoCount)")
-        
-        // 顯示確認提示
+        guard !originalBlock.isEmpty, checkAIOriginal() else { return }
+        isLastCourseWithName = remainingSameName == nil
+        relatedMemoCount = linkedMemos.count
         showDeleteAlert = true
     }
-    
+
     private func performDelete() {
-        guard !courseData.syncConflicts.contains(where: { $0.course.id == selectedCourse.id }) else {
-            CoreDataManager.shared.reportOperationError(CourseScheduleStorage.Conflict())
+        guard checkAIOriginal(), !originalBlock.isEmpty else { return }
+        let remaining = remainingSameName
+        let memos = linkedMemos
+        guard (remaining == nil) == isLastCourseWithName,
+              remaining != nil || memos.count == relatedMemoCount else {
+            staleAIProposal = true
             return
         }
-        guard checkAIOriginal() else { return }
-        print("🗑️ 開始執行刪除: 課程名稱=\(selectedCourse.name)")
-        
-        let sameNameCourses = (courseData.courses + courseData.syncConflicts.map(\.course)).filter { $0.name == selectedCourse.name }
-        
-        guard courseData.deleteCourse(selectedCourse) else { return }
-
-        if isLastCourseWithName {
-            // 最後一個同名課程，刪除相關任務
-            let sameNameCourseIds = Set(sameNameCourses.map { $0.id })
-            let relatedMemos = memoManager.memos.filter { memo in
-                guard let courseLink = memo.courseLink else { return false }
-                return sameNameCourseIds.contains(courseLink)
-            }
-            print("🗑️ 找到 \(relatedMemos.count) 個相關任務需要刪除")
-            for memo in relatedMemos {
-                print("🗑️ 刪除任務: \(memo.title)")
+        guard courseData.deleteBlock(originalBlock) else { return }
+        for memo in memos {
+            if let remaining {
+                var updated = memo
+                updated.courseLink = remaining.id
+                memoManager.updateMemo(updated)
+            } else {
                 memoManager.deleteMemo(memo)
             }
-        } else {
-            // 還有其他同名課程，把指向被刪除課程的任務轉移到另一個同名課程
-            if let otherCourse = sameNameCourses.first(where: { $0.id != selectedCourse.id }) {
-                let affectedMemos = memoManager.memos.filter { $0.courseLink == selectedCourse.id }
-                print("🔄 轉移 \(affectedMemos.count) 個任務到課程 ID: \(otherCourse.id)")
-                for memo in affectedMemos {
-                    var updatedMemo = memo
-                    updatedMemo.courseLink = otherCourse.id
-                    memoManager.updateMemo(updatedMemo)
-                }
-            }
         }
-        
-        // 刪除課程
-        print("🗑️ 刪除課程: \(selectedCourse.name)")
-        
-        // 刷新備忘錄數據
         memoManager.loadMemosFromCoreData()
-        
         showingSheet = false
     }
+
 }
 
 struct LunchButtonView: View {
@@ -544,7 +561,6 @@ struct LunchButtonView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(.quaternary)
             )
-            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .padding(.vertical, 4)
@@ -572,7 +588,6 @@ struct DinnerButtonView: View {
                 RoundedRectangle(cornerRadius: 10, style: .continuous)
                     .strokeBorder(.quaternary)
             )
-            .shadow(color: .black.opacity(0.05), radius: 4, x: 0, y: 2)
         }
         .buttonStyle(.plain)
         .padding(.vertical, 4)
@@ -591,7 +606,7 @@ private func slotTint(_ slot: Course.TimeSlot) -> Color {
 private struct DayBadge: View {
     let text: String
     var body: some View {
-        Text(text)
+        Text(LocalizedStringKey(text))
             .font(.caption2.weight(.semibold))
             .padding(.vertical, 6).frame(maxWidth: .infinity)
             .background(Color(.secondarySystemBackground))

@@ -1292,3 +1292,13 @@
 "admin_password_keychain_error" = "The local password could not be accessed. Unlock the device and try again.";
 "admin_password_length_error" = "Use 12 to 128 characters.";
 "admin_password_mismatch" = "The passwords do not match.";
+
+// Academic timetable
+"timetable_mon" = "Mon";
+"timetable_tue" = "Tue";
+"timetable_wed" = "Wed";
+"timetable_thu" = "Thu";
+"timetable_fri" = "Fri";
+"timetable_sat" = "Sat";
+"timetable_show_saturday" = "Show Saturday";
+"timetable_show_night" = "Show evening classes";

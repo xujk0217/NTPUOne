@@ -1292,3 +1292,13 @@
 "admin_password_keychain_error" = "無法存取本機密碼，請確認裝置已解鎖後再試。";
 "admin_password_length_error" = "密碼須為 12 至 128 個字元。";
 "admin_password_mismatch" = "兩次輸入的密碼不一致。";
+
+// Academic timetable
+"timetable_mon" = "週一";
+"timetable_tue" = "週二";
+"timetable_wed" = "週三";
+"timetable_thu" = "週四";
+"timetable_fri" = "週五";
+"timetable_sat" = "週六";
+"timetable_show_saturday" = "顯示星期六";
+"timetable_show_night" = "顯示夜間課程";

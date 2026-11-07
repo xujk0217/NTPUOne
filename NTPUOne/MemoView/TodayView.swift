@@ -38,8 +38,10 @@ struct PriorityBadge: View {
 }
 
 struct TodayView: View {
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @ObservedObject var memoManager: MemoManager
     @ObservedObject var courseData: CourseData
+    var workspaceSelection: Binding<Int>? = nil
     @EnvironmentObject private var academic: AcademicSyncStore
     @EnvironmentObject var adFree: AdFreeService
     
@@ -156,8 +158,11 @@ struct TodayView: View {
 
     private var navigationContent: some View {
         mainStack
+            .background(AcademicPageBackground())
+            .modifier(AcademicWorkspaceHeader(selection: workspaceSelection))
             .navigationTitle(String(localized: "memo"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar {
                 toolbarContent
             }
@@ -374,47 +379,40 @@ struct TodayView: View {
     
     // MARK: - 頂部統計
     private var todayHeader: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 10) {
+            if verticalSizeClass != .compact {
                 Text(formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.secondary)
             }
+            HStack(spacing: 10) {
+                memoStatistic(todayTasks.count, title: String(localized: "today"), icon: "calendar", tint: .blue)
+                memoStatistic(overdueTasks.count, title: String(localized: "overdue"), icon: "clock.badge.exclamationmark", tint: overdueTasks.isEmpty ? .secondary : .red)
+                memoStatistic(activeMemos.count, title: String(localized: "total"), icon: "checklist", tint: .orange)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, verticalSizeClass == .compact ? 4 : 8)
+        .padding(.bottom, verticalSizeClass == .compact ? 8 : 12)
+    }
 
-            Spacer()
-            
-            // 今日統計
-            HStack(spacing: 16) {
-                VStack {
-                    Text("\(todayTasks.count)")
-                        .font(.title3.bold())
-                        .foregroundColor(.blue)
-                    Text(String(localized: "today"))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                VStack {
-                    Text("\(overdueTasks.count)")
-                        .font(.title3.bold())
-                        .foregroundColor(overdueTasks.isEmpty ? .gray : .red)
-                    Text(String(localized: "overdue"))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                }
-                
-                VStack {
-                    Text("\(activeMemos.count)")
-                        .font(.title3.bold())
-                        .foregroundColor(.orange)
-                    Text(String(localized: "total"))
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+    private func memoStatistic(_ count: Int, title: String, icon: String, tint: Color) -> some View {
+        HStack(spacing: 8) {
+            Image(systemName: icon).foregroundStyle(tint).font(.subheadline)
+            if verticalSizeClass == .compact {
+                Text(count, format: .number).font(.headline).monospacedDigit()
+                Text(title).font(.caption).foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(count, format: .number).font(.title3.weight(.semibold)).monospacedDigit()
+                    Text(title).font(.caption).foregroundStyle(.secondary)
                 }
             }
         }
-        .padding(.horizontal)
-        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(verticalSizeClass == .compact ? 10 : 12)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 18))
+        .accessibilityElement(children: .combine)
     }
 
     private func refreshLiveActivity() {
@@ -428,7 +426,7 @@ struct TodayView: View {
     
     // MARK: - Tab 選擇器
     private var tabPicker: some View {
-        HStack(spacing: 0) {
+        HStack(spacing: 6) {
             TabButton(title: String(localized: "needs_attention"), count: todayTasks.count + overdueTasks.count, isSelected: selectedTab == 0) {
                 selectedTab = 0
             }
@@ -440,6 +438,7 @@ struct TodayView: View {
             }
         }
         .padding(.horizontal)
+        .padding(.bottom, 4)
     }
     
     // MARK: - 篩選標籤
@@ -653,6 +652,7 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
         .environment(\.editMode, $todayEditMode)
     }
     
@@ -707,6 +707,7 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
     
     // MARK: - 今日課程
@@ -853,6 +854,7 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
     
     private var allTasksByPriorityView: some View {
@@ -897,6 +899,7 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
     
     private var allTasksByTagView: some View {
@@ -940,6 +943,7 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
 
     // MARK: - 已完成清單
@@ -962,80 +966,49 @@ struct TodayView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
     
     // MARK: - 空狀態視圖
     private var emptyTodayView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 48))
-                .foregroundColor(.green.opacity(0.6))
-            Text(String(localized: "great_no_tasks"))
-                .font(.headline)
-                .foregroundColor(.secondary)
-            Text(String(localized: "tap_add_task"))
-                .font(.caption)
-                .foregroundColor(.secondary.opacity(0.7))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        emptyMemoState(icon: "checkmark.circle", title: String(localized: "great_no_tasks"),
+                       detail: String(localized: "tap_add_task"), tint: .green)
     }
-    
+
     private var emptyUpcomingView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "calendar.badge.checkmark")
-                .font(.system(size: 48))
-                .foregroundColor(.blue.opacity(0.6))
-            Text(String(localized: "no_tasks_next_7_days"))
-                .font(.headline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        emptyMemoState(icon: "calendar.badge.checkmark", title: String(localized: "no_tasks_next_7_days"), tint: .blue)
     }
-    
+
     private var emptyScheduleView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "bed.double")
-                .font(.system(size: 48))
-                .foregroundColor(.purple.opacity(0.6))
-            Text(String(localized: "no_class_today"))
-                .font(.headline)
-                .foregroundColor(.secondary)
-            Text(String(localized: "have_a_good_rest"))
-                .font(.caption)
-                .foregroundColor(.secondary.opacity(0.7))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        emptyMemoState(icon: "bed.double", title: String(localized: "no_class_today"),
+                       detail: String(localized: "have_a_good_rest"), tint: .purple)
     }
-    
+
     private var emptyAllTasksView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "tray")
-                .font(.system(size: 48))
-                .foregroundColor(.gray.opacity(0.6))
-            Text(String(localized: "no_tasks"))
-                .font(.headline)
-                .foregroundColor(.secondary)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        emptyMemoState(icon: "tray", title: String(localized: "no_tasks"), tint: .secondary)
     }
 
     private var emptyCompletedView: some View {
-        VStack(spacing: 12) {
-            Image(systemName: "checkmark.circle")
-                .font(.system(size: 48))
-                .foregroundColor(.green.opacity(0.6))
-            Text(String(localized: "no_completed_memos"))
-                .font(.headline)
-                .foregroundColor(.secondary)
+        emptyMemoState(icon: "checkmark.circle", title: String(localized: "no_completed_memos"), tint: .green)
+    }
+
+    private func emptyMemoState(icon: String, title: String, detail: String? = nil, tint: Color) -> some View {
+        let layout = verticalSizeClass == .compact
+            ? AnyLayout(HStackLayout(spacing: 16))
+            : AnyLayout(VStackLayout(spacing: 12))
+        return layout {
+            Image(systemName: icon)
+                .font(.system(size: verticalSizeClass == .compact ? 30 : 44))
+                .foregroundStyle(tint.opacity(0.75))
+            VStack(spacing: 6) {
+                Text(title).font(.headline).foregroundStyle(.secondary)
+                if let detail { Text(detail).font(.caption).foregroundStyle(.secondary) }
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 40)
+        .padding(.vertical, verticalSizeClass == .compact ? 12 : 32)
     }
-    
+
     // MARK: - 帶滑動操作的備忘錄行
     private func memoRowWithSwipe(memo: Memo, orderIndex: Int? = nil) -> some View {
         let content = HStack(spacing: 12) {
@@ -1060,7 +1033,7 @@ struct TodayView: View {
                 // 標題行
                 HStack {
                     Text(memo.title)
-                        .font(.subheadline.weight(.medium))
+                        .font(.body.weight(.medium))
                         .strikethrough(memo.status == .done)
                         .foregroundColor(memo.status == .done ? .gray : .primary)
                         .lineLimit(2)
@@ -1080,15 +1053,6 @@ struct TodayView: View {
                         .font(.caption2)
                         .foregroundColor(memo.tagType.color)
                     
-                    if let courseName = getCourseName(for: memo.courseLink) {
-                        Text("·")
-                            .foregroundColor(.secondary)
-                        Text(courseName)
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                    
                     if let dueAt = memo.dueAt {
                         Text("·")
                             .foregroundColor(.secondary)
@@ -1097,12 +1061,19 @@ struct TodayView: View {
                             .foregroundColor(memo.isOverdue ? .red : .secondary)
                     }
                 }
+                if let courseName = getCourseName(for: memo.courseLink) {
+                    Label(courseName, systemImage: "book.closed")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             .contentShape(Rectangle())
             .onTapGesture {
                 selectedMemo = memo
             }
         }
+        .padding(.vertical, 6)
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
                 memoManager.deleteMemo(memo)
@@ -1751,29 +1722,25 @@ struct TabButton: View {
     
     var body: some View {
         Button(action: action) {
-            VStack(spacing: 4) {
-                HStack(spacing: 4) {
-                    Text(title)
-                        .font(.subheadline.weight(isSelected ? .semibold : .regular))
-                    if count > 0 {
-                        Text("\(count)")
-                            .font(.caption2.weight(.bold))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(isSelected ? Color.blue : Color.gray.opacity(0.3))
-                            .foregroundColor(isSelected ? .white : .secondary)
-                            .clipShape(Capsule())
-                    }
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.subheadline.weight(isSelected ? .semibold : .regular))
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.caption2.weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.primary.opacity(0.06), in: Capsule())
                 }
-                .foregroundColor(isSelected ? .primary : .secondary)
-                
-                Rectangle()
-                    .fill(isSelected ? Color.blue : Color.clear)
-                    .frame(height: 2)
             }
+            .foregroundStyle(isSelected ? Color.blue : Color.secondary)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(isSelected ? Color.blue.opacity(0.10) : .clear, in: Capsule())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
         .frame(maxWidth: .infinity)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

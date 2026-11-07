@@ -42,11 +42,6 @@ struct AboutView: View {
     var body: some View {
         NavigationStack {
             List {
-                Section {
-                    NavigationLink { AcademicConnectionView() } label: {
-                        Label("學校帳號與同步", systemImage: "graduationcap")
-                    }
-                }
                 // Admin 區塊（密碼解鎖＋專屬信箱雙重確認）
                 if isAdmin, CommunityProfileManager.isPrivilegedAdminEmail {
                     Section {
@@ -102,7 +97,6 @@ struct AboutView: View {
                 Section {
                     NavigationLink {
                         FeaturesView()
-                            .navigationTitle(String(localized: "feature_suggestion"))
                     } label: {
                         Label(String(localized: "feature_suggestion"), systemImage: "lightbulb")
                             .foregroundStyle(.primary)
@@ -110,7 +104,6 @@ struct AboutView: View {
                     
                     NavigationLink {
                         ReportBugView()
-                            .navigationTitle(String(localized: "report_bug"))
                     } label: {
                         Label(String(localized: "report_bug"), systemImage: "ladybug")
                             .foregroundStyle(.primary)
@@ -257,8 +250,11 @@ struct AboutView: View {
 }
 
 struct AccountCenterView: View {
+    @EnvironmentObject private var academic: AcademicSyncStore
     @State private var loginPresenter = WeakScenePresentationController()
     @ObservedObject var communityProfileManager: CommunityProfileManager
+    var showSchoolAccount = true
+    var showAppSettings = false
     @AppStorage("isAdmin") private var isAdmin: Bool = false
 
     var body: some View {
@@ -288,6 +284,38 @@ struct AccountCenterView: View {
                     }
                 }
 
+                if let message = communityProfileManager.authStatusMessage {
+                    Label(message, systemImage: "info.circle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } header: {
+                Label(String(localized: "account_center"), systemImage: "person.crop.circle")
+            }
+
+            if showSchoolAccount {
+                Section {
+                    NavigationLink {
+                        AcademicConnectionView()
+                    } label: {
+                        HStack(spacing: 12) {
+                            Image(systemName: "graduationcap.fill")
+                                .foregroundStyle(.indigo)
+                                .frame(width: 36, height: 36)
+                                .background(.indigo.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("學校帳號與同步")
+                                Text(academic.schoolLinked || academic.moodleLinked ? "管理儲存在此裝置的帳密與同步" : "連結學生資訊系統與數位學院")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("學校帳號")
+                }
+            }
+
             if isAdmin {
                 Section(String(localized: "account_admin_section")) {
                     Text(String(localized: "you_are_admin"))
@@ -298,15 +326,6 @@ struct AccountCenterView: View {
                     }
                     .foregroundStyle(.red)
                 }
-            }
-
-                if let message = communityProfileManager.authStatusMessage {
-                    Label(message, systemImage: "info.circle")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            } header: {
-                Label(String(localized: "account_center"), systemImage: "person.crop.circle")
             }
 
             Section {
@@ -350,6 +369,16 @@ struct AccountCenterView: View {
                 }
             } header: {
                 Label(String(localized: "community_title"), systemImage: "person.2")
+            }
+
+            if showAppSettings {
+                Section {
+                    NavigationLink {
+                        AboutView()
+                    } label: {
+                        Label("設定與支援", systemImage: "gearshape")
+                    }
+                }
             }
 
             Section {
@@ -413,8 +442,10 @@ struct AccountCenterView: View {
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: isSignedIn ? "checkmark.seal" : "person.crop.circle")
-                    .font(.title3)
-                    .foregroundStyle(isSignedIn ? .green : .secondary)
+                    .font(.title2)
+                    .foregroundStyle(isSignedIn ? .blue : .secondary)
+                    .frame(width: 44, height: 44)
+                    .background(.blue.opacity(0.1), in: Circle())
                 VStack(alignment: .leading, spacing: 3) {
                     Text(CommunityProfileManager.currentAccountDisplayName())
                         .font(.headline)
@@ -457,6 +488,8 @@ struct AccountCenterView: View {
         HStack(spacing: 12) {
             Image(systemName: systemImage)
                 .foregroundStyle(tint)
+                .frame(width: 32, height: 32)
+                .background(tint.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .foregroundStyle(.primary)

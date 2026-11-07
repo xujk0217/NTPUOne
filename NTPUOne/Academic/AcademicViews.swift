@@ -122,7 +122,7 @@ struct AcademicConnectionView: View {
             }
         }
         .navigationTitle("學校帳號與同步")
-        .sheet(isPresented: $showGoogleAccount) { NavigationStack { AccountCenterView(communityProfileManager: profile) } }
+        .sheet(isPresented: $showGoogleAccount) { NavigationStack { AccountCenterView(communityProfileManager: profile, showSchoolAccount: false) } }
         .onAppear { username = academic.savedSchoolUsername() ?? ""; editing = !(academic.schoolLinked || academic.moodleLinked) }
         .onDisappear { password = "" }
         .onChange(of: academic.uid) { uid in username = ""; password = ""; loginStatus = nil; editing = true; if !uid.isEmpty { showGoogleAccount = false } }
@@ -566,6 +566,8 @@ struct AcademicSchoolReportView: View {
     @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let kind: SchoolReportKind
     @State private var selectedSectionID: String?
+    @AppStorage("graduationPersonalDeductions") private var storedDeductions: Data = Data()
+    @State private var showPersonalDeductions = false
     private var report: SchoolReport? { academic.cache.reports?.first { $0.kind == kind && $0.isCurrent } }
     private var sections: [AcademicReportSection] { report?.sections ?? [] }
     private var selectedSection: AcademicReportSection? {
@@ -655,6 +657,26 @@ struct AcademicSchoolReportView: View {
     @ViewBuilder private var graduationContent: some View {
         if let total = sections.first(where: { $0.id == "summary_total" }) {
             AcademicGraduationSummaryCard(section: total, prominent: true)
+            if let identity = academic.cache.schoolIdentity, !deductibleCourses.isEmpty,
+               let official = Decimal(string: total.fields.first?.value ?? "", locale: Locale(identifier: "en_US_POSIX")) {
+                let key = academic.uid + ":" + identity
+                let entries = (try? JSONDecoder().decode([String: [String: Decimal]].self, from: storedDeductions))?[key] ?? [:]
+                let deducted = deductibleCourses.compactMap { entries[$0] }.reduce(Decimal.zero, +)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("自訂學分估算").font(.headline)
+                    Text("扣除 \(deducted.formatted()) 學分後：\(max(0, official - deducted).formatted()) 學分")
+                        .font(.subheadline)
+                    Button("設定不列入計算的課程") { showPersonalDeductions = true }
+                        .buttonStyle(.bordered)
+                }
+                .padding()
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 16))
+                .sheet(isPresented: $showPersonalDeductions) {
+                    AcademicGraduationDeductionsView(accountKey: key, courses: deductibleCourses, official: official)
+                        .id(key)
+                }
+            }
         }
         if let requirements = sections.first(where: { $0.id == "requirements" }) {
             AcademicGraduationRequirementsCard(section: requirements)
@@ -668,6 +690,10 @@ struct AcademicSchoolReportView: View {
             AcademicReportCard(section: section, kind: kind)
         }
     }
+    private var deductibleCourses: [String] {
+        Array(Set(sections.flatMap(\.subjects).map(\.title))).sorted { $0.localizedStandardCompare($1) == .orderedAscending }
+    }
+
     private var needsGraduationRefresh: Bool {
         kind == .graduation && academic.cache.reports?.contains(where: { $0.kind == .graduation && !$0.isCurrent }) == true
     }
@@ -724,6 +750,81 @@ private struct AcademicGraduationSummaryCard: View {
             }
         }.frame(maxWidth: .infinity, alignment: .leading).padding(prominent ? 22 : 16)
             .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: prominent ? 22 : 18))
+    }
+}
+
+private struct AcademicGraduationDeductionsView: View {
+    let accountKey: String
+    let courses: [String]
+    let official: Decimal
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("graduationPersonalDeductions") private var stored: Data = Data()
+    @State private var entries: [String: Decimal] = [:]
+    @State private var selectedCourse = ""
+    @State private var amount = ""
+
+    private var parsedAmount: Decimal? {
+        let normalized = amount.trimmingCharacters(in: .whitespacesAndNewlines).replacingOccurrences(of: ",", with: ".")
+        guard normalized.range(of: #"^[0-9]{1,3}(?:\.[0-9]{1,2})?$"#, options: .regularExpression) != nil,
+              let value = Decimal(string: normalized, locale: Locale(identifier: "en_US_POSIX")), value > 0 else { return nil }
+        let other = entries.filter { $0.key != selectedCourse && courses.contains($0.key) }.values.reduce(Decimal.zero, +)
+        return other + value <= official ? value : nil
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Picker("課程", selection: $selectedCourse) {
+                        ForEach(courses, id: \.self) { Text($0).tag($0) }
+                    }
+                    TextField("要扣除的學分", text: $amount).keyboardType(.decimalPad)
+                    Button("套用") {
+                        guard let value = parsedAmount else { return }
+                        entries[selectedCourse] = value
+                        save()
+                    }
+                    .disabled(selectedCourse.isEmpty || parsedAmount == nil)
+                } footer: {
+                    Text("只填這門課原先算入校方總數的學分。若校方已排除該課，無需再扣。這項估算只調整總數，個別門檻仍以校方資料為準。")
+                }
+
+                Section("已排除的課程") {
+                    ForEach(courses.filter { entries[$0] != nil }, id: \.self) { title in
+                        HStack {
+                            Text(title)
+                            Spacer()
+                            Text(entries[title]?.formatted() ?? "").foregroundStyle(.secondary)
+                            Button(role: .destructive) {
+                                entries.removeValue(forKey: title)
+                                save()
+                            } label: {
+                                Image(systemName: "minus.circle")
+                            }
+                            .buttonStyle(.borderless)
+                            .accessibilityLabel("恢復計入 \(title)")
+                        }
+                    }
+                }
+            }
+            .navigationTitle("自訂學分估算")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { Button("完成") { dismiss() } }
+            }
+            .onAppear {
+                entries = (try? JSONDecoder().decode([String: [String: Decimal]].self, from: stored))?[accountKey] ?? [:]
+                selectedCourse = courses.first ?? ""
+            }
+            .onChange(of: selectedCourse) { title in
+                amount = entries[title].map { NSDecimalNumber(decimal: $0).stringValue } ?? ""
+            }
+        }
+    }
+
+    private func save() {
+        var all = (try? JSONDecoder().decode([String: [String: Decimal]].self, from: stored)) ?? [:]
+        all[accountKey] = entries
+        if let data = try? JSONEncoder().encode(all) { stored = data }
     }
 }
 

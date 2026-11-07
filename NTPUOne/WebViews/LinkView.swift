@@ -19,6 +19,8 @@ struct LinkView: View {
     @StateObject private var webManager = WebManager()
     @ObservedObject var orderManager: OrderManager
     @StateObject private var todayFoodManager = FManager()
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.verticalSizeClass) private var verticalSizeClass
     @EnvironmentObject private var academic: AcademicSyncStore
     @EnvironmentObject var adFree: AdFreeService
     @ObservedObject private var rewardedAd = RewardedAdManager.shared
@@ -41,6 +43,21 @@ struct LinkView: View {
     //Course
     @ObservedObject var courseData: CourseData
     @ObservedObject var memoManager: MemoManager
+    @ObservedObject var bikeManager: UbikeManager
+    @ObservedObject var accountProfile: CommunityProfileManager
+    @State private var showAccountCenter = false
+    @AppStorage("homeSummaryOrder") private var summaryOrder: Data = Data()
+    @AppStorage("homeSummaryPlacements") private var summaryPlacements: Data = Data()
+    @AppStorage(YouBikeHomePreferences.storageKey) private var bikePreferences: Data = Data()
+
+    private enum HomePlacement: String, Codable, CaseIterable {
+        case summary = "頂部摘要"
+        case shortcut = "快捷功能"
+        case hidden = "隱藏"
+    }
+
+    private let summaryDestinations: Set<String> = ["weather", "grades", "graduation", "ubike"]
+
     @State private var nextCourseOnAppear: Course?
     @State private var showingAlert = false
     let currentDate = Date()
@@ -72,6 +89,9 @@ struct LinkView: View {
     @State private var goMidnightSnack = false
     @State private var goNewStudentChecklist = false
     @State private var goCampusMap = false
+    @Environment(\.accessibilityReduceMotion) private var reduceRestaurantMotion
+    @State private var restaurantExpanded = false
+    @State private var restaurantContentHeight: CGFloat = 0
     @State private var showTodayTasks = true  // 新增：顯示今日代辦展開
     @State private var selectedMemoForDetail: Memo? = nil  // 新增：選中的備忘錄
     @State private var showWeatherDetail = false  // 新增：顯示天氣詳情
@@ -96,36 +116,16 @@ struct LinkView: View {
     @State private var rowWidth: CGFloat = 0
 
     // 初始化 MemoManager
-    init(orderManager: OrderManager, courseData: CourseData, memoManager: MemoManager) {
+    init(orderManager: OrderManager, courseData: CourseData, memoManager: MemoManager, bikeManager: UbikeManager, accountProfile: CommunityProfileManager) {
         self.orderManager = orderManager
         self.courseData = courseData
         self.memoManager = memoManager
+        self.bikeManager = bikeManager
+        self.accountProfile = accountProfile
     }
     
     // MARK: - 子視圖
 
-    // 天气 Toolbar 按钮
-    @ViewBuilder
-    private func weatherToolbarButton(station: Station) -> some View {
-        let weather = station.WeatherElement.Weather
-        let currentTemp = station.WeatherElement.AirTemperature
-        
-        Button {
-            showWeatherDetail = true
-        } label: {
-            HStack(spacing: 6) {
-                Image(systemName: weatherIcon(weather))
-                    .font(.title3)
-                    .symbolRenderingMode(.hierarchical)
-                    .foregroundStyle(weatherTint(weather))
-                
-                Text(safeTemp(currentTemp))
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-            }
-        }
-    }
-    
     // 天气详情 Sheet
     @ViewBuilder
     private var weatherDetailSheet: some View {
@@ -144,6 +144,12 @@ struct LinkView: View {
                     }
             }
             .presentationDetents([.medium, .large])
+        } else {
+            VStack(spacing: 12) {
+                Text("目前沒有天氣資料")
+                Button("重新整理") { weatherManager.fetchData() }
+            }
+            .presentationDetents([.medium])
         }
     }
     
@@ -365,11 +371,10 @@ struct LinkView: View {
     private var todayTasksList: some View {
         let todayMemos = getTodayMemos()
         if todayMemos.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                NavigationLink { TodayView(memoManager: memoManager, courseData: courseData) } label: {
-                    Label("開啟備忘錄", systemImage: "square.and.pencil").font(.caption.weight(.semibold))
-                }
-            }.padding(.vertical, 8).padding(.horizontal, 12)
+            Text("今天沒有待辦")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .padding(.vertical, 8)
         } else {
             VStack(spacing: 0) {
                 ForEach(Array(todayMemos.prefix(3))) { memo in
@@ -382,10 +387,7 @@ struct LinkView: View {
                 }
             }
             .padding(.top, 8)
-            NavigationLink { TodayView(memoManager: memoManager, courseData: courseData) } label: {
-                Label(todayMemos.count > 3 ? "查看全部 \(todayMemos.count) 筆待辦" : "開啟備忘錄", systemImage: "arrow.right.circle")
-                    .font(.caption.weight(.semibold)).padding(.top, 8)
-            }
+
         }
     }
     
@@ -474,7 +476,7 @@ struct LinkView: View {
         .padding(12)
         .background {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(todayRowBackground)
         }
     }
     
@@ -545,7 +547,7 @@ struct LinkView: View {
     
     @ViewBuilder
     private var todayHubSection: some View {
-        Section {
+        Group {
             VStack(alignment: .leading, spacing: 16) {
                 HStack(alignment: .top, spacing: 12) {
                     VStack(alignment: .leading, spacing: 4) {
@@ -565,22 +567,64 @@ struct LinkView: View {
                     todayTasksDisclosureGroup
                 }
 
-                DisclosureGroup("餐廳推薦") { todayRestaurantCard }
-                    .font(.subheadline)
+                restaurantDisclosure
             }
-            .padding(16)
+            .padding(20)
+            .fixedSize(horizontal: false, vertical: true)
             .background {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(Color(.secondarySystemBackground))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 22, style: .continuous)
-                            .stroke(Color.blue.opacity(0.22), lineWidth: 1)
-                    }
-                    .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 7)
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(colorScheme == .light ? Color.white : Color(.secondarySystemGroupedBackground))
             }
-            .listRowInsets(.init(top: 8, leading: 0, bottom: 4, trailing: 0))
+            .frame(maxWidth: .infinity, alignment: .topLeading)
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
         }
-        .listRowBackground(Color.clear)
+    }
+
+    private var restaurantDisclosure: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Button {
+                withAnimation(reduceRestaurantMotion ? nil : .easeInOut(duration: 0.28)) {
+                    restaurantExpanded.toggle()
+                }
+            } label: {
+                HStack {
+                    Label("餐廳推薦", systemImage: "fork.knife")
+                    Spacer()
+                    Image(systemName: "chevron.down")
+                        .rotationEffect(.degrees(restaurantExpanded ? 180 : 0))
+                }
+                .font(.subheadline.weight(.semibold))
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(restaurantExpanded ? "已展開" : "已收合")
+
+            todayRestaurantCard
+                .padding(.top, 6)
+                .fixedSize(horizontal: false, vertical: true)
+                .background {
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: RestaurantContentHeight.self, value: proxy.size.height)
+                    }
+                }
+                .frame(height: restaurantExpanded ? restaurantContentHeight : 0, alignment: .top)
+                .clipped()
+                .opacity(restaurantExpanded ? 1 : 0)
+                .allowsHitTesting(restaurantExpanded)
+                .accessibilityHidden(!restaurantExpanded)
+        }
+        .onPreferenceChange(RestaurantContentHeight.self) { height in
+            guard height > 0, abs(height - restaurantContentHeight) > 0.5 else { return }
+            restaurantContentHeight = height
+        }
+    }
+
+    private struct RestaurantContentHeight: PreferenceKey {
+        static let defaultValue: CGFloat = 0
+        static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+            value = max(value, nextValue())
+        }
     }
 
     private var todayRestaurantCard: some View {
@@ -673,7 +717,7 @@ struct LinkView: View {
         .padding(14)
         .background {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(.tertiarySystemBackground))
+                .fill(Color(.secondarySystemBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
                         .stroke(Color.primary.opacity(0.06), lineWidth: 1)
@@ -723,7 +767,11 @@ struct LinkView: View {
             Spacer(minLength: 0)
         }
         .padding(12)
-        .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(todayRowBackground, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+
+    private var todayRowBackground: Color {
+        Color(colorScheme == .light ? .secondarySystemBackground : .tertiarySystemBackground)
     }
 
     @ViewBuilder
@@ -753,20 +801,20 @@ struct LinkView: View {
         .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
-    @ViewBuilder
     private var quickFeaturesSection: some View {
-        Section {
-            LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
-                if !academic.uid.isEmpty {
-                    Button { if academicDestination == nil { academicDestination = .grades } } label: {
-                        featureCard(icon: "chart.bar", title: "成績與排名", iconColor: .blue)
-                    }.buttonStyle(.borderless)
-                    Button { if academicDestination == nil { academicDestination = .graduation } } label: {
-                        featureCard(icon: "graduationcap", title: "畢業門檻", iconColor: .indigo)
-                    }.buttonStyle(.borderless)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(String(localized: "quick_features"))
+                Spacer()
+                Button(String(localized: "quick_features_edit")) {
+                    showQuickFeatureEditor = true
                 }
-                let favorites = studentImpactStore.quickFeatures.filter(\.isFavorite)
-                if favorites.isEmpty && academic.uid.isEmpty {
+                .font(.caption.weight(.semibold))
+                .textCase(nil)
+            }
+            LazyVGrid(columns: [.init(.flexible()), .init(.flexible()), .init(.flexible())], spacing: 12) {
+                let favorites = studentImpactStore.quickFeatures.filter { placement(for: $0) == .shortcut }
+                if favorites.isEmpty {
                     Text(String(localized: "quick_features_empty"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -781,52 +829,51 @@ struct LinkView: View {
                     }
                 }
             }
-            .listRowSeparator(.hidden)
-            .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-            .listRowBackground(Color.clear)
-        } header: {
-            HStack {
-                Text(String(localized: "quick_features"))
-                Spacer()
-                Button(String(localized: "quick_features_edit")) {
-                    showQuickFeatureEditor = true
-                }
-                .font(.caption.weight(.semibold))
-                .textCase(nil)
-            }
         }
     }
-    
+
     var body: some View {
         NavigationStack {
             VStack {
-                List {
-                    todayHubSection
-                    orderSection
-                    quickFeaturesSection
-                    // Native 廣告 Section
-                    if !adFree.isAdFree {
-                        Section {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 24) {
+                        orderSection
+                        todayHubSection
+                        quickFeaturesSection
+                        if !adFree.isAdFree {
                             NativeAdSectionView(style: .compact)
                                 .frame(height: 140)
-                                .background {
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(Color(.tertiarySystemBackground))
-                                        .shadow(color: .black.opacity(0.12), radius: 10, x: 0, y: 5)
-                                }
+                                .background(Color(.tertiarySystemBackground), in: RoundedRectangle(cornerRadius: 16))
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                         }
-                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                        .listRowBackground(Color.clear)
                     }
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 16)
                 }
-            .navigationTitle("NTPU one")
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar {
-                    ToolbarItem(placement: .principal) {
-                        Text("NTPU one").font(.headline.bold())
+                .background {
+                    ZStack {
+                        Color(.systemBackground)
+                        LinearGradient(
+                            stops: [
+                                .init(color: colorScheme == .light ? Color(.systemGroupedBackground) : .clear, location: 0),
+                                .init(color: colorScheme == .light ? Color(.systemGroupedBackground) : .clear, location: 0.12),
+                                .init(color: .pink.opacity(0.10), location: 0.40),
+                                .init(color: .purple.opacity(0.06), location: 0.70),
+                                .init(color: .blue.opacity(0.09), location: 1)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     }
+                    .ignoresSafeArea()
                 }
+                .safeAreaInset(edge: .top, spacing: 0) {
+                    homeSummaryBar
+                        .frame(height: 62)
+                        .padding(.top, verticalSizeClass == .compact ? 12 : 2)
+                        .padding(.bottom, 10)
+                }
+                .toolbar(.hidden, for: .navigationBar)
                 .navigationDestination(isPresented: Binding(get: { academicDestination != nil }, set: { if !$0 { academicDestination = nil } })) {
                     switch academicDestination {
                     case .grades: AcademicGradesView()
@@ -929,55 +976,18 @@ struct LinkView: View {
                 NavigationLink(destination: NewStudentChecklistView(), isActive: $goNewStudentChecklist) { EmptyView() }.hidden()
                 NavigationLink(destination: CampusMapView(), isActive: $goCampusMap) { EmptyView() }.hidden()
             }
+            .sheet(isPresented: $showAccountCenter) {
+                NavigationStack {
+                    AccountCenterView(communityProfileManager: accountProfile, showAppSettings: true)
+                        .toolbar {
+                            ToolbarItem(placement: .confirmationAction) {
+                                Button("完成") { showAccountCenter = false }
+                            }
+                        }
+                }
+            }
             .sheet(isPresented: $showFoodMenu) {
                 foodMenuSheet
-            }
-            .toolbar {
-                // 左上角天气按钮
-                ToolbarItem(placement: .topBarLeading) {
-                    if let weatherData = weatherManager.weatherDatas,
-                       let station = weatherData.records.Station.first {
-                        weatherToolbarButton(station: station)
-                    } else {
-                        Button {
-                            // 加载中不可点击
-                        } label: {
-                            HStack(spacing: 4) {
-                                ProgressView()
-                                    .controlSize(.small)
-                            }
-                        }
-                        .disabled(true)
-                        .onAppear { weatherManager.fetchData() }
-                    }
-                }
-                
-                // 右上角按鈕
-                ToolbarItem(placement: toolbarPlacementTrailing) {
-                    if !GlobalFeatureSettings.shared.adsEnabled {
-                        Label("廣告暫停顯示", systemImage: "checkmark.seal").labelStyle(.iconOnly).foregroundStyle(.green).help("廣告暫停顯示")
-                    } else if adFree.isAdFree {
-                        Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal")
-                            .labelStyle(.iconOnly)
-                            .foregroundStyle(.green)
-                            .help(String(localized: "no_banner_until_midnight"))
-                    } else {
-                        Button {
-                            if !rewardedAd.isLoading {
-                                showAdConfirm = true
-                            }
-                        } label: {
-                            if rewardedAd.isLoading {
-                                ProgressView()
-                            } else {
-                                Label(String(localized: "watch_video_disable_banner"), systemImage: "film.stack")
-                                    .labelStyle(.iconOnly)
-                            }
-                        }
-                        .disabled(rewardedAd.isLoading)
-                        .help(String(localized: "after_watching_disable_banner"))
-                    }
-                }
             }
             .onAppear { preloadRewardedIfNeeded() }
             .alert(String(localized: "disable_today_banner_title"), isPresented: $showAdConfirm) {
@@ -1000,19 +1010,223 @@ struct LinkView: View {
         }
     }
     
+    private func placement(for item: QuickFeatureItem) -> HomePlacement {
+        guard summaryDestinations.contains(item.destination) else { return item.isFavorite ? .shortcut : .hidden }
+        return (try? JSONDecoder().decode([String: HomePlacement].self, from: summaryPlacements))?[item.id] ?? .summary
+    }
+
+    private func setPlacement(_ value: HomePlacement, for item: QuickFeatureItem) {
+        var settings = (try? JSONDecoder().decode([String: HomePlacement].self, from: summaryPlacements)) ?? [:]
+        settings[item.id] = value
+        if let data = try? JSONEncoder().encode(settings) { summaryPlacements = data }
+    }
+
+    private var orderedSummaryItems: [QuickFeatureItem] {
+        let order = (try? JSONDecoder().decode([String].self, from: summaryOrder))
+            ?? ["weather", "ubike", "grades", "graduation"]
+        return studentImpactStore.quickFeatures.filter { placement(for: $0) == .summary }.sorted {
+            (order.firstIndex(of: $0.destination) ?? order.count) < (order.firstIndex(of: $1.destination) ?? order.count)
+        }
+    }
+
     @ViewBuilder
+    private var homeSummaryBar: some View {
+        if #available(iOS 26.0, *) {
+            homeSummaryStrip
+                .scrollEdgeEffectStyle(.soft, for: .trailing)
+                .safeAreaBar(edge: .trailing, spacing: 6) {
+                    homeAccountArea
+                }
+        } else {
+            HStack(spacing: 6) {
+                homeSummaryStrip
+                homeAccountArea
+            }
+        }
+    }
+
+    private var homeAccountArea: some View {
+        homeAccountButton
+            // Extend the native soft scroll edge without adding another material.
+            .padding(.leading, 24)
+    }
+
+    private var homeAccountButton: some View {
+        Button { showAccountCenter = true } label: {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 29, weight: .regular))
+                .foregroundStyle(.blue)
+                .frame(width: 48, height: 48)
+                .modifier(HomeAccountGlass())
+                .frame(width: 64, height: 62)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("帳號中心")
+        .padding(.trailing, 12)
+    }
+
+    private var homeSummaryStrip: some View {
+        let items = orderedSummaryItems
+        return ScrollView(.horizontal, showsIndicators: false) {
+            summaryCards(items)
+        }
+        .task(id: items.contains { $0.destination == "ubike" }) {
+            guard items.contains(where: { $0.destination == "ubike" }) else { return }
+            while !Task.isCancelled {
+                if bikeManager.lastUpdated.map({ Date().timeIntervalSince($0) >= 300 }) ?? true {
+                    await bikeManager.refresh()
+                }
+                try? await Task.sleep(for: .seconds(300))
+            }
+        }
+    }
+
+    private func summaryCards(_ items: [QuickFeatureItem]) -> some View {
+        HStack(spacing: 8) {
+            adSummaryButton
+                .buttonStyle(HomeSummaryButtonStyle())
+                .frame(width: 40, height: 58)
+                .modifier(HomeSummaryGlass())
+
+            ForEach(items) { item in
+                TimelineView(.everyMinute) { timeline in
+                    let summary = summaryValue(for: item.destination, at: timeline.date)
+                    Button { handleQuickFeature(item) } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: summary.icon ?? item.systemImage)
+                                .font(.title3)
+                                .foregroundStyle(quickFeatureTint(item.destination))
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(summary.label ?? item.title).font(.caption).foregroundStyle(.secondary)
+                                Text(summary.value).font(.subheadline.weight(.semibold)).monospacedDigit()
+                            }
+                        }
+                        .padding(.horizontal, 12)
+                        .frame(minHeight: 58)
+                        .modifier(HomeSummaryGlass())
+                    }
+                    .buttonStyle(HomeSummaryButtonStyle())
+                    .contentShape(Rectangle())
+                    .accessibilityElement(children: .combine)
+                    .privacySensitive(item.destination == "grades" || item.destination == "graduation")
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 2)
+    }
+
+    private struct HomeAccountGlass: ViewModifier {
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *) {
+                content.glassEffect(.regular.interactive(), in: .circle)
+            } else {
+                content.background(.regularMaterial, in: Circle())
+            }
+        }
+    }
+
+    private struct HomeSummaryGlass: ViewModifier {
+        func body(content: Content) -> some View {
+            if #available(iOS 26.0, *) {
+                // Keep glass rendering local; presses belong to the visible SwiftUI button.
+                content.glassEffect(.regular, in: .rect(cornerRadius: 16))
+            } else {
+                content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16).stroke(.primary.opacity(0.08), lineWidth: 0.5)
+                    }
+            }
+        }
+    }
+
+    private struct HomeSummaryButtonStyle: ButtonStyle {
+        func makeBody(configuration: Configuration) -> some View {
+            configuration.label
+                .opacity(configuration.isPressed ? 0.72 : 1)
+                .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
+        }
+    }
+
+    private func summaryValue(for destination: String, at date: Date) -> (label: String?, value: String, icon: String?) {
+        switch destination {
+        case "weather":
+            guard let station = weatherManager.weatherDatas?.records.Station.first else { return (nil, "暫無資料", nil) }
+            return (nil, safeTemp(station.WeatherElement.AirTemperature), weatherIcon(station.WeatherElement.Weather))
+        case "grades":
+            let grades = academic.cache.reports?.first { $0.kind == .grades && $0.isCurrent }
+            let rank = academic.cache.reports?.first { $0.kind == .rank && $0.isCurrent }
+            let average = AcademicReportOrdering.latestAverage(grades?.sections ?? [])
+                ?? AcademicReportOrdering.latestAverage(rank?.sections ?? [])
+            return ("最新學期平均", average ?? "待公布", nil)
+        case "graduation":
+            let report = academic.cache.reports?.first { $0.kind == .graduation && $0.isCurrent }
+            let total = report?.sections?.first { $0.id == "summary_total" }?.fields.first?.value
+            return ("畢業門檻 · 累計", total.map { "\($0) 學分" } ?? "待查詢", nil)
+        case "ubike":
+            let preferences = YouBikeHomePreferences.decode(bikePreferences)
+            guard let id = preferences.station(at: date) else { return (nil, "選擇站點", nil) }
+            guard let station = bikeManager.bikeDatas?.first(where: { $0.id == id }) else { return (nil, "暫無資料", nil) }
+            return (station.displayName, "\(station.sbi_quantity) 輛", nil)
+        default:
+            return (nil, "", nil)
+        }
+    }
+
+    @ViewBuilder
+    private var adSummaryButton: some View {
+        if !GlobalFeatureSettings.shared.adsEnabled {
+            Label("廣告暫停顯示", systemImage: "checkmark.seal").labelStyle(.iconOnly).foregroundStyle(.green).help("廣告暫停顯示")
+        } else if adFree.isAdFree {
+            Label(String(localized: "no_banner_today"), systemImage: "checkmark.seal")
+                .labelStyle(.iconOnly)
+                .foregroundStyle(.green)
+                .help(String(localized: "no_banner_until_midnight"))
+        } else {
+            Button {
+                if !rewardedAd.isLoading {
+                    showAdConfirm = true
+                }
+            } label: {
+                if rewardedAd.isLoading {
+                    ProgressView()
+                } else {
+                    Label(String(localized: "watch_video_disable_banner"), systemImage: "film.stack")
+                        .labelStyle(.iconOnly)
+                }
+            }
+            .disabled(rewardedAd.isLoading)
+            .help(String(localized: "after_watching_disable_banner"))
+        }
+    }
+
     private var quickFeatureEditorSheet: some View {
         NavigationStack {
             List {
                 Section {
                     ForEach(studentImpactStore.quickFeatures) { item in
-                        Toggle(isOn: quickFeatureBinding(for: item.id)) {
-                            Label(item.title, systemImage: item.systemImage)
+                        if summaryDestinations.contains(item.destination) {
+                            Picker(selection: Binding(get: { placement(for: item) }, set: { setPlacement($0, for: item) })) {
+                                ForEach(HomePlacement.allCases, id: \.self) { position in
+                                    Text(position.rawValue).tag(position)
+                                }
+                            } label: {
+                                Label(item.title, systemImage: item.systemImage)
+                            }
+                        } else {
+                            Toggle(isOn: quickFeatureBinding(for: item.id)) {
+                                Label(item.title, systemImage: item.systemImage)
+                            }
                         }
                     }
-                    .onMove(perform: studentImpactStore.moveQuickFeature)
+                    .onMove { source, destination in
+                        studentImpactStore.moveQuickFeature(from: source, to: destination)
+                        let order = studentImpactStore.quickFeatures.filter { summaryDestinations.contains($0.destination) }.map(\.destination)
+                        if let encoded = try? JSONEncoder().encode(order) { summaryOrder = encoded }
+                    }
                 } footer: {
-                    Text(String(localized: "quick_features_editor_footer"))
+                    Text("有摘要的功能可放在頂部或快捷功能，也可以隱藏。拖曳可調整順序。")
                 }
             }
             .navigationTitle(String(localized: "quick_features_editor_title"))
@@ -1046,6 +1260,13 @@ struct LinkView: View {
             goSchoolPosts = true
         case "commonLinks":
             goLinks = true
+        case "weather":
+            if weatherManager.weatherDatas?.records.Station.first != nil { showWeatherDetail = true }
+            else { weatherManager.fetchData(); showWeatherDetail = true }
+        case "grades":
+            academicDestination = .grades
+        case "graduation":
+            academicDestination = .graduation
         case "ubike":
             goTraffic = true
         case "restaurant":
@@ -1665,45 +1886,6 @@ struct LinkView: View {
         ["activity", "club", "other"]
     }
 
-    private var selectedOrderTags: Set<String> {
-        var tags = Set<String>()
-        if selectedAnnouncementInterestIDs.contains("activity") { tags.insert("1") }
-        if selectedAnnouncementInterestIDs.contains("club") { tags.insert("2") }
-        if selectedAnnouncementInterestIDs.contains("other") { tags.insert("3") }
-        return tags
-    }
-
-    private var announcementFilterInterests: [StudentInterest] {
-        studentImpactStore.studentInterests.filter { announcementFilterIDs.contains($0.id) }
-    }
-
-    private var filteredAnnouncementOrders: [Order] {
-        let orders = orderManager.order ?? []
-        guard !selectedAnnouncementInterestIDs.isEmpty else { return orders }
-        guard !selectedOrderTags.isEmpty else { return [] }
-        return orders.filter { selectedOrderTags.contains($0.tag) }
-    }
-
-    private var interestFilterChips: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                ForEach(announcementFilterInterests) { interest in
-                    Button {
-                        studentImpactStore.toggleInterest(id: interest.id)
-                    } label: {
-                        Text(announcementInterestTitle(for: interest.id, fallback: interest.title))
-                            .font(.caption.weight(.semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 7)
-                            .foregroundStyle(interest.isSelected ? .white : .blue)
-                            .background(interest.isSelected ? Color.blue : Color.blue.opacity(0.12), in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
-    }
-
     private func favoriteForOrder(_ order: Order) -> EventFavorite? {
         guard let id = order.favoriteID else { return nil }
         return EventFavorite(
@@ -1757,47 +1939,20 @@ struct LinkView: View {
     }
 
     private var orderSection: some View {
-        Group {
-            if orderManager.order != nil {
-                Section {
-                    if filteredAnnouncementOrders.isEmpty {
-                        HStack(spacing: 12) {
-                            Image(systemName: "line.3.horizontal.decrease.circle")
-                                .foregroundStyle(.secondary)
-                            Text(String(localized: "announcements_filter_empty"))
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Spacer()
-                        }
-                        .padding(.vertical, 8)
-                    } else {
-                        DemoView
-                    }
-
-                    if !filteredEventFavorites.isEmpty {
-                        savedFavoritesDisclosure
-                    }
-                } header: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(String(localized: "announcements_filter_title"))
-                        interestFilterChips
-                    }
-                    .textCase(nil)
+        VStack(alignment: .leading, spacing: 0) {
+            if let orders = orderManager.order {
+                if orders.isEmpty {
+                    Text("目前沒有公告").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    DemoView
                 }
             } else {
-                Section {
-                    VStack {
-                        ProgressView("Loading...")
-                            .progressViewStyle(CircularProgressViewStyle())
-                    }
-                } footer: {
-                    Text(String(localized: "connecting_check_network"))
-                        .foregroundStyle(.secondary)
-                }
+                ProgressView("載入公告中")
+                    .frame(maxWidth: .infinity)
             }
         }
     }
-    
+
     private var webSections: some View {
         ForEach(webManager.websArray) { webs in
             Section(header: Text(webs.title), footer: footerText(for: webs.id)) {
@@ -1912,7 +2067,7 @@ struct LinkView: View {
     }
     
     var DemoView: some View {
-        let orders = filteredAnnouncementOrders
+        let orders = orderManager.order ?? []
         // 計算含 native ad 的總頁數（每 3 個廣播後插入 1 個 native ad）
         let nativeAdInterval = 3
         let nativeAdCount = !adFree.isAdFree && orders.count >= nativeAdInterval ? orders.count / nativeAdInterval : 0
@@ -1926,7 +2081,6 @@ struct LinkView: View {
                     if isNativeAdPage && !adFree.isAdFree {
                         NativeAdSectionView(style: .compact, showCardBackground: true)
                             .frame(maxWidth: .infinity, minHeight: 140)
-                            .padding(.horizontal, 8)
                     } else {
                         let orderIndex = pageIndex - nativeAdsBefore
                         if orderIndex < orders.count {
@@ -1945,7 +2099,6 @@ struct LinkView: View {
                                 handleURL(item.url)
                             }
                             .frame(maxWidth: .infinity, minHeight: 140)
-                            .padding(.horizontal, 8)
                         }
                     }
                 }
@@ -2259,6 +2412,7 @@ struct LinkChip: View {
 
 // 可重用的公告卡片內容
 struct AnnouncementCard: View {
+    @Environment(\.colorScheme) private var colorScheme
     let message: String
     let author: String
     let tag: String
@@ -2298,7 +2452,7 @@ struct AnnouncementCard: View {
         ZStack {
             // 背景卡片（適配 iOS 26 Liquid Glass 風格）
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
+                .fill(!isImageCard && colorScheme == .light ? Color.white : Color(.secondarySystemBackground))
                 .overlay {
                     RoundedRectangle(cornerRadius: 18, style: .continuous)
                         .stroke(Color(.separator), lineWidth: 0.5)
@@ -2315,7 +2469,7 @@ struct AnnouncementCard: View {
         }
         .contentShape(Rectangle())
         .onTapGesture { if hasURL { onTap() } }
-        .opacity(hasURL ? 1 : 0.9)
+        .opacity(isImageCard && !hasURL ? 0.9 : 1)
         .contextMenu {
             if hasURL, let urlStr = urlString {
                 Button(String(localized: "open_link"), systemImage: "arrow.up.right.square") { onTap() }

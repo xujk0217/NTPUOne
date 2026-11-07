@@ -32,6 +32,8 @@ struct ContentView: View {
     @AppStorage("hasCompletedFirstRunOnboarding") private var hasCompletedFirstRunOnboarding = false
     
     @SceneStorage("ntpu.selectedTab") private var selectedTab = 0
+    @SceneStorage("ntpu.academicTab") private var academicTab = 0
+    @AppStorage("threeTabNavigationMigrated") private var threeTabNavigationMigrated = false
     @State private var showFirstRunOnboarding = false
     @State private var aiPage: AIAppPage?
     @State private var aiChange: AIChangeProposal?
@@ -51,24 +53,19 @@ struct ContentView: View {
                                         memos: memoManager.memos, bikes: bikeManager)
         }, hasSavedSchoolAccount: academic.schoolLinked,
            credentialProvider: { academic.savedSchoolCredentialForAI() }, openPage: openAIPage, reviewChange: { aiChange = $0 }, reviewBatch: { proposals, onComplete in aiBatch = AIChangeBatch(proposals: proposals, onComplete: onComplete) }) {
-        TabView(selection: $selectedTab) {
-            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager).tabItem {
+        TabView(selection: Binding(
+            get: { [0, 1, 3].contains(selectedTab) ? selectedTab : 0 },
+            set: { selectedTab = $0 }
+        )) {
+            LinkView(orderManager: orderManager, courseData: courseData, memoManager: memoManager, bikeManager: bikeManager, accountProfile: aiAccountProfile).tabItem {
                 Image(systemName: "house")
                     .environment(\.symbolVariants, .none)
-                Text("Main")
+                Text("首頁")
             }.tag(0)
             
-            TodayView(memoManager: memoManager, courseData: courseData).tabItem {
-                Image(systemName: "note.text")
-                    .environment(\.symbolVariants, .none)
-                Text(String(localized: "memo"))
-            }.tag(1)
-            
-            TimeTableView(memoManager: memoManager).tabItem {
-                Image(systemName: "list.bullet.clipboard")
-                    .environment(\.symbolVariants, .none)
-                Text(String(localized: "timetable"))
-            }.tag(2)
+            AcademicWorkspaceView(memoManager: memoManager, courseData: courseData, selection: $academicTab)
+                .tabItem { Label("學業", systemImage: "books.vertical") }
+                .tag(1)
 
             RemoteConfigFeatureGate(feature: .community) {
                 CommunityView()
@@ -79,11 +76,7 @@ struct ContentView: View {
                 Text(String(localized: "community_title"))
             }.tag(3)
             
-            AboutView().tabItem {
-                Image(systemName: "info.circle")
-                    .environment(\.symbolVariants, .none)
-                Text(String(localized: "my"))
-            }.tag(4)
+
         }
         .accessibilityHidden(aiPage != nil)
         .allowsHitTesting(aiPage == nil)
@@ -133,6 +126,12 @@ struct ContentView: View {
             .interactiveDismissDisabled()
         }
         .onAppear {
+            if !threeTabNavigationMigrated {
+                academicTab = selectedTab == 1 ? 1 : 0
+                if selectedTab == 2 { selectedTab = 1 }
+                if selectedTab == 4 { selectedTab = 0 }
+                threeTabNavigationMigrated = true
+            }
             academic.start(memos: memoManager, courses: courseData)
             if !hasCompletedFirstRunOnboarding {
                 showFirstRunOnboarding = true
@@ -155,15 +154,16 @@ struct ContentView: View {
         aiPage = nil
         switch page {
         case .home: selectedTab = 0
-        case .memo: selectedTab = 1
-        case .timetable: selectedTab = 2
+        case .memo: academicTab = 1; selectedTab = 1
+        case .timetable: academicTab = 0; selectedTab = 1
         case .community: selectedTab = 3
-        case .profile: selectedTab = 4
+        case .profile: aiPage = page
         default: aiPage = page
         }
     }
     @ViewBuilder private func aiDestination(_ page: AIAppPage) -> some View {
         switch page {
+        case .profile: AboutView()
         case .googleAccount: AccountCenterView(communityProfileManager: aiAccountProfile)
         case .schoolAccount: AcademicConnectionView()
         case .grades: AcademicGradesView()
@@ -203,14 +203,73 @@ struct ContentView: View {
         
         switch url.host {
         case "memo":
-            // 切換到 Memo 頁面
+            academicTab = 1
             selectedTab = 1
         case "timetable":
-            // 切換到 Timetable 頁面
-            selectedTab = 2
+            academicTab = 0
+            selectedTab = 1
         default:
             break
         }
+    }
+}
+
+private struct AcademicWorkspaceView: View {
+    @ObservedObject var memoManager: MemoManager
+    @ObservedObject var courseData: CourseData
+    @Binding var selection: Int
+
+    var body: some View {
+        Group {
+            if selection == 1 {
+                TodayView(memoManager: memoManager, courseData: courseData, workspaceSelection: $selection)
+            } else {
+                TimeTableView(memoManager: memoManager, workspaceSelection: $selection)
+            }
+        }
+        .background(AcademicPageBackground())
+    }
+}
+
+struct AcademicWorkspaceHeader: ViewModifier {
+    var selection: Binding<Int>?
+
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if let selection {
+            if #available(iOS 26.0, *) {
+                content
+                    .safeAreaBar(edge: .top, spacing: 0) { picker(selection) }
+                    .scrollEdgeEffectStyle(.soft, for: .top)
+            } else {
+                content.safeAreaInset(edge: .top, spacing: 0) { picker(selection) }
+            }
+        } else {
+            content
+        }
+    }
+
+    private func picker(_ selection: Binding<Int>) -> some View {
+        Picker("學業內容", selection: selection) {
+            Label(String(localized: "timetable"), systemImage: "calendar").tag(0)
+            Label(String(localized: "memo"), systemImage: "checklist").tag(1)
+        }
+        .pickerStyle(.segmented)
+        .frame(maxWidth: 440)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+    }
+}
+
+struct AcademicPageBackground: View {
+    var body: some View {
+        ZStack {
+            Color(.systemGroupedBackground)
+            LinearGradient(colors: [.clear, .blue.opacity(0.04), .purple.opacity(0.04)],
+                           startPoint: .top, endPoint: .bottom)
+        }
+        .ignoresSafeArea()
     }
 }
 

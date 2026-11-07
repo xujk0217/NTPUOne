@@ -12,6 +12,7 @@ struct TimeTableView: View {
     @EnvironmentObject var courseData: CourseData
     @EnvironmentObject var adFree: AdFreeService
     @ObservedObject var memoManager: MemoManager
+    var workspaceSelection: Binding<Int>?
     @State var isEdit = false
     @State var isShowingGetCourseSheet = false
     @State private var isSaturday: Bool = UserDefaults.standard.bool(forKey: "isSaturday")
@@ -22,8 +23,9 @@ struct TimeTableView: View {
 
     @State private var refreshTrigger: Bool = false
     
-    init(memoManager: MemoManager) {
+    init(memoManager: MemoManager, workspaceSelection: Binding<Int>? = nil) {
         self.memoManager = memoManager
+        self.workspaceSelection = workspaceSelection
     }
     
     @State private var clearFailed = false
@@ -31,35 +33,90 @@ struct TimeTableView: View {
     @State private var conflictDay = "Monday"
     @State private var conflictSlot: Course.TimeSlot = .morning1
     @State private var confirmRemoveConflict = false
+    @State private var selectedConflictGroup: CourseData.ConflictSlot?
+    @State private var pendingKeepChoice: CourseData.SyncConflict?
+    @State private var confirmKeepChoice = false
     @State private var showConflicts = false
     private let weekdays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 
     private var conflictNotice: some View {
         DisclosureGroup(isExpanded: $showConflicts) {
-            ForEach(courseData.syncConflicts) { conflict in
-                Button {
-                    conflictDay = weekdays.contains(conflict.course.day) ? conflict.course.day : "Monday"
-                    conflictSlot = conflict.course.timeSlot
-                    selectedConflict = conflict
-                } label: {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text(conflict.course.name)
-                            Text("\(NSLocalizedString(conflict.course.day, comment: "")) · \(NSLocalizedString(conflict.course.timeSlot.rawValue, comment: ""))")
-                                .font(.caption).foregroundStyle(.secondary)
+            ForEach(courseData.conflictSlots) { group in
+                if let conflict = group.choices.first {
+                    Button {
+                        if group.choices.count > 1 {
+                            selectedConflictGroup = group
+                            return
                         }
-                        Spacer()
-                        Image(systemName: "chevron.right")
+                        conflictDay = weekdays.contains(conflict.course.day) ? conflict.course.day : "Monday"
+                        conflictSlot = conflict.course.timeSlot
+                        selectedConflict = conflict
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(group.choices.count > 1 ? "\(group.choices.count) 門課程 · 選擇保留" : conflict.course.name)
+                                Text("\(NSLocalizedString(conflict.course.day, comment: "")) · \(NSLocalizedString(conflict.course.timeSlot.rawValue, comment: ""))")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                        }
                     }
+                    .padding(.vertical, 6)
                 }
-                .padding(.vertical, 6)
             }
         } label: {
-            Label("課表有 \(courseData.syncConflicts.count) 筆同步衝突", systemImage: "exclamationmark.triangle")
+            Label("有 \(courseData.conflictSlots.count) 個時段需要確認", systemImage: "exclamationmark.triangle")
         }
         .padding()
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 16))
         .padding(.horizontal)
+    }
+
+    private func conflictChoices(_ group: CourseData.ConflictSlot) -> some View {
+        NavigationStack {
+            List {
+                Section {
+                    ForEach(group.choices) { choice in
+                        Button {
+                            pendingKeepChoice = choice
+                            confirmKeepChoice = true
+                        } label: {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(choice.course.name).font(.headline)
+                                Text([choice.course.teacher, choice.course.location].filter { !$0.isEmpty }.joined(separator: " · "))
+                                    .font(.subheadline).foregroundStyle(.secondary)
+                                if choice.id == group.activeID {
+                                    Label("目前顯示", systemImage: "checkmark.circle")
+                                        .font(.caption)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                } footer: {
+                    Text("選擇要保留的課程，再確認是否移除同時段的其他課程。")
+                }
+            }
+            .navigationTitle("選擇要保留的課程")
+            .confirmationDialog("確認保留這門課？", isPresented: $confirmKeepChoice, titleVisibility: .visible,
+                                presenting: pendingKeepChoice) { choice in
+                Button("保留「\(choice.course.name)」", role: .destructive) {
+                    if courseData.keepCourse(choice, in: group) {
+                        memoManager.loadMemosFromCoreData()
+                    }
+                    selectedConflictGroup = nil
+                }
+                Button("取消", role: .cancel) {}
+            } message: { _ in
+                Text("同時段的其他課程會移除，備忘錄內容會保留。")
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { selectedConflictGroup = nil }
+                }
+            }
+        }
     }
 
     private func conflictEditor(_ conflict: CourseData.SyncConflict) -> some View {
@@ -105,37 +162,21 @@ struct TimeTableView: View {
     }
     var body: some View {
         NavigationStack {
-            ScrollView{
-                VStack {
+            ScrollView {
+                VStack(spacing: 16) {
                     if !courseData.syncConflicts.isEmpty { conflictNotice }
-                    if isEdit{
-                        Toggle("Saturday", isOn: $isSaturday)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(20)
-                            .padding(.horizontal)
-                            .padding(.top)
-                            .onChange(of: isSaturday) { newValue in
-                                // Save the new value to UserDefaults
-                                UserDefaults.standard.set(newValue, forKey: "isSaturday")
-                            }
-                        Toggle("Night", isOn: $includeNight)
-                            .padding()
-                            .background(Color.gray.opacity(0.1))
-                            .cornerRadius(20)
-                            .padding(.horizontal)
-                            .padding(.bottom)
-                            .onChange(of: includeNight) { newValue in
-                                // Save the new value to UserDefaults
-                                UserDefaults.standard.set(newValue, forKey: "includeNight")
-                            }
-
+                    if isEdit {
+                        VStack(spacing: 0) {
+                            Toggle(String(localized: "timetable_show_saturday"), isOn: $isSaturday)
+                                .padding(14)
+                                .onChange(of: isSaturday) { UserDefaults.standard.set($0, forKey: "isSaturday") }
+                            Divider().padding(.horizontal, 14)
+                            Toggle(String(localized: "timetable_show_night"), isOn: $includeNight)
+                                .padding(14)
+                                .onChange(of: includeNight) { UserDefaults.standard.set($0, forKey: "includeNight") }
+                        }
+                        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
                     }
-//                    if isSaturday == false{
-//                        CourseGridView(courseData: courseData, isEdit: $isEdit)
-//                    } else{
-//                        CourseGridSatView(courseData: courseData, isEdit: $isEdit)
-//                    }
                     UnifiedCourseGridView(courseData: courseData, isEdit: $isEdit, includeSaturday: $isSaturday, includeNight: $includeNight, memoManager: memoManager)
 
                     // Native 廣告
@@ -147,7 +188,6 @@ struct TimeTableView: View {
                                     .fill(Color(.systemGray5))
                             }
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                            .padding(.horizontal)
                     }
 
                     if isEdit {
@@ -178,16 +218,20 @@ struct TimeTableView: View {
                         }
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 20)
             }
+            .background(AcademicPageBackground())
+            .modifier(AcademicWorkspaceHeader(selection: workspaceSelection))
             .alert("無法清空課表", isPresented: $clearFailed) { Button("好", role: .cancel) {} } message: { Text("資料未變更，請稍後重試。") }
             .sheet(item: $selectedConflict) { conflictEditor($0) }
-            .navigationTitle("Course Schedule")
+            .sheet(item: $selectedConflictGroup) { conflictChoices($0) }
+            .onAppear { courseData.loadCoursesFromCoreData() }
+            .navigationTitle(String(localized: "timetable"))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .toolbar{
-                ToolbarItem(placement: .principal) {
-                    Text("Course Schedule")
-                        .font(.headline.bold())
-                }
                 ToolbarItem{
                     Button {
                         isShowingGetCourseSheet.toggle()
@@ -208,7 +252,7 @@ struct TimeTableView: View {
                         Button {
                             isEdit = true
                         } label: {
-                            Text("Edit")
+                            Text(String(localized: "edit"))
                         }
                     }
                 } else {
@@ -216,7 +260,7 @@ struct TimeTableView: View {
                         Button {
                             isEdit = false
                         } label: {
-                            Text("Done")
+                            Text(String(localized: "done"))
                         }
                     }
                 }

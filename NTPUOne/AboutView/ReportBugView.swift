@@ -6,22 +6,27 @@
 //
 
 import SwiftUI
-import FirebaseCore
 import FirebaseFirestore
-import FirebaseAuth
-import AppTrackingTransparency
 
 struct ReportBugView: View {
     @State private var email: String = ""
     @State private var issue: String = ""
     @State private var detail: String = ""
-    @State private var containHeight: CGFloat = 0
+    private enum Category: String {
+        case problem = "問題回報"
+        case suggestion = "功能建議"
+    }
+    private let category: Category
+
+    init(suggestFeature: Bool = false) {
+        category = suggestFeature ? .suggestion : .problem
+    }
 
     @State private var isSuccessSend = false
     @State private var firebaseFail = false
     @State private var isSubmitting = false
 
-    @EnvironmentObject var adFree: AdFreeService
+    @EnvironmentObject private var adFree: AdFreeService
     @Environment(\.dismiss) private var dismiss
 
     private let db = Firestore.firestore()
@@ -33,78 +38,54 @@ struct ReportBugView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ZStack {
-
-                Form {
-                    Section(String(localized: "issue_found_required")) {
-                        TextField(String(localized: "issue_found_placeholder"), text: $issue)
-                            .textInputAutocapitalization(.sentences)
-                            .autocorrectionDisabled(false)
-                    }
-
-                    Section(String(localized: "issue_detail_required")) {
-                        AutoSizingTF(
-                            hint: String(localized: "issue_detail_placeholder"),
-                            text: $detail,
-                            containerHeight: $containHeight,
-                            onEnd: { hideKeyboard() }
-                        )
-                        .frame(minHeight: 80, maxHeight: 160)
-                    }
-
-                    Section {
-                        TextField(String(localized: "email_optional_placeholder"), text: $email)
-                            .keyboardType(.emailAddress)
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                    } header: {
-                      Text(String(localized: "contact_method_optional"))
-                    } footer: {
-                        if !isFormValid {
-                            Text(String(localized: "issue_form_required_hint"))
-                        }
-                        if firebaseFail {
-                            Text(String(localized: "submit_failed_hint"))
-                                .foregroundStyle(.red)
-                        }
-                    }
-
-                    Section {
-                        Button {
-                            sendPressed()
-                        } label: {
-                            if isSubmitting {
-                                ProgressView()
-                            } else {
-                                Text(String(localized: "submit"))
-                                    .font(.headline)
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(!isFormValid || isSubmitting)
-                    }
-                    .listRowBackground(Color.clear)
-                }
+        Form {
+            Section {
+                TextField("標題", text: $issue)
+                TextField(category == .problem ? "在哪個畫面發生？如何重現？" : "你想完成什麼？希望怎麼操作？",
+                          text: $detail, axis: .vertical)
+                    .lineLimit(5...10)
+            } header: {
+                Text("內容")
+            } footer: {
+                Text("標題與內容為必填。請避免填入密碼或學號。")
             }
-            .navigationTitle(String(localized: "report_bug_title"))
-            .toolbar {
-                ToolbarItemGroup(placement: .keyboard) {
-                    Spacer()
-                    Button(String(localized: "done")) { hideKeyboard() }
-                }
+
+            Section {
+                TextField("電子郵件（選填）", text: $email)
+                    .keyboardType(.emailAddress)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+            } header: {
+                Text("聯絡方式")
             }
-            .alert(String(localized: "upload_success"), isPresented: $isSuccessSend) {
-                Button("OK") { isSuccessSend = false }
-            }
-            // 廣告標記
+
             if !adFree.isAdFree {
-                Section {
-                    BannerAdView()
-                        .frame(height: 50)
-                }
-                .listRowBackground(Color.clear)
+                BannerAdView().frame(height: 50)
+                    .listRowBackground(Color.clear)
             }
+
+            if firebaseFail {
+                Section {
+                    Label("送出失敗，內容已保留。請再試一次。", systemImage: "exclamationmark.circle")
+                        .foregroundStyle(.red)
+                }
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .navigationTitle(category.rawValue)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) {
+                if isSubmitting {
+                    ProgressView().accessibilityLabel("正在送出")
+                } else {
+                    Button("送出", action: sendPressed)
+                        .disabled(!isFormValid)
+                }
+            }
+        }
+        .alert("已送出回饋", isPresented: $isSuccessSend) {
+            Button("完成") { dismiss() }
         }
     }
 
@@ -124,26 +105,22 @@ struct ReportBugView: View {
             K.FStoreR.emailField: email.trimmingCharacters(in: .whitespacesAndNewlines),
         ]
 
-        db.collection(K.FStoreR.collectionNameBug).addDocument(data: data) { error in
+        let collection = category == .suggestion ? K.FStoreR.collectionNameFt : K.FStoreR.collectionNameBug
+        db.collection(collection).addDocument(data: data) { error in
             isSubmitting = false
-            if let e = error {
-                print("Firestore error: \(e)")
+            if error != nil {
                 firebaseFail = true
                 return
             }
             issue = ""; detail = ""; email = ""
             isSuccessSend = true
-            dismiss()
         }
     }
 
-    private func hideKeyboard() {
-        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder),
-                                        to: nil, from: nil, for: nil)
-    }
 }
 
 #Preview {
-    ReportBugView()
+    NavigationStack { ReportBugView() }
         .environmentObject(AdFreeService())
+
 }

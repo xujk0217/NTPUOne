@@ -259,11 +259,14 @@ final class StudentImpactStore: ObservableObject {
     }
 
     static let defaultQuickFeatures: [QuickFeatureItem] = [
+        QuickFeatureItem(id: "weather", title: "天氣", systemImage: "cloud.sun", destination: "weather", isFavorite: false),
+        QuickFeatureItem(id: "grades", title: "成績與排名", systemImage: "chart.bar", destination: "grades", isFavorite: false),
+        QuickFeatureItem(id: "graduation", title: "畢業門檻", systemImage: "graduationcap", destination: "graduation", isFavorite: false),
         QuickFeatureItem(id: "student-info", title: String(localized: "quick_feature_student_info"), systemImage: "person.text.rectangle", destination: "studentInfo", isFavorite: true),
         QuickFeatureItem(id: "past-exams", title: String(localized: "quick_feature_past_exams"), systemImage: "doc.text.magnifyingglass", destination: "pastExams", isFavorite: true),
         QuickFeatureItem(id: "school-announcements", title: String(localized: "quick_feature_school_announcements"), systemImage: "megaphone", destination: "schoolAnnouncements", isFavorite: true),
         QuickFeatureItem(id: "common-links", title: String(localized: "quick_feature_common_links"), systemImage: "link", destination: "commonLinks", isFavorite: true),
-        QuickFeatureItem(id: "ubike", title: "Ubike", systemImage: "bicycle", destination: "ubike", isFavorite: true),
+        QuickFeatureItem(id: "ubike", title: "YouBike", systemImage: "bicycle", destination: "ubike", isFavorite: true),
         QuickFeatureItem(id: "campus-map", title: String(localized: "campus_map_title"), systemImage: "map", destination: "campusMap", isFavorite: true),
         QuickFeatureItem(id: "lms", title: String(localized: "web_lms"), systemImage: "graduationcap.circle", destination: "lms", isFavorite: true),
         QuickFeatureItem(id: "course-reviews", title: String(localized: "quick_feature_course_reviews"), systemImage: "ellipsis.message", destination: "courseReviews", isFavorite: true),
