@@ -290,6 +290,7 @@ final class AcademicSyncStore: ObservableObject {
                 cache.courses = catalog; cache.year = enrolment.year; cache.term = enrolment.term
                 cache.lastSemesterHint = AcademicPolicy.currentTerm()
                 cache.schoolCheckedAt = Date(); try persist()
+                syncErrors["school"] = nil
                 if cache.catalogIncomplete == true { backOff("school") } else { resetRetry("school") }
             } catch {
                 guard epoch == generation else { return }

@@ -319,6 +319,18 @@ enum AcademicReportOrdering {
             }
         }.map(\.element)
     }
+    static func latestAverage(_ sections: [AcademicReportSection]) -> String? {
+        for section in sorted(sections).reversed() where dateKey(section.title) != nil {
+            for field in section.fields where field.label.contains("平均") || field.label.localizedCaseInsensitiveContains("Average") {
+                let raw = field.value.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard let range = raw.range(of: #"^[0-9]+(?:\.[0-9]+)?"#, options: .regularExpression),
+                      let value = Double(raw[range]), (0...100).contains(value) else { continue }
+                return String(raw[range])
+            }
+        }
+        return nil
+    }
+
     static func latestTerm(_ sections: [AcademicReportSection]) -> AcademicReportSection? {
         let ordered = sorted(sections)
         return ordered.last(where: { dateKey($0.title) != nil }) ?? ordered.first
@@ -548,7 +560,7 @@ final class SchoolAPI {
         let document = try SwiftSoup.parse(String(decoding: formData, as: UTF8.self))
         guard let form = try document.select("form[method=POST], form[method=post]").first(),
               ["/login", origin + "/login"].contains(try form.attr("action")),
-              let token = try form.select("input[name=_token]").first()?.attr("value"), !token.isEmpty else { throw AcademicError.unsupported }
+              let token = try form.select("input[name=_token]").first()?.attr("value"), !token.isEmpty else { throw AcademicError.schoolLoginForm }
         let (home, response) = try await http.request(URL(string: origin + "/login")!, fields: ["_token": token, "username": credential.username, "password": credential.password])
         let page = try SwiftSoup.parse(String(decoding: home, as: UTF8.self))
         guard response.url?.path != "/login", try !page.select("form[action$=/logout], a[href$=/logout]").isEmpty(),
@@ -558,28 +570,29 @@ final class SchoolAPI {
         let regex = try NSRegularExpression(pattern: pattern, options: .dotMatchesLineSeparators)
         guard let match = regex.firstMatch(in: text, range: NSRange(location: 0, length: ns.length)),
               let raw = ns.substring(with: match.range(at: 1)).data(using: .utf8),
-              let menus = try JSONSerialization.jsonObject(with: raw) as? [[String: Any]] else { throw AcademicError.unsupported }
+              let menus = (try? JSONSerialization.jsonObject(with: raw)) as? [[String: Any]] else { throw AcademicError.schoolMenu }
         self.menus = menus
     }
     private func readPage(_ credential: SchoolCredential, path: String, function: String) async throws -> (String, String) {
         try await authenticate(credential)
         let destination = "https://ohs01.ntpu.edu.tw\(path)?func=\(function)"
-        guard menus?.filter({ $0["url"] as? String == destination && $0["project_id"] as? Int == 10 }).count == 1 else { throw AcademicError.unsupported }
+        guard menus?.filter({ $0["url"] as? String == destination && $0["project_id"] as? Int == 10 }).count == 1 else { throw AcademicError.schoolMenu }
         var components = URLComponents(string: origin + "/get-projects/10")!
         components.queryItems = [URLQueryItem(name: "url", value: destination)]
         let (bridge, _) = try await http.request(components.url!)
         struct Bridge: Decodable { var form_url: String; var base_url: String; var formData: [String: String] }
-        let descriptor = try JSONDecoder().decode(Bridge.self, from: bridge)
-        guard let login = URL(string: descriptor.form_url), ["cof.ntpu.edu.tw", "ohs01.ntpu.edu.tw"].contains(login.host ?? ""),
-              descriptor.form_url == "https://\(login.host!)/pls/pm/stud_system.signin",
-              descriptor.base_url == "https://\(login.host!)\(path)?func=\(function)",
+        guard let descriptor = try? JSONDecoder().decode(Bridge.self, from: bridge),
+              let login = URL(string: descriptor.form_url), let host = login.host,
+              ["cof.ntpu.edu.tw", "ohs01.ntpu.edu.tw"].contains(host),
+              descriptor.form_url == "https://\(host)/pls/pm/stud_system.signin",
+              descriptor.base_url == "https://\(host)\(path)?func=\(function)",
               Set(descriptor.formData.keys) == ["id", "pw"], let identity = descriptor.formData["id"], !identity.isEmpty,
-              descriptor.formData["pw"]?.isEmpty == false else { throw AcademicError.unsupported }
+              descriptor.formData["pw"]?.isEmpty == false else { throw AcademicError.schoolBridge }
         guard sessionIdentity == nil || sessionIdentity == identity else { throw AcademicError.identityChanged }
         sessionIdentity = identity
-        if !authenticatedHosts.contains(login.host!) {
+        if !authenticatedHosts.contains(host) {
             _ = try await http.request(login, fields: descriptor.formData)
-            authenticatedHosts.insert(login.host!)
+            authenticatedHosts.insert(host)
         }
         let (data, _) = try await http.request(URL(string: descriptor.base_url)!)
         return (try CourseCatalogService.decode(data), identity)
@@ -602,7 +615,7 @@ final class SchoolAPI {
         let rows = try page.select("tr")
         let expected = ["", "科目名稱(與組別)", "核課資訊", "授課老師", "上課時間@教室", "類別", "學分/時數", "開課系級", "備註"]
         guard let first = rows.first(), try first.select("td,th").map({ try $0.text() }) == expected,
-              rows.count > 1, rows.count <= 301 else { throw AcademicError.unsupported }
+              rows.count > 1, rows.count <= 301 else { throw AcademicError.schoolEnrolment }
         var semesters = Set<String>()
         for link in try page.select("a[href]") {
             let href = try link.attr("href")
@@ -613,18 +626,18 @@ final class SchoolAPI {
                   let term = one("term1"), ["1", "2"].contains(term) else { throw AcademicError.identityChanged }
             semesters.insert("\(year)-\(term)")
         }
-        guard semesters.count == 1, let semester = semesters.first else { throw AcademicError.unsupported }
+        guard semesters.count == 1, let semester = semesters.first else { throw AcademicError.schoolEnrolment }
         let parts = semester.split(separator: "-")
         let regex = try NSRegularExpression(pattern: #"\(([A-Z]\d{4})\)\s*$"#)
         var courses: [SchoolEnrolment.Row] = []
         for row in rows.dropFirst() {
             let cells = try row.select("td").map { try $0.text() }
-            guard cells.count == 9, cells[2] == "已核准" else { throw AcademicError.unsupported }
+            guard cells.count == 9, cells[2] == "已核准" else { throw AcademicError.schoolEnrolment }
             let name = cells[1] as NSString
-            guard let match = regex.firstMatch(in: cells[1], range: NSRange(location: 0, length: name.length)) else { throw AcademicError.unsupported }
+            guard let match = regex.firstMatch(in: cells[1], range: NSRange(location: 0, length: name.length)) else { throw AcademicError.schoolEnrolment }
             courses.append(.init(code: name.substring(with: match.range(at: 1)), name: name.substring(to: match.range.location)))
         }
-        guard Set(courses.map(\.code)).count == courses.count else { throw AcademicError.unsupported }
+        guard Set(courses.map(\.code)).count == courses.count else { throw AcademicError.schoolEnrolment }
         return SchoolEnrolment(identity: identity, year: String(parts[0]), term: String(parts[1]), courses: courses)
     }
 }

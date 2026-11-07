@@ -2,11 +2,16 @@ import Foundation
 
 enum AcademicError: LocalizedError {
     case invalidResponse, loginRequired, identityChanged, unsupported, storage, conflict
+    case schoolLoginForm, schoolMenu, schoolBridge, schoolEnrolment
     var errorDescription: String? {
         switch self {
         case .loginRequired: return "學校連線已失效，請重新連結帳號。"
         case .identityChanged: return "學校帳號與先前不同，已停止更新。請先解除舊連結。"
         case .unsupported: return "校方回傳的格式或登入目的地尚未驗證，已保留原有資料。"
+        case .schoolLoginForm: return "校方登入表單未通過驗證，已保留原有資料。"
+        case .schoolMenu: return "找不到可驗證的校方選單入口，已保留原有資料。"
+        case .schoolBridge: return "校方登入轉接資料未通過驗證，已保留原有資料。"
+        case .schoolEnrolment: return "校方選課清單格式未通過驗證，已保留原有資料。"
         case .storage: return "無法安全保存資料，本次未完成同步。"
         case .conflict: return "資料已變動或時段有衝突，請重新檢查預覽。"
         case .invalidResponse: return "暫時無法取得完整學校資料，已保留上次成功結果。"

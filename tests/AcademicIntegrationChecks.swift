@@ -161,6 +161,12 @@ import Darwin
             try require(gpaReport.sections?.first?.fields.first?.value == "86.5 (3.7)", "official GPA footer retained before language cleanup")
             try require(gpaReport.sections?.last?.fields.first?.value == "88.1 (3.9)", "GPA semester values remain separate")
             try require(gpaReport.sections?.first?.fields.first?.label == "學期平均／GPA", "native GPA label")
+            let olderAverage = AcademicReportSection(id: "old", title: "113 · 第2學期", fields: [.init(id: "old.average", label: "學期平均", value: "85")])
+            let latestAverage = AcademicReportSection(id: "new", title: "114 · 第1學期", fields: [.init(id: "new.average", label: "學期平均／GPA", value: "88.1 (3.9)")])
+            let unpublished = AcademicReportSection(id: "future", title: "114 · 第2學期", fields: [.init(id: "future.average", label: "學期平均", value: "尚未公布")])
+            let cumulativeAverage = AcademicReportSection(id: "all", title: "累計成績", fields: [.init(id: "all.average", label: "平均成績", value: "87")])
+            try require(AcademicReportOrdering.latestAverage([latestAverage, cumulativeAverage, olderAverage, unpublished]) == "88.1", "latest published semester average excludes GPA and cumulative values")
+            try require(AcademicReportOrdering.latestAverage([cumulativeAverage, unpublished]) == nil, "missing semester average must not use cumulative score")
             var staleGrade = report; staleGrade.parserVersion = 4
             try require(!staleGrade.isCurrent, "old grade cache must refresh for GPA")
             let rankHTML = "<div class='container my-2'><h6>測試學年</h6><div class='card'><div class='datasheets'><strong>第一學期</strong><ul class='datarows'><li>平均成績：87</li><li>排名：3 / 30</li></ul></div></div></div>"
