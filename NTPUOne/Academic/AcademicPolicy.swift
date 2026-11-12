@@ -35,8 +35,8 @@ enum AcademicPolicy {
         guard let last else { return true }
         return now < last || now.timeIntervalSince(last) >= interval
     }
-    static func reliableSubmission(status: String?, isTeam: Bool) -> Bool {
-        !isTeam && status == "submitted"
+    static func reliableSubmission(status: String?, isTeam: Bool, teamVerified: Bool = false) -> Bool {
+        AcademicCompletionPolicy.completed(status: status ?? "unknown", isTeam: isTeam, teamVerified: teamVerified) == true
     }
 }
 
@@ -116,13 +116,13 @@ enum AcademicMemoMergePolicy {
     }
 }
 
-/// Only known individual submission states control the local completion flag.
+/// A group must use its own submission record, never the current member's record.
 enum AcademicCompletionPolicy {
-    static func completed(status: String, isTeam: Bool, missing: Bool = false) -> Bool? {
-        guard !isTeam, !missing else { return nil }
+    static func completed(status: String, isTeam: Bool, teamVerified: Bool = false, missing: Bool = false) -> Bool? {
+        guard !missing, !isTeam || teamVerified else { return nil }
         switch status {
         case "submitted": return true
-        case "new", "draft", "reopened": return false
+        case "new", "draft", "reopened", "awaitingteam": return false
         default: return nil
         }
     }

@@ -365,11 +365,11 @@ struct AcademicCourseContentView: View {
                     VStack(alignment: .leading, spacing: 5) {
                         Text(task.title).font(.subheadline.weight(.medium))
                         if let due = task.due { Label("截止 \(due.formatted(date: .abbreviated, time: .shortened))", systemImage: "calendar").font(.caption).foregroundStyle(.secondary) }
-                        Label(task.sourceMissing == true ? "來源待確認" : (["submitted": "已繳交", "draft": "草稿", "new": "未繳交", "reopened": "重新開放"][task.status] ?? "狀態待確認"),
-                              systemImage: task.reliableSubmitted ? "checkmark.circle.fill" : "clock")
-                            .font(.caption.weight(.medium)).foregroundStyle(task.reliableSubmitted ? .green : .secondary)
+                        Label(task.submissionLabel,
+                              systemImage: task.completionState == true ? "checkmark.circle.fill" : "clock")
+                            .font(.caption.weight(.medium)).foregroundStyle(task.completionState == true ? .green : .secondary)
                             .padding(.horizontal, 8).padding(.vertical, 4)
-                            .background((task.reliableSubmitted ? Color.green : Color.secondary).opacity(0.09), in: Capsule())
+                            .background((task.completionState == true ? Color.green : Color.secondary).opacity(0.09), in: Capsule())
                     }
                 }
             }
@@ -409,7 +409,7 @@ struct AcademicCourseContentView: View {
                     grades = result; didLoadGrades = true; lastGradeUpdate = Date()
                 }
             case .assignments:
-                if force { await academic.refresh(force: true) }
+                await academic.refresh(force: force)
                 guard requestID == request, !Task.isCancelled else { return }
                 errorMessage = academic.message
             case .announcements, .materials:
@@ -490,6 +490,7 @@ struct AcademicMemoSettingsView: View {
             } header: { Text("預設提醒") }
               footer: { Text("已完成作業不提醒；單筆自訂設定優先。") }
             Section {
+                Label("新作業自動加入待辦", systemImage: "arrow.triangle.2.circlepath")
                 Label("繳交後自動完成", systemImage: "checkmark.circle.fill").foregroundStyle(.primary)
                 Button { Task { await academic.refresh(force: true) } } label: {
                     HStack {
@@ -501,7 +502,7 @@ struct AcademicMemoSettingsView: View {
                 }.disabled(academic.busy || !academic.moodleLinked)
                 if let message = academic.message { Text(message).font(.caption).foregroundStyle(.secondary) }
             } header: { Text("Moodle 同步") }
-              footer: { Text("未繳交會恢復未完成，團體作業需手動確認。") }
+              footer: { Text("使用 App 時每 5 分鐘檢查新作業與繳交狀態，也可下拉或點選更新。個人或整組已繳交會自動完成；退回草稿、重新開放或仍需組員確認時恢復未完成。你刪除的待辦不會重複加入。") }
         }
         .navigationTitle("作業設定")
         .navigationBarTitleDisplayMode(.inline)
@@ -524,12 +525,12 @@ struct AcademicTaskView: View {
                 }
                 if !task.description.isEmpty { Text(task.description) }
                 if let due = task.due { LabeledContent("來源截止時間", value: due.formatted()) }
-                LabeledContent("來源狀態", value: ["new": "尚未提交", "draft": "草稿", "submitted": "已繳交", "reopened": "重新開放" ][task.status] ?? "無法判定")
-                if task.isTeam == true { Text("團體作業請手動標記完成。")
+                LabeledContent("來源狀態", value: task.submissionLabel)
+                if task.isTeam == true { Text("依 Moodle 的整組繳交狀態同步；組員代繳也會自動完成。若老師要求每位組員確認，會等整組完成繳交後才標記完成。")
                     .font(.caption).foregroundStyle(.secondary) }
                 MoodleInAppLink(title: "在 App 內查看 Moodle 作業", url: task.url)
             } header: { Text("Moodle 來源") }
-              footer: { Text("個人作業依 Moodle 繳交狀態同步。") }
+              footer: { Text("作業依 Moodle 繳交狀態自動更新；資料暫時無法確認時，會保留目前的待辦狀態。") }
         }.navigationTitle("作業來源")
     }
 }

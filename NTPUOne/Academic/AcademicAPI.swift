@@ -140,9 +140,38 @@ struct MoodleAssignment: Decodable, Identifiable {
 }
 struct MoodleSubmission: Decodable {
     struct Submission: Decodable { var status: String; var attemptnumber: Int?; var timemodified: Double? }
-    struct Attempt: Decodable { var submission: Submission?; var teamsubmission: Submission?; var graded: Bool?; var extensionduedate: Double? }
+    struct Attempt: Decodable {
+        var submission: Submission?
+        var teamsubmission: Submission?
+        var graded: Bool?
+        var extensionduedate: Double?
+        var submissiongroupmemberswhoneedtosubmit: [Int]? = nil
+    }
+    struct Resolution {
+        var submission: Submission?
+        var status: String
+        var teamVerified: Bool
+    }
     var lastattempt: Attempt?
     var warnings: [MoodleWarning]?
+
+    func resolved(for assignment: MoodleAssignment) -> Resolution {
+        guard warnings?.isEmpty != false else {
+            return .init(submission: nil, status: "unknown", teamVerified: false)
+        }
+        let isTeam = assignment.teamsubmission != 0
+        // Moodle exposes both records. A member may have no personal submission
+        // even though someone else has already submitted on behalf of the group.
+        let submission = isTeam ? lastattempt?.teamsubmission : lastattempt?.submission
+        let known = ["new", "draft", "submitted", "reopened"]
+        var status = known.contains(submission?.status ?? "") ? submission!.status : "unknown"
+        if isTeam, assignment.requireallteammemberssubmit != 0,
+           lastattempt?.submissiongroupmemberswhoneedtosubmit?.isEmpty == false,
+           ["draft", "submitted"].contains(status) {
+            status = "awaitingteam"
+        }
+        return .init(submission: submission, status: status, teamVerified: isTeam && status != "unknown")
+    }
 }
 struct MoodleWarning: Decodable { var warningcode: String? }
 

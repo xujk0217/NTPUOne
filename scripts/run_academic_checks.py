@@ -30,6 +30,9 @@ let package = Package(name: "AcademicChecks", platforms: [.macOS(.v13)], depende
         course_source = (repository / "NTPUOne/CourseList/CourseGet.swift").read_text()
         model = course_source[course_source.index("struct CourseG:"):course_source.index("// ViewModel")]
         (sources / "CourseModel.swift").write_text("import Foundation\n" + model)
+        task_source = (repository / "NTPUOne/Academic/AcademicSyncStore.swift").read_text()
+        task_model = task_source[task_source.index("struct AcademicRemoteTask:"):task_source.index("struct AcademicMemoRecord:")]
+        (sources / "AcademicTaskModel.swift").write_text("import Foundation\n" + task_model)
         result = subprocess.run(["swift", "run", "--package-path", str(root), "AcademicChecks"], check=False)
         return result.returncode
 

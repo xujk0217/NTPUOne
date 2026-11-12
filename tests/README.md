@@ -32,6 +32,8 @@ python3 scripts/run_academic_checks.py --swiftsoup-path /path/to/trusted/SwiftSo
 
 Swift 檢查直接編譯 App 的 API、政策與共用課程 parser，使用合成資料驗證本人／學期／核准狀態、原生報表 selector／雙語／學期隔離／累計排名、舊快取遷移、私人備註保留、時段範圍與歧義拒絕、匯入保留原 UUID／手動修改、完成建議與快取時鐘等契約。SwiftSoup 請使用 Xcode 已解析的可信套件目錄。測試不寫正式資料庫，也不代表 iOS 端到端登入／CloudKit／通知已驗收。
 
+Moodle 作業另檢查實際 API 解碼與 App 來源資料模型：組員代繳、個人／整組繳交來源隔離、全員確認尚未完成、退回草稿／重新開放、未評分但已繳交、警告或缺少狀態，以及新舊團體作業快取的完成狀態。來源待確認時保留待辦現況，不以成績或個人紀錄推定整組已完成。
+
 ## AI 與登入表單
 
 ```sh

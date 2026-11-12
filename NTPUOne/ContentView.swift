@@ -143,9 +143,16 @@ struct ContentView: View {
             NextCourseLiveActivityManager.shared.setApplicationActive(true)
             refreshLiveActivity()
         }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            while !Task.isCancelled {
+                await academic.refresh()
+                do { try await Task.sleep(nanoseconds: 300_000_000_000) }
+                catch { return }
+            }
+        }
         .onChange(of: scenePhase) { phase in
             if phase == .active {
-                Task { await academic.refresh() }
                 NextCourseLiveActivityManager.shared.setApplicationActive(true)
                 refreshLiveActivity()
             } else {

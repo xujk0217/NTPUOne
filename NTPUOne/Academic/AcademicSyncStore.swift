@@ -18,6 +18,26 @@ struct AcademicRemoteTask: Codable, Identifiable {
     var version: String
     var sourceMissing: Bool? = nil
     var isTeam: Bool? = nil
+    // Old caches did not check pending group confirmations. Refresh them before
+    // allowing a group submission to control a memo's completion state.
+    var teamSubmissionVerified: Bool? = nil
+
+    var completionState: Bool? {
+        AcademicCompletionPolicy.completed(status: status, isTeam: isTeam ?? true,
+            teamVerified: teamSubmissionVerified == true, missing: sourceMissing == true)
+    }
+    var submissionLabel: String {
+        if sourceMissing == true { return "來源待確認" }
+        if isTeam == true && teamSubmissionVerified != true { return "團體狀態待更新" }
+        switch status {
+        case "submitted": return isTeam == true ? "全組已繳交" : "已繳交"
+        case "draft": return "草稿"
+        case "new": return "未繳交"
+        case "reopened": return "重新開放"
+        case "awaitingteam": return "待組員確認繳交"
+        default: return "狀態待確認"
+        }
+    }
 }
 struct AcademicMemoRecord: Codable {
     var memoID: String
@@ -294,25 +314,27 @@ final class AcademicSyncStore: ObservableObject {
                 if cache.catalogIncomplete == true { backOff("school") } else { resetRetry("school") }
             } catch {
                 guard epoch == generation else { return }
+                if Task.isCancelled { lastAttempt = nil; return }
                 if case AcademicError.loginRequired = error { requiresSchoolLogin = true }
                 show(error)
                 syncErrors["school"] = message
                 backOff("school")
             }
         }
-        guard epoch == generation else { return }
+        guard epoch == generation, !Task.isCancelled else { return }
         if moodleLinked, force || !requiresMoodleLogin, force || retryAllowed("moodle"),
            force || AcademicPolicy.needsRefresh(last: cache.moodleCheckedAt, interval: 300) {
             do { try await refreshMoodle(epoch: epoch); requiresMoodleLogin = false; resetRetry("moodle") }
             catch {
                 guard epoch == generation else { return }
+                if Task.isCancelled { lastAttempt = nil; return }
                 if case AcademicError.loginRequired = error { requiresMoodleLogin = true }
                 show(error)
                 syncErrors["moodle"] = message
                 backOff("moodle")
             }
         }
-        guard epoch == generation else { return }
+        guard epoch == generation, !Task.isCancelled else { return }
         if schoolLinked, !requiresSchoolLogin,
            let credential = try? AcademicKeychain.load(SchoolCredential.self, account: credentialKey("school")) {
             await refreshReports(api: schoolAPI, credential: credential, epoch: epoch, force: force)
@@ -410,17 +432,18 @@ final class AcademicSyncStore: ObservableObject {
                 let status: MoodleSubmission = try await api.call("mod_assign_get_submission_status", token: credential.token, fields: ["assignid": String(assignment.id)])
                 try check(epoch)
                 guard status.warnings?.isEmpty != false else { throw AcademicError.invalidResponse }
-                let attempt = status.lastattempt
-                let submission = assignment.teamsubmission != 0 ? attempt?.teamsubmission : attempt?.submission
-                let known = ["new", "draft", "submitted", "reopened"]
-                let value = known.contains(submission?.status ?? "") ? submission!.status : "unknown"
-                let due = max(assignment.duedate, attempt?.extensionduedate ?? 0)
+                let resolved = status.resolved(for: assignment)
+                let submission = resolved.submission
+                let value = resolved.status
+                let due = max(assignment.duedate, status.lastattempt?.extensionduedate ?? 0)
                 var task = AcademicRemoteTask(id: assignment.id, courseCode: code, courseName: course.fullname,
                     title: assignment.name, description: try SwiftSoup.parseBodyFragment(assignment.intro).text(),
                     due: due > 0 ? Date(timeIntervalSince1970: due) : nil, url: assignment.url, status: value,
-                    reliableSubmitted: AcademicPolicy.reliableSubmission(status: value, isTeam: assignment.teamsubmission != 0),
+                    reliableSubmitted: AcademicPolicy.reliableSubmission(status: value, isTeam: assignment.teamsubmission != 0,
+                        teamVerified: resolved.teamVerified),
                     version: "\(assignment.id):\(submission?.attemptnumber ?? -1):\(submission?.timemodified ?? 0):\(value)")
                 task.isTeam = assignment.teamsubmission != 0
+                task.teamSubmissionVerified = resolved.teamVerified
                 remote.append(task)
             }
         }
@@ -533,8 +556,7 @@ final class AcademicSyncStore: ObservableObject {
         return true
     }
     private func applyMoodleState(_ task: AcademicRemoteTask, to memo: inout Memo) {
-        guard let completed = AcademicCompletionPolicy.completed(status: task.status,
-            isTeam: task.isTeam ?? true, missing: task.sourceMissing == true) else { return }
+        guard let completed = task.completionState else { return }
         if completed {
             memo.status = .done
             if memo.doneAt == nil { memo.doneAt = Date() }

@@ -3,8 +3,8 @@ import Foundation
 import Darwin
 
 @main struct AcademicIntegrationChecks {
-    static func require(_ condition: @autoclosure () -> Bool, _ message: String) throws {
-        if !condition() { throw NSError(domain: "AcademicChecks", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
+    static func require(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
+        if try condition() == false { throw NSError(domain: "AcademicChecks", code: 1, userInfo: [NSLocalizedDescriptionKey: message]) }
     }
     static func rejects(_ body: () throws -> Void) throws {
         do { try body() } catch { return }
@@ -231,8 +231,10 @@ import Darwin
                 try require(AcademicCompletionPolicy.completed(status: status, isTeam: false) == false, "unsubmitted/reopened restores incomplete")
             }
             try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: true) == nil, "unverified group completion stays manual")
+            try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: true, teamVerified: true) == true, "verified group submission completes")
             try require(AcademicCompletionPolicy.completed(status: "unknown", isTeam: false) == nil, "unknown must not reset completion")
             try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: false, missing: true) == nil, "missing source must not change completion")
+            try checkMoodleSubmissionSync()
             let due = Date(timeIntervalSince1970: 2_000_000_000)
             let legacy = AcademicReminderPolicy.legacyOffsets.map { offset in
                 AcademicReminderSnapshot(id: "academic.\(offset)", triggerAt: due.addingTimeInterval(-Double(offset)), enabled: true, isDefaultKind: true)
@@ -259,5 +261,55 @@ import Darwin
             print("FAIL: academic check stopped stage=\(stage) (\(error is AcademicError ? "academic-contract" : "local-check"))")
             Foundation.exit(1)
         }
+    }
+
+    static func checkMoodleSubmissionSync() throws {
+        let decoder = JSONDecoder()
+        var assignment = try decoder.decode(MoodleAssignment.self, from: Data(#"{"id":123,"cmid":456,"name":"Group report","intro":"Synthetic fixture","duedate":2000000000,"teamsubmission":1,"requireallteammemberssubmit":0}"#.utf8))
+        func resolve(_ json: String) throws -> MoodleSubmission.Resolution {
+            try decoder.decode(MoodleSubmission.self, from: Data(json.utf8)).resolved(for: assignment)
+        }
+        func task(_ result: MoodleSubmission.Resolution) -> AcademicRemoteTask {
+            var task = AcademicRemoteTask(id: assignment.id, courseCode: "U1234", courseName: "Synthetic course", title: assignment.name,
+                description: assignment.intro, due: nil, url: assignment.url, status: result.status,
+                reliableSubmitted: AcademicPolicy.reliableSubmission(status: result.status, isTeam: assignment.teamsubmission != 0,
+                    teamVerified: result.teamVerified), version: "fixture")
+            task.isTeam = assignment.teamsubmission != 0
+            task.teamSubmissionVerified = result.teamVerified
+            return task
+        }
+        let groupJSON = #"{"lastattempt":{"submission":{"status":"new"},"teamsubmission":{"status":"submitted","attemptnumber":0,"timemodified":100},"graded":false},"warnings":[]}"#
+        let group = task(try resolve(groupJSON))
+        try require(group.completionState == true && group.reliableSubmitted, "another member's submission completes the local task without a grade")
+        try require(group.submissionLabel == "全組已繳交", "group status is clear in course details")
+        let cached = try decoder.decode(AcademicRemoteTask.self, from: JSONEncoder().encode(group))
+        try require(cached.completionState == true, "verified group completion survives cache reload")
+        var oldCache = try JSONSerialization.jsonObject(with: JSONEncoder().encode(group)) as! [String: Any]
+        oldCache.removeValue(forKey: "teamSubmissionVerified")
+        let legacy = try decoder.decode(AcademicRemoteTask.self, from: JSONSerialization.data(withJSONObject: oldCache))
+        try require(legacy.completionState == nil && legacy.submissionLabel == "團體狀態待更新", "old group caches require fresh confirmation")
+        var missing = group; missing.sourceMissing = true
+        try require(missing.completionState == nil && missing.submissionLabel == "來源待確認", "missing group source preserves current memo state")
+
+        let noTeam = task(try resolve(#"{"lastattempt":{"submission":{"status":"submitted"},"graded":true},"warnings":[]}"#))
+        try require(noTeam.completionState == nil, "personal submission or grade must not substitute for missing group state")
+        for status in ["new", "draft", "reopened"] {
+            let changed = task(try resolve("{\"lastattempt\":{\"submission\":{\"status\":\"submitted\"},\"teamsubmission\":{\"status\":\"\(status)\"}}}"))
+            try require(changed.completionState == false && !changed.reliableSubmitted, "latest group draft/reopened state restores incomplete")
+        }
+        let pendingJSON = #"{"lastattempt":{"teamsubmission":{"status":"submitted"},"submissiongroupmemberswhoneedtosubmit":[999]},"warnings":[]}"#
+        try require(task(try resolve(pendingJSON)).completionState == true, "one-person group submission does not require every member")
+        assignment.requireallteammemberssubmit = 1
+        let pending = task(try resolve(pendingJSON))
+        try require(pending.completionState == false && pending.status == "awaitingteam" && pending.submissionLabel == "待組員確認繳交", "all-member requirement keeps group incomplete until confirmations finish")
+        try require(task(try resolve(#"{"lastattempt":{"teamsubmission":{"status":"submitted"},"submissiongroupmemberswhoneedtosubmit":[]}}"#)).completionState == true, "all group confirmations completed")
+        try require(task(try resolve(groupJSON)).completionState == true, "optional pending list may be absent when server confirms group submitted")
+        try require(task(try resolve(#"{"lastattempt":{"teamsubmission":{"status":"graded"}},"warnings":[]}"#)).completionState == nil, "unknown group status preserves current completion")
+        try require(task(try resolve(#"{"lastattempt":{"teamsubmission":{"status":"submitted"}},"warnings":[{"warningcode":"1"}]}"#)).completionState == nil, "warning-bearing payload cannot complete tasks")
+        try require(task(try resolve(#"{"warnings":[]}"#)).completionState == nil, "absent attempt cannot reset a completed task")
+
+        assignment.teamsubmission = 0
+        let personal = task(try resolve(#"{"lastattempt":{"submission":{"status":"submitted"},"teamsubmission":{"status":"draft"},"graded":false}}"#))
+        try require(personal.completionState == true && personal.submissionLabel == "已繳交", "individual work uses only the personal submission")
     }
 }
