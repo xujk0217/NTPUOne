@@ -35,10 +35,10 @@ import Darwin
                 stage = "moodle-courses"
                 let courses = try await api.courses(credential)
                 let term = AcademicPolicy.currentTerm().replacingOccurrences(of: "-", with: "")
-                var count = 0, statuses = 0
+                var count = 0, statuses = 0, unavailableIntros = 0, verifiedGroups = 0
                 var contentChecked = false
                 for course in courses where course.fullname.hasPrefix(term + "_") {
-                    if !contentChecked {
+                    if !contentChecked && !CommandLine.arguments.contains("--assignments-only") {
                         stage = "moodle-course-content"
                         let (sections, announcements) = try await api.content(courseID: course.id, credential: credential)
                         stage = "moodle-own-grades"
@@ -54,10 +54,12 @@ import Darwin
                         let status: MoodleSubmission = try await api.call("mod_assign_get_submission_status", token: credential.token,
                             fields: ["assignid": String(assignment.id)])
                         try require(status.warnings?.isEmpty != false, "warnings")
+                        if assignment.intro == nil { unavailableIntros += 1 }
+                        if status.resolved(for: assignment).teamVerified { verifiedGroups += 1 }
                         statuses += 1
                     }
                 }
-                print("LIVE_SWIFT_MOODLE courses=\(courses.count) assignments=\(count) submission_responses=\(statuses)")
+                print("LIVE_SWIFT_MOODLE courses=\(courses.count) assignments=\(count) submission_responses=\(statuses) unavailable_intros=\(unavailableIntros) verified_groups=\(verifiedGroups)")
                 return
             }
             if CommandLine.arguments.contains("--live-school-html") {
@@ -225,6 +227,9 @@ import Darwin
             try require(AcademicMemoMergePolicy.content(existing: "source", previous: "source", incoming: "new") == "new", "source-managed notes refresh")
             try require(AcademicMemoMergePolicy.content(existing: "private edit", previous: "source", incoming: "new") == "private edit", "private notes survive")
             try require(AcademicMemoMergePolicy.content(existing: "private", previous: nil, incoming: "source").hasPrefix("private\n"), "legacy private notes preserved")
+            try require(AcademicMemoMergePolicy.content(existing: "previous intro", previous: "previous intro", incoming: nil) == "previous intro", "hidden Moodle intro must not erase synced description")
+            try require(AcademicMemoMergePolicy.content(existing: "private notes", previous: "previous intro", incoming: nil) == "private notes", "hidden intro preserves private notes")
+            try require(AcademicMemoMergePolicy.content(existing: "previous intro", previous: "previous intro", incoming: "") == "", "explicit empty description remains distinct from omitted intro")
             try require(AcademicMemoMergePolicy.courseName("Synthetic Course(U1234)") == "Synthetic Course", "catalog course matching")
             try require(AcademicCompletionPolicy.completed(status: "submitted", isTeam: false) == true, "submitted imports completed immediately")
             for status in ["new", "draft", "reopened"] {
@@ -266,12 +271,19 @@ import Darwin
     static func checkMoodleSubmissionSync() throws {
         let decoder = JSONDecoder()
         var assignment = try decoder.decode(MoodleAssignment.self, from: Data(#"{"id":123,"cmid":456,"name":"Group report","intro":"Synthetic fixture","duedate":2000000000,"teamsubmission":1,"requireallteammemberssubmit":0}"#.utf8))
+        let missingIntroJSON = #"{"id":124,"cmid":457,"name":"Not yet open","duedate":2000000000,"teamsubmission":0,"requireallteammemberssubmit":0}"#
+        let hidden = try decoder.decode(MoodleAssignment.self, from: Data(missingIntroJSON.utf8))
+        try require(hidden.intro == nil && hidden.id == 124 && hidden.duedate == 2_000_000_000, "Moodle may omit intro without invalidating the assignment or due date")
+        let nullIntro = try decoder.decode(MoodleAssignment.self, from: Data(missingIntroJSON.replacingOccurrences(of: "\"name\":", with: "\"intro\":null,\"name\":").utf8))
+        try require(nullIntro.intro == nil, "null intro is unavailable rather than a destructive empty description")
+        try rejects { _ = try decoder.decode(MoodleAssignment.self, from: Data(missingIntroJSON.replacingOccurrences(of: "\"name\":", with: "\"intro\":{},\"name\":").utf8)) }
+        try rejects { _ = try decoder.decode(MoodleAssignment.self, from: Data(missingIntroJSON.replacingOccurrences(of: "\"id\":124,", with: "").utf8)) }
         func resolve(_ json: String) throws -> MoodleSubmission.Resolution {
             try decoder.decode(MoodleSubmission.self, from: Data(json.utf8)).resolved(for: assignment)
         }
         func task(_ result: MoodleSubmission.Resolution) -> AcademicRemoteTask {
             var task = AcademicRemoteTask(id: assignment.id, courseCode: "U1234", courseName: "Synthetic course", title: assignment.name,
-                description: assignment.intro, due: nil, url: assignment.url, status: result.status,
+                description: assignment.intro ?? "", due: nil, url: assignment.url, status: result.status,
                 reliableSubmitted: AcademicPolicy.reliableSubmission(status: result.status, isTeam: assignment.teamsubmission != 0,
                     teamVerified: result.teamVerified), version: "fixture")
             task.isTeam = assignment.teamsubmission != 0

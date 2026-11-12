@@ -104,7 +104,10 @@ enum AcademicImportPolicy {
 
 /// Keep private notes after the user edits the imported description.
 enum AcademicMemoMergePolicy {
-    static func content(existing: String, previous: String?, incoming: String) -> String {
+    static func content(existing: String, previous: String?, incoming: String?) -> String {
+        // Moodle may omit an intro when its visibility settings hide it. Missing
+        // content is not an instruction to erase previously synced or private notes.
+        guard let incoming else { return existing }
         if let previous { return existing == previous ? incoming : existing }
         if existing.isEmpty { return incoming }
         if incoming.isEmpty || existing.contains(incoming) { return existing }

@@ -524,6 +524,10 @@ struct AcademicTaskView: View {
                         .font(.caption).foregroundStyle(.orange)
                 }
                 if !task.description.isEmpty { Text(task.description) }
+                if task.descriptionAvailable == false {
+                    Text("Moodle 目前未提供作業說明，已保留先前取得的內容（如有）。")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 if let due = task.due { LabeledContent("來源截止時間", value: due.formatted()) }
                 LabeledContent("來源狀態", value: task.submissionLabel)
                 if task.isTeam == true { Text("依 Moodle 的整組繳交狀態同步；組員代繳也會自動完成。若老師要求每位組員確認，會等整組完成繳交後才標記完成。")

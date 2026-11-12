@@ -18,6 +18,7 @@ struct AcademicRemoteTask: Codable, Identifiable {
     var version: String
     var sourceMissing: Bool? = nil
     var isTeam: Bool? = nil
+    var descriptionAvailable: Bool? = nil
     // Old caches did not check pending group confirmations. Refresh them before
     // allowing a group submission to control a memo's completion state.
     var teamSubmissionVerified: Bool? = nil
@@ -436,13 +437,16 @@ final class AcademicSyncStore: ObservableObject {
                 let submission = resolved.submission
                 let value = resolved.status
                 let due = max(assignment.duedate, status.lastattempt?.extensionduedate ?? 0)
+                let description = try assignment.intro.map { try SwiftSoup.parseBodyFragment($0).text() }
+                    ?? cache.tasks.first(where: { $0.id == assignment.id })?.description ?? ""
                 var task = AcademicRemoteTask(id: assignment.id, courseCode: code, courseName: course.fullname,
-                    title: assignment.name, description: try SwiftSoup.parseBodyFragment(assignment.intro).text(),
+                    title: assignment.name, description: description,
                     due: due > 0 ? Date(timeIntervalSince1970: due) : nil, url: assignment.url, status: value,
                     reliableSubmitted: AcademicPolicy.reliableSubmission(status: value, isTeam: assignment.teamsubmission != 0,
                         teamVerified: resolved.teamVerified),
                     version: "\(assignment.id):\(submission?.attemptnumber ?? -1):\(submission?.timemodified ?? 0):\(value)")
                 task.isTeam = assignment.teamsubmission != 0
+                task.descriptionAvailable = assignment.intro != nil
                 task.teamSubmissionVerified = resolved.teamVerified
                 remote.append(task)
             }
@@ -506,7 +510,8 @@ final class AcademicSyncStore: ObservableObject {
                 if let old {
                     if (old.managedCourseLink == true || (old.managedCourseLink == nil && memo.courseLink == nil)) && memo.courseLink == old.lastCourseLink { memo.courseLink = sourceCourseLink }
                     if memo.title == old.lastTitle { memo.title = task.title }
-                    memo.content = AcademicMemoMergePolicy.content(existing: memo.content, previous: old.lastContent, incoming: task.description)
+                    memo.content = AcademicMemoMergePolicy.content(existing: memo.content, previous: old.lastContent,
+                        incoming: task.descriptionAvailable == false ? nil : task.description)
                     if memo.tagType.rawValue == (old.lastTagType ?? Memo.TagType.homework.rawValue) { memo.tagType = .moodle }
                     if memo.dueAt == old.lastDue {
                         memo.dueAt = task.due
@@ -534,7 +539,8 @@ final class AcademicSyncStore: ObservableObject {
             guard manager.memos.contains(where: { $0.id == id }) else { throw AcademicError.storage }
             nextRecords[key] = .init(memoID: id, lastTitle: task.title, lastDue: task.due,
                                      managedCourseLink: old?.managedCourseLink ?? (existing?.courseLink == nil), lastCourseLink: sourceCourseLink,
-                                     lastContent: task.description, lastTagType: Memo.TagType.moodle.rawValue,
+                                     lastContent: task.descriptionAvailable == false ? old?.lastContent : task.description,
+                                     lastTagType: Memo.TagType.moodle.rawValue,
                                      reminderOffsets: defaultReminderOffsets)
         }
         cache.memoRecords = nextRecords

@@ -131,7 +131,7 @@ struct MoodleCourse: Codable, Identifiable {
     var id: Int; var fullname: String; var shortname: String?; var idnumber: String?
 }
 struct MoodleAssignment: Decodable, Identifiable {
-    var id: Int; var cmid: Int; var name: String; var intro: String; var duedate: Double
+    var id: Int; var cmid: Int; var name: String; var intro: String?; var duedate: Double
     var teamsubmission: Int; var requireallteammemberssubmit: Int
     var courseID: Int = 0
     var courseName: String = ""
