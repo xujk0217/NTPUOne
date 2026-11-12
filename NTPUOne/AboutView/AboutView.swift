@@ -25,169 +25,146 @@ struct AboutView: View {
     @State private var isReward = false
     @State private var showAdConfirm = false
     @State private var showAdNotReadyAlert = false
-    
+
     // adview
     @State private var adHeight: CGFloat = 100
     @State private var rowWidth: CGFloat = 0
-    
+
     //admin
     @AppStorage("isAdmin") private var isAdmin: Bool = false
 
-    // 個人設定
-    @AppStorage("commentNickname") private var nickname: String = ""
-    @AppStorage("commentDeviceId") private var deviceId: String = ""
-    @StateObject private var communityProfileManager = CommunityProfileManager()
     @State private var showOnboarding = false
-    
+
     var body: some View {
-        NavigationStack {
-            List {
-                // Admin 區塊（密碼解鎖＋專屬信箱雙重確認）
-                if isAdmin, CommunityProfileManager.isPrivilegedAdminEmail {
-                    Section {
-                        NavigationLink {
-                            AdminConsoleView()
-                        } label: {
-                            Label(String(localized: "admin_console"), systemImage: "shield")
-                        }
-                    } header: {
+        List {
+            // Admin 區塊（密碼解鎖＋專屬信箱雙重確認）
+            if isAdmin, CommunityProfileManager.isPrivilegedAdminEmail {
+                Section {
+                    NavigationLink {
+                        AdminConsoleView()
+                    } label: {
                         Label(String(localized: "admin_console"), systemImage: "shield")
                     }
-                }
-
-                Section {
-                    Button {
-                        isReward = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "megaphone")
-                                .foregroundStyle(.purple)
-                            Text(String(localized: "navigation_add_announcement"))
-                                .foregroundStyle(.primary)
-                            Spacer()
-                            Image(systemName: "chevron.right")
-                                .font(.caption)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-
-                    NavigationLink {
-                        NewStudentChecklistView()
-                    } label: {
-                        Label(String(localized: "new_student_checklist_title"), systemImage: "checklist.checked")
-                            .foregroundStyle(.primary)
-                    }
                 } header: {
-                    Label(String(localized: "student_app_tools"), systemImage: "wrench.and.screwdriver")
+                    Label(String(localized: "admin_console"), systemImage: "shield")
+                }
+            }
+
+            Section {
+                Button {
+                    isReward = true
+                } label: {
+                    HStack {
+                        Image(systemName: "megaphone")
+                            .foregroundStyle(.purple)
+                        Text(String(localized: "navigation_add_announcement"))
+                            .foregroundStyle(.primary)
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
 
-                Section {
-                    Button {
-                        showOnboarding = true
-                    } label: {
-                        Label(String(localized: "show_onboarding_again"), systemImage: "sparkles.tv")
-                            .foregroundStyle(.primary)
-                    }
+                NavigationLink {
+                    NewStudentChecklistView()
+                } label: {
+                    Label(String(localized: "new_student_checklist_title"), systemImage: "checklist.checked")
+                        .foregroundStyle(.primary)
+                }
+            } header: {
+                Label(String(localized: "student_app_tools"), systemImage: "wrench.and.screwdriver")
+            }
 
-                    adPreferencesRow
-                } header: {
-                    Label(String(localized: "ad_preferences_section"), systemImage: "slider.horizontal.3")
+            Section {
+                Button {
+                    showOnboarding = true
+                } label: {
+                    Label(String(localized: "show_onboarding_again"), systemImage: "sparkles.tv")
+                        .foregroundStyle(.primary)
                 }
 
+                adPreferencesRow
+            } header: {
+                Label(String(localized: "ad_preferences_section"), systemImage: "slider.horizontal.3")
+            }
+
+            Section {
+                NavigationLink {
+                    FeaturesView()
+                } label: {
+                    Label(String(localized: "feature_suggestion"), systemImage: "lightbulb")
+                        .foregroundStyle(.primary)
+                }
+
+                NavigationLink {
+                    ReportBugView()
+                } label: {
+                    Label(String(localized: "report_bug"), systemImage: "ladybug")
+                        .foregroundStyle(.primary)
+                }
+            } header: {
+                Label(String(localized: "feedback_section"), systemImage: "bubble.left.and.bubble.right")
+            }
+
+            // MARK: - 關於
+            Section {
+                NavigationLink {
+                    ContactMeView()
+                } label: {
+                    Label(String(localized: "contact_developer"), systemImage: "envelope")
+                        .foregroundStyle(.primary)
+                }
+
+                NavigationLink {
+                    PrivacyPolicyView()
+                } label: {
+                    Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
+                        .foregroundStyle(.primary)
+                }
+            } header: {
+                Label(String(localized: "about"), systemImage: "info.circle")
+            }
+
+            // 原生廣告（放在最底部，不干擾功能流程）
+            if !adFree.isAdFree {
                 Section {
-                    NavigationLink {
-                        FeaturesView()
-                    } label: {
-                        Label(String(localized: "feature_suggestion"), systemImage: "lightbulb")
-                            .foregroundStyle(.primary)
-                    }
-                    
-                    NavigationLink {
-                        ReportBugView()
-                    } label: {
-                        Label(String(localized: "report_bug"), systemImage: "ladybug")
-                            .foregroundStyle(.primary)
-                    }
-                } header: {
-                    Label(String(localized: "feedback_section"), systemImage: "bubble.left.and.bubble.right")
+                    NativeAdSectionView(style: .compact)
+                        .frame(height: 140)
                 }
-                
-                // MARK: - 關於
-                Section {
-                    NavigationLink {
-                        ContactMeView()
-                    } label: {
-                        Label(String(localized: "contact_developer"), systemImage: "envelope")
-                            .foregroundStyle(.primary)
-                    }
-                    
-                    NavigationLink {
-                        PrivacyPolicyView()
-                    } label: {
-                        Label(String(localized: "privacy_policy"), systemImage: "hand.raised")
-                            .foregroundStyle(.primary)
-                    }
-                } header: {
-                    Label(String(localized: "about"), systemImage: "info.circle")
-                }
-                
-                // 原生廣告（放在最底部，不干擾功能流程）
-                if !adFree.isAdFree {
-                    Section {
-                        NativeAdSectionView(style: .compact)
-                            .frame(height: 140)
-                    }
-                    .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
-                }
-            }
-            .navigationTitle(String(localized: "my"))
-            .navigationBarTitleDisplayMode(.large)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    NavigationLink {
-                        AccountCenterView(
-                            communityProfileManager: communityProfileManager
-                        )
-                    } label: {
-                        Image(systemName: "person.crop.circle")
-                    }
-                    .accessibilityLabel(String(localized: "account_center_accessibility"))
-                }
-            }
-            .navigationDestination(isPresented: $isReward) {
-                AddOrderView(rewardAd: rewardAd)
-            }
-            .fullScreenCover(isPresented: $showOnboarding) {
-                FirstRunOnboardingView(autoFinishAfterAuth: false) {
-                    showOnboarding = false
-                }
-                .interactiveDismissDisabled()
-            }
-            .alert(String(localized: "disable_today_banner_title"), isPresented: $showAdConfirm) {
-                Button(String(localized: "cancel"), role: .cancel) { }
-                Button(String(localized: "start_watching")) {
-                    showRewardedAdFreeReward()
-                }
-            } message: {
-                Text(String(localized: "watch_ad_hint"))
-            }
-            .alert(String(localized: "video_not_ready"), isPresented: $showAdNotReadyAlert) {
-                Button(String(localized: "ok"), role: .cancel) { }
-            } message: {
-                Text(rewardedAdManager.remainingViews > 0 ? String(localized: "loading_ad_retry") : String(localized: "daily_view_limit_reached"))
+                .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
             }
         }
-        .onAppear {
-            if deviceId.isEmpty { deviceId = UUID().uuidString }
-            if nickname.isEmpty {
-                nickname = String(format: String(localized: "community_default_user_format"), String(deviceId.prefix(4)).uppercased())
+        .navigationTitle(String(localized: "my"))
+        .navigationBarTitleDisplayMode(.large)
+        .navigationDestination(isPresented: $isReward) {
+            AddOrderView(rewardAd: rewardAd)
+        }
+        .fullScreenCover(isPresented: $showOnboarding) {
+            FirstRunOnboardingView(autoFinishAfterAuth: false) {
+                showOnboarding = false
             }
+            .interactiveDismissDisabled()
+        }
+        .alert(String(localized: "disable_today_banner_title"), isPresented: $showAdConfirm) {
+            Button(String(localized: "cancel"), role: .cancel) { }
+            Button(String(localized: "start_watching")) {
+                showRewardedAdFreeReward()
+            }
+        } message: {
+            Text(String(localized: "watch_ad_hint"))
+        }
+        .alert(String(localized: "video_not_ready"), isPresented: $showAdNotReadyAlert) {
+            Button(String(localized: "ok"), role: .cancel) { }
+        } message: {
+            Text(rewardedAdManager.remainingViews > 0 ? String(localized: "loading_ad_retry") : String(localized: "daily_view_limit_reached"))
+        }
+        .onAppear {
             if !adFree.isAdFree {
                 rewardedAdManager.preload()
             }
         }
         .background(ScenePresentationAnchor { adPresenter.controller = $0 }.frame(width: 0, height: 0))
-        .communityDepartmentChooser(communityProfileManager)
     }
 
     @ViewBuilder
@@ -544,5 +521,5 @@ struct PrivacyDataControlsView: View {
 }
 
 #Preview {
-    AboutView()
+    NavigationStack { AboutView() }
 }

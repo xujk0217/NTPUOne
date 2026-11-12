@@ -26,6 +26,14 @@ private struct AIButtonEntrance: ViewModifier {
     }
 }
 
+/// Pages with bottom input controls reserve space so the assistant never covers Send.
+struct AIFloatingBottomClearanceKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct FloatingAIContainer<Content: View>: View {
     let content: Content
     let contextProvider: (AIContextRequest) async -> AIContextPayload
@@ -38,6 +46,7 @@ struct FloatingAIContainer<Content: View>: View {
     @ObservedObject private var features = GlobalFeatureSettings.shared
     @StateObject private var bridge: NTPUAIWebBridge
     @State private var open = false
+    @State private var floatingBottomClearance: CGFloat = 0
     @State private var preferDocked = true
     @State private var enteredBackground = false
     @State private var detectedFold = false
@@ -66,13 +75,21 @@ struct FloatingAIContainer<Content: View>: View {
             let plan = DuoWorkspacePolicy.plan(size: geo.size, divisions: regions(geo, division: true),
                 occlusions: regions(geo, division: false), assistantOpen: open, preferDocked: preferDocked && (detectedFold || !regions(geo, division: true).isEmpty),
                 rightToLeft: layoutDirection == .rightToLeft)
-            let anchorPoint = DuoWorkspacePolicy.buttonAnchor(size: geo.size,
+            let baseFloatingArea = DuoWorkspacePolicy.floatingArea(size: geo.size,
                 divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
+            let floatingArea = CGRect(x: baseFloatingArea.minX, y: baseFloatingArea.minY,
+                width: baseFloatingArea.width, height: max(0, baseFloatingArea.height - floatingBottomClearance))
+            let floatingButton = DuoWorkspacePolicy.floatingButton(in: floatingArea, occlusions: regions(geo, division: false))
+            let anchorPoint = floatingBottomClearance > 0 && !floatingButton.isEmpty
+                ? CGPoint(x: floatingButton.midX / max(1, geo.size.width), y: floatingButton.midY / max(1, geo.size.height))
+                : DuoWorkspacePolicy.buttonAnchor(size: geo.size,
+                    divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
             let buttonAnchor = UnitPoint(x: anchorPoint.x, y: anchorPoint.y)
             let blocking = open && plan.mode == .overlay
             ZStack(alignment: .topLeading) {
                 // A stable view identity preserves tab navigation and scroll position across folds.
                 content
+                    .onPreferenceChange(AIFloatingBottomClearanceKey.self) { floatingBottomClearance = $0 }
                     .frame(width: plan.page.width, height: plan.page.height)
                     .position(x: plan.page.midX, y: plan.page.midY)
                     .blur(radius: blocking ? 9 : 0).allowsHitTesting(!blocking).accessibilityHidden(blocking)
@@ -102,8 +119,8 @@ struct FloatingAIContainer<Content: View>: View {
                 if !open {
                     AIWebsiteView(webView: bridge.webView).frame(width: 1, height: 1).opacity(0.01).allowsHitTesting(false).accessibilityHidden(true)
                     if features.aiEnabled {
-                        let area = DuoWorkspacePolicy.floatingArea(size: geo.size, divisions: regions(geo, division: true), occlusions: regions(geo, division: false))
-                        let button = DuoWorkspacePolicy.floatingButton(in: area, occlusions: regions(geo, division: false))
+                        let area = floatingArea
+                        let button = floatingButton
                         if !button.isEmpty {
                             let width = min(320, max(button.width, button.maxX - area.minX))
                             VStack(alignment: .trailing, spacing: 10) {

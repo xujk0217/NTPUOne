@@ -1154,7 +1154,7 @@
 "community_reply_count_format" = "%lld replies";
 "community_identity_section" = "Identity";
 "community_identity_not_set" = "Community identity not set";
-"community_identity_setup_hint" = "Go to More > Community Identity to set nickname, department/year, and school sign-in.";
+"community_identity_setup_hint" = "Open Account Center to set your community nickname, department/year, and school account.";
 "community_guest_display_name" = "Guest";
 "community_category_section" = "Category";
 "community_topic_section" = "Topic";
@@ -1201,7 +1201,7 @@
 "community_sort_oldest" = "Oldest";
 "community_replies_section" = "Replies";
 "community_no_replies" = "No replies yet. Start the conversation.";
-"community_reply_identity_required" = "Set a nickname in More > Community Identity before replying.";
+"community_reply_identity_required" = "Set your community nickname in Account Center before replying.";
 "community_reply_placeholder" = "Reply to this topic";
 "community_send_reply" = "Send Reply";
 "community_edited_label" = "Edited";
@@ -1302,3 +1302,15 @@
 "timetable_sat" = "Sat";
 "timetable_show_saturday" = "Show Saturday";
 "timetable_show_night" = "Show evening classes";
+
+"community_feed_heading" = "Campus discussions";
+
+"community_feed_options" = "Sort and notifications";
+
+"community_category_notifications" = "Category notifications";
+
+"community_reply_sign_in_hint" = "Sign in with Google to join the discussion";
+
+"community_image_retry" = "Retry";
+
+"community_image_unavailable_hint" = "Unable to load this image. Please try again later.";

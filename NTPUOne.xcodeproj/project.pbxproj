@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA2700000000000000000003 /* CommunityAuthorIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2700000000000000000004 /* CommunityAuthorIdentity.swift */; };
+		AA2700000000000000000001 /* CommunityImageLoading.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2700000000000000000002 /* CommunityImageLoading.swift */; };
 		AA2500000000000000000005 /* AIChangeReviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000006 /* AIChangeReviewView.swift */; };
 		AA2500000000000000000003 /* ScenePresentationAnchor.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000004 /* ScenePresentationAnchor.swift */; };
 		AA2500000000000000000001 /* DuoWorkspacePolicy.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA2500000000000000000002 /* DuoWorkspacePolicy.swift */; };
@@ -169,6 +171,8 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		AA2700000000000000000004 /* CommunityAuthorIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityAuthorIdentity.swift; sourceTree = "<group>"; };
+		AA2700000000000000000002 /* CommunityImageLoading.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommunityImageLoading.swift; sourceTree = "<group>"; };
 		AA2500000000000000000006 /* AIChangeReviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AIAssistant/AIChangeReviewView.swift; sourceTree = "<group>"; };
 		AA2500000000000000000004 /* ScenePresentationAnchor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout/ScenePresentationAnchor.swift; sourceTree = "<group>"; };
 		AA2500000000000000000002 /* DuoWorkspacePolicy.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AdaptiveLayout/DuoWorkspacePolicy.swift; sourceTree = "<group>"; };
@@ -420,6 +424,8 @@
 				3F8F95052C290C25001A1697 /* NTPUOneApp.swift */,
 				3F8F95082F5D1000001A1697 /* CommunityNotificationFallbackService.swift */,
 				3F8F95072C290C25001A1697 /* ContentView.swift */,
+				AA2700000000000000000002 /* CommunityImageLoading.swift */,
+				AA2700000000000000000004 /* CommunityAuthorIdentity.swift */,
 				AA2500000000000000000004 /* ScenePresentationAnchor.swift */,
 				AA2500000000000000000002 /* DuoWorkspacePolicy.swift */,
 				AA2500000000000000000006 /* AIChangeReviewView.swift */,
@@ -816,6 +822,8 @@
 				3F9062632C2929C900B9F24A /* UbikeManager.swift in Sources */,
 				3F8F95092F5D1000001A1697 /* CommunityNotificationFallbackService.swift in Sources */,
 				3F8F95082C290C25001A1697 /* ContentView.swift in Sources */,
+				AA2700000000000000000001 /* CommunityImageLoading.swift in Sources */,
+				AA2700000000000000000003 /* CommunityAuthorIdentity.swift in Sources */,
 				AA2500000000000000000003 /* ScenePresentationAnchor.swift in Sources */,
 				AA2500000000000000000001 /* DuoWorkspacePolicy.swift in Sources */,
 				AA2500000000000000000005 /* AIChangeReviewView.swift in Sources */,

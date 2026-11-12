@@ -69,3 +69,25 @@ swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
 ```
 
 檢查同一則訊息中單筆與整批的待確認篩選、帳號隔離、不同訊息同名提案，以及拒絕採用模型傳來的執行 ID。執行狀態與目前聊天同為 App session 生命週期，不是跨裝置的操作紀錄。
+
+## 交流區圖片載入
+
+```sh
+swiftc -swift-version 5 -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  NTPUOne/CommunityImageLoading.swift tests/CommunityImageLoadingChecks.swift \
+  -o /private/tmp/ntpuone-community-image-checks
+/private/tmp/ntpuone-community-image-checks
+```
+
+使用注入的圖片下載函式，檢查原有 record ID 保留、錯誤後重新載入、取消後可重試、CloudKit 暫時錯誤的有限重試與伺服器等待時間、錯誤分類，以及舊請求不得覆蓋新圖片。此測試不存取或修改正式 CloudKit、Firestore 圖片或貼文；正式版圖片仍需在相同 CloudKit 環境的真機上驗證。
+
+## 交流區暱稱一致性
+
+```sh
+swiftc -module-cache-path /private/tmp/ntpuone-test-module-cache \
+  NTPUOne/CommunityAuthorIdentity.swift tests/CommunityAuthorIdentityChecks.swift \
+  -o /private/tmp/ntpuone-community-author-checks
+/private/tmp/ntpuone-community-author-checks
+```
+
+檢查跨裝置擁有權、登出與換帳號隔離、列表與詳情共用顯示規則、較晚回傳的帳號資料不得覆寫剛修改的暱稱，以及徽章與暱稱同步分欄位處理。雲端實際寫入另需已登入帳號驗證。

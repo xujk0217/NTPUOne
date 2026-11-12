@@ -64,7 +64,11 @@ struct ContentView: View {
             }.tag(0)
             
             AcademicWorkspaceView(memoManager: memoManager, courseData: courseData, selection: $academicTab)
-                .tabItem { Label("學業", systemImage: "books.vertical") }
+                .tabItem {
+                    Image(systemName: "books.vertical")
+                        .environment(\.symbolVariants, .none)
+                    Text("學業")
+                }
                 .tag(1)
 
             RemoteConfigFeatureGate(feature: .community) {
@@ -947,30 +951,34 @@ final class CommunityImageService {
     }
 }
 
-@MainActor
-private final class CommunityImageLoader: ObservableObject {
-    @Published var image: UIImage?
-    @Published var failed = false
-    private var loadedRecordName: String?
+private typealias CommunityImageLoader = CommunityImageLoadState<UIImage>
 
-    func load(recordName: String) async {
-        // 當 recordName 改變（例如編輯後換成新圖片）時，必須清除舊圖並重新載入，
-        // 否則同一個 loader 實例會因 guard 而保留舊圖片，導致貼文頁面只刷新文字、不刷新圖片。
-        if loadedRecordName == recordName, image != nil || failed { return }
-        loadedRecordName = recordName
-        image = nil
-        failed = false
-        do {
-            image = try await CommunityImageService.shared.image(recordName: recordName)
-        } catch {
-            failed = true
+private struct CommunityImageFailureView: View {
+    let failure: CommunityImageFailure?
+    var retry: (() -> Void)?
+    var body: some View {
+        VStack(spacing: 8) {
+            HStack(alignment: .top, spacing: 6) {
+                Image(systemName: "photo.badge.exclamationmark")
+                Text(failure?.message ?? String(localized: "community_image_load_failed"))
+                    .lineLimit(nil).fixedSize(horizontal: false, vertical: true)
+            }
+            .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.leading)
+            if let retry {
+                Button(action: retry) {
+                    Label(String(localized: "community_image_retry"), systemImage: "arrow.clockwise")
+                        .font(.caption.weight(.semibold)).frame(minWidth: 80, minHeight: 44)
+                }.buttonStyle(.bordered)
+            }
         }
+        .padding(12).frame(maxWidth: .infinity)
     }
 }
 
 private struct CommunityTopicImageView: View {
     let recordName: String
-    @StateObject private var loader = CommunityImageLoader()
+    var onOpen: () -> Void = {}
+    @StateObject private var loader = CommunityImageLoader(fetchImage: { try await CommunityImageService.shared.image(recordName: $0) })
 
     var body: some View {
         Group {
@@ -980,12 +988,13 @@ private struct CommunityTopicImageView: View {
                     .scaledToFit()
                     .frame(maxWidth: .infinity)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: onOpen)
             } else if loader.failed {
-                Label(String(localized: "community_image_load_failed"), systemImage: "photo.badge.exclamationmark")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, minHeight: 100)
-                    .background(.quaternary, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                CommunityImageFailureView(failure: loader.failure) {
+                    Task { await loader.load(recordName: recordName, force: true) }
+                }
+                .background(Color(.tertiarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14))
             } else {
                 ProgressView()
                     .frame(maxWidth: .infinity, minHeight: 140)
@@ -1000,7 +1009,7 @@ private struct CommunityTopicImageView: View {
 
 private struct CommunityTopicImageThumbnail: View {
     let recordName: String
-    @StateObject private var loader = CommunityImageLoader()
+    @StateObject private var loader = CommunityImageLoader(fetchImage: { try await CommunityImageService.shared.image(recordName: $0) })
 
     var body: some View {
         Group {
@@ -1048,39 +1057,24 @@ private struct CommunityTopicImagesView: View {
     var body: some View {
         Group {
             if recordNames.count == 1, let recordName = recordNames.first {
-                CommunityTopicImageView(recordName: recordName)
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        previewIndex = 0
-                        showBrowser = true
-                    }
+                CommunityTopicImageView(recordName: recordName) {
+                    previewIndex = 0
+                    showBrowser = true
+                }
             } else if !recordNames.isEmpty {
                 TabView(selection: $previewIndex) {
                     ForEach(Array(recordNames.enumerated()), id: \.element) { index, recordName in
-                        CommunityTopicImageView(recordName: recordName)
-                            .padding(.horizontal, 2)
-                            .tag(index)
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                previewIndex = index
-                                showBrowser = true
-                            }
+                        CommunityTopicImageView(recordName: recordName) {
+                            previewIndex = index
+                            showBrowser = true
+                        }
+                        .padding(.horizontal, 2)
+                        .tag(index)
                         }
                 }
                 .frame(height: 300)
                 .tabViewStyle(.page(indexDisplayMode: .always))
-            }
-        }
-        .overlay(alignment: .topTrailing) {
-            if !recordNames.isEmpty {
-                Text("\(previewIndex + 1)/\(recordNames.count)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(.black.opacity(0.58), in: Capsule())
-                    .padding(10)
-                    .allowsHitTesting(false)
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
             }
         }
         .fullScreenCover(isPresented: $showBrowser) {
@@ -1097,6 +1091,7 @@ private struct CommunityImageBrowserView: View {
     @State private var selectedIndex: Int
     @State private var images: [String: UIImage] = [:]
     @State private var failedRecordNames = Set<String>()
+    @State private var failures: [String: CommunityImageFailure] = [:]
     @State private var showShareSheet = false
     @State private var saveMessage: String?
 
@@ -1120,13 +1115,20 @@ private struct CommunityImageBrowserView: View {
             Color.black.ignoresSafeArea()
 
             if let currentRecordName {
-                CommunityZoomableImagePage(
-                    image: images[currentRecordName],
-                    failed: failedRecordNames.contains(currentRecordName),
-                    onDismiss: { dismiss() },
-                    onPageChange: changePage
-                )
-                .id(currentRecordName)
+                if failedRecordNames.contains(currentRecordName) {
+                    CommunityImageFailureView(failure: failures[currentRecordName]) {
+                        failedRecordNames.remove(currentRecordName)
+                        failures.removeValue(forKey: currentRecordName)
+                        Task { await loadImages() }
+                    }
+                    .environment(\.colorScheme, .dark)
+                } else {
+                    CommunityZoomableImagePage(
+                        image: images[currentRecordName], failed: false,
+                        onDismiss: { dismiss() }, onPageChange: changePage
+                    )
+                    .id(currentRecordName)
+                }
             }
         }
         .safeAreaInset(edge: .top) {
@@ -1202,6 +1204,8 @@ private struct CommunityImageBrowserView: View {
             do {
                 images[recordName] = try await CommunityImageService.shared.image(recordName: recordName)
             } catch {
+                if Task.isCancelled || error is CancellationError { return }
+                failures[recordName] = CommunityImageFailure(error)
                 failedRecordNames.insert(recordName)
             }
         }
@@ -1648,7 +1652,7 @@ final class CommunityProfileManager: ObservableObject {
     private let db = Firestore.firestore()
     private var authStateHandle: AuthStateDidChangeListenerHandle?
     private static let displayPropagationQueue = DispatchQueue(label: "ntpuone.community.profilePropagation")
-    private static var displayPropagationGeneration = 0
+    private static var displayRevisions = CommunityDisplayRevisions()
 
     func confirmDepartmentChoice(_ name: String) {
         profile.department = name
@@ -1948,7 +1952,12 @@ final class CommunityProfileManager: ObservableObject {
         let db = Firestore.firestore()
         let ownerRoot = db.collection("communityContentOwners").document(uid)
         let trimmedNickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        let generation = nextDisplayPropagationGeneration()
+        var fields = Set<String>()
+        if updateNickname { fields.insert("authorName") }
+        if updateDepartment { fields.insert("authorDepartment") }
+        if updateYear { fields.formUnion(["authorEntryYear", "authorShowsYear"]) }
+        if updateBadge { fields.formUnion(["authorBadgeLevel", "authorShowsBadge"]) }
+        let generation = displayPropagationQueue.sync { displayRevisions.begin(uid: uid, fields: fields) }
 
         ownerRoot.collection("topics").getDocuments { snapshot, error in
             guard isCurrentDisplayPropagation(generation) else { return }
@@ -1963,7 +1972,7 @@ final class CommunityProfileManager: ObservableObject {
                 publicRef.getDocument { publicSnapshot, _ in
                     guard isCurrentDisplayPropagation(generation) else { return }
                     guard let data = publicSnapshot?.data() else { return }
-                    let updates = communityDisplayUpdates(
+                    let proposedUpdates = communityDisplayUpdates(
                         from: data,
                         nickname: trimmedNickname,
                         department: department,
@@ -1975,6 +1984,7 @@ final class CommunityProfileManager: ObservableObject {
                         updateYear: updateYear,
                         updateBadge: updateBadge
                     )
+                    let updates = currentDisplayUpdates(proposedUpdates, generation: generation)
                     guard !updates.isEmpty else { return }
                     publicRef.updateData(updates) { error in
                         if let error, isCurrentDisplayPropagation(generation) {
@@ -2001,7 +2011,7 @@ final class CommunityProfileManager: ObservableObject {
                 publicRef.getDocument { publicSnapshot, _ in
                     guard isCurrentDisplayPropagation(generation) else { return }
                     guard let data = publicSnapshot?.data() else { return }
-                    let updates = communityDisplayUpdates(
+                    let proposedUpdates = communityDisplayUpdates(
                         from: data,
                         nickname: trimmedNickname,
                         department: department,
@@ -2013,6 +2023,7 @@ final class CommunityProfileManager: ObservableObject {
                         updateYear: updateYear,
                         updateBadge: updateBadge
                     )
+                    let updates = currentDisplayUpdates(proposedUpdates, generation: generation)
                     guard !updates.isEmpty else { return }
                     publicRef.updateData(updates) { error in
                         if let error, isCurrentDisplayPropagation(generation) {
@@ -2046,6 +2057,7 @@ final class CommunityProfileManager: ObservableObject {
                 if updateBadge {
                     restaurantUpdates["authorBadgeLevel"] = badgeLevel
                 }
+                restaurantUpdates = currentDisplayUpdates(restaurantUpdates, generation: generation)
                 guard !restaurantUpdates.isEmpty else { return }
 
                 db.collection(mealCollection)
@@ -2061,15 +2073,16 @@ final class CommunityProfileManager: ObservableObject {
         }
     }
 
-    private static func nextDisplayPropagationGeneration() -> Int {
-        displayPropagationQueue.sync {
-            displayPropagationGeneration += 1
-            return displayPropagationGeneration
-        }
+    private static func isCurrentDisplayPropagation(_ token: CommunityDisplayRevisions.Token) -> Bool {
+        guard Auth.auth().currentUser?.uid == token.uid else { return false }
+        return displayPropagationQueue.sync { displayRevisions.hasCurrentFields(token) }
     }
 
-    private static func isCurrentDisplayPropagation(_ generation: Int) -> Bool {
-        displayPropagationQueue.sync { generation == displayPropagationGeneration }
+    private static func currentDisplayUpdates(_ updates: [String: Any], generation: CommunityDisplayRevisions.Token) -> [String: Any] {
+        guard Auth.auth().currentUser?.uid == generation.uid else { return [:] }
+        return displayPropagationQueue.sync {
+            updates.filter { displayRevisions.isCurrent(generation, field: $0.key == "name" ? "authorName" : $0.key) }
+        }
     }
 
     private static func communityDisplayUpdates(
@@ -2110,14 +2123,16 @@ final class CommunityProfileManager: ObservableObject {
     }
 
     private func loadAccountProfile(uid: String) {
+        let nicknameAtRequest = Self.currentNicknameDisplayName()
         db.collection("communityUserProfiles").document(uid).getDocument { [weak self] snapshot, error in
             guard let self, error == nil, let data = snapshot?.data(), !data.isEmpty else { return }
             // 回應返回時若帳號已切換，丟棄過期資料避免覆寫新帳號設定
             guard Auth.auth().currentUser?.uid == uid else { return }
             DispatchQueue.main.async {
-                if let nickname = data["nickname"] as? String, !nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    self.profile.nickname = nickname
-                }
+                guard Auth.auth().currentUser?.uid == uid else { return }
+                self.profile.nickname = CommunityAuthorOwnershipState.reconciledNickname(
+                    remote: data["nickname"] as? String, localAtRequest: nicknameAtRequest,
+                    localNow: Self.currentNicknameDisplayName())
                 if let schoolEmail = data["schoolEmail"] as? String { self.profile.schoolEmail = schoolEmail }
                 if let department = data["department"] as? String { self.profile.department = department }
                 if let entryYear = data["entryYear"] as? String { self.profile.entryYear = entryYear }
@@ -2126,6 +2141,9 @@ final class CommunityProfileManager: ObservableObject {
                 if let showBadge = data["showBadge"] as? Bool { self.profile.showBadge = showBadge }
                 if let ownerEmail = data["ownerEmail"] as? String { self.profile.ownerEmail = ownerEmail }
                 self.saveProfileLocally()
+                Self.propagateOwnedPublicDisplay(uid: uid, nickname: self.profile.nickname,
+                    department: nil, entryYear: nil, badgeLevel: CommentBadgeManager.shared.getCurrentBadge().rawValue,
+                    showsBadge: nil, updateNickname: true, updateDepartment: false, updateYear: false, updateBadge: false)
             }
         }
     }
@@ -2953,12 +2971,252 @@ private final class CommunityReplyManager: ObservableObject {
     }
 }
 
+private struct CommunityPageBackground: View {
+    @Environment(\.colorScheme) private var colorScheme
+    var body: some View {
+        ZStack {
+            Color(.systemBackground)
+            LinearGradient(stops: [
+                .init(color: colorScheme == .light ? Color(.systemGroupedBackground) : .clear, location: 0),
+                .init(color: colorScheme == .light ? Color(.systemGroupedBackground) : .clear, location: 0.12),
+                .init(color: .pink.opacity(0.10), location: 0.40),
+                .init(color: .purple.opacity(0.06), location: 0.70),
+                .init(color: .blue.opacity(0.09), location: 1)
+            ], startPoint: .top, endPoint: .bottom)
+        }
+        .ignoresSafeArea()
+    }
+}
+
+private struct CommunityPinnedBar<Bar: View>: ViewModifier {
+    let bar: Bar
+    var edge: VerticalEdge = .top
+    @ViewBuilder func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.safeAreaBar(edge: edge, spacing: 0) { bar }
+                .scrollEdgeEffectStyle(.soft, for: edge == .top ? .top : .bottom)
+        } else {
+            content.safeAreaInset(edge: edge, spacing: 0) { bar }
+        }
+    }
+}
+
+private struct CommunityCategoryChip: View {
+    let category: CommunityCategory
+    let selected: Bool
+    let action: () -> Void
+    var body: some View {
+        Button(action: action) {
+            Label(category.title, systemImage: category.icon)
+                .font(.subheadline.weight(selected ? .semibold : .medium))
+                .foregroundStyle(selected ? category.tint : .primary)
+                .padding(.horizontal, 14)
+                .frame(minHeight: 44)
+                .modifier(CommunityControlGlass(selected: selected, tint: category.tint))
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+private struct CommunityReplyGlass: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular, in: .rect(cornerRadius: 24))
+        } else {
+            content.background(.regularMaterial, in: RoundedRectangle(cornerRadius: 24))
+        }
+    }
+}
+
+private struct CommunityControlGlass: ViewModifier {
+    var selected = false
+    var tint: Color = .blue
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.glassEffect(.regular.tint(selected ? tint.opacity(0.18) : .clear).interactive(), in: .capsule)
+        } else {
+            content.background(selected ? tint.opacity(0.14) : Color(.secondarySystemGroupedBackground), in: Capsule())
+        }
+    }
+}
+
+private struct CommunityAuthorHeader: View {
+    let name: String
+    let profileLine: String
+    let createdAt: Date
+    var badge: CommentBadgeManager.BadgeLevel? = nil
+    var edited = false
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 30))
+                .foregroundStyle(.blue.opacity(0.7))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(name).font(.subheadline.weight(.semibold)).lineLimit(1)
+                    Spacer(minLength: 4)
+                    Text(relativeTime(createdAt)).font(.caption).foregroundStyle(.secondary).fixedSize()
+                }
+                if !profileLine.isEmpty || badge != nil || edited {
+                    HStack(spacing: 6) {
+                        if !profileLine.isEmpty {
+                            Text(profileLine).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                        }
+                        if let badge { BadgeTagView(badge: badge, compact: true) }
+                        if edited { Text(String(localized: "community_edited_label")).font(.caption2).foregroundStyle(.secondary) }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/// Private ownership indexes identify the author consistently after reinstall or account switching.
+private final class CommunityAuthorOwnership: ObservableObject {
+    static let shared = CommunityAuthorOwnership()
+    @Published private(set) var state = CommunityAuthorOwnershipState()
+    private var authHandle: AuthStateDidChangeListenerHandle?
+    private var listeners: [ListenerRegistration] = []
+    private var generation = UUID()
+
+    private init() {
+        authHandle = Auth.auth().addStateDidChangeListener { [weak self] _, user in
+            DispatchQueue.main.async { self?.observe(uid: user?.uid) }
+        }
+    }
+    private func observe(uid: String?) {
+        listeners.forEach { $0.remove() }
+        listeners = []
+        generation = UUID()
+        let request = generation
+        state = CommunityAuthorOwnershipState(uid: uid)
+        guard let uid, Auth.auth().currentUser?.uid == uid else { return }
+        let owner = Firestore.firestore().collection("communityContentOwners").document(uid)
+        listeners.append(owner.collection("topics").addSnapshotListener { [weak self] snapshot, error in
+            guard error == nil, let snapshot else { return }
+            let ids = Set(snapshot.documents.map { ($0.data()["topicId"] as? String) ?? $0.documentID })
+            DispatchQueue.main.async {
+                guard let self, self.generation == request, Auth.auth().currentUser?.uid == uid else { return }
+                self.state.topicIDs = ids
+            }
+        })
+        listeners.append(owner.collection("replies").addSnapshotListener { [weak self] snapshot, error in
+            guard error == nil, let snapshot else { return }
+            let keys = Set(snapshot.documents.compactMap { document -> String? in
+                guard let topic = document.data()["topicId"] as? String,
+                      let reply = document.data()["replyId"] as? String else { return nil }
+                return "\(topic)/\(reply)"
+            })
+            DispatchQueue.main.async {
+                guard let self, self.generation == request, Auth.auth().currentUser?.uid == uid else { return }
+                self.state.replyKeys = keys
+            }
+        })
+    }
+    func topicName(_ topic: CommunityTopic, nickname: String) -> String {
+        CommunityAuthorOwnershipState.displayName(stored: topic.authorName, nickname: nickname,
+            isOwner: state.ownsTopic(topic.id, activeUID: Auth.auth().currentUser?.uid))
+    }
+    func replyName(_ reply: CommunityReply, topicID: String, nickname: String) -> String {
+        CommunityAuthorOwnershipState.displayName(stored: reply.authorName, nickname: nickname,
+            isOwner: state.ownsReply(topicID: topicID, replyID: reply.id, activeUID: Auth.auth().currentUser?.uid))
+    }
+    deinit {
+        listeners.forEach { $0.remove() }
+        if let authHandle { Auth.auth().removeStateDidChangeListener(authHandle) }
+    }
+}
+
+private struct CommunityTopicRow: View {
+    let topic: CommunityTopic
+    var isLiked: Bool = false
+    @ObservedObject private var authorOwnership = CommunityAuthorOwnership.shared
+    @AppStorage("commentNickname") private var nickname = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            CommunityAuthorHeader(
+                name: authorOwnership.topicName(topic, nickname: nickname),
+                profileLine: authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear),
+                createdAt: topic.createdAt,
+                badge: topic.authorShowsBadge ? badgeLevel(from: topic.authorBadgeLevel) : nil,
+                edited: topic.isEdited)
+            VStack(alignment: .leading, spacing: 8) {
+                Label(topic.category.title, systemImage: topic.category.icon)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(topic.category.tint)
+                Text(topic.title).font(.headline).lineLimit(2).foregroundStyle(.primary)
+                Text(topic.body).font(.subheadline).lineSpacing(3).foregroundStyle(.secondary).lineLimit(3)
+            }
+            if let cover = topic.imageRecordNames.first {
+                CommunityTopicCover(recordName: cover, imageCount: topic.imageRecordNames.count)
+            }
+            HStack(spacing: 18) {
+                Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: isLiked ? "heart.fill" : "heart")
+                    .foregroundStyle(isLiked ? .red : .secondary)
+                Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.caption2.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            .font(.caption)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+    }
+}
+
+private struct CommunityTopicCover: View {
+    let recordName: String
+    let imageCount: Int
+    @StateObject private var loader = CommunityImageLoader(fetchImage: { try await CommunityImageService.shared.image(recordName: $0) })
+    var body: some View {
+        Group {
+            if loader.failed {
+                CommunityImageFailureView(failure: loader.failure, retry: nil)
+                    .background(Color(.tertiarySystemGroupedBackground))
+            } else {
+                Color(.tertiarySystemGroupedBackground)
+                    .frame(height: 180)
+                    .overlay {
+                        GeometryReader { geometry in
+                            Group {
+                                if let image = loader.image {
+                                    Image(uiImage: image).resizable().scaledToFill()
+                                } else {
+                                    ProgressView()
+                                }
+                            }
+                            .frame(width: geometry.size.width, height: geometry.size.height)
+                            .clipped()
+                        }
+                    }
+            }
+        }
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay(alignment: .bottomTrailing) {
+                if imageCount > 1 {
+                    Label("\(imageCount)", systemImage: "photo.on.rectangle")
+                        .font(.caption.weight(.semibold)).foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(.black.opacity(0.55), in: Capsule()).padding(10)
+                }
+            }
+            .accessibilityLabel(loader.failure?.message ?? String(format: String(localized: "community_image_count_format"), imageCount))
+            .task(id: recordName) { await loader.load(recordName: recordName) }
+    }
+}
+
 private struct CommunityView: View {
     @EnvironmentObject var adFree: AdFreeService
     private let adInterval = 5
     @StateObject private var manager = CommunityTopicManager()
     @StateObject private var subscriptionManager = CommunitySubscriptionManager()
-    @StateObject private var profileManager = CommunityProfileManager()
     @State private var selectedCategory: CommunityCategory = .all
     @State private var showComposer = false
     @State private var searchText = ""
@@ -2966,44 +3224,51 @@ private struct CommunityView: View {
     private var visibleTopics: [CommunityTopic] {
         let categorized = selectedCategory == .all ? manager.topics : manager.topics.filter { $0.category == selectedCategory }
         let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let searched = query.isEmpty
-            ? categorized
-            : categorized.filter {
-                $0.title.localizedCaseInsensitiveContains(query) ||
-                $0.body.localizedCaseInsensitiveContains(query)
-            }
+        let searched = query.isEmpty ? categorized : categorized.filter {
+            $0.title.localizedCaseInsensitiveContains(query) || $0.body.localizedCaseInsensitiveContains(query)
+        }
         let live = searched.filter { !$0.isDeleted }
         switch manager.sortOption {
-        case .hot:
-            return live.sorted { ($0.likeCount + $0.replyCount, $0.createdAt) > ($1.likeCount + $1.replyCount, $1.createdAt) }
-        case .newest:
-            return live.sorted { $0.createdAt > $1.createdAt }
-        case .oldest:
-            return live.sorted { $0.createdAt < $1.createdAt }
+        case .hot: return live.sorted { ($0.likeCount + $0.replyCount, $0.createdAt) > ($1.likeCount + $1.replyCount, $1.createdAt) }
+        case .newest: return live.sorted { $0.createdAt > $1.createdAt }
+        case .oldest: return live.sorted { $0.createdAt < $1.createdAt }
         }
     }
-
-    private var isSearching: Bool {
-        !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    private var isSearching: Bool { !searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    private var sortTitle: String {
+        switch manager.sortOption {
+        case .hot: return String(localized: "community_sort_hot")
+        case .newest: return String(localized: "community_sort_newest")
+        case .oldest: return String(localized: "community_sort_oldest")
+        }
     }
 
     var body: some View {
         NavigationStack {
-            List {
-                communityHero
-                    .listRowInsets(.init(top: 8, leading: 0, bottom: 4, trailing: 0))
-                    .listRowBackground(Color.clear)
-
-                categoryPicker
-                    .listRowInsets(.init(top: 4, leading: 0, bottom: 4, trailing: 0))
-                    .listRowBackground(Color.clear)
-
-                communityErrorSection
-                topicFeedSection
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 16) {
+                    HStack {
+                        Text(selectedCategory == .all ? String(localized: "community_feed_heading") : selectedCategory.title)
+                            .font(.title3.weight(.semibold))
+                        Spacer()
+                        Text(sortTitle).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 4)
+                    if let error = manager.errorMessage {
+                        Label(error, systemImage: "exclamationmark.triangle")
+                            .font(.subheadline).foregroundStyle(.red)
+                            .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+                    }
+                    topicFeedContent
+                }
+                .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 20)
             }
-            .scrollContentBackground(.hidden)
-            .background(Color.gray.opacity(0.1))
+            .background(CommunityPageBackground())
+            .modifier(CommunityPinnedBar(bar: categoryPicker))
             .navigationTitle(String(localized: "community_title"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(.hidden, for: .navigationBar)
             .searchable(text: $searchText, prompt: String(localized: "community_search_prompt"))
             .toolbar { communityToolbar }
             .sheet(isPresented: $showComposer) {
@@ -3013,72 +3278,38 @@ private struct CommunityView: View {
         }
     }
 
-    @ViewBuilder
-    private var communityErrorSection: some View {
-        if let errorMessage = manager.errorMessage {
-            Section {
-                Label(errorMessage, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            }
-        }
-    }
-
-    private var topicFeedSection: some View {
-        Section {
-            topicFeedContent
-        } header: {
-            Text(selectedCategory == .all ? String(localized: "community_latest_topics") : selectedCategory.title)
-        }
-    }
-
-    @ViewBuilder
-    private var topicFeedContent: some View {
+    @ViewBuilder private var topicFeedContent: some View {
         if manager.isLoading && manager.topics.isEmpty {
-            ProgressView(String(localized: "community_loading"))
-                .frame(maxWidth: .infinity, alignment: .center)
+            ProgressView(String(localized: "community_loading")).frame(maxWidth: .infinity).padding(32)
         } else if visibleTopics.isEmpty {
-            VStack(spacing: 8) {
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.title2)
-                    .foregroundStyle(.secondary)
-                Text(String(localized: isSearching ? "community_empty_search_title" : "community_empty_title"))
-                    .font(.headline)
+            VStack(spacing: 12) {
+                Image(systemName: "bubble.left.and.bubble.right").font(.largeTitle).foregroundStyle(.blue)
+                Text(String(localized: isSearching ? "community_empty_search_title" : "community_empty_title")).font(.headline)
                 Text(String(localized: isSearching ? "community_empty_search_subtitle" : "community_empty_subtitle"))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.center)
             }
-            .frame(maxWidth: .infinity, alignment: .center)
-            .padding(.vertical, 20)
+            .frame(maxWidth: .infinity).padding(.vertical, 32).padding(.horizontal, 20)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
         } else {
             ForEach(Array(visibleTopics.enumerated()), id: \.element.id) { index, topic in
-                topicNavigationLink(topic)
-                if shouldShowAd(after: index) {
-                    NativeAdSectionView(style: .compact)
-                        .frame(height: 140)
-                        .listRowInsets(.init(top: 0, leading: 0, bottom: 0, trailing: 0))
+                NavigationLink {
+                    CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager,
+                        isLiked: manager.isLiked(topic), onToggleLike: { updated, completion in
+                            manager.toggleLike(updated, completion: completion)
+                        })
+                } label: {
+                    CommunityTopicRow(topic: topic, isLiked: manager.isLiked(topic))
+                }
+                .buttonStyle(.plain)
+                if !adFree.isAdFree && (index + 1).isMultiple(of: adInterval) {
+                    NativeAdSectionView(style: .compact).frame(height: 140)
+                        .clipShape(RoundedRectangle(cornerRadius: 24))
                 }
             }
         }
     }
 
-    private func topicNavigationLink(_ topic: CommunityTopic) -> some View {
-        NavigationLink {
-            CommunityTopicDetailView(
-                topic: topic,
-                subscriptionManager: subscriptionManager,
-                isLiked: manager.isLiked(topic),
-                onToggleLike: { updatedTopic, completion in
-                    manager.toggleLike(updatedTopic, completion: completion)
-                }
-            )
-        } label: {
-            CommunityTopicRow(topic: topic, isLiked: manager.isLiked(topic))
-        }
-    }
-
-    @ToolbarContentBuilder
-    private var communityToolbar: some ToolbarContent {
+    @ToolbarContentBuilder private var communityToolbar: some ToolbarContent {
         ToolbarItem(placement: .primaryAction) {
             Menu {
                 Picker(String(localized: "community_sort_title"), selection: $manager.sortOption) {
@@ -3086,60 +3317,23 @@ private struct CommunityView: View {
                     Label(String(localized: "community_sort_newest"), systemImage: "clock.arrow.circlepath").tag(CommunitySortOption.newest)
                     Label(String(localized: "community_sort_oldest"), systemImage: "clock").tag(CommunitySortOption.oldest)
                 }
-                .pickerStyle(.inline)
+                if K.Community.notificationsEnabled {
+                    Section(String(localized: "community_category_notifications")) {
+                        ForEach(CommunityCategory.allCases.filter { $0 != .all }) { category in
+                            Button { subscriptionManager.toggleCategory(category) } label: {
+                                Label(category.title, systemImage: subscriptionManager.isSubscribed(to: category) ? "bell.badge.fill" : "bell")
+                            }
+                        }
+                    }
+                }
             } label: {
-                Image(systemName: "arrow.up.arrow.down")
+                Label(String(localized: "community_feed_options"), systemImage: "slider.horizontal.3")
             }
         }
         ToolbarItem(placement: .primaryAction) {
-            Button {
-                showComposer = true
-            } label: {
+            Button { showComposer = true } label: {
                 Label(String(localized: "community_add_topic"), systemImage: "square.and.pencil")
             }
-        }
-    }
-
-    private func shouldShowAd(after index: Int) -> Bool {
-        !adFree.isAdFree && (index + 1).isMultiple(of: adInterval)
-    }
-
-    private var communityHero: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Image(systemName: "bubble.left.and.bubble.right")
-                    .font(.title2)
-                    .foregroundStyle(.blue)
-                    .frame(width: 42, height: 42)
-                    .background(Color.blue.opacity(0.14), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                Spacer()
-
-                Text("NTPU")
-                    .font(.caption.weight(.bold))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .foregroundStyle(.blue)
-                    .background(Color.blue.opacity(0.12), in: Capsule())
-            }
-
-            Text(String(localized: "community_hero_title"))
-                .font(.title3.weight(.semibold))
-            if !profileManager.profile.displayLine.isEmpty {
-                Label(profileManager.profile.displayLine, systemImage: "person.text.rectangle")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .padding(16)
-        .background {
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(Color(.secondarySystemBackground))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .stroke(Color.blue.opacity(0.20), lineWidth: 1)
-                }
-                .shadow(color: .black.opacity(0.08), radius: 14, x: 0, y: 7)
         }
     }
 
@@ -3147,108 +3341,14 @@ private struct CommunityView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
                 ForEach(CommunityCategory.allCases) { category in
-                    HStack(spacing: 4) {
-                        Button {
-                            selectedCategory = category
-                        } label: {
-                            HStack(spacing: 3) {
-                                Image(systemName: category.icon)
-                                    .imageScale(.small)
-                                Text(category.title)
-                            }
-                                .font(.caption.weight(.semibold))
-                                .padding(.leading, 11)
-                                .padding(.trailing, 12)
-                                .padding(.vertical, 8)
-                                .foregroundStyle(selectedCategory == category ? .white : category.tint)
-                        }
-                        .buttonStyle(.plain)
-
-                        if category != .all && K.Community.notificationsEnabled {
-                            Button {
-                                subscriptionManager.toggleCategory(category)
-                            } label: {
-                                Image(systemName: subscriptionManager.isSubscribed(to: category) ? "bell.badge" : "bell")
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(selectedCategory == category ? .white : category.tint)
-                                    .padding(.trailing, 10)
-                                    .padding(.vertical, 8)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(String(format: String(localized: subscriptionManager.isSubscribed(to: category) ? "community_unsubscribe_category_accessibility_format" : "community_subscribe_category_accessibility_format"), category.title))
-                        }
+                    CommunityCategoryChip(category: category, selected: selectedCategory == category) {
+                        selectedCategory = category
                     }
-                    .background(selectedCategory == category ? category.tint : category.tint.opacity(0.12), in: Capsule())
                 }
             }
+            .padding(.horizontal, 16).padding(.vertical, 8)
         }
-    }
-}
-
-private struct CommunityTopicRow: View {
-    let topic: CommunityTopic
-    var isLiked: Bool = false
-    @AppStorage("commentDeviceId") private var deviceId: String = ""
-    @AppStorage("commentNickname") private var nickname: String = ""
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Label(topic.category.title, systemImage: topic.category.icon)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(topic.category.tint)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(topic.category.tint.opacity(0.12), in: Capsule())
-
-                Spacer()
-
-                Text(relativeTime(topic.createdAt))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-
-            Text(topic.title)
-                .font(.headline)
-                .lineLimit(2)
-
-            Text(topic.body)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(2)
-
-            if !topic.imageRecordNames.isEmpty {
-                CommunityTopicThumbnailStrip(recordNames: topic.imageRecordNames)
-            }
-
-            HStack(spacing: 10) {
-                Label(communityAuthorDisplayName(storedName: topic.authorName, authorDeviceId: topic.authorDeviceId, currentDeviceId: deviceId, currentNickname: nickname), systemImage: "person")
-                if topic.authorShowsBadge {
-                    BadgeTagView(badge: badgeLevel(from: topic.authorBadgeLevel))
-                }
-                if !authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear).isEmpty {
-                    Label(authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear), systemImage: "person.text.rectangle")
-                }
-                Label(
-                    String(format: String(localized: "community_like_count_format"), topic.likeCount),
-                    systemImage: isLiked ? "heart.fill" : "heart"
-                )
-                .foregroundStyle(isLiked ? .red : .secondary)
-                Label(String(format: String(localized: "community_reply_count_format"), topic.replyCount), systemImage: "text.bubble")
-                if !topic.imageRecordNames.isEmpty {
-                    Label("\(topic.imageRecordNames.count)", systemImage: "photo")
-                        .accessibilityLabel(
-                            String(
-                                format: String(localized: "community_image_count_format"),
-                                topic.imageRecordNames.count
-                            )
-                        )
-                }
-            }
-            .font(.caption2)
-            .foregroundStyle(.secondary)
-        }
-        .padding(.vertical, 6)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 
@@ -3277,6 +3377,7 @@ private struct CommunityComposerView: View {
     @State private var publishYear = false
     @State private var publishBadge = true
     @State private var didLoadDisclosureDefaults = false
+    @State private var showDisclosureSettings = false
     @State private var isSubmitting = false
     @State private var isPreparingImages = false
     @State private var submitErrorMessage: String?
@@ -3306,12 +3407,10 @@ private struct CommunityComposerView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(String(localized: "community_identity_section")) {
-                    Label(CommunityProfileManager.currentNicknameDisplayName(), systemImage: "person.text.rectangle")
-
-                }
-
-                Section(String(localized: "community_category_section")) {
+                Section {
+                    Label(CommunityProfileManager.currentNicknameDisplayName(), systemImage: "person.crop.circle")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
                     Picker(String(localized: "community_category_section"), selection: $category) {
                         ForEach(CommunityCategory.allCases.filter { $0 != .all }) { category in
                             Label(category.title, systemImage: category.icon).tag(category)
@@ -3324,17 +3423,10 @@ private struct CommunityComposerView: View {
                         .focused($focusedField, equals: .title)
                         .submitLabel(.next)
                         .onSubmit { focusedField = .body }
-                    .toolbar {
-                        ToolbarItemGroup(placement: .keyboard) {
-                            Spacer()
-                            Button(String(localized: "done")) { focusedField = nil }
-                        }
-                    }
                     TextField(String(localized: "community_topic_body_placeholder"), text: $topicBody, axis: .vertical)
                         .lineLimit(5...10)
+                        .submitLabel(.return)
                         .focused($focusedField, equals: .body)
-                        .submitLabel(.done)
-                        .onSubmit { focusedField = nil }
                 }
 
                 imagePickerSection
@@ -3348,12 +3440,16 @@ private struct CommunityComposerView: View {
                 }
 
                 Section {
-                    Toggle(String(localized: "community_publish_department"), isOn: $publishDepartment)
-                        .disabled(communityDepartment.isEmpty)
-                    Toggle(String(localized: "community_publish_year"), isOn: $publishYear)
-                        .disabled(communityEntryYear.isEmpty)
-                    Toggle(String(localized: "community_publish_badge"), isOn: $publishBadge)
-                    HStack(spacing: 6) {
+                    DisclosureGroup(isExpanded: $showDisclosureSettings) {
+                        Toggle(String(localized: "community_publish_department"), isOn: $publishDepartment)
+                            .disabled(communityDepartment.isEmpty)
+                        Toggle(String(localized: "community_publish_year"), isOn: $publishYear)
+                            .disabled(communityEntryYear.isEmpty)
+                        Toggle(String(localized: "community_publish_badge"), isOn: $publishBadge)
+                    } label: {
+                        Label(String(localized: "community_publish_disclosure_header"), systemImage: "person.crop.circle.badge.checkmark")
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
                         Text(String(localized: "community_preview"))
                             .foregroundStyle(.secondary)
 
@@ -3372,8 +3468,6 @@ private struct CommunityComposerView: View {
                         }
                     }
                     .font(.caption)
-                } header: {
-                    Text(String(localized: "community_publish_disclosure_header"))
                 } footer: {
                     Text(String(localized: "community_publish_disclosure_footer"))
                 }
@@ -3386,6 +3480,9 @@ private struct CommunityComposerView: View {
                     }
                 }
             }
+            .scrollDismissesKeyboard(.interactively)
+            .scrollContentBackground(.hidden)
+            .background(CommunityPageBackground())
             .navigationTitle(String(localized: "community_add_topic"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -3435,7 +3532,7 @@ private struct CommunityComposerView: View {
                             Image(uiImage: preparedImage.preview)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 180, height: 150)
+                                .frame(width: 132, height: 112)
                                 .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                                 .overlay(alignment: .topTrailing) {
                                     Button {
@@ -3559,6 +3656,7 @@ private struct CommunityComposerView: View {
 }
 
 private struct CommunityTopicDetailView: View {
+    @ObservedObject private var authorOwnership = CommunityAuthorOwnership.shared
     @ObservedObject var subscriptionManager: CommunitySubscriptionManager
     @StateObject private var replyManager: CommunityReplyManager
     @StateObject private var contentManager = CommunityMyContentManager()
@@ -3612,19 +3710,22 @@ private struct CommunityTopicDetailView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .simultaneousGesture(TapGesture().onEnded { replyFieldFocused = false })
-        .detailCommonModifiers(
-            deleteBinding: deleteReplyAlertPresented,
-            onDeleteConfirmed: handleReplyDeletion,
-            onAppearActions: {
-                if deviceId.isEmpty { deviceId = UUID().uuidString }
-                loadDisclosureDefaultsIfNeeded()
-                loadEditableTopicIfOwned()
-                loadEditableRepliesIfOwned()
-                replyManager.loadReplies()
-            }
-        )
-        .safeAreaInset(edge: .bottom) {
-            topicDetailPinnedBar
+        .listStyle(.plain)
+        .scrollContentBackground(.hidden)
+        .background(CommunityPageBackground())
+        .modifier(CommunityPinnedBar(bar: topicDetailPinnedBar, edge: .bottom))
+        .alert(String(localized: "delete"), isPresented: deleteReplyAlertPresented) {
+            Button(String(localized: "delete"), role: .destructive, action: handleReplyDeletion)
+            Button(String(localized: "cancel"), role: .cancel) {}
+        } message: {
+            Text(String(localized: "community_delete_reply_confirm"))
+        }
+        .onAppear {
+            if deviceId.isEmpty { deviceId = UUID().uuidString }
+            loadDisclosureDefaultsIfNeeded()
+            loadEditableTopicIfOwned()
+            loadEditableRepliesIfOwned()
+            replyManager.loadReplies()
         }
         .navigationTitle(topic.category.title)
         .navigationBarTitleDisplayMode(.inline)
@@ -3657,146 +3758,124 @@ private struct CommunityTopicDetailView: View {
     }
 
     private var topicHeaderSection: some View {
-            Section {
-                VStack(alignment: .leading, spacing: 12) {
-                    Label(topic.category.title, systemImage: topic.category.icon)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(topic.category.tint)
-
-                    Text(topic.title)
-                        .font(.title3.weight(.semibold))
-                    Text(topic.body)
-                        .font(.body)
-                    if !topic.imageRecordNames.isEmpty {
-                        CommunityTopicImagesView(recordNames: topic.imageRecordNames)
-                    }
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack(spacing: 8) {
-                            Label("\(topicDisplayName) · \(relativeTime(topic.createdAt))", systemImage: "person")
-                            if onToggleLike != nil {
-                                Button(action: toggleLike) {
-                                    Label(String(format: String(localized: "community_like_count_format"), topic.likeCount), systemImage: isLiked ? "heart.fill" : "heart")
-                                        .foregroundStyle(isLiked ? Color.red : Color.secondary)
-                        }
-                        .buttonStyle(.borderless)
-                        .disabled(!canToggleLike)
-                            }
-                            if topic.isEdited {
-                                Text(String(localized: "community_edited_label"))
-                            }
-                            if topic.authorShowsBadge {
-                                BadgeTagView(badge: badgeLevel(from: topic.authorBadgeLevel))
-                            }
-                        }
-                        let profileLine = authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear)
-                        if !profileLine.isEmpty {
-                            Label(profileLine, systemImage: "person.text.rectangle")
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        Section {
+            VStack(alignment: .leading, spacing: 18) {
+                CommunityAuthorHeader(name: topicDisplayName,
+                    profileLine: authorProfileLine(department: topic.authorDepartment, entryYear: topic.authorEntryYear, showsYear: topic.authorShowsYear),
+                    createdAt: topic.createdAt,
+                    badge: topic.authorShowsBadge ? badgeLevel(from: topic.authorBadgeLevel) : nil,
+                    edited: topic.isEdited)
+                Label(topic.category.title, systemImage: topic.category.icon)
+                    .font(.caption.weight(.semibold)).foregroundStyle(topic.category.tint)
+                Text(topic.title).font(.title2.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                Text(topic.body).font(.body).lineSpacing(5).textSelection(.enabled)
+                if !topic.imageRecordNames.isEmpty {
+                    CommunityTopicImagesView(recordNames: topic.imageRecordNames)
                 }
-                .padding(.vertical, 6)
+                if onToggleLike != nil { topicLikeButton }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(18)
+            .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 24))
+            .listRowInsets(.init(top: 12, leading: 16, bottom: 12, trailing: 16))
+            .listRowBackground(Color.clear)
+            .listRowSeparator(.hidden)
+        }
+        .listSectionSeparator(.hidden)
     }
 
     private var repliesSection: some View {
-            Section(String(localized: "community_replies_section")) {
-                if replyManager.isLoading && replyManager.replies.isEmpty {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                } else if let errorMessage = replyManager.errorMessage {
-                    Label(errorMessage, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                } else if replyManager.replies.isEmpty {
-                    Text(String(localized: "community_no_replies"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(replyManager.replies) { reply in
-                        replyRowView(reply)
-                    }
-                }
-
+        Section {
+            if replyManager.isLoading && replyManager.replies.isEmpty {
+                ProgressView().frame(maxWidth: .infinity).padding(20)
+                    .listRowBackground(Color.clear).listRowSeparator(.hidden)
+            } else if let errorMessage = replyManager.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle")
+                    .font(.subheadline).foregroundStyle(.red)
+                    .listRowBackground(Color.clear).listRowSeparator(.hidden)
+            } else if replyManager.replies.isEmpty {
+                Text(String(localized: "community_no_replies"))
+                    .font(.subheadline).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                    .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+                    .listRowInsets(.init(top: 6, leading: 16, bottom: 12, trailing: 16))
+                    .listRowBackground(Color.clear).listRowSeparator(.hidden)
+            } else {
+                ForEach(replyManager.replies) { reply in replyRowView(reply) }
             }
+        } header: {
+            HStack {
+                Text(String(localized: "community_replies_section"))
+                Spacer()
+                Text(replyManager.replies.count, format: .number).monospacedDigit()
+            }
+            .font(.subheadline.weight(.semibold)).textCase(nil)
+        }
+        .listSectionSeparator(.hidden)
+    }
+
+    private var topicLikeButton: some View {
+        HStack {
+            Spacer(minLength: 0)
+            Button(action: toggleLike) {
+                Label(String(format: String(localized: "community_like_count_format"), topic.likeCount),
+                      systemImage: isLiked ? "heart.fill" : "heart")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(isLiked ? Color.red : Color.primary)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 44)
+                    .background(isLiked ? Color.red.opacity(0.12) : Color(.tertiarySystemGroupedBackground), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .disabled(!canToggleLike)
+            .accessibilityAddTraits(isLiked ? .isSelected : [])
+        }
     }
 
     private var topicDetailPinnedBar: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if onToggleLike != nil {
-                HStack {
-                    Spacer()
-                    Button(action: toggleLike) {
-                        HStack(spacing: 6) {
-                            Image(systemName: isLiked ? "heart.fill" : "heart")
-                                .foregroundStyle(isLiked ? Color.red : Color.primary)
-                            Text(String(format: String(localized: "community_like_count_format"), topic.likeCount))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.primary)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 7)
-                        .background(Color(.systemBackground), in: Capsule())
-                        .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
-                        .shadow(color: .black.opacity(0.08), radius: 4, x: 0, y: 2)
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canToggleLike)
+        replyInputCard
+            .padding(.horizontal, 16).padding(.vertical, 8)
+            .background {
+                GeometryReader { proxy in
+                    Color.clear.preference(key: AIFloatingBottomClearanceKey.self, value: proxy.size.height)
                 }
             }
-
-            replyInputCard
-        }
-        .padding(.horizontal)
-        .padding(.bottom, 10)
     }
 
     private var replyInputCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-                if nickname.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    Text(String(localized: "community_reply_identity_required"))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            if !replyFieldFocused {
+                if Auth.auth().currentUser == nil {
+                    Label(String(localized: "community_reply_sign_in_hint"), systemImage: "person.crop.circle")
+                        .font(.caption).foregroundStyle(.secondary)
+                } else {
+                    CommentIdentityBar(showsDepartmentAndYear: false)
+                        .lineLimit(1)
                 }
-                CommentIdentityBar()
-                    .padding(.top, 4)
-                HStack(alignment: .bottom, spacing: 8) {
-                        TextField(String(localized: "community_reply_placeholder"), text: $replyBody)
-                            .focused($replyFieldFocused)
-                            .submitLabel(.done)
-                            .onSubmit { replyFieldFocused = false }
-                            .padding(.horizontal, 12)
-                            .frame(minHeight: 40)
-                            .background(Color(.systemBackground), in: Capsule())
-                            .overlay(Capsule().stroke(Color.primary.opacity(0.14), lineWidth: 0.8))
-
-                        Button {
-                            submitReply()
-                        } label: {
-                            Group {
-                                if isSubmitting {
-                                    ProgressView().tint(.white)
-                                } else {
-                                    Image(systemName: "paperplane.fill")
-                                }
-                            }
-                            .font(.body)
-                            .frame(width: 44, height: 40)
-                            .foregroundStyle(.white)
-                            .background(Color.accentColor, in: Capsule())
-                            .shadow(color: Color.accentColor.opacity(0.25), radius: 4, x: 0, y: 2)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canSubmitReply)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
+                TextField(String(localized: "community_reply_placeholder"), text: $replyBody, axis: .vertical)
+                    .lineLimit(1...5)
+                    .submitLabel(.return)
+                    .focused($replyFieldFocused)
+                    .padding(.horizontal, 12).padding(.vertical, 10)
+                    .frame(minHeight: 44)
+                    .background(Color(.systemBackground).opacity(0.5), in: RoundedRectangle(cornerRadius: 18))
+                Button(action: submitReply) {
+                    Group {
+                        if isSubmitting { ProgressView().tint(.white) }
+                        else { Image(systemName: "arrow.up").font(.body.weight(.semibold)) }
                     }
+                    .foregroundStyle(.white).frame(width: 44, height: 44)
+                    .background(Color.blue, in: Circle())
+                    .opacity(canSubmitReply || isSubmitting ? 1 : 0.45)
                 }
-        .padding(10)
-        .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.primary.opacity(0.12), lineWidth: 0.8)
+                .buttonStyle(.plain).disabled(!canSubmitReply)
+                .accessibilityLabel(String(localized: "community_send_reply"))
+            }
         }
+        .padding(10)
+        .modifier(CommunityReplyGlass())
     }
 
     private func toggleLike() {
@@ -3984,49 +4063,28 @@ private struct CommunityTopicDetailView: View {
     }
 
     private var topicDisplayName: String {
-        if topic.authorDeviceId == deviceId || editableTopic != nil {
-            return CommunityProfileManager.currentNicknameDisplayName()
-        }
-        return topic.authorName
+        authorOwnership.topicName(topic, nickname: nickname)
     }
 
     private func replyDisplayName(_ reply: CommunityReply) -> String {
-        if reply.authorDeviceId == deviceId || editableReplies[reply.id] != nil {
-            return CommunityProfileManager.currentNicknameDisplayName()
-        }
-        return reply.authorName
+        authorOwnership.replyName(reply, topicID: topic.id, nickname: nickname)
     }
 
     private func replyRowView(_ reply: CommunityReply) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text(replyDisplayName(reply))
-                    .font(.caption.weight(.semibold))
-                if reply.authorShowsBadge {
-                    BadgeTagView(badge: badgeLevel(from: reply.authorBadgeLevel))
-                }
-                let profileLine = authorProfileLine(department: reply.authorDepartment, entryYear: reply.authorEntryYear, showsYear: reply.authorShowsYear)
-                if !profileLine.isEmpty {
-                    Text(profileLine)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Text(relativeTime(reply.createdAt))
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                if reply.isEdited {
-                    Text(String(localized: "community_edited_label"))
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            Text(reply.body)
-                .font(.body)
+        VStack(alignment: .leading, spacing: 12) {
+            CommunityAuthorHeader(name: replyDisplayName(reply),
+                profileLine: authorProfileLine(department: reply.authorDepartment, entryYear: reply.authorEntryYear, showsYear: reply.authorShowsYear),
+                createdAt: reply.createdAt,
+                badge: reply.authorShowsBadge ? badgeLevel(from: reply.authorBadgeLevel) : nil,
+                edited: reply.isEdited)
+            Text(reply.body).font(.body).lineSpacing(4).textSelection(.enabled)
         }
-        .padding(.vertical, 6)
-        .padding(.horizontal, 2)
-        .commentCardStyle()
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 20))
+        .listRowInsets(.init(top: 6, leading: 16, bottom: 6, trailing: 16))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
         .swipeActions(edge: .trailing, allowsFullSwipe: false) {
             if let editableReply = editableReplies[reply.id], !editableReply.isDeleted {
                 Button(role: .destructive) {
@@ -4556,39 +4614,43 @@ struct CommunityLikedTopicsView: View {
     @StateObject private var subscriptionManager = CommunitySubscriptionManager()
 
     var body: some View {
-        List {
-            if manager.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-            } else if let errorMessage = manager.errorMessage {
-                Label(errorMessage, systemImage: "exclamationmark.triangle")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-            } else if manager.topics.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "heart")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                    Text(String(localized: "community_liked_topics_empty"))
-                        .font(.headline)
-                    Text(String(localized: "community_liked_topics_empty_detail"))
+        ScrollView {
+            LazyVStack(spacing: 16) {
+                if manager.isLoading {
+                    ProgressView()
+                        .frame(maxWidth: .infinity, alignment: .center)
+                } else if let errorMessage = manager.errorMessage {
+                    Label(errorMessage, systemImage: "exclamationmark.triangle")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 28)
-                .listRowBackground(Color.clear)
-            } else {
-                ForEach(manager.topics) { topic in
-                    NavigationLink {
-                        CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager)
-                    } label: {
-                        CommunityTopicRow(topic: topic, isLiked: true)
+                        .foregroundStyle(.red)
+                } else if manager.topics.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "heart")
+                            .font(.title2)
+                            .foregroundStyle(.secondary)
+                        Text(String(localized: "community_liked_topics_empty"))
+                            .font(.headline)
+                        Text(String(localized: "community_liked_topics_empty_detail"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 28)
+                } else {
+                    ForEach(manager.topics) { topic in
+                        NavigationLink {
+                            CommunityTopicDetailView(topic: topic, subscriptionManager: subscriptionManager)
+                        } label: {
+                            CommunityTopicRow(topic: topic, isLiked: true)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
             }
+            .padding(16)
         }
+        .background(CommunityPageBackground())
         .navigationTitle(String(localized: "community_liked_topics_title"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear { manager.load() }
@@ -5394,15 +5456,6 @@ private func authorProfileLine(department: String, entryYear: String, showsYear:
     if !department.isEmpty { parts.append(department) }
     if showsYear, let gradeLine = currentGradeLine(entryYear: entryYear) { parts.append(gradeLine) }
     return parts.joined(separator: " · ")
-}
-
-private func communityAuthorDisplayName(storedName: String, authorDeviceId: String, currentDeviceId: String, currentNickname: String) -> String {
-    if !authorDeviceId.isEmpty, authorDeviceId == currentDeviceId {
-        let trimmedNickname = currentNickname.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmedNickname.isEmpty { return trimmedNickname }
-        return CommunityProfileManager.currentNicknameDisplayName()
-    }
-    return storedName
 }
 
 private func badgeLevel(from rawValue: Int) -> CommentBadgeManager.BadgeLevel {

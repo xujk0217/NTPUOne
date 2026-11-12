@@ -1154,7 +1154,7 @@
 "community_reply_count_format" = "%lld 回覆";
 "community_identity_section" = "身份";
 "community_identity_not_set" = "尚未設定交流身份";
-"community_identity_setup_hint" = "請到「更多」>「交流身份」設定暱稱、系級與學校登入。";
+"community_identity_setup_hint" = "請到「帳號中心」設定交流暱稱、系級與學校帳號。";
 "community_guest_display_name" = "訪客";
 "community_category_section" = "分類";
 "community_topic_section" = "主題";
@@ -1201,7 +1201,7 @@
 "community_sort_oldest" = "最早";
 "community_replies_section" = "回覆";
 "community_no_replies" = "還沒有人回覆，先開個頭吧。";
-"community_reply_identity_required" = "請先到「更多」>「交流身份」設定暱稱，再回來回覆。";
+"community_reply_identity_required" = "請先到「帳號中心」設定交流暱稱，再回來回覆。";
 "community_reply_placeholder" = "回覆這個主題";
 "community_send_reply" = "送出回覆";
 "community_edited_label" = "編輯";
@@ -1302,3 +1302,15 @@
 "timetable_sat" = "週六";
 "timetable_show_saturday" = "顯示星期六";
 "timetable_show_night" = "顯示夜間課程";
+
+"community_feed_heading" = "校園交流";
+
+"community_feed_options" = "排序與通知";
+
+"community_category_notifications" = "分類通知";
+
+"community_reply_sign_in_hint" = "登入 Google 後即可參與討論";
+
+"community_image_retry" = "重新載入";
+
+"community_image_unavailable_hint" = "暫時無法載入圖片，請稍後再試。";
