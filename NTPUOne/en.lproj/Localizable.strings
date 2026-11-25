@@ -216,6 +216,9 @@
 "account_center_accessibility" = "Open Account Center";
 "student_app_tools" = "Student & App Tools";
 "ad_preferences_section" = "Preferences";
+"ai_assistant_settings" = "AI Assistant";
+"ai_auto_reminders" = "Automatic AI Reminders";
+"ai_auto_reminders_description" = "When signed in to AI, you can see one reminder at most every 30 minutes when you open or return to the app. If app data sharing is off, reminders use only public information.";
 "show_onboarding_again" = "Replay Onboarding";
 "show_ads_again" = "Show Ads Again";
 "feedback_section" = "Feedback";

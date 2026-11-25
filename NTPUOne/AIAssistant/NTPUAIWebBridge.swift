@@ -40,12 +40,14 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     @Published var contextNotice: String?
     @Published private(set) var autoWebSearchEnabled = false
     @Published private(set) var deletingSchoolConversation = false
+    @Published private(set) var schoolConversationCleanupFailed = false
     @Published private(set) var appDataEnabled = false
     @Published private(set) var shareCourses = true
     @Published private(set) var shareMemos = true
     @Published private(set) var shareMoodle = false
     @Published private(set) var shareSchool = false
     private let preferenceKey: String
+    private var arrivalPreferenceKey: String { preferenceKey + ".arrival" }
     var hasPromptedForAppData: Bool {
         get { UserDefaults.standard.bool(forKey: preferenceKey + ".prompted") }
         set { UserDefaults.standard.set(newValue, forKey: preferenceKey + ".prompted") }
@@ -133,7 +135,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         shareMoodle = defaults.bool(forKey: preferenceKey + ".moodle")
         shareSchool = defaults.bool(forKey: preferenceKey + ".school")
         sensitiveDataEnabled = appDataEnabled && UserDefaults.standard.bool(forKey: preferenceKey + ".sensitive")
-        arrivalEnabled = UserDefaults.standard.object(forKey: preferenceKey + ".arrival") as? Bool ?? true
+        refreshArrivalPreference()
         if defaults.object(forKey: preferenceKey + ".data") == nil { defaults.set(true, forKey: preferenceKey + ".data") }
         handler.target = self
         controller.add(handler, name: "ntpuAssistant")
@@ -148,9 +150,6 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         else if sensitiveDataEnabled && !UserDefaults.standard.bool(forKey: preferenceKey + ".sensitive") { disableSensitiveData() }
         for (key, value) in [("courses", shareCourses), ("memos", shareMemos), ("moodle", shareMoodle), ("school", shareSchool)] where value {
             if UserDefaults.standard.object(forKey: preferenceKey + "." + key) as? Bool == false { setSource(key, enabled: false) }
-        }
-        if arrivalEnabled, UserDefaults.standard.object(forKey: preferenceKey + ".arrival") as? Bool == false {
-            setArrivalEnabled(false)
         }
     }
     private var selectedSources: Set<AIDataSource> {
@@ -182,8 +181,13 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         if let accountIdentity { UserDefaults.standard.set(Self.identityHash(accountIdentity), forKey: preferenceKey + ".dataIdentity") }
     }
     func setArrivalEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: arrivalPreferenceKey)
+        refreshArrivalPreference()
+    }
+    func refreshArrivalPreference() {
+        let enabled = UserDefaults.standard.object(forKey: arrivalPreferenceKey) as? Bool ?? true
+        guard enabled != arrivalEnabled else { return }
         arrivalEnabled = enabled
-        UserDefaults.standard.set(enabled, forKey: preferenceKey + ".arrival")
         if !enabled { cancelArrival(); arrivalTip = nil }
     }
     func beginForegroundEntry() {
@@ -210,8 +214,9 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         if arrivalRequest && replying { stop() }
     }
     func requestArrival(contextProvider: @escaping (AIContextRequest) async -> AIContextPayload) async {
+        refreshArrivalPreference()
         honorPersistedRevocations()
-        guard ready, arrivalEnabled, !replying, !preparingArrival, !hasManualConversation,
+        guard ready, arrivalEnabled, !replying, !deletingSchoolConversation, !preparingArrival, !hasManualConversation,
               AIArrivalPolicy.shouldGenerate(now: Date(), entryAlreadyRequested: arrivalEntryRequested, lastAttempt: lastArrivalAttempt) else { return }
         let entry = arrivalEntry
         lastArrivalAttempt = Date(); preparingArrival = true
@@ -250,17 +255,31 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     }
     /// Delete only the conversation created by this bridge, never the account-wide memory.
     func deleteCurrentSchoolConversation() {
-        guard ready, !replying, !deletingSchoolConversation, startedConversation else { return }
+        guard ready else { return }
+        cleanUpSchoolConversation(clearLocalChat: true)
+    }
+
+    func retrySchoolConversationCleanup() {
+        guard ready, schoolConversationCleanupFailed else { return }
+        cleanUpSchoolConversation(clearLocalChat: false)
+    }
+
+    private func cleanUpSchoolConversation(clearLocalChat: Bool) {
+        guard !replying, !deletingSchoolConversation, startedConversation else { return }
         deletingSchoolConversation = true
         webView.callAsyncJavaScript("return await window.__ntpuOneDeleteCurrent()", arguments: [:], in: nil, in: .page) { [weak self] result in
             guard let self else { return }
             self.deletingSchoolConversation = false
             switch result {
             case .success(let value) where (value as? Bool) == true:
-                self.newConversation()
-                self.contextNotice = "校方已回應本次對話刪除請求；帳號長期記憶不受影響。"
+                self.schoolConversationCleanupFailed = false
+                self.startedConversation = false
+                if clearLocalChat {
+                    self.newConversation()
+                    self.contextNotice = "校方已回應本次對話刪除請求。"
+                }
             default:
-                self.error = "無法確認刪除這次校方對話，請至校方網站查看後重試。"
+                self.schoolConversationCleanupFailed = true
             }
         }
     }
@@ -631,7 +650,9 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
                     if !chatVisible { arrivalTip = preview }
                 }
             }
-            finish(); if empty { error = "網站結束回答，但沒有回傳文字。" }
+            finish()
+            if empty { error = "網站結束回答，但沒有回傳文字。" }
+            cleanUpSchoolConversation(clearLocalChat: false)
         case "failure": fail("網站回覆中斷或登入已失效，請檢查登入後重試。")
         default: break
         }
@@ -689,7 +710,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
     private static let script = #"""
     (() => {
       if (location.origin !== 'https://ai.ntpu.edu.tw') return;
-      let active = null, controller = null, generation = 0, uploadState = null;
+      let active = null, controller = null, generation = 0, uploadState = null, ownedChat = null;
       const emit = x => { try { window.webkit.messageHandlers.ntpuAssistant.postMessage(x); } catch (_) {} };
       const original = window.fetch;
       window.fetch = async function(...args) {
@@ -711,7 +732,7 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
           const reader = response.clone().body.getReader();
           (async () => {
             let buffer = '', done = false; const decoder = new TextDecoder();
-            function line(raw) { if (!raw.startsWith('data:')) return; let e; try { e = JSON.parse(raw.slice(5).trim()); } catch (_) { return; }
+            function line(raw) { if (done || !raw.startsWith('data:')) return; let e; try { e = JSON.parse(raw.slice(5).trim()); } catch (_) { return; }
               if (e.type === 'token' && typeof e.content === 'string') emit({id,kind:'token',content:e.content});
               else if (e.type === 'done') { done = true; emit({id,kind:'done'}); }
               else if (e.type === 'error') { done = true; emit({id,kind:'failure'}); }
@@ -724,12 +745,24 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
         } catch (e) { emit({id,kind:'failure'}); throw e; }
       };
       window.__ntpuOneStatus = () => { const o=document.getElementById('auth-overlay'); return !!(o && (o.classList.contains('hidden') || getComputedStyle(o).display === 'none') && document.getElementById('user-email')?.title && document.getElementById('input') && document.getElementById('sendBtn')); };
+      const signedInUser = () => typeof currentUser === 'object' && currentUser?.uid ? currentUser : null;
+      const ownsCurrentChat = chat => !!(chat && chat === ownedChat &&
+        signedInUser()?.uid === chat.uid && typeof sessionId === 'string' && sessionId === chat.id);
       window.__ntpuOneSend = async (text,id,newConversation,attachment) => {
         const run = generation;
         for (let i=0;i<80 && (active || document.getElementById('sendBtn')?.classList.contains('stop'));i++) await new Promise(resolve=>setTimeout(resolve,100));
         if (run !== generation) return false;
         const input=document.getElementById('input'), button=document.getElementById('sendBtn'); if (!window.__ntpuOneStatus() || !input || !button || button.disabled || button.classList.contains('stop') || active) return false;
-        if (newConversation) { const fresh = document.getElementById('newChatBtn'); if (!fresh) return false; fresh.click(); window.__ntpuOwnedSession = typeof sessionId === 'string' ? sessionId : null; }
+        const user = signedInUser();
+        if (!user) return false;
+        if (newConversation || !ownsCurrentChat(ownedChat)) {
+          const fresh = document.getElementById('newChatBtn');
+          if (!fresh) return false;
+          const previous = typeof sessionId === 'string' ? sessionId : null;
+          fresh.click();
+          if (typeof sessionId !== 'string' || !/^s-[a-z0-9]{1,32}$/.test(sessionId) || sessionId === previous) return false;
+          ownedChat = { id: sessionId, uid: user.uid };
+        }
         for (const action of ['clear-attach','clear-quote']) document.querySelector(`[data-action="${action}"]`)?.click();
         if (attachment?.data) {
           const field = document.getElementById('fileInput');
@@ -750,20 +783,38 @@ final class NTPUAIWebBridge: NSObject, ObservableObject, AIChatProvider, WKNavig
           } catch (_) { return false; }
           finally { if (uploadState === state) uploadState = null; }
         }
+        if (!ownsCurrentChat(ownedChat)) return false;
         for (const key of ['menuSearchItem','menuNtpuItem']) { const item=document.getElementById(key); if (item?.classList.contains('active') || item?.classList.contains('ntpu-active')) item.click(); }
         input.value=text; input.dispatchEvent(new Event('input',{bubbles:true})); active=id; button.click(); return true; };
       window.__ntpuOneDeleteCurrent = async () => {
-        if (location.origin !== 'https://ai.ntpu.edu.tw' || !window.__ntpuOneStatus() || active ||
-            typeof sessionId !== 'string' || !/^s-[a-z0-9]{1,32}$/.test(sessionId) ||
-            sessionId !== window.__ntpuOwnedSession) return false;
-        const owned = sessionId;
+        const chat = ownedChat;
+        const canDelete = () => location.origin === 'https://ai.ntpu.edu.tw' && window.__ntpuOneStatus() && ownsCurrentChat(chat);
+        const streaming = () => active || document.getElementById('sendBtn')?.classList.contains('stop');
+        for (let i = 0; i < 80 && canDelete() && streaming(); i++) {
+          await new Promise(resolve => setTimeout(resolve, 100));
+        }
+        if (!canDelete() || streaming()) return false;
+        const timeout = new AbortController();
+        let timer;
         try {
-          const response = await window.fetch('/reset?session_id=' + encodeURIComponent(owned), {method:'POST', credentials:'same-origin', cache:'no-store'});
-          if (!response.ok || sessionId !== owned) return false;
-          window.__ntpuOwnedSession = null;
-          document.getElementById('newChatBtn')?.click();
+          const expired = new Promise(resolve => {
+            timer = setTimeout(() => { timeout.abort(); resolve(null); }, 8000);
+          });
+          const token = await Promise.race([signedInUser().getIdToken(), expired]);
+          if (!token || !canDelete() || streaming()) return false;
+          const response = await window.fetch('/reset?session_id=' + encodeURIComponent(chat.id), {
+            method: 'POST', headers: { Authorization: 'Bearer ' + token },
+            credentials: 'same-origin', cache: 'no-store', redirect: 'error', signal: timeout.signal
+          });
+          if (!response.ok) return false;
+          if (ownsCurrentChat(chat)) document.getElementById('newChatBtn')?.click();
+          if (ownedChat === chat) ownedChat = null;
+          if (signedInUser()?.uid === chat.uid && typeof loadConversations === 'function') {
+            void loadConversations();
+          }
           return true;
         } catch (_) { return false; }
+        finally { clearTimeout(timer); }
       };
       window.__ntpuOneStop = () => { generation++; const button=document.getElementById('sendBtn'); if (button && button.classList.contains('stop')) button.click(); if (controller) controller.abort(); active=null; };
     })();

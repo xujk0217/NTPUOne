@@ -18,6 +18,8 @@ import UserNotifications
 
 struct AboutView: View {
     @State private var adPresenter = WeakScenePresentationController()
+    @EnvironmentObject private var aiBridge: NTPUAIWebBridge
+    @ObservedObject private var features = GlobalFeatureSettings.shared
     //about rewardAds
     @StateObject private var rewardAd = RewardedAd()
     @ObservedObject private var rewardedAdManager = RewardedAdManager.shared
@@ -87,6 +89,16 @@ struct AboutView: View {
                 adPreferencesRow
             } header: {
                 Label(String(localized: "ad_preferences_section"), systemImage: "slider.horizontal.3")
+            }
+
+            if features.aiEnabled {
+                Section {
+                    Toggle("ai_auto_reminders", isOn: Binding(get: { aiBridge.arrivalEnabled }, set: { aiBridge.setArrivalEnabled($0) }))
+                } header: {
+                    Label("ai_assistant_settings", systemImage: "sparkles")
+                } footer: {
+                    Text("ai_auto_reminders_description")
+                }
             }
 
             Section {
@@ -522,4 +534,6 @@ struct PrivacyDataControlsView: View {
 
 #Preview {
     NavigationStack { AboutView() }
+        .environmentObject(NTPUAIWebBridge(accountID: ""))
+        .environmentObject(AdFreeService.shared)
 }

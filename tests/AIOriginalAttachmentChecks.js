@@ -12,7 +12,7 @@ function fixture({ fail = false, cancel = false } = {}) {
     'user-email': { title: 'fixture@example.test' },
     input: { value: '', dispatchEvent() {} },
     sendBtn: { disabled: false, classList: { contains: () => false }, click() { sent++; events.push('send'); } },
-    newChatBtn: { click() { badge = false; } },
+    newChatBtn: { click() { badge = false; sandbox.sessionId = 's-appfixture'; } },
     fileInput: {
       files: [],
       dispatchEvent() {
@@ -24,6 +24,8 @@ function fixture({ fail = false, cancel = false } = {}) {
   };
   const sandbox = {
     location: { origin: 'https://ai.ntpu.edu.tw' },
+    currentUser: { uid: 'fixture-user' },
+    sessionId: 's-existing',
     document: {
       getElementById: id => nodes[id],
       querySelector: selector => {

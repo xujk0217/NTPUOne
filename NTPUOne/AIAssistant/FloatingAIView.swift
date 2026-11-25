@@ -89,6 +89,7 @@ struct FloatingAIContainer<Content: View>: View {
             ZStack(alignment: .topLeading) {
                 // A stable view identity preserves tab navigation and scroll position across folds.
                 content
+                    .environmentObject(bridge)
                     .onPreferenceChange(AIFloatingBottomClearanceKey.self) { floatingBottomClearance = $0 }
                     .frame(width: plan.page.width, height: plan.page.height)
                     .position(x: plan.page.midX, y: plan.page.midY)
@@ -179,7 +180,10 @@ struct FloatingAIContainer<Content: View>: View {
                     bridge.cancelStoredSchoolLogin()
                 }
             }
-            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in bridge.honorPersistedRevocations() }
+            .onReceive(NotificationCenter.default.publisher(for: UserDefaults.didChangeNotification).receive(on: RunLoop.main)) { _ in
+                bridge.honorPersistedRevocations()
+                bridge.refreshArrivalPreference()
+            }
             .onDisappear { pageNavigation?.cancel(); bridge.cancelArrival(); bridge.cancelStoredSchoolLogin() }
             .onChange(of: scenePhase) { phase in
                 if phase == .active {
@@ -321,6 +325,15 @@ private struct AIChatPanel: View {
                                                 Button("帶回問題重新編輯") { draft = lastSubmittedText; inputFocused = true }
                                             }
                                             Button("重新連線") { bridge.reload() }
+                                        }.font(.caption).padding(12)
+                                    }
+                                    if bridge.schoolConversationCleanupFailed {
+                                        VStack(alignment: .leading, spacing: 8) {
+                                            Label("無法確認校方對話已刪除。", systemImage: "exclamationmark.circle")
+                                            if bridge.hasSchoolConversation {
+                                                Button("重試刪除") { bridge.retrySchoolConversationCleanup() }
+                                                    .disabled(!bridge.ready || bridge.replying || bridge.deletingSchoolConversation)
+                                            }
                                         }.font(.caption).padding(12)
                                     }
                                     if !bridge.ready || !hasGoogleAccount || !hasSavedSchoolAccount {
@@ -515,9 +528,9 @@ private struct AIChatPanel: View {
                         Text("開啟後，AI 判斷需要查證公開資訊時會將搜尋詞送至 Exa，結果交給 NTPU AI；請避免在問題中提供不想分享的個人資料。") .font(.caption).foregroundStyle(.secondary)
                     }
                     Section {
-                        Toggle("進入 App 時提醒", isOn: Binding(get: { bridge.arrivalEnabled }, set: { bridge.setArrivalEnabled($0) }))
+                        Toggle("ai_auto_reminders", isOn: Binding(get: { bridge.arrivalEnabled }, set: { bridge.setArrivalEnabled($0) }))
                     } footer: {
-                        Text("開啟 App 或從背景回來時，每 30 分鐘最多提醒一次。AI 須已登入。關閉 App 資料授權時，僅使用公開資訊。")
+                        Text("ai_auto_reminders_description")
                     }
                 }
                 .navigationTitle("AI 資料與提醒")

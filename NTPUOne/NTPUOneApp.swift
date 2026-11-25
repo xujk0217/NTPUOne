@@ -25,18 +25,62 @@ import FirebaseAppCheck
 import GoogleSignIn
 import StoreKit
 
+enum AIDistributionChannel: String, CaseIterable {
+    case appStore = "aiEnabled"
+    case testFlight = "aiEnabledTestFlight"
+    case development = "aiEnabledDevelopment"
+
+    var title: String {
+        switch self {
+        case .appStore: return "App Store 正式版"
+        case .testFlight: return "TestFlight"
+        case .development: return "Xcode 本機測試版"
+        }
+    }
+
+    static func current() async -> Self {
+        #if DEBUG || targetEnvironment(simulator)
+        return .development
+        #else
+        guard case .verified(let transaction)? = try? await AppTransaction.shared else {
+            return .appStore
+        }
+        switch transaction.environment {
+        case .sandbox: return .testFlight
+        case .xcode: return .development
+        default: return .appStore
+        }
+        #endif
+    }
+}
+
 /// Public switches are readable by every app; Firestore rules enforce administrator-only writes.
 @MainActor
 final class GlobalFeatureSettings: ObservableObject {
     static let shared = GlobalFeatureSettings()
     @Published private(set) var adsEnabled = true
-    @Published private(set) var aiEnabled = true
+    @Published private var aiSettings: [AIDistributionChannel: Bool] = [:]
+    @Published private var aiChannel: AIDistributionChannel?
     @Published private(set) var available = false
     @Published private(set) var saving = false
     @Published var error: String?
     private var listener: ListenerRegistration?
+
+    var aiEnabled: Bool {
+        // Keep AI hidden until both the installation channel and settings are known.
+        guard let aiChannel else { return false }
+        return aiSettings[aiChannel] == true
+    }
+
+    func aiEnabled(for channel: AIDistributionChannel) -> Bool {
+        aiSettings[channel] ?? true
+    }
+
     func start() {
         guard listener == nil, FirebaseApp.app() != nil else { return }
+        Task {
+            aiChannel = await AIDistributionChannel.current()
+        }
         listener = Firestore.firestore().collection("appSettings").document("features").addSnapshotListener(includeMetadataChanges: true) { [weak self] snapshot, error in
             DispatchQueue.main.async {
                 guard let self else { return }
@@ -44,14 +88,26 @@ final class GlobalFeatureSettings: ObservableObject {
                 guard let snapshot else { return }
                 let data = snapshot.data() ?? [:]
                 self.adsEnabled = data["adsEnabled"] as? Bool ?? true
-                self.aiEnabled = data["aiEnabled"] as? Bool ?? true
+                if snapshot.exists || !snapshot.metadata.isFromCache {
+                    self.aiSettings = Dictionary(uniqueKeysWithValues: AIDistributionChannel.allCases.map { channel in
+                        (channel, data[channel.rawValue] as? Bool ?? true)
+                    })
+                }
                 self.available = !snapshot.metadata.isFromCache
                 if self.available { self.error = nil }
             }
         }
     }
-    func save(key: String, value: Bool) {
-        guard ["adsEnabled", "aiEnabled"].contains(key), available, !saving else { return }
+    func saveAdsEnabled(_ value: Bool) {
+        save(key: "adsEnabled", value: value)
+    }
+
+    func saveAIEnabled(_ value: Bool, for channel: AIDistributionChannel) {
+        save(key: channel.rawValue, value: value)
+    }
+
+    private func save(key: String, value: Bool) {
+        guard available, !saving else { return }
         saving = true; error = nil
         Firestore.firestore().collection("appSettings").document("features").setData([key: value], merge: true) { [weak self] error in
             DispatchQueue.main.async { self?.saving = false; self?.error = error?.localizedDescription }

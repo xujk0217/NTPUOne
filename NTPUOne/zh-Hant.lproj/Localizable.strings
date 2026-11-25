@@ -216,6 +216,9 @@
 "account_center_accessibility" = "開啟帳號中心";
 "student_app_tools" = "學生與 App 工具";
 "ad_preferences_section" = "偏好設定";
+"ai_assistant_settings" = "AI 助理";
+"ai_auto_reminders" = "AI 自動提醒";
+"ai_auto_reminders_description" = "登入 AI 後，開啟 App 或回到前景時，每 30 分鐘最多顯示一次提醒。關閉 App 資料授權時，提醒只使用公開資訊。";
 "show_onboarding_again" = "再次顯示新手導覽";
 "show_ads_again" = "我想看廣告";
 "feedback_section" = "意見回饋";

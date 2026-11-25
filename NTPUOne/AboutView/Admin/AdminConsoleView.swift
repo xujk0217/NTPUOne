@@ -13,12 +13,25 @@ struct AdminConsoleView: View {
         NavigationStack {
             List {
                 Section("全體功能設定") {
-                    Toggle("顯示廣告", isOn: Binding(get: { features.adsEnabled }, set: { features.save(key: "adsEnabled", value: $0) }))
-                    Toggle("啟用 AI 助理", isOn: Binding(get: { features.aiEnabled }, set: { features.save(key: "aiEnabled", value: $0) }))
+                    Toggle("顯示廣告", isOn: Binding(get: { features.adsEnabled }, set: { features.saveAdsEnabled($0) }))
                     if features.saving { ProgressView("正在更新") }
                     if let error = features.error { Text(error).font(.caption).foregroundStyle(.red) }
-                    Text("設定會套用於支援此功能的新版本；離線裝置會在恢復連線後更新。") .font(.caption).foregroundStyle(.secondary)
                 }.disabled(!features.available || features.saving)
+                Section {
+                    ForEach(AIDistributionChannel.allCases, id: \.self) { channel in
+                        Toggle(isOn: Binding(
+                            get: { features.aiEnabled(for: channel) },
+                            set: { features.saveAIEnabled($0, for: channel) }
+                        )) {
+                            Text(channel.title)
+                        }
+                    }
+                } header: {
+                    Text("AI 助理")
+                } footer: {
+                    Text("支援分流的版本會依安裝來源套用設定。舊版若支援 AI 開關，仍使用正式版設定。離線裝置會在恢復連線後更新。")
+                }
+                .disabled(!features.available || features.saving)
                 Section("交流區管理") {
                     NavigationLink {
                         CommunityAdminView()
